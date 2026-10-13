@@ -153,13 +153,14 @@ describe("open_part, decompressed", () => {
     expect(surfaceOf(partPane)).not.toBe(surfaceOf("a"));
     expect(sessionOn(tools, surfaceOf("a")).activeIdentifier).toBeUndefined();
 
-    const finding = (await call("finding", { document: part, offset: "0x4", length: 4, text: "t" }))
-      .json;
-    expect(member(member(finding, "from_part"), "exact")).toBe(false);
-    expect(member(member(finding, "range"), "start")).toBe(
-      member(member(opened, "source"), "start")
-    );
-    expect(member(member(finding, "range"), "end")).toBe(member(member(opened, "source"), "end"));
+    // An annotation on bytes the file holds only compressed stays in the decompressed bytes, not
+    // on the whole section they came out of.
+    const annotation = (
+      await call("annotate", { document: part, offset: "0x4", length: 4, title: "t" })
+    ).json;
+    expect(member(member(annotation, "from_part"), "exact")).toBe(false);
+    expect(member(annotation, "range")).toBeUndefined();
+    expect(member(member(annotation, "decoded"), "codecs")).toEqual(["LZMA"]);
   });
 });
 

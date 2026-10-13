@@ -167,8 +167,8 @@ describe("the details of a call", () => {
     const connection = service.connect(() => undefined);
     connection.receive(
       encodeUtf8(
-        '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"mark","arguments":' +
-          '{"offset":"0x10","length":64,"label":"Model","related_to":["m1","m2"]}}}\n'
+        '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"annotate","arguments":' +
+          '{"offset":"0x10","length":64,"title":"Model","related_to":["a1","a2"]}}}\n'
       )
     );
     await connection.waitUntilIdle();
@@ -176,17 +176,19 @@ describe("the details of a call", () => {
     if (record === undefined) throw new Error("the call is not logged");
 
     const shown = new Map(detailFields(record).map((one) => [one.label, one.value]));
-    expect(shown.get("Result")).toBe("No file is open in ByteRipper.");
+    expect(shown.get("Result")).toBe(
+      "No annotation a1. Call `annotations` for the ones there are."
+    );
     expect(argumentsText(record)).toBe(
       [
         "{",
-        '  "label": "Model",',
         '  "length": 64,',
         '  "offset": "0x10",',
         '  "related_to": [',
-        '    "m1",',
-        '    "m2"',
-        "  ]",
+        '    "a1",',
+        '    "a2"',
+        "  ],",
+        '  "title": "Model"',
         "}",
       ].join("\n")
     );

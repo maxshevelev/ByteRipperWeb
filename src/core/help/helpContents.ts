@@ -40,6 +40,7 @@ export const HELP_SECTIONS: readonly HelpSectionShape[] = [
       TOPIC.bookmarks,
       TOPIC.segments,
       TOPIC.fragments,
+      TOPIC.notes,
     ],
   },
   {

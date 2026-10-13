@@ -51,7 +51,7 @@ export type PatternMenuRow =
  * rule either way — "ignore case" is a fact, not the absence of one. Hex has no
  * case, and says nothing about it.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternItem
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternItem
  */
 export function searchFlags(search: Pick<MenuSearch, "encoding" | "caseSensitive">): string {
   if (search.encoding === "hex") return encodingTitle(search.encoding);
@@ -62,8 +62,8 @@ export function searchFlags(search: Pick<MenuSearch, "encoding" | "caseSensitive
  * The rows, in upstream's order: Recent Queries, then Save Search Pattern and
  * Clear Recents, then the saved patterns by name, then Manage Search Patterns….
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.rebuildPatternMenu
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.command
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.rebuildPatternMenu
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.command
  */
 export function patternMenuRows(options: {
   readonly recents: readonly MenuSearch[];
@@ -75,7 +75,7 @@ export function patternMenuRows(options: {
    * dialog mentions is a silent state: the library has stopped syncing and
    * stopped being editable, and the bar is where the user actually is.
    *
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.manageItem
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.manageItem
    */
   readonly problem?: string | undefined;
 }): PatternMenuRow[] {
@@ -86,7 +86,7 @@ export function patternMenuRows(options: {
     for (const [index, search] of recents.entries()) rows.push(entryRow(search, "recent", index));
     rows.push({ kind: "separator", key: "after-recents" });
   }
-  // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.validateMenuItem
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.validateMenuItem
   rows.push({
     kind: "command",
     key: "addToFavorites",
@@ -115,7 +115,7 @@ export function patternMenuRows(options: {
     }
   }
   rows.push({ kind: "separator", key: "before-manage" });
-  // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.manageItem
+  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.manageItem
   rows.push({
     kind: "command",
     key: "manageFavorites",

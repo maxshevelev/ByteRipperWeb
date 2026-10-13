@@ -1202,6 +1202,24 @@
 "Follow New Requests" = "Neuen Anfragen folgen";
 "Let agents connect to ByteRipper" = "Agenten die Verbindung mit ByteRipper erlauben";
 "Let agents edit open files" = "Agenten das Ändern geöffneter Dateien erlauben";
+"Add Annotation" = "Anmerkung hinzufügen";
+"Add Annotation…" = "Anmerkung hinzufügen…";
+"Annotations" = "Anmerkungen";
+"Could not add the annotation" = "Die Anmerkung konnte nicht hinzugefügt werden";
+"Dumps" = "Dumps";
+"Edit Annotation" = "Anmerkung bearbeiten";
+"Edit this annotation" = "Titel und Erläuterung dieser Anmerkung bearbeiten";
+"Made by the agent" = "Vom Agenten angelegt";
+"Related Annotations: %1$@" = "Zugehörige Anmerkungen: %1$@";
+"Remove Annotation" = "Anmerkung entfernen";
+"Remove this annotation" = "Diese Anmerkung entfernen";
+"Show in UEFI Structure" = "In UEFI-Struktur zeigen";
+"The annotation is drawn over the selected bytes and listed in the Annotations panel." = "Die Anmerkung wird um die ausgewählten Bytes gezeichnet und im Anmerkungsbereich aufgeführt.";
+"The file is not open" = "Die Datei ist nicht geöffnet";
+"The file is open" = "Die Datei ist geöffnet";
+"The title and the note change; the place stays." = "Titel und Erläuterung ändern sich; die Stelle bleibt dieselbe.";
+"This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of." = "Dieser Knoten hat hier keine Stelle in der Datei, an der eine Anmerkung angebracht werden kann. Ein Knoten in einem komprimierten Abschnitt eines Fragments wird aus dem Baum der Datei annotiert, aus der das Fragment stammt.";
+"“%1$@” has been moved or deleted since the annotation was made." = "„%1$@“ wurde verschoben oder gelöscht, nachdem die Anmerkung angelegt wurde.";
 "Start ByteRipper when an agent connects" = "ByteRipper starten, wenn sich ein Agent verbindet";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Eingeschaltet erlaubt die Konfiguration unten dem Agentenprogramm, ByteRipper zu starten, wenn der Agent es braucht und es nicht geöffnet ist. Ausgeschaltet erreicht der Agent ByteRipper nur, solange es geöffnet ist, und ein beendetes ByteRipper bleibt beendet. Nach einer Änderung die Konfiguration erneut in das Agentenprogramm kopieren.";
 "Log" = "Protokoll";
@@ -1222,11 +1240,9 @@
 "menu|Window" = "Fenster";
 "none" = "keine";
 "Agent: %1$@" = "Agent: %1$@";
-"Related Marks: %1$@" = "Zugehörige Markierungen: %1$@";
 "Answers" = "Antworten";
 "Average" = "Durchschnitt";
 "Calls" = "Aufrufe";
-"Dumps and Findings" = "Dumps und Befunde";
 "Edits" = "Änderungen";
 "Edits a File" = "Ändert eine Datei";
 "Files and View" = "Dateien und Ansicht";
@@ -1242,17 +1258,6 @@
 "Title" = "Titel";
 "Tool Panels" = "Werkzeugbereiche";
 "Description" = "Beschreibung";
-"Clear Marks" = "Alle Markierungen entfernen";
-"Label" = "Bezeichnung";
-"Mark" = "Markierung";
-"Marks" = "Markierungen";
-"Remove Mark" = "Markierung entfernen";
-"Clear Findings" = "Alle Befunde entfernen";
-"Finding" = "Befund";
-"Findings" = "Befunde";
-"What was found" = "Was gefunden wurde";
-"Where" = "Wo";
-"node %1$@" = "Knoten %1$@";
 
 /* Wörter, die die macOS-Ausgabe nicht hat, weil sie die Sache nicht hat: Sichern
    gegenüber Laden, die Weigerungen des Browsers, das Fragment-Dock, der
@@ -1523,3 +1528,6 @@
 "The copy of the UUID's last six bytes does not read as the UUID's last six. It is a copy, not a checksum: it went stale when the UUID was changed after." = "Die Kopie der letzten sechs Bytes der UUID liest sich nicht wie die letzten sechs Bytes der UUID. Es ist eine Kopie, keine Prüfsumme: sie ist veraltet, weil die UUID später geändert wurde.";
 "The copy of the UUID's last six bytes is erased. It is a copy, not a checksum, so nothing checks wrong because of it." = "Die Kopie der letzten sechs Bytes der UUID ist gelöscht. Es ist eine Kopie, keine Prüfsumme, deshalb meldet keine Prüfung wegen ihr einen Fehler.";
 "Product name" = "Produktname";
+"Annotations not seen yet" = "Noch nicht angesehene Anmerkungen";
+"The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
+"“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";

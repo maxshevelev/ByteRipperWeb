@@ -13,9 +13,9 @@ import type { PatternMenuRow } from "@/ui/search/patternMenu";
  * was chosen.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternField
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuHeader
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuRowSize
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.menuFlagSize
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuHeader
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuRowSize
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.menuFlagSize
  * @upstream-differs a combobox with a listbox of rows, rather than an NSMenu copied from a template
  */
 export function SearchField({
@@ -222,7 +222,7 @@ export function SearchField({
  * flags` for a recent. The flags are grey and a size down — they say how the
  * pattern is searched, not what is searched for.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternItem
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternItem
  */
 function EntryRow({ row }: { readonly row: Extract<PatternMenuRow, { kind: "entry" }> }) {
   return (

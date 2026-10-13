@@ -110,17 +110,21 @@ Recorded against: Claude Code 2.1.292 (modern; `RecordedClientTests`).
 | `reveal` | `offset`; `length` (default 0); `select` (default: length > 0) | `document`, `shown` (range), `selected`. A navigation step. |
 | `open_panel` | `module` (`zonesketch`, `fit`, `uefi-structure`, `me-analyzer` — the last part of the module's identifier) | `document`, `module`, `panel`, `was_open`. A navigation step. Refused while a sheet is up. |
 
-## Marks
+## Annotations
 
 | Tool | Arguments | Answer |
 |---|---|---|
-| `mark` | `offset`, `length` (≥ 1), `label` (≤ 80 characters); `note` (≤ 600); `related_to` (mark ids) | `id` (`m1`, `m2`… one counter for the app), `document`, `range`, `label`, `note`, `related_to`. Does not move the view. |
-| `unmark` | `ids`, or `document`, or `all: true` | `removed[]`; `not_found[]` for ids there were not. Relations to a removed mark go with it. |
-| `marks` | `document` (default: every document); `limit` (50, ≤ 200); `after` | `marks[]`, each as `mark` answers; `total`. Paged (`next`, `after`). |
+| `annotate` | `title` (≤ 80 characters); `note` (≤ 600); `document` or `path`; `offset`, `length` (≥ 1, default 1), or `node` (with `node_offset`, `length` for a stretch of it); `related_to` (annotation ids); `reveal` | `id` (`a1`, `a2`… one counter for the app), `path` or `file`, `document` while open, `range`, `node`, `decoded` (`node`, `range`, `codecs`) for a place in decompressed or decoded bytes, `label`, `note`, `related_to`. In a part: kept in the file it came out of — the same bytes through every codec that keeps offsets, else in the part's decoded bytes — with `from_part` (`document`, `range`, `exact`). |
+| `remove_annotations` | `ids`, or `document`, or `path`, or `all: true` | `removed[]`; `not_found[]` for ids there were not. Relations to a removed one go with it. |
+| `annotations` | `document` or `path` (default: every file); `limit` (50, ≤ 200); `after` | `annotations[]`, oldest first, each as `annotate` answers, `author: "person"` for one made by hand; `total`. Paged (`next`, `after`). |
 
-A mark lives on its document's pane: drawn dashed in the agent's colour over
-the dump, its label and note shown under the pointer, listed in the Agent
-window. It goes with `unmark`, the window's buttons, or its document.
+An annotation belongs to its file, not to a pane: drawn dashed in the agent's
+colour (the person's in theirs) over the dump wherever the file is on screen —
+in a pane or a part that keeps its addresses, or in the fragment panel of the
+decoded bytes it lies in — its title and note shown under the pointer, listed in
+the Annotations panel. A file on disk is known by its name, size and date (and
+its path, where the shell read it by one), so the annotation is drawn again when
+the file is opened; one on a document never saved goes with that document.
 
 ## Many dumps
 
@@ -130,12 +134,11 @@ window. It goes with `unmark`, the window's buttons, or its document.
 | `close_dump` | `document` | `closed`. Refuses a document in a tab. |
 | `show` | `document`; `offset`, `length` | `document` (on screen), `shown`, `replaces` (the background id it replaced). Opens a new tab, or brings forward the tab that has the file. |
 | `survey` | `folder` (+ `recursive`) or `paths`; `tool` (one that takes `document`); `arguments`; `group_by` (dotted path, `-1` for the last element); `limit` (20, ≤ 100); `after` | `files`, `groups_total`, `groups[]` (`value`, `count`, `files` — ten at most; the largest first), `failed[]` (`file`, `error`). Progress per file. At most 200 files. Paged (`next`, `after`): a page after the first is cut from the same run, never a new one; a group whose value is too large alone gives the start of its JSON text. |
-| `finding` | `text`; `document` or `path`; `offset`, `length`, `node` | the finding: `id` (`f1`…), `path`, `range`, `node`, `text`. A finding in a part is recorded in the file on disk it came out of — the same bytes through every codec that keeps offsets, else the source range — with `from_part` (`document`, `range`, `exact`). |
-| `findings` | `limit` (50, ≤ 200); `after` | `findings[]`, oldest first; `total`. Paged (`next`, `after`). |
 
 A background document is answered about by every tool that reads — `read`,
 `documents`, the module queries — and refused, with `show` named, by every
-tool that shows: `focus`, `reveal`, `mark`, `open_panel`, panel actions.
+tool that shows: `focus`, `reveal`, `open_panel`, panel actions. `annotate` takes
+it: the annotation belongs to the file, and is drawn once it is shown.
 
 ## Naming a document and a node to the person
 

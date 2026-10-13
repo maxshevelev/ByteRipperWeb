@@ -136,6 +136,7 @@ import { SingleFileDrop } from "@/ui/drag/SingleFileDrop";
 import { FragmentPanels } from "@/ui/fragments/FragmentPanels";
 import { usePartLink } from "@/ui/fragments/usePartLink";
 import { MinimapPanel } from "@/ui/minimap/MinimapPanel";
+import { NoteFormDialog } from "@/ui/notes/NoteFormDialog";
 import { HexPane } from "@/ui/pane/HexPane";
 import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
 import { scrollLink } from "@/ui/pane/scrollLink";
@@ -2508,6 +2509,7 @@ export function AppShell() {
       {/* The window's own answer to what just went wrong, where upstream puts an
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
+      <NoteFormDialog />
       <UpdateDialogs />
       <AboutDialog />
       {/* A long update holds the window while it is worked out, as upstream's

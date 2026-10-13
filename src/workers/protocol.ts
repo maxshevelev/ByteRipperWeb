@@ -622,6 +622,7 @@ export interface AgentUefiRequest {
   readonly kind: "agentUefi";
   readonly id: JobId;
   readonly query:
+    | "uefi_annotation"
     | "uefi_tree"
     | "uefi_node"
     | "uefi_find"
@@ -668,6 +669,7 @@ export type FirmwareWorkerRequest =
   | FirmwareLenovoReadersRequest
   | FirmwareNodeAtOffsetRequest
   | FirmwareContentSearchRequest
+  | FirmwareReachRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
   | FirmwareAddressesRequest
@@ -1006,6 +1008,22 @@ export interface FirmwareContentSearchResponse {
   readonly problem?: string | undefined;
 }
 
+/**
+ * Opens the branches down to each of `paths`, so the panel's tree holds the nodes an annotation
+ * names; the whole tree comes back, as for a node at an offset.
+ */
+export interface FirmwareReachRequest {
+  readonly kind: "firmwareReach";
+  readonly id: JobId;
+  readonly paths: readonly (readonly number[])[];
+}
+
+export interface FirmwareReachResponse {
+  readonly kind: "firmwareReach";
+  readonly id: JobId;
+  readonly roots: readonly WireNode[];
+}
+
 export interface FirmwareNodeAtOffsetResponse {
   readonly kind: "firmwareNodeAtOffset";
   readonly id: JobId;
@@ -1120,6 +1138,7 @@ export type FirmwareWorkerResponse =
   | FirmwareLenovoReadersResponse
   | FirmwareNodeAtOffsetResponse
   | FirmwareContentSearchProgress
+  | FirmwareReachResponse
   | FirmwareContentSearchResponse
   | FirmwareRepairResponse
   | FirmwareRebuildProgress

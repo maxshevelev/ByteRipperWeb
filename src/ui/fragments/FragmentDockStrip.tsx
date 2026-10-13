@@ -56,7 +56,7 @@ export interface DockItem {
    *
    * @web-only upstream's book and Agent are windows and never reach a dock
    */
-  readonly kind?: "part" | "help" | "agent";
+  readonly kind?: "part" | "help" | "agent" | "notes";
   /**
    * For the Agent's pill: whether an agent is connected, which its glyph says as the toolbar
    * button's does — the corners filled.
@@ -64,6 +64,14 @@ export interface DockItem {
    * @web-only upstream's Agent is a window and never reaches a dock
    */
   readonly connected?: boolean;
+  /**
+   * For the Annotations pill: how many of the agent's annotations were made while it was out of
+   * view, counted in the agent's hue.
+   *
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.count
+   * @upstream-differs on the dock's pill, where upstream badges the toolbar's Annotations button
+   */
+  readonly unseen?: number | undefined;
 }
 
 /**
@@ -100,6 +108,12 @@ function FragmentPill({
       >
         {item.kind === "help" ? (
           <HelpGlyph className="fragment-pill-glyph" />
+        ) : item.kind === "notes" ? (
+          // Upstream's `note.text`.
+          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 1.5h10v13H3Z" />
+            <path d="M5.5 5h5M5.5 8h5M5.5 11h3" />
+          </svg>
         ) : item.kind === "agent" ? (
           // The toolbar button's own glyph, so the pill is recognisably what that button opened.
           <span className="fragment-pill-glyph fragment-pill-icon">
@@ -114,6 +128,11 @@ function FragmentPill({
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
+        {item.unseen !== undefined && item.unseen > 0 ? (
+          <span className="fragment-pill-unseen" title={L("Annotations not seen yet")}>
+            {item.unseen}
+          </span>
+        ) : null}
         {/* A dot, not a word: the pill has room for a name and no more. */}
         {item.hasChanges ? (
           <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")}>
@@ -121,16 +140,19 @@ function FragmentPill({
           </span>
         ) : null}
       </button>
-      <CloseButton
-        label={
-          item.kind === "help"
-            ? L("Close the help")
-            : item.kind === "agent"
-              ? L("Close the Agent")
-              : L("Close %1$@", item.title)
-        }
-        onClick={onClose}
-      />
+      {/* The Annotations panel has no ✕: it is there while there is an annotation. */}
+      {item.kind === "notes" ? null : (
+        <CloseButton
+          label={
+            item.kind === "help"
+              ? L("Close the help")
+              : item.kind === "agent"
+                ? L("Close the Agent")
+                : L("Close %1$@", item.title)
+          }
+          onClick={onClose}
+        />
+      )}
     </li>
   );
 }

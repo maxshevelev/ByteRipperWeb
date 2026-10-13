@@ -37,8 +37,8 @@ export interface AgentToolGroup {
 /** @upstream ByteRipperApp/Agent/AgentToolCatalogue.swift#AgentToolGroup */
 export const HOST_GROUPS = {
   files: { key: "files", title: () => L("Files and View"), isEdits: false },
-  marks: { key: "marks", title: () => L("Marks"), isEdits: false },
-  dumps: { key: "dumps", title: () => L("Dumps and Findings"), isEdits: false },
+  annotations: { key: "annotations", title: () => L("Annotations"), isEdits: false },
+  dumps: { key: "dumps", title: () => L("Dumps"), isEdits: false },
   comparison: { key: "comparison", title: () => L("Comparison"), isEdits: false },
   search: { key: "search", title: () => L("Search"), isEdits: false },
   edits: { key: "edits", title: () => L("Edits"), isEdits: true },
@@ -46,8 +46,7 @@ export const HOST_GROUPS = {
 } as const satisfies Record<string, AgentToolGroup>;
 
 /**
- * What a tool does: reads, changes what is on screen (the view, a mark, a finding), or changes a
- * file.
+ * What a tool does: reads, changes what is on screen (the view, an annotation), or changes a file.
  *
  * @upstream ByteRipperApp/Agent/AgentToolCatalogue.swift#AgentToolKind
  * @upstream ByteRipperApp/Agent/AgentToolCatalogue.swift#AgentToolKind.title

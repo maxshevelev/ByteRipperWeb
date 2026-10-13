@@ -8,6 +8,7 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
+import { agentService } from "@/state/agent/agentService";
 import {
   addBookmarkAtOffset,
   deleteBookmarkAtOffset,
@@ -15,6 +16,7 @@ import {
 } from "@/state/bookmarkEditStore";
 import { bookmarkAt, marksFor } from "@/state/bookmarksStore";
 import { askFirmwarePart } from "@/state/firmwareStore";
+import { askNote } from "@/state/noteFormStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentSource } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
@@ -560,6 +562,14 @@ function selectionItems(
     },
     { label: L("Fill Selection with…"), onSelect: () => actions.onFill(pane) },
     { label: L("Delete Bytes…"), onSelect: () => actions.onDeleteBytes(pane), destructive: true },
+    // A note of the person's own on the selected bytes.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.addSelectionMenuItems
+    { kind: "separator" },
+    {
+      // help: menu.offset.note
+      label: L("Add Annotation…"),
+      onSelect: () => addNoteToSelection(pane, start, end),
+    },
   ];
 }
 
@@ -731,4 +741,24 @@ async function copySelection(slot: PaneState, actions: PaneMenuActions): Promise
  */
 function copyText(text: string): Promise<boolean> {
   return writePlainText(text);
+}
+
+/**
+ * Offset menu ▸ Add Annotation…: asks for a title and a note and puts them on the pane's
+ * selection.
+ *
+ * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.addNoteToSelection
+ */
+export function addNoteToSelection(pane: PaneId, start: number, end: number): void {
+  if (end <= start) return;
+  askNote({
+    message: L("Add Annotation"),
+    information: L(
+      "The annotation is drawn over the selected bytes and listed in the Annotations panel."
+    ),
+    button: L("Add"),
+    title: "",
+    note: "",
+    done: (title, note) => void agentService.annotationTools.addNote(title, note, pane, start, end),
+  });
 }

@@ -29,7 +29,8 @@ export function DockPanelControls({
 }: {
   /** What the ✕ closes, for the tooltip and a screen reader. */
   readonly closeLabel: string;
-  readonly onClose: () => void;
+  /** Closes the panel; a panel that folds and never closes — the Annotations — has none. */
+  readonly onClose: (() => void) | undefined;
   /** Folds the panel into its pill. A pane of the workspace has none, and passes nothing. */
   readonly onCollapse?: (() => void) | undefined;
 }) {
@@ -66,7 +67,7 @@ export function DockPanelControls({
           </svg>
         </button>
       )}
-      <CloseButton label={closeLabel} onClick={onClose} />
+      {onClose === undefined ? null : <CloseButton label={closeLabel} onClick={onClose} />}
     </>
   );
 }
@@ -95,7 +96,7 @@ export function DockPanelHeader({
   /** The panel's own controls, between the name and the marks. */
   readonly children?: ReactNode;
   readonly closeLabel: string;
-  readonly onClose: () => void;
+  readonly onClose: (() => void) | undefined;
 }) {
   const host = useContext(PaneHeaderHostContext);
   const header = (

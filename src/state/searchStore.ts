@@ -121,7 +121,7 @@ export interface SearchState {
    * and by a search — from then on the field's own text, or the history, is the
    * newer statement of what to look for.
    *
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stagedPattern
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.stagedPattern
    */
   readonly stagedPattern: SelectionFindPattern | undefined;
 }
@@ -132,7 +132,7 @@ const SMART_STORAGE_KEY = "byteripper.smartSearch";
 /**
  * On unless the user has turned it off.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.storedSmartSearch
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.storedSmartSearch
  */
 function storedSmart(): boolean {
   try {
@@ -1005,7 +1005,7 @@ function adopt(encoding: SearchEncoding | undefined): void {
  * searched for. Text encodings are left alone: there the field holds the string
  * itself, not a transcription of bytes.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.normalizeHexText
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.normalizeHexText
  */
 export function hexFieldText(query: string, encoding: SearchEncoding): string {
   if (encoding !== "hex") return query;
@@ -1020,7 +1020,7 @@ let searchToRecord: string | undefined;
  * The search that was started found something, so it is worth offering again.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.searchToRecord
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchToRecord
  */
 function recordFoundSearch(): void {
   const query = searchToRecord;
@@ -1049,7 +1049,7 @@ function recordFoundSearch(): void {
  * this the text in front of the user, or the history, is the newer statement of
  * what to look for. It starts nothing — a search starts on Return.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.controlTextDidChange
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
  */
 function patternReplaced(query: string, patch: Partial<SearchState>): void {
@@ -1073,7 +1073,7 @@ function patternReplaced(query: string, patch: Partial<SearchState>): void {
  * clears and the matches go, so nothing on screen describes a pattern that is
  * no longer in the field. It starts nothing: a search starts on Return.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.controlTextDidChange
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  */
 export function editQuery(query: string): void {
   // Typed over: a pattern a selection staged is not about this text — the text
@@ -1098,7 +1098,7 @@ export function editQuery(query: string): void {
  * they want it matched.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stage
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.applyStaged
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.applyStaged
  * @upstream-differs `applyStaged` is folded in: the web field reads the store,
  * so writing the text and the encoding is the same one update
  */
@@ -1159,13 +1159,13 @@ export async function useSelectionForFind(): Promise<void> {
  * Return; a complaint about the text no longer stands, since the same text
  * means something else now.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.encodingChanged
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.encodingChanged
  */
 export function setSearchEncoding(encoding: SearchEncoding): void {
   searchStore.update((state) => ({ ...state, encoding, problem: undefined }));
 }
 
-/** @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.caseToggled */
+/** @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseToggled */
 export function setCaseSensitive(caseSensitive: boolean): void {
   searchStore.update((state) => ({ ...state, caseSensitive }));
   try {
@@ -1178,7 +1178,7 @@ export function setCaseSensitive(caseSensitive: boolean): void {
 /**
  * Forgets the recent queries.
  *
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.clearRecents
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.clearRecents
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.clear
  */
 export function clearRecents(): void {

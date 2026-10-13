@@ -24,7 +24,7 @@ export const DEFAULT_MAX_RESULTS = 1000;
  * A search asked for no bytes at all: nothing to look for is a mistake in the
  * caller, not an answer of "nowhere".
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchError.emptyPattern
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.emptyPattern
  */
 export class SearchPatternEmpty extends Error {
   constructor() {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findingColumns, logColumns, markColumns, toolColumns } from "@/ui/agent/AgentTableHead";
+import { logColumns, toolColumns } from "@/ui/agent/AgentTableHead";
 
 /**
  * Which column of each of the Agent window's tables gives way with the panel: one, the one with the
@@ -9,16 +9,13 @@ describe("the column that takes what the window adds", () => {
   const growing = (columns: readonly { readonly id: string; readonly grows?: boolean }[]) =>
     columns.filter((one) => one.grows === true).map((one) => one.id);
 
-  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLastColumnTakesWhatTheWindowAddsInMarksAndTools
-  it("is the last in the Marks and Tools lists: Note and Last Call", () => {
-    expect(growing(markColumns())).toEqual(["note"]);
-    expect(markColumns().at(-1)?.id).toBe("note");
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLastColumnTakesWhatTheWindowAddsInTools
+  it("is the last in the Tools list: Last Call", () => {
     expect(growing(toolColumns())).toEqual(["last"]);
     expect(toolColumns().at(-1)?.title).toBe("Last Call");
   });
 
-  it("is Arguments in the Log, and the finding's text in the Findings", () => {
+  it("is Arguments in the Log", () => {
     expect(growing(logColumns())).toEqual(["arguments"]);
-    expect(growing(findingColumns())).toEqual(["text"]);
   });
 });

@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type Json, jsonText, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { discardAnnotationsForTesting, drawnIn } from "@/state/agent/agentAnnotationStore";
 import { divided, runsOf } from "@/state/agent/agentDiffTools";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
-import { openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
+import { partsLinkedTo } from "@/state/partUpdate";
+import { openInPane, type PaneId, paneState, workspaceStore } from "@/state/workspaceStore";
 import type { ToolAgentPlace } from "@/tools/toolAgent";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
@@ -101,6 +103,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  discardAnnotationsForTesting();
   service.desk.background.closeAll();
   while (leave.length > 0) leave.pop()?.();
   workspaceStore.update((state) => ({
@@ -602,18 +605,19 @@ describe("a call that names the parent while the focus is on its part", () => {
   });
 });
 
-describe("finding", () => {
-  // A finding in a part that keeps the file's addresses lands on the same bytes of the file.
-  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAFindingInAPartLeadsToTheSameBytesOfTheFile
+describe("an annotation", () => {
+  // An annotation in a part that keeps the file's addresses lands on the same bytes of the file,
+  // and is drawn in both.
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAnAnnotationInAPartLeadsToTheSameBytesOfTheFile
   it("in a part leads to the same bytes of the file", async () => {
     open(zeros(0x1000));
     const opened = (await call("open_part", { offset: "0x800", length: "0x100" })).json;
     const finding = (
-      await call("finding", {
+      await call("annotate", {
         document: member(opened, "document") as string,
         offset: "0x10",
         length: 4,
-        text: "t",
+        title: "t",
       })
     ).json;
     expect(member(member(finding, "range"), "start")).toBe("0x810");
@@ -623,5 +627,10 @@ describe("finding", () => {
       start: "0x10",
       end: "0x14",
     });
+    const spans = (pane: PaneId) => drawnIn(pane).map((one) => [one.start, one.end]);
+    expect(spans("a")).toEqual([[0x810, 0x814]]);
+    const part = partsLinkedTo("a")[0];
+    if (part === undefined) throw new Error("the part should be open");
+    expect(spans(part)).toEqual([[0x10, 0x14]]);
   });
 });

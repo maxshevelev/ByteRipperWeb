@@ -56,17 +56,17 @@ export function focusFindInput(): void {
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.navControl
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.supportsCaseFolding
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUp
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpPatternField
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpEncodingPopup
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpCaseButton
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpSmartButton
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpPatternField
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpEncodingPopup
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpCaseButton
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.setUpSmartButton
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpCountLabel
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpNavControl
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setUpDoneButton
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.syncCaseButtonAppearance
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.syncSmartButtonAppearance
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.updateCaseButtonVisibility
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.smartToggled
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.syncCaseButtonAppearance
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.syncSmartButtonAppearance
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.updateCaseButtonVisibility
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.smartToggled
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.iconPointSize
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.countLabel
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.doneButton
@@ -171,7 +171,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           onEdit={editQuery}
           // A row of either list was picked: it runs, and records nothing in the history — the
           // history is what was typed.
-          // @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.patternPicked
+          // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternPicked
           onPicked={(search) => startSearch({ query: search.pattern, recordHistory: false })}
           onEscape={clearField}
           onKeep={setKeeping}

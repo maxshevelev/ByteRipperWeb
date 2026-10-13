@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { agentMarkTooltip } from "@/core/agent/agentMark";
+import { annotationTitles, drawnTooltip } from "@/core/agent/agentAnnotation";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
@@ -30,7 +30,7 @@ import {
 } from "@/render/hexGrid/hexGridRenderer";
 import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
-import { agentMarkStore, agentMarksFor } from "@/state/agent/agentMarkStore";
+import { agentAnnotationStore, drawnIn } from "@/state/agent/agentAnnotationStore";
 import {
   type BookmarkEditSession,
   bookmarkEditStore,
@@ -57,7 +57,13 @@ import { segmentsStore } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
-import { activeDecoder, decoderFor, isSlot, type PaneId } from "@/state/workspaceStore";
+import {
+  activeDecoder,
+  decoderFor,
+  isSlot,
+  type PaneId,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { zoneStore } from "@/state/zoneStore";
 import { EMPTY_ZONES } from "@/tools/zone";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
@@ -1522,11 +1528,29 @@ export function HexPane({
   // What an agent marked here, dashed in its own hue; the note is what the pointer shows over the
   // bytes (`trackMarkTip`).
   // @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkSpans
-  const agentMarks = agentMarksFor(paneId, useStore(agentMarkStore));
+  // The annotations on this pane's file — the agent's and the person's, each in its own hue —
+  // read again whenever they or the workspace change, since a part draws its file's.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.annotations
+  const annotationState = useStore(agentAnnotationStore);
+  const workspaceForAnnotations = useStore(workspaceStore);
+  // The workspace decides which file the pane holds, and which part of it: read through `drawnIn`.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the workspace is read through `drawnIn`
+  const agentMarks = useMemo(
+    () => drawnIn(paneId, annotationState),
+    [paneId, annotationState, workspaceForAnnotations.panes, workspaceForAnnotations.parts]
+  );
   const agentMarksRef = useRef(agentMarks);
   agentMarksRef.current = agentMarks;
+  const annotationTitlesRef = useRef(annotationTitles(annotationState.items));
+  annotationTitlesRef.current = annotationTitles(annotationState.items);
   useEffect(() => {
-    rendererRef.current?.setAgentMarks(agentMarks);
+    rendererRef.current?.setAgentMarks(
+      agentMarks.map((one) => ({
+        start: one.start,
+        end: one.end,
+        person: one.annotation.author === "person",
+      }))
+    );
     scheduleDraw();
   }, [agentMarks, scheduleDraw]);
 
@@ -1678,7 +1702,11 @@ export function HexPane({
         const said =
           hit === undefined || column === undefined
             ? ""
-            : agentMarkTooltip(agentMarksRef.current, layout.byteOffset(hit.row, column));
+            : drawnTooltip(
+                agentMarksRef.current,
+                layout.byteOffset(hit.row, column),
+                annotationTitlesRef.current
+              );
         setMarkTip(undefined);
         setAgentTip(hit === undefined ? "" : said);
         return;

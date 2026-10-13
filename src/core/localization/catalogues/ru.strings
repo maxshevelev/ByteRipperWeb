@@ -1202,6 +1202,24 @@
 "Follow New Requests" = "Следить за новыми запросами";
 "Let agents connect to ByteRipper" = "Разрешить агентам подключаться к ByteRipper";
 "Let agents edit open files" = "Разрешить агентам изменять открытые файлы";
+"Add Annotation" = "Добавить заметку";
+"Add Annotation…" = "Добавить заметку…";
+"Annotations" = "Заметки";
+"Could not add the annotation" = "Не удалось добавить заметку";
+"Dumps" = "Дампы";
+"Edit Annotation" = "Изменить заметку";
+"Edit this annotation" = "Изменить заголовок и пояснение этой заметки";
+"Made by the agent" = "Заметка агента";
+"Related Annotations: %1$@" = "Связанные заметки: %1$@";
+"Remove Annotation" = "Удалить заметку";
+"Remove this annotation" = "Удалить эту заметку";
+"Show in UEFI Structure" = "Показать в Структуре UEFI";
+"The annotation is drawn over the selected bytes and listed in the Annotations panel." = "Заметка обводится на выделенных байтах и показывается в панели заметок.";
+"The file is not open" = "Файл не открыт";
+"The file is open" = "Файл открыт";
+"The title and the note change; the place stays." = "Меняются заголовок и пояснение; место остаётся прежним.";
+"This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of." = "У этого узла здесь нет места в файле, к которому можно привязать заметку. Узел внутри сжатой секции фрагмента размечается из дерева файла, из которого взят фрагмент.";
+"“%1$@” has been moved or deleted since the annotation was made." = "Файл «%1$@» перемещён или удалён после того, как была сделана заметка.";
 "Start ByteRipper when an agent connects" = "Запускать ByteRipper при подключении агента";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Если флажок установлен, настройка ниже позволяет программе агента запускать ByteRipper, когда он нужен агенту, а программа не открыта. Если снят, агент подключается к ByteRipper только пока тот открыт, а закрытый ByteRipper остаётся закрытым. После изменения флажка скопируйте настройку в программу агента заново.";
 "Log" = "Журнал";
@@ -1222,11 +1240,9 @@
 "menu|Window" = "Окно";
 "none" = "нет";
 "Agent: %1$@" = "Агент: %1$@";
-"Related Marks: %1$@" = "Связанные метки: %1$@";
 "Answers" = "Ответы";
 "Average" = "Среднее";
 "Calls" = "Вызовы";
-"Dumps and Findings" = "Дампы и находки";
 "Edits" = "Правка";
 "Edits a File" = "Изменяет файл";
 "Files and View" = "Файлы и вид";
@@ -1242,17 +1258,6 @@
 "Title" = "Заголовок";
 "Tool Panels" = "Панели инструментов";
 "Description" = "Описание";
-"Clear Marks" = "Удалить все метки";
-"Label" = "Подпись";
-"Mark" = "Метка";
-"Marks" = "Метки";
-"Remove Mark" = "Удалить метку";
-"Clear Findings" = "Удалить все находки";
-"Finding" = "Находка";
-"Findings" = "Находки";
-"What was found" = "Что найдено";
-"Where" = "Где";
-"node %1$@" = "узел %1$@";
 
 /* Слова, которых у macOS-версии нет, потому что нет самой вещи: Сохранить
    против Скачать, отказы браузера, док фрагментов, папка библиотеки в браузере.
@@ -1522,3 +1527,6 @@
 "The copy of the UUID's last six bytes does not read as the UUID's last six. It is a copy, not a checksum: it went stale when the UUID was changed after." = "Копия последних шести байтов UUID не читается как последние шесть байтов UUID. Это копия, а не контрольная сумма: она устарела, когда UUID был изменён позже.";
 "The copy of the UUID's last six bytes is erased. It is a copy, not a checksum, so nothing checks wrong because of it." = "Копия последних шести байтов UUID стёрта. Это копия, а не контрольная сумма, поэтому из-за неё ни одна проверка не показывает сбой.";
 "Product name" = "Название продукта";
+"Annotations not seen yet" = "Заметки, которые ещё не просмотрены";
+"The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Заметка отображается поверх байтов узла и перечисляется в панели «Заметки».";
+"“%1$@” is not open." = "Файл «%1$@» не открыт.";

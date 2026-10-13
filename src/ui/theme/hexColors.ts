@@ -89,6 +89,12 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark
    */
   agentMark: "--zone-agent",
+  /**
+   * The person's own annotations, told from the agent's by their hue.
+   *
+   * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.person
+   */
+  personMark: "--zone-person",
 };
 
 /** Reads the palette as it currently resolves on `element`. */

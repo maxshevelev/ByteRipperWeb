@@ -91,6 +91,7 @@ import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { NodeDetail } from "@/tools/toolDetail";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
 import type { RowRole } from "@/tools/toolRowMarks";
+import { annotationQuery } from "@/tools/uefi/agent/uefiAgentAnnotations";
 import { fixChecksumAnswer, uefiChecksums } from "@/tools/uefi/agent/uefiAgentChecksums";
 import { type FindInNodeParams, findInNode } from "@/tools/uefi/agent/uefiAgentFind";
 import { areasIn, locateIn, place, placesJson } from "@/tools/uefi/agent/uefiAgentLocator";
@@ -98,7 +99,7 @@ import { uefiNodeData } from "@/tools/uefi/agent/uefiAgentNodeData";
 import { runUefiAgentQuery, uefiNodeReadsLenovoDMI } from "@/tools/uefi/agent/uefiAgentQueries";
 import { refs } from "@/tools/uefi/agent/uefiAgentRefs";
 import { regionScan } from "@/tools/uefi/agent/uefiAgentRegions";
-import { type AgentTree, repairsOver } from "@/tools/uefi/agent/uefiAgentTree";
+import { type AgentTree, reachable, repairsOver } from "@/tools/uefi/agent/uefiAgentTree";
 import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { acerDMIRowText } from "@/tools/uefi/uefiAcerDMIDetail";
@@ -902,6 +903,16 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      // The branches down to the nodes an annotation names, opened for the panel's tree.
+      case "firmwareReach": {
+        if (reader !== undefined) {
+          const tree = agentTreeHere(reader, []);
+          for (const path of request.paths) reachable(tree, path);
+        }
+        post({ kind: "firmwareReach", id: request.id, roots: roots.map((root) => wireNode(root)) });
+        return;
+      }
+
       case "firmwareAddresses": {
         if (reader === undefined) {
           post({ kind: "firmwareAddresses", id: request.id, addressDiff: undefined });
@@ -1075,6 +1086,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
                 return { answer: fixChecksumAnswer(tree, args) };
               case "uefi_checksums":
                 return { answer: uefiChecksums(tree, args, context) };
+              // Where an annotation's place is, and what it is called.
+              case "uefi_annotation":
+                return { answer: annotationQuery(tree, request.values) };
               case "region_scan":
                 return { answer: regionScan(tree, args, context) };
               case "uefi_find_bytes":

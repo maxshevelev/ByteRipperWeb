@@ -30,6 +30,7 @@ const itemsWished = new Map<PaneId, number>();
  * shown: a part opened from a Contents search match, its tree opened to the node the match is in.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.showItem
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showItem
  * @upstream-differs a wish kept beside the stores, as the top level's is, where upstream asks the
  * part's session once its panel is up
  */

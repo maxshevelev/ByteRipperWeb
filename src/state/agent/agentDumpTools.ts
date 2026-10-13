@@ -1,7 +1,6 @@
 import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import {
-  type AgentFinding,
   baseName,
   dumpFiles,
   isAbsolutePath,
@@ -21,38 +20,27 @@ import {
   throwIfCancelled,
   VIEW,
 } from "@/core/agent/agentTool";
-import { isObject, type Json, jsonText } from "@/core/agent/json";
-import { L } from "@/core/localization/localization";
+import { type Json, jsonText } from "@/core/agent/json";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
-import { fileSourceOfNode } from "@/state/agent/agentNodeSource";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
-import { showNotice } from "@/state/noticeStore";
-import { createStore } from "@/state/store";
 import { openInPane, paneState, type SlotId } from "@/state/workspaceStore";
 
 /**
  * Work across many dumps (`Design/PORT_AGENT.md`, "Many dumps"): opening a file by path with no
- * window, asking one question of a folder of them, putting one on screen, and leaving findings the
- * person can check by clicking.
+ * window, asking one question of a folder of them, and putting one on screen. What is found is
+ * annotated (`AgentAnnotationTools`), on each file that matches.
  *
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.desk
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.toolNamed
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.init
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.tools
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.findings
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.lastSurvey
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.nextFinding
- * @upstream-differs a file is put on screen in a free pane of the window — the web has no tabs — and the Agent window listens to the findings store, where upstream's `onChange` told it
+ * @upstream-differs a file is put on screen in a free pane of the window — the web has no tabs
  */
-
-/** What the Agent window's Findings page lists. @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.findings */
-export const agentFindingStore = createStore<{ readonly findings: readonly AgentFinding[] }>({
-  findings: [],
-});
 
 /** One survey's answers, grouped: what a page of it is cut from. @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun */
 interface SurveyRun {
@@ -71,7 +59,6 @@ export class AgentDumpTools {
   toolNamed: (name: string) => AgentTool | undefined = () => undefined;
   private readonly bridge: () => AgentBridge | undefined;
   private lastSurvey: SurveyRun | undefined;
-  private nextFinding = 1;
   private surveyCount = 0;
 
   constructor(desk: AgentDesk, bridge: () => AgentBridge | undefined) {
@@ -80,18 +67,7 @@ export class AgentDumpTools {
   }
 
   tools(): AgentTool[] {
-    return [
-      this.openDumpTool(),
-      this.closeDumpTool(),
-      this.showTool(),
-      this.surveyTool(),
-      this.findingTool(),
-      this.findingsTool(),
-    ];
-  }
-
-  get findings(): readonly AgentFinding[] {
-    return agentFindingStore.getSnapshot().findings;
+    return [this.openDumpTool(), this.closeDumpTool(), this.showTool(), this.surveyTool()];
   }
 
   // MARK: - open_dump / close_dump
@@ -223,7 +199,7 @@ export class AgentDumpTools {
    * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.openInNewTab
    * @upstream-differs a free pane of the window, where upstream opens a tab
    */
-  private openOnScreen(place: AgentPlace): AgentPlace {
+  openOnScreen(place: AgentPlace): AgentPlace {
     const held = place.state;
     if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
     const free = (["a", "b"] as const).find((slot: SlotId) => paneState(slot) === undefined);
@@ -426,192 +402,6 @@ export class AgentDumpTools {
     return found;
   }
 
-  // MARK: - Findings
-
-  private findingTool(): AgentTool {
-    return agentTool({
-      name: "finding",
-      title: "Record a finding",
-      description:
-        "Records one finding for the person to check: a sentence, and where it is — a document, or a " +
-        "file `path`, with an `offset` and `length` or a UEFI `node`. The Agent window lists findings; a " +
-        "double-click opens the file at that place. Use it for each claim a survey supports, so seven " +
-        "files out of fifty become seven lines the person can click. A finding in a part — a fragment " +
-        "panel, decompressed or decoded — is recorded in the file on disk the part came out of: at the " +
-        "same bytes where the part keeps the file's addresses, otherwise at the bytes the part was " +
-        "decoded from; the answer's `from_part` says where it was in the part.",
-      inputSchema: AgentSchema.object(
-        {
-          text: AgentSchema.string("What was found, in a sentence."),
-          document: AgentSchema.string("The document it is in."),
-          path: AgentSchema.string("Or the file it is in, by path."),
-          offset: AgentSchema.offset("Where in the file."),
-          length: AgentSchema.offset("How many bytes. Default 0."),
-          node: AgentSchema.string('Or the UEFI node it is about, e.g. "0.2.5".'),
-        },
-        ["text"]
-      ),
-      annotations: { readOnly: false, destructive: false, idempotent: false },
-      run: async (call) => jsonAnswer(await this.recordFinding(call.arguments)),
-    });
-  }
-
-  /** @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.recordFinding */
-  async recordFinding(args: AgentArguments): Promise<Json> {
-    const text = args.string("text").trim();
-    if (text === "") throw new AgentToolError("Argument `text` must say something.");
-    let file: string;
-    let path: string | undefined;
-    let identity: AgentFinding["identity"];
-    const offset = args.optionalOffset("offset");
-    let range: readonly [number, number] | undefined =
-      offset === undefined ? undefined : [offset, offset + (args.optionalOffset("length") ?? 0)];
-    let node = args.optionalString("node");
-    let fromPart: Json | undefined;
-    const given = args.optionalString("path");
-    if (given !== undefined) {
-      path = this.filePath(given);
-      const stat = await this.stat(path);
-      file = baseName(stat.path);
-      path = stat.path;
-      identity = { size: stat.size, modified: Math.floor(stat.modified) };
-    } else {
-      const place = this.desk.placeNamed(args.optionalString("document"));
-      let pane = place.pane;
-      if (pane !== undefined && paneState(pane)?.origin !== undefined) {
-        // A node of the part's own tree is named by the part's ids, which mean nothing in the
-        // file: it goes as its bytes.
-        if (node !== undefined) {
-          range = await fileSourceOfNode(pane, node);
-          node = undefined;
-        }
-        const answered: { [key: string]: Json } = { document: place.id };
-        if (range !== undefined) answered.range = rangeJson(range[0], range[1]);
-        // Out through every part to the file: byte for byte where the codec keeps the
-        // addresses, otherwise the bytes the part was decoded from.
-        let exact = true;
-        for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
-          if (paneState(origin.parent) === undefined) {
-            throw new AgentToolError(
-              `${place.named}'s parent is closed, so a finding could not lead back to it.`
-            );
-          }
-          const source = origin.sourceRange;
-          if (range !== undefined && origin.codec.keepsOffsets && exact) {
-            range = [source[0] + range[0], source[0] + range[1]];
-          } else {
-            range = source;
-            exact = false;
-          }
-          pane = origin.parent;
-          origin = paneState(pane)?.origin;
-        }
-        answered.exact = exact;
-        fromPart = answered;
-      }
-      const held = pane === undefined ? undefined : paneState(pane);
-      if (held === undefined || held.untitled) {
-        throw new AgentToolError(
-          `${place.named} is not a file on disk, so a finding could not lead back to it.`
-        );
-      }
-      file = held.file.name;
-      identity = { size: held.file.size, modified: held.file.lastModified };
-      const entry = pane === undefined ? undefined : this.desk.background.entryOf(pane);
-      path = entry?.path;
-    }
-    const finding: AgentFinding = {
-      id: `f${this.nextFinding}`,
-      text,
-      file,
-      path,
-      identity,
-      range: range === undefined ? undefined : { start: range[0], end: range[1] },
-      node,
-    };
-    this.nextFinding += 1;
-    agentFindingStore.update((state) => ({ findings: [...state.findings, finding] }));
-    const described = AgentDumpTools.describe(finding);
-    if (fromPart === undefined || !isObject(described)) return described;
-    return { ...described, from_part: fromPart };
-  }
-
-  private findingsTool(): AgentTool {
-    return agentTool({
-      name: "findings",
-      title: "List findings",
-      description:
-        "The findings recorded so far, oldest first. Pages: `limit` is a ceiling — a page also stops " +
-        'before the answer passes the size bound and then says `truncated: "size"`; pass `next` back ' +
-        "as `after` until it is null. A page asked for after the list changed is refused.",
-      inputSchema: AgentSchema.object({
-        limit: AgentSchema.limit(50, 200),
-        after: AgentSchema.after,
-      }),
-      annotations: READ_ONLY,
-      run: async (call) => {
-        const args = call.arguments;
-        const limit = args.limit(50, 200);
-        const all = this.findings;
-        const paging = new AgentPage(
-          args,
-          AgentPage.fingerprint([all.map((one) => one.id)]),
-          "The findings changed since that page; ask again without `after`."
-        );
-        return jsonAnswer(
-          paging.answer(
-            { total: all.length },
-            "findings",
-            all
-              .slice(paging.first, paging.first + limit)
-              .map((one) => AgentDumpTools.describe(one)),
-            all.length,
-            args.answerBound
-          )
-        );
-      },
-    });
-  }
-
-  /** @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.clearFindings */
-  clearFindings(): void {
-    agentFindingStore.update(() => ({ findings: [] }));
-  }
-
-  /**
-   * Opens the finding's file — the pane that has it, or a free one — and shows its place. What a
-   * double-click on its row does.
-   *
-   * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.show
-   */
-  async showFinding(finding: AgentFinding): Promise<void> {
-    let place = this.desk.places().find((one) => matches(one, finding) && one.isOnScreen);
-    if (place === undefined) {
-      try {
-        if (finding.path === undefined) {
-          throw new AgentToolError(
-            "The file is no longer open, and the agent gave no path for it."
-          );
-        }
-        const entry = await this.desk.background.open(finding.path);
-        const background = this.desk.places().find((one) => one.id === entry.id);
-        if (background === undefined) return;
-        place = this.openOnScreen(background);
-        this.desk.background.close(entry.pane);
-      } catch (error) {
-        showNotice("warning", [error instanceof Error ? error.message : String(error), L("Agent")]);
-        return;
-      }
-    }
-    const pane = place.onScreen();
-    agentShell.bringForward?.(pane);
-    const range = finding.range;
-    if (range === undefined || range.start > place.document.size) return;
-    recordJump(pane);
-    const end = Math.min(range.end, place.document.size);
-    await agentShell.reveal?.(pane, range.start, end, end > range.start);
-  }
-
   // MARK: - Helpers
 
   private requireBridge(): AgentBridge {
@@ -621,12 +411,12 @@ export class AgentDumpTools {
   }
 
   /** A path as given, refused unless it names a place on the machine. @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.fileURL */
-  private filePath(path: string): string {
+  filePath(path: string): string {
     if (!isAbsolutePath(path)) throw new AgentToolError(`\`${path}\` is not an absolute path.`);
     return path;
   }
 
-  private async stat(path: string): Promise<{ path: string; size: number; modified: number }> {
+  async stat(path: string): Promise<{ path: string; size: number; modified: number }> {
     const bridge = this.requireBridge();
     try {
       const stat = await bridge.file({ op: "stat", path });
@@ -636,32 +426,6 @@ export class AgentDumpTools {
       throw new AgentToolError(`Could not read ${path}: ${reasonOf(error)}`);
     }
   }
-
-  /** @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.json */
-  static describe(finding: AgentFinding): Json {
-    const entry: { [key: string]: Json } = {
-      id: finding.id,
-      file: finding.file,
-      text: finding.text,
-    };
-    if (finding.path !== undefined) entry.path = finding.path;
-    if (finding.range !== undefined)
-      entry.range = rangeJson(finding.range.start, finding.range.end);
-    if (finding.node !== undefined) entry.node = finding.node;
-    return entry;
-  }
-}
-
-/** Whether an open file is the one a finding is about. */
-function matches(place: AgentPlace, finding: AgentFinding): boolean {
-  const held = place.state;
-  if (held === undefined || held.untitled) return false;
-  if (held.file.name !== finding.file) return false;
-  const identity = finding.identity;
-  return (
-    identity === undefined ||
-    (held.file.size === identity.size && Math.abs(held.file.lastModified - identity.modified) < 2)
-  );
 }
 
 const reasonOf = (error: unknown): string =>

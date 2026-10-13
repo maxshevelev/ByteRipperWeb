@@ -222,6 +222,12 @@ export interface HexGridColors extends Record<InkRole, string> {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark
    */
   readonly agentMark: string;
+  /**
+   * The person's own annotations.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.personMark
+   */
+  readonly personMark: string;
 }
 
 /**
@@ -345,6 +351,8 @@ export class HexGridRenderer {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans
    */
   private agentMarks: readonly DrawnZone[] = [];
+  /** The person's own annotations, drawn as the agent's are in a hue of their own. */
+  private personMarks: readonly DrawnZone[] = [];
   private readonly zoneContourCache = new Map<string, ContourPoint[][]>();
   /** The find indicator's contour, kept for the match and the layout it was traced for. */
   private indicatorContours:
@@ -610,18 +618,29 @@ export class HexGridRenderer {
   }
 
   /**
-   * The ranges an agent marked. Repaints the rows the old and the new outlines reach.
+   * The annotated ranges, the agent's and the person's (`person`). Repaints the rows the old and
+   * the new outlines reach.
    *
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkSpans
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.byPerson
    */
-  setAgentMarks(marks: readonly { readonly start: number; readonly end: number }[]): void {
-    const next = marks.map((mark) => ({ start: mark.start, end: mark.end, focused: false }));
-    if (sameZones(this.agentMarks, next)) return;
-    for (const mark of [...this.agentMarks, ...next]) {
+  setAgentMarks(
+    marks: readonly { readonly start: number; readonly end: number; readonly person?: boolean }[]
+  ): void {
+    const zone = (mark: { readonly start: number; readonly end: number }) => ({
+      start: mark.start,
+      end: mark.end,
+      focused: false,
+    });
+    const agent = marks.filter((mark) => mark.person !== true).map(zone);
+    const person = marks.filter((mark) => mark.person === true).map(zone);
+    if (sameZones(this.agentMarks, agent) && sameZones(this.personMarks, person)) return;
+    for (const mark of [...this.agentMarks, ...this.personMarks, ...agent, ...person]) {
       const rows = contourRowSpan(mark.start, mark.end);
       this.dirty.invalidate(rows.first, rows.end);
     }
-    this.agentMarks = next;
+    this.agentMarks = agent;
+    this.personMarks = person;
   }
 
   /**
@@ -1528,6 +1547,9 @@ export class HexGridRenderer {
     for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
       this.fillContours(y, contours, config.colors.agentMark, ZONE_FILL_ALPHA);
     }
+    for (const { contours } of this.zonesAt(rowStart, this.personMarks)) {
+      this.fillContours(y, contours, config.colors.personMark, ZONE_FILL_ALPHA);
+    }
   }
 
   /**
@@ -1539,15 +1561,20 @@ export class HexGridRenderer {
   private paintAgentMarkOutlines(rowStart: number, y: number): void {
     const config = this.config;
     if (config === undefined) return;
-    for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
-      this.strokeContours(
-        y,
-        contours,
-        config.colors.agentMark,
-        PEER_CONTOUR_LINE_WIDTH,
-        ZONE_ALPHA,
-        AGENT_MARK_DASH
-      );
+    for (const [marks, colour] of [
+      [this.agentMarks, config.colors.agentMark],
+      [this.personMarks, config.colors.personMark],
+    ] as const) {
+      for (const { contours } of this.zonesAt(rowStart, marks)) {
+        this.strokeContours(
+          y,
+          contours,
+          colour,
+          PEER_CONTOUR_LINE_WIDTH,
+          ZONE_ALPHA,
+          AGENT_MARK_DASH
+        );
+      }
     }
   }
 

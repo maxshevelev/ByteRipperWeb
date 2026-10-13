@@ -89,7 +89,7 @@ export const sameFolding = (a: CaseFolding, b: CaseFolding): boolean =>
   a.kind === b.kind &&
   (a.kind !== "utf16" || b.kind !== "utf16" || a.littleEndian === b.littleEndian);
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchError */
+/** @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError */
 export type SearchFailure =
   /** The pattern resolved to no bytes — empty input, or empty hex. */
   | "emptyPattern"

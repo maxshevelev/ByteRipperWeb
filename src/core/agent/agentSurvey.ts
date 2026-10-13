@@ -115,27 +115,3 @@ export class SurveyGroups {
       .map((entry) => entry.group);
   }
 }
-
-/**
- * One thing an agent found, and where, for the person to check.
- *
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.id
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.url
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.range
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.node
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentFinding.text
- * @upstream-differs a file the page opened is known by its name, size and date as well as by its path, which only a file read by path has
- */
-export interface AgentFinding {
-  readonly id: string;
-  readonly text: string;
-  /** What the file is called. */
-  readonly file: string;
-  /** Where the file is on this machine, when the agent said or the file was read by path. */
-  readonly path: string | undefined;
-  /** What tells an open file apart from another of the same name. */
-  readonly identity: { readonly size: number; readonly modified: number } | undefined;
-  readonly range: { readonly start: number; readonly end: number } | undefined;
-  readonly node: string | undefined;
-}

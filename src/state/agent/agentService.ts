@@ -13,13 +13,13 @@ import {
 } from "@/core/agent/agentToolCatalogue";
 import { isObject } from "@/core/agent/json";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
+import { AgentAnnotationTools } from "@/state/agent/agentAnnotationTools";
 import { AgentDesk } from "@/state/agent/agentDesk";
 import { AgentDiffTools, placeJson } from "@/state/agent/agentDiffTools";
 import { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { AgentEditTools } from "@/state/agent/agentEditTools";
 import { AgentFindTools } from "@/state/agent/agentFindTools";
 import { AgentHostTools } from "@/state/agent/agentHostTools";
-import { AgentMarkTools } from "@/state/agent/agentMarkTools";
 import { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import { AgentRefsTools } from "@/state/agent/agentRefsTools";
 import {
@@ -124,10 +124,10 @@ export const AGENT_INSTRUCTIONS =
   "open in it and show places in them to the person. `documents` lists what is open, `focus` what the " +
   'person is looking at — what they mean by "this" or "here". Addresses and sizes are hex strings ' +
   '("0x7F3000") both ways; ranges are half-open. A list comes in pages: pass `next` back as `after` ' +
-  "until it is null. `reveal` points at what you are talking about, `mark` labels bytes as you explain " +
-  "them. `open_dump` reads a file by path without showing it, `survey` asks one tool's question of a " +
-  "folder of dumps, `finding` records a thing found for the person to check. `find_bytes` searches the " +
-  "bytes; the `uefi_` tools read a firmware image's structure. To the person, name a file or a node by its " +
+  "until it is null. `reveal` points at what you are talking about; `annotate` notes a place — what " +
+  "bytes are, or what you found — drawn over them and kept with the file. `open_dump` reads a file by " +
+  "path without showing it, `survey` asks one tool's question of a folder of dumps. `find_bytes` " +
+  "searches the bytes; the `uefi_` tools read a firmware image's structure. To the person, name a file or a node by its " +
   "`label`, never by an id (d1, 0.2.5). `open_part` opens a stretch or a node as " +
   "a part of its own, in a panel over the same window — decompressed, or a Lenovo LENV block decoded " +
   'with `part: "decoded"`; asking again raises the open one (`reused: true`). A part is a document to ' +
@@ -165,8 +165,12 @@ export class AgentService {
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.desk */
   readonly desk = new AgentDesk(() => this.bridge);
   readonly hostTools: AgentHostTools;
-  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.markTools */
-  readonly markTools: AgentMarkTools;
+  /**
+   * The agent's annotations, which the Annotations panel lists and clears too.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.annotationTools
+   */
+  readonly annotationTools: AgentAnnotationTools;
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.dumpTools */
   readonly dumpTools: AgentDumpTools;
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editTools */
@@ -203,8 +207,9 @@ export class AgentService {
     this.bridge = bridge;
     this.modules = modules;
     this.hostTools = new AgentHostTools(this.desk);
-    this.markTools = new AgentMarkTools(this.desk);
+
     this.dumpTools = new AgentDumpTools(this.desk, () => this.bridge);
+    this.annotationTools = new AgentAnnotationTools(this.desk, this.dumpTools);
     this.dumpTools.toolNamed = (name) => this.allTools().find((tool) => tool.name === name);
     this.editTools = new AgentEditTools(this.desk);
     this.editTools.isAllowed = () => this.store.getSnapshot().editsAllowed;
@@ -248,7 +253,7 @@ export class AgentService {
       tools.map((tool) => ({ tool: this.refreshing(tool), group, kind: kindOf(tool, group) }));
     const list = [
       ...entries(this.hostTools.tools(), HOST_GROUPS.files),
-      ...entries(this.markTools.tools(), HOST_GROUPS.marks),
+      ...entries(this.annotationTools.tools(), HOST_GROUPS.annotations),
       ...entries(this.dumpTools.tools(), HOST_GROUPS.dumps),
       ...entries(this.diffTools.tools(), HOST_GROUPS.comparison),
       ...entries([...this.findTools.tools(), ...this.refsTools.tools()], HOST_GROUPS.search),

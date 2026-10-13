@@ -82,6 +82,17 @@ export interface ToolContext {
    */
   readonly patternQuery: ToolPatternQuery;
   /**
+   * Add Annotation… on a node of the tool's tree: the form asks for a title, starting from the
+   * name the row shows, and a note, and the annotation goes on the node.
+   *
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.annotateNode
+   * @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.canAnnotate
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.annotateNode
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.canAnnotate
+   * @upstream-differs always there: the annotations are the page's, with or without an agent
+   */
+  readonly annotateNode: (nodeId: string, name: string) => void;
+  /**
    * What this session was handed as it started: what the last session of this
    * tool, on this file, decided was worth keeping — or nothing, which is what a
    * tool that keeps nothing is handed, and what a file that has just been

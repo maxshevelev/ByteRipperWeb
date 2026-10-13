@@ -26,6 +26,7 @@ import {
   firmwareStore,
   fixFirmwareChecksum,
   pathKey,
+  reachFirmwarePaths,
   readSpaceBytes,
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
@@ -34,6 +35,7 @@ import { takeOpensTopLevelRows, takeShowItemAt } from "@/state/opensTopLevelRows
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
+import { registerUefiPanelLink } from "@/state/uefiPanelLinks";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
   setContentQuery,
@@ -137,7 +139,7 @@ import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
-import type { WireNode } from "@/workers/protocol";
+import type { WireContentMatch, WireNode } from "@/workers/protocol";
 
 /**
  * UEFI Structure: the image as a tree, and what the node in focus is.
@@ -1454,6 +1456,52 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.goTo
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openContentMatch
    */
+  const goToMatch = (match: WireContentMatch, from: readonly WireNode[]) => {
+    const inFile =
+      match.space.length === 0
+        ? match.range
+        : match.node === undefined
+          ? undefined
+          : fileRangeOfPath(match.node, from);
+    if (match.node !== undefined && firmwareNodeAt(from, match.node) !== undefined) {
+      showRevealed(match.node, false);
+    }
+    if (inFile !== undefined) context.reveal(inFile[0], inFile[1], true);
+  };
+  const openMatch = (match: WireContentMatch, from: readonly WireNode[]) => {
+    if (match.decodedXORKey !== undefined) {
+      const node = match.node === undefined ? undefined : firmwareNodeAt(from, match.node);
+      if (node !== undefined) void openDecodedBlock(node, match.range);
+      return;
+    }
+    const section = match.section === undefined ? undefined : firmwareNodeAt(from, match.section);
+    const taken = section === undefined ? undefined : decompressedBody(section);
+    if (section === undefined || taken === undefined) return;
+    openDecompressed(section, taken, match.range);
+  };
+  // What the panel offers outside itself — an annotation's double-click: the branches the place
+  // lies in opened first, since a file just opened has only its top level, then the place gone
+  // to or opened as a Contents search match is.
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMatchShown
+  const matchActions = useRef({ goToMatch, openMatch });
+  matchActions.current = { goToMatch, openMatch };
+  useEffect(() => {
+    const pane = context.pane;
+    const reached = async (match: WireContentMatch) => {
+      await reachFirmwarePaths(
+        pane,
+        [match.node, match.section].filter((one) => one !== undefined)
+      );
+      // A render, for the panel to hold the branches just read.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return firmwareFor(pane)?.roots ?? [];
+    };
+    return registerUefiPanelLink(pane, {
+      goTo: async (match) => matchActions.current.goToMatch(match, await reached(match)),
+      open: async (match) => matchActions.current.openMatch(match, await reached(match)),
+    });
+  }, [context.pane]);
+
   const [contentProblem, setContentProblem] = useState<string | undefined>(undefined);
   const contentSearch = useContentSearch({
     pane: context.pane,
@@ -1463,29 +1511,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     wholeTree: searchState.content.wholeTree,
     selected: selected === undefined ? undefined : pathOf(selected),
     nameOf: (node, from) => nameRef.current(node, from),
-    goTo: (match, from) => {
-      const inFile =
-        match.space.length === 0
-          ? match.range
-          : match.node === undefined
-            ? undefined
-            : fileRangeOfPath(match.node, from);
-      if (match.node !== undefined && firmwareNodeAt(from, match.node) !== undefined) {
-        showRevealed(match.node, false);
-      }
-      if (inFile !== undefined) context.reveal(inFile[0], inFile[1], true);
-    },
-    open: (match, from) => {
-      if (match.decodedXORKey !== undefined) {
-        const node = match.node === undefined ? undefined : firmwareNodeAt(from, match.node);
-        if (node !== undefined) void openDecodedBlock(node, match.range);
-        return;
-      }
-      const section = match.section === undefined ? undefined : firmwareNodeAt(from, match.section);
-      const taken = section === undefined ? undefined : decompressedBody(section);
-      if (section === undefined || taken === undefined) return;
-      openDecompressed(section, taken, match.range);
-    },
+    goTo: goToMatch,
+    open: openMatch,
   });
 
   /**
@@ -2422,6 +2449,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                       // other, so the reader sees which copy of a volume or file
                       // stands for which.
                       topSwapItem(node),
+                      // help: panel.uefi.annotate-node
+                      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onAnnotateNode
+                      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.annotateNode
+                      { kind: "separator" },
+                      {
+                        label: L("Add Annotation…"),
+                        onSelect: () =>
+                          context.annotateNode(pathKey(node.id), shownName(node, roots ?? [])),
+                      },
                     ]);
                   }}
                 />

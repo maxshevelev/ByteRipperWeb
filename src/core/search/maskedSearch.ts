@@ -19,7 +19,7 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
  * A hex pattern that cannot be read. The message is just the reason; a caller
  * words the sentence around it.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchError.invalidHexPattern
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.invalidHexPattern
  */
 export class MaskedPatternError extends Error {
   constructor(message: string) {
@@ -32,25 +32,25 @@ export class MaskedPatternError extends Error {
  * A pattern with holes in it: bytes, some of which match anything — the
  * `24 ?? 4D 49` of a hex search — compared by an encoding's case rules.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern
  */
 export interface MaskedPattern {
   /**
    * The bytes to match; where `isWild` is true, the byte here is ignored.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.bytes
+   * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.bytes
    */
   readonly bytes: Uint8Array;
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.isWild */
+  /** @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.isWild */
   readonly isWild: readonly boolean[];
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.folding */
+  /** @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.folding */
   readonly folding: CaseFolding;
 }
 
 /**
  * A pattern of these bytes, with holes where `isWild` says so (none by default).
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.init
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.init
  */
 export function maskedPattern(
   bytes: Uint8Array | readonly number[],
@@ -67,7 +67,7 @@ export function maskedPattern(
 /**
  * The pattern's length in bytes.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.count
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.count
  */
 export const maskedPatternCount = (pattern: MaskedPattern): number => pattern.bytes.length;
 
@@ -77,7 +77,7 @@ export const maskedPatternCount = (pattern: MaskedPattern): number => pattern.by
  * well — for a byte that matches anything. A pattern of holes alone matches
  * everywhere and is refused. Throws `MaskedPatternError`.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.hex
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hex
  */
 export function parseHexPattern(text: string): MaskedPattern {
   const bytes: number[] = [];
@@ -108,7 +108,7 @@ export function parseHexPattern(text: string): MaskedPattern {
   return { bytes: Uint8Array.from(bytes), isWild: wild, folding: { kind: "exact" } };
 }
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.hex */
+/** @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hex */
 export const MaskedPattern = { hex: parseHexPattern };
 
 const isASCIILetter = (byte: number): boolean => {
@@ -127,7 +127,7 @@ const isLetterByteAt = (index: number, littleEndian: boolean): boolean =>
  * The anchor byte's other case where the folding lets it have one, or the
  * byte itself.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#SearchEngine.alternativeCase
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.alternativeCase
  */
 function alternativeCase(byte: number, index: number, pattern: MaskedPattern): number {
   if (!isASCIILetter(byte)) return byte;
@@ -148,7 +148,7 @@ function alternativeCase(byte: number, index: number, pattern: MaskedPattern): n
   return byte ^ 0x20;
 }
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#SearchEngine.matchesAt */
+/** @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.matchesAt */
 function matchesAt(start: number, pattern: MaskedPattern, buffer: Uint8Array): boolean {
   const folding = pattern.folding;
   for (let index = 0; index < pattern.bytes.length; index++) {
@@ -174,7 +174,7 @@ function matchesAt(start: number, pattern: MaskedPattern, buffer: Uint8Array): b
  * The first place at or after `from`, starting below `below`, where `pattern`
  * matches whole inside `window`; -1 when there is none.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#SearchEngine.firstMatch
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.firstMatch
  */
 export function firstMaskedMatch(
   pattern: MaskedPattern,

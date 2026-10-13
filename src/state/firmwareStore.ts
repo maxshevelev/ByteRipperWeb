@@ -342,6 +342,12 @@ function ensureWorker(pane: PaneId): PaneWorker {
       case "firmwareRebuildProgress":
         rebuildProgress.get(pane)?.(response.phase, response.fraction);
         return;
+      case "firmwareReach": {
+        update(pane, { roots: response.roots });
+        reachWaiters.get(pane)?.();
+        reachWaiters.delete(pane);
+        return;
+      }
       case "firmwareContentSearchProgress":
         contentProgress.get(pane)?.(response.fraction);
         return;
@@ -617,6 +623,25 @@ const offsetWaiters = new Map<PaneId, (path: readonly number[] | undefined) => v
  * The path of the innermost node covering `offset`, once every branch on the
  * way to it is open — or nothing when no node covers it.
  */
+const reachWaiters = new Map<PaneId, () => void>();
+
+/**
+ * Opens the branches down to each of `paths` in the worker's tree and takes the tree back, so
+ * the panel can show nodes nobody had opened: what an annotation's place needs.
+ */
+export function reachFirmwarePaths(
+  pane: PaneId,
+  paths: readonly (readonly number[])[]
+): Promise<void> {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") return Promise.resolve();
+  return new Promise((resolve) => {
+    reachWaiters.get(pane)?.();
+    reachWaiters.set(pane, resolve);
+    send(pane, { kind: "firmwareReach", id: nextAskJob(pane, "firmwareReach"), paths });
+  });
+}
+
 const contentWaiters = new Map<
   PaneId,
   (response: FirmwareContentSearchResponse | undefined) => void

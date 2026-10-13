@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { L } from "@/core/localization/localization";
+import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { closeHelp } from "@/state/helpStore";
 import { useStore } from "@/state/useStore";
@@ -11,6 +12,7 @@ import {
   partPane,
   toggleAgentPanel,
   toggleHelpPanel,
+  toggleNotesPanel,
   togglePart,
   workspaceStore,
 } from "@/state/workspaceStore";
@@ -23,6 +25,7 @@ import {
 } from "@/ui/fragments/FragmentPanelView";
 import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
 import { HelpPanel } from "@/ui/help/HelpPanel";
+import { NotesPanel } from "@/ui/notes/NotesPanel";
 
 /**
  * The workspace's panels: the dock of pills, and the one panel that is up over
@@ -63,6 +66,7 @@ export function FragmentPanels({
 }) {
   const state = useStore(workspaceStore);
   const agent = useStore(agentService.store);
+  const annotations = useStore(agentAnnotationStore);
   // The pill's dot is about bytes, which the workspace store does not change
   // for — the hook reads them again on every edit anywhere.
   const unreturned = usePartsWithChanges(state.dock.panels.map((id) => partPane(id)));
@@ -107,15 +111,29 @@ export function FragmentPanels({
         ? L("Help", { context: "panel" })
         : id === state.agentPanel
           ? L("Agent")
-          : (state.parts[partPane(id)]?.name ?? ""),
-    kind: id === state.helpPanel ? "help" : id === state.agentPanel ? "agent" : "part",
+          : id === state.notesPanel
+            ? L("Annotations")
+            : (state.parts[partPane(id)]?.name ?? ""),
+    kind:
+      id === state.helpPanel
+        ? "help"
+        : id === state.agentPanel
+          ? "agent"
+          : id === state.notesPanel
+            ? "notes"
+            : "part",
+    unseen: id === state.notesPanel ? annotations.unseen.size : undefined,
     connected: id === state.agentPanel && agent.connections > 0,
     isUp: state.dock.expanded === id,
     // The dot is "the parent has not got these bytes", which is the link's
     // question; a part with no link falls back to its own unsaved work, which
     // is upstream's own fallback.
     // A book has no bytes to give back, so it never wears the dot.
-    hasChanges: id !== state.helpPanel && id !== state.agentPanel && unreturned.has(partPane(id)),
+    hasChanges:
+      id !== state.helpPanel &&
+      id !== state.agentPanel &&
+      id !== state.notesPanel &&
+      unreturned.has(partPane(id)),
   }));
   if (items.length === 0) return null;
 
@@ -124,6 +142,7 @@ export function FragmentPanels({
   const up = folded ?? state.dock.expanded;
   const helpIsUp = up !== undefined && up === state.helpPanel;
   const agentIsUp = up !== undefined && up === state.agentPanel;
+  const notesAreUp = up !== undefined && up === state.notesPanel;
   const motion = {
     pill: up,
     opensOutOfPill: raisedFromNothing && !folding,
@@ -139,7 +158,7 @@ export function FragmentPanels({
     },
   };
   const pane: PartId | undefined =
-    up === undefined || helpIsUp || agentIsUp ? undefined : partPane(up);
+    up === undefined || helpIsUp || agentIsUp || notesAreUp ? undefined : partPane(up);
   const part = pane === undefined ? undefined : state.parts[pane];
 
   return (
@@ -156,6 +175,12 @@ export function FragmentPanels({
             <AgentWindow onSettings={onAgentSettings} />
           </FragmentPanel>
         </FragmentPanelHost>
+      ) : notesAreUp ? (
+        <FragmentPanelHost folding={folding}>
+          <FragmentPanel {...motion}>
+            <NotesPanel />
+          </FragmentPanel>
+        </FragmentPanelHost>
       ) : pane !== undefined && part !== undefined ? (
         <FragmentPanelHost folding={folding}>
           <FragmentPanel {...motion}>{renderPane(pane, part)}</FragmentPanel>
@@ -168,7 +193,9 @@ export function FragmentPanels({
             ? toggleHelpPanel()
             : id === state.agentPanel
               ? toggleAgentPanel()
-              : togglePart(partPane(id))
+              : id === state.notesPanel
+                ? toggleNotesPanel()
+                : togglePart(partPane(id))
         }
         onClose={(id) =>
           id === state.helpPanel

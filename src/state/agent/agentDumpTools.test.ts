@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { findingText } from "@/core/agent/agentFindingText";
 import { dumpFiles, parsePath, valueAt } from "@/core/agent/agentSurvey";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
-import { agentFindingStore } from "@/state/agent/agentDumpTools";
+import { discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
@@ -109,9 +108,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  discardAnnotationsForTesting();
   service.desk.background.closeAll();
   while (leave.length > 0) leave.pop()?.();
-  agentFindingStore.update(() => ({ findings: [] }));
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: undefined, b: undefined },
@@ -168,11 +167,13 @@ describe("open_dump", () => {
     expect(reveal.text).toBe(
       `image.rom (${id}) is open in the background, not on screen. Call \`show\` to put it on screen first.`
     );
-    expect((await call("mark", { document: id, offset: 0, length: 1, label: "X" })).isError).toBe(
-      true
-    );
-    // And the dock never saw it.
-    expect(workspaceStore.getSnapshot().dock.panels).toEqual([]);
+    // An annotation on a file with no pane belongs to the file, and is drawn once it is shown.
+    const annotated = (await call("annotate", { document: id, offset: 0, title: "X" })).json;
+    expect(member(annotated, "path")).toBe("/dumps/image.rom");
+    expect(member(annotated, "document")).toBeUndefined();
+    // And the dock never saw it: the Annotations pill is the only one there.
+    const state = workspaceStore.getSnapshot();
+    expect(state.dock.panels).toEqual([state.notesPanel]);
   });
 
   // A document is named to the person by its file, never by its id: two files of one name are told
@@ -382,52 +383,36 @@ describe("show", () => {
   });
 });
 
-describe("findings", () => {
-  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testAFindingIsListedAndLeadsBackToItsPlace
-  it("lists a finding and leads back to its place", async () => {
+describe("annotations", () => {
+  // What a survey leaves: an annotation, listed in the panel, which leads back to its place.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testAnAnnotationIsListedAndLeadsBackToItsPlace
+  // @upstream-differs the card's text is the React panel's; the list the agent reads stands for it
+  it("are listed, and lead back to their place", async () => {
     open(new Uint8Array(0x10000), "a", "front.bin");
     const recorded = (
-      await call("finding", { document: "d1", offset: "0x8000", length: 8, text: "A stray byte." })
+      await call("annotate", {
+        document: "d1",
+        offset: "0x8000",
+        length: 8,
+        title: "Stray byte",
+        note: "A stray byte.",
+      })
     ).json;
-    expect(member(recorded, "id")).toBe("f1");
-    expect(member(recorded, "file")).toBe("front.bin");
-    const listed = member((await call("findings")).json, "findings") as Json[];
-    expect(member(listed[0], "text")).toBe("A stray byte.");
-
-    const finding = service.dumpTools.findings[0];
-    if (finding === undefined) throw new Error("recorded");
-    expect(findingText(finding, "file")).toBe("front.bin");
-    expect(findingText(finding, "place")).toBe("0x8000–0x8008");
+    expect(member(recorded, "id")).toBe("a1");
+    const listed = member((await call("annotations")).json, "annotations") as Json[];
+    expect(member(listed[0], "note")).toBe("A stray byte.");
+    expect(member(listed[0], "range")).toMatchObject({ start: "0x8000", end: "0x8008" });
 
     agentShell.reveal = (pane, start, end) => {
       paneState(pane)?.document.setSelection({ start, end, fileSize: 0x10000 });
     };
-    await service.dumpTools.showFinding(finding);
+    await service.annotationTools.show("a1");
     const selection = paneState("a")?.document.selection;
     expect([selection?.start, selection?.end]).toEqual([0x8000, 0x8008]);
 
-    service.dumpTools.clearFindings();
-    expect(service.dumpTools.findings).toEqual([]);
-  });
-
-  it("records a finding by path, which a closed file can be opened again from", async () => {
-    disk.put("/dumps/x.bin", new Array(0x40).fill(0));
-    const recorded = (
-      await call("finding", { path: "/dumps/x.bin", offset: 4, length: 2, text: "Odd." })
-    ).json;
-    expect(member(recorded, "path")).toBe("/dumps/x.bin");
-    agentShell.reveal = (pane, start, end) => {
-      paneState(pane)?.document.setSelection({ start, end, fileSize: 0x40 });
-    };
-    const finding = service.dumpTools.findings[0];
-    if (finding === undefined) throw new Error("recorded");
-    await service.dumpTools.showFinding(finding);
-    expect(paneState("a")?.name).toBe("x.bin");
-    expect(paneState("a")?.document.selection.start).toBe(4);
-  });
-
-  it("refuses a finding about a document that is no file", async () => {
-    const refused = await call("finding", { document: "d1", text: "X" });
-    expect(refused.isError).toBe(true);
+    expect(member((await call("remove_annotations", { all: true })).json, "removed")).toEqual([
+      "a1",
+    ]);
+    expect(member((await call("annotations")).json, "total")).toBe(0);
   });
 });

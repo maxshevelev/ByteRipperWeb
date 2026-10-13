@@ -296,6 +296,17 @@ export interface WorkspaceState {
    */
   readonly agentPanel: PanelId | undefined;
   /**
+   * The Annotations panel, while there is an annotation: a pill in the dock holding no bytes, at
+   * most one. It comes with the first annotation and goes with the last, and it folds instead of
+   * closing.
+   *
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController
+   * @upstream-differs upstream at 7197e6f gives the annotations a window of their own, a tab among
+   * the dumps' tabs; the web has no tabs, and keeps the dock panel of 7416d51 (upstream's
+   * AGENT_PLAN, "Annotations")
+   */
+  readonly notesPanel: PanelId | undefined;
+  /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
    */
@@ -398,6 +409,7 @@ export const workspaceStore = createStore<WorkspaceState>({
   dock: EMPTY_DOCK,
   helpPanel: undefined,
   agentPanel: undefined,
+  notesPanel: undefined,
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -466,7 +478,8 @@ function withPane(state: WorkspaceState, pane: PaneId, next: PaneState): Workspa
 export const frontPane = (state: WorkspaceState): PaneId =>
   state.dock.expanded === undefined ||
   state.dock.expanded === state.helpPanel ||
-  state.dock.expanded === state.agentPanel
+  state.dock.expanded === state.agentPanel ||
+  state.dock.expanded === state.notesPanel
     ? state.activePane
     : partPane(state.dock.expanded);
 
@@ -1169,6 +1182,59 @@ export function toggleAgentPanel(): void {
       ...now,
       dock: now.agentPanel === undefined ? now.dock : expandPanel(now.dock, now.agentPanel).dock,
     }));
+}
+
+/**
+ * Puts the Annotations panel's pill in the dock, folded, or takes it out: there while there is an
+ * annotation.
+ *
+ * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.notesChanged
+ * @upstream-differs a pill there while there is an annotation, where upstream refreshes a window
+ * the person opens
+ */
+export function syncNotesPanel(hasAnnotations: boolean): void {
+  workspaceStore.update((state) => {
+    if (hasAnnotations === (state.notesPanel !== undefined)) return state;
+    if (!hasAnnotations && state.notesPanel !== undefined) {
+      return {
+        ...state,
+        dock: removePanel(state.dock, state.notesPanel).dock,
+        notesPanel: undefined,
+      };
+    }
+    const opened = openPanel(state.dock);
+    return {
+      ...state,
+      dock: { panels: opened.dock.panels, expanded: state.dock.expanded },
+      notesPanel: opened.id,
+    };
+  });
+}
+
+/** Raises the Annotations panel, when there is one. */
+export function openNotesPanel(): void {
+  workspaceStore.update((state) =>
+    state.notesPanel === undefined
+      ? state
+      : { ...state, dock: expandPanel(state.dock, state.notesPanel).dock }
+  );
+}
+
+/** Whether the Annotations panel is the one up over the panes. */
+export const notesPanelIsUp = (state: WorkspaceState): boolean =>
+  state.notesPanel !== undefined && state.dock.expanded === state.notesPanel;
+
+/**
+ * The Annotations pill's own click: up folds, folded rises.
+ *
+ * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.showNotesWindow
+ * @upstream-differs the pill of the dock, where upstream's toolbar button opens a window
+ */
+export function toggleNotesPanel(): void {
+  const state = workspaceStore.getSnapshot();
+  if (state.notesPanel === undefined) return;
+  if (state.dock.expanded === state.notesPanel) foldParts();
+  else openNotesPanel();
 }
 
 /**

@@ -1727,7 +1727,12 @@
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.firstVisibleOffset": "n/a — scrollLink.visibleRange(pane, rowBytes).start",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "n/a — what is on screen is the scroll link's (`scrollLink.visibleRange`)"
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "n/a — what is on screen is the scroll link's (`scrollLink.visibleRange`)",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.agentAnnotations": "n/a — the pane reads `drawnIn` off the annotation store",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationGeneration": "n/a — the pane subscribes to the annotation store",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationSource": "n/a — the pane imports the annotation store",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationTitles": "n/a — the pane imports `annotationTitles`",
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationsChanged": "n/a — the pane subscribes to the annotation store"
       }
     },
     {
@@ -2152,7 +2157,13 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.decreaseHexFontSize": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.validateMenuItem": "n/a — it only dims Zoom In and Zoom Out, and the browser's page zoom is the zoom (ANALYSIS.md)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationShouldTerminate": "n/a — Quit asking the windows about their parts before it takes them: the browser owns the tab's own close, and a workspace is one tab (D11)",
-        "ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.menuNeedsUpdate": "n/a — the delegate callback that fills the submenu on display; the shell's menu is built at publish time and re-sent when the list changes (`injectOpenRecent`)"
+        "ByteRipperApp/App/OpenRecentMenuController.swift#OpenRecentMenuController.menuNeedsUpdate": "n/a — the delegate callback that fills the submenu on display; the shell's menu is built at publish time and re-sent when the list changes (`injectOpenRecent`)",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab": "n/a — no tabs: a file the agent shows opens in a free pane",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.showNotesWindow": "n/a — the Annotations pill of the dock (`toggleNotesPanel`)",
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.notesBadge": "n/a — the unseen count is on the Annotations pill (`FragmentPill.unseen`)",
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.notesItem": "n/a — no toolbar button: the Annotations pill is in the dock while there is an annotation",
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.syncNotesBadge": "n/a — the pill reads the store's unseen count",
+        "ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.notes": "n/a — no toolbar button: the Annotations pill is in the dock"
       }
     },
     {
@@ -4403,7 +4414,7 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnotherFileShowsNothingOfTheLastOne": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour is covered at the level below: the FIT panel and the UEFI panel drop what they kept when the firmware store counts a reload (`reloads`)",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapTableStartsFolded": "later — an app flow test; the port has no component or end-to-end test for it yet (`startsFolded` is unit-tested in the detail's own test, and the open tables are kept for the page's life in `unfoldedTables`)",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSpaceShowsTheDetailInTheLargeView": "later — an app flow test; the port has no component or end-to-end test for it yet (the state is unit-tested in `largeDetailStore.test.ts`)",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnARowOpensItsBodyAsAPanel": "later — an app flow test: it drives the real panel, and the web has no component level",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnARowWithRowsOpensTheWholeNodeAsAPanel": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnTheTriangleOpensNothing": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClosingTheLargeViewKeepsTheSelectedRowInView": "later — an app flow test: it drives the real panel, and the web has no component level",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowBringsItsRowsIntoView": "later — an app flow test: it drives the real panel, and the web has no component level",
@@ -5491,17 +5502,9 @@
           "src/ui/agent/AgentTableHead.tsx",
           "src/ui/agent/AgentSplit.tsx",
           "src/ui/agent/AgentList.tsx",
-          "src/ui/agent/AgentMarksPage.tsx",
-          "src/ui/agent/AgentFindingsPage.tsx",
           "src/ui/toolPanel/columnWidths.ts"
         ],
         "AgentModuleTools.swift": "src/state/agent/agentModuleTools.ts",
-        "AgentMark.swift": [
-          "src/core/agent/agentMark.ts",
-          "src/state/agent/agentMarkStore.ts"
-        ],
-        "AgentMarkTools.swift": "src/state/agent/agentMarkTools.ts",
-        "ByteRipperTests/AgentMarkTests.swift": "src/state/agent/agentMarkTools.test.ts",
         "AgentBackgroundDocuments.swift": "src/state/agent/agentBackgroundDocuments.ts",
         "AgentDumpTools.swift": [
           "src/state/agent/agentDumpTools.ts",
@@ -5561,7 +5564,15 @@
         "AgentNodeLinks.swift": [
           "src/state/agent/agentNodeLinks.ts",
           "src/state/agent/agentNodeSource.ts"
-        ]
+        ],
+        "AgentAnnotation.swift": "src/core/agent/agentAnnotation.ts",
+        "AgentAnnotationTools.swift": [
+          "src/state/agent/agentAnnotationTools.ts",
+          "src/state/agent/agentAnnotationStore.ts",
+          "src/tools/uefi/agent/uefiAgentAnnotations.ts"
+        ],
+        "AgentAnnotationCards.swift": "src/ui/notes/NotesPanel.tsx",
+        "ByteRipperTests/AgentAnnotationTests.swift": "src/state/agent/agentAnnotationTools.test.ts"
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
@@ -5597,32 +5608,7 @@
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun.fingerprint": "n/a — a plain record: `SurveyRun`",
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun.groups": "n/a — a plain record: `SurveyRun`",
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun.key": "n/a — a plain record: `SurveyRun`",
-        "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.onChange": "n/a — the Agent window listens to the findings store",
         "ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.probe": "n/a — the shell's `stat` is the probe (`AgentDumpTools.stat`)",
-        "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.Located.mark": "n/a — a plain record: `LocatedMark`",
-        "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.Located.place": "n/a — a plain record: `LocatedMark`",
-        "ByteRipperApp/Agent/AgentMarkTools.swift#AgentMarkTools.onChange": "n/a — the Agent window listens to the mark store",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.isEmpty": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.numberOfRows": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.onSelectionChanged": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.onShow": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.rows": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.shownText": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.table": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableView": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.tableViewSelectionDidChange": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.isEmpty": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.numberOfRows": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.onSelectionChanged": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.onShow": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.rows": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.table": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.tableView": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.tableViewSelectionDidChange": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.findingsList": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.marksList": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showFindings": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
-        "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.showMarks": "n/a — React components (`AgentMarksPage`, `AgentFindingsPage`): rows, selection and double-click are the DOM's",
         "ByteRipperTests/AgentDiffToolsTests.swift#AgentDiffToolsTests.testARunIsPlacedAtTheVariableItChanged": "n/a — asks the firmware worker, which a unit test does not have; checked in a real page (Design/PORT_AGENT.md)",
         "ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.detailPane": "n/a — a React table (`AgentToolsPage`): rows, selection and the details beside them are the DOM's; a test hook of the AppKit page",
         "ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.numberOfRows": "n/a — a React table (`AgentToolsPage`): rows, selection and the details beside them are the DOM's; a test hook of the AppKit page",
@@ -5674,7 +5660,94 @@
         "ByteRipperApp/Agent/AgentService.swift#AgentService.label": "n/a — folded into `labelling`, which reads the place's label itself",
         "ByteRipperTests/AgentModuleToolsTests.swift#AgentModuleToolsTests.testANodeLinkIsOursOnlyWithAFileAndANodeID": "n/a — tests AgentNodeURLs",
         "ByteRipperTests/AgentModuleToolsTests.swift#AgentModuleToolsTests.testOpeningANodeLinkChoosesTheNodeInThePanel": "n/a — tests AgentService.openNode",
-        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAReadOnlyParentIsRefused": "n/a — a page edits every document it holds in memory: there is no read-only parent to refuse"
+        "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testAReadOnlyParentIsRefused": "n/a — a page edits every document it holds in memory: there is no read-only parent to refuse",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.build": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.collection": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.collectionView": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.isEmpty": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.isOpen": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.numberOfSections": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onEdit": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onOpenSite": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onRemove": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onSelectionChanged": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onShow": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.rows": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.scroll": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.shownTexts": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.zoomChanged": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCardItem*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCardView.*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCollectionView*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationPlaceLine*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationRemoveBadge*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.collectionViewContentSize": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.gap": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.heightFor": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.inset": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.itemFrames": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.layoutAttributes*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.shouldInvalidateLayout": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.Site.agentLabel": "n/a — one label for the card and the agent (`AnnotationSite.label`), the tree's names being the parser's English",
+        "ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.current": "n/a — the annotations are a module store (`agentAnnotationStore`) the panes and the panel import",
+        "ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.onChange": "n/a — the store's subscribers",
+        "ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.openInNewTab": "n/a — no tabs: `show` opens the file through `AgentDumpTools.openOnScreen`",
+        "ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.locate": "n/a — the site is asked of the firmware worker (`uefi_annotation` query, `site`), which holds the tree",
+        "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.tabs": "n/a — one workspace per browser tab: no tabs to walk",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardHoldsAllOfItsWrappedText": "n/a — AppKit layout of a card; the React cards size to their text in CSS",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testALongNodeNameWrapsUnderItsOwnStart": "n/a — AppKit layout of a card; the React cards size to their text in CSS",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsCardsHoldAllOfTheirText": "n/a — AppKit layout of a card; the React cards size to their text in CSS",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFillTheShortestColumnAndDeleteRemoves": "later — a component test of NotesPanel: the columns, Delete, the node named as UEFI Structure names it",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnACardRemovesIt": "later — a component test of NotesPanel",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheNotesWindowListsAnnotationsWithTheirRelationsAndStandsEmptyWithout": "later — a component test of NotesPanel; the relation in the tooltip is in agentAnnotationTools.test, and the panel is never empty (it goes with the last annotation)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowSpeaksTheAppsLanguageAndTheAgentEnglish": "later — with X8, the language named at the call",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInAFileNotOpenWaitsForItsTree": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Notes",
+      "web": [
+        "src/ui/notes",
+        "src/state/noteFormStore.ts"
+      ],
+      "status": "ported",
+      "note": "The Annotations list (G88): upstream's window of its own, beside the dump's tab, is a panel of the fragment dock here, as every additional window is; its pill carries the unseen count the toolbar button carries upstream. The form a note is written in is NoteFormDialog.",
+      "files": {
+        "NotesWindowController.swift": "src/ui/notes/NotesPanel.tsx",
+        "MainViewController+Notes.swift": [
+          "src/ui/notes/NoteFormDialog.tsx",
+          "src/state/noteFormStore.ts"
+        ]
+      },
+      "unported": {
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cards": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.closeDocument": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.closeWindow": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.emptyView": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.init": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.instance": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isInView": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.newWindowForTab": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.refresh": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.shared": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidBecomeKey": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidDeminiaturize": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView*": "n/a — the panel goes with the last annotation, so it is never empty",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesSymbol*": "n/a — an SF Symbol name; the pill is labelled with the panel's name",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.draw": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.hitTest": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.intrinsicContentSize": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.side": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.init": "n/a — AppKit; NoteFormDialog is a React form",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.noteView": "n/a — AppKit; NoteFormDialog is a React form",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form"
       }
     },
     {

@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import { topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import { agentService } from "@/state/agent/agentService";
 import { noteToolStep } from "@/state/navigationStore";
+import { askNote } from "@/state/noteFormStore";
 import { showNotice } from "@/state/noticeStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { beginFileDrag, draggedPaneId, endDrag, paneDragStore } from "@/state/paneDragStore";
@@ -28,6 +30,7 @@ import {
   PANE_IDS,
   type PaneId,
   paneIn,
+  reportAlert,
   type SlotId,
   type SurfaceId,
   WORKSPACE_SURFACE,
@@ -191,6 +194,30 @@ export function ToolPanel({
     pane: boundPane,
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.makePatternQuery
     patternQuery: TOOL_PATTERN_QUERY,
+    // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.annotateNode
+    annotateNode: (nodeId, name) =>
+      askNote({
+        message: L("Add Annotation"),
+        information: L(
+          "The annotation is drawn over the node's bytes and listed in the Annotations panel."
+        ),
+        button: L("Add"),
+        title: name,
+        note: "",
+        done: (title, note) => {
+          agentService.annotationTools.addNodeNote(title, note, boundPane, nodeId).catch(() =>
+            // What refuses a node is worded for an agent, in English: the person is told what to
+            // do instead, in their words.
+            reportAlert(
+              L("Could not add the annotation"),
+              L(
+                "This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of."
+              ),
+              "problem"
+            )
+          );
+        },
+      }),
     // What the session was handed as it started, from the same place the pane
     // and the width come from: it is the host that took it out of the box, and
     // the panel draws the session it belongs to.

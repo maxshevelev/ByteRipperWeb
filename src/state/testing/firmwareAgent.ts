@@ -2,6 +2,7 @@ import { afterEach, beforeEach } from "vitest";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
 import { AgentService } from "@/state/agent/agentService";
 import { closeFirmware, firmwareStore, noteFirmwareOperations } from "@/state/firmwareStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
@@ -176,6 +177,7 @@ export function setUpFirmwareAgent(): FirmwareAgent {
   });
 
   afterEach(() => {
+    discardAnnotationsForTesting();
     answeredInstead = undefined;
     editingHooks.onContentChange = undefined;
     // Each case's file is a file of its own: the trees read of the last one go with it.

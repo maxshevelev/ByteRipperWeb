@@ -95,6 +95,7 @@
   --zone-focused: #59adc4;
   --zone-other: #dad554;
   --zone-agent: #b151d9;
+  --zone-person: #2e9e54;
 
   /* Ported from AppPalette.RowMarks: what a row is tinted for, and the one
      solid colour a mark is drawn in (`Design/ROW_MARKS.md` §3). A tint is
@@ -185,6 +186,7 @@
     --zone-focused: #6ac4dc;
     --zone-other: #dad554;
     --zone-agent: #ce8af4;
+    --zone-person: #6bd185;
     --row-mark-ibb: rgb(255 55 95 / 0.24);
     --row-mark-firmware: rgb(100 210 255 / 0.2);
     --row-mark-decompressed: rgb(125 122 255);
@@ -264,6 +266,7 @@
   --zone-focused: #6ac4dc;
   --zone-other: #dad554;
   --zone-agent: #ce8af4;
+  --zone-person: #6bd185;
   --row-mark-ibb: rgb(255 55 95 / 0.24);
   --row-mark-firmware: rgb(100 210 255 / 0.2);
   --row-mark-decompressed: rgb(125 122 255);

@@ -1,6 +1,4 @@
-import { findingColumnTitle } from "@/core/agent/agentFindingText";
 import { columnTitle } from "@/core/agent/agentLogText";
-import { markColumnTitle } from "@/core/agent/agentMarkText";
 import {
   AGENT_TOOL_COLUMNS,
   type AgentToolColumn,
@@ -60,35 +58,6 @@ export const logColumns = localized((): readonly TableColumn[] => [
   column("result", columnTitle("result"), 150),
 ]);
 
-/**
- * The Marks: Note, the last column and the one with the most to say, gives way.
- *
- * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.Column
- * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentMarksTable.Column.width
- */
-export const markColumns = localized((): readonly TableColumn[] => [
-  column("id", markColumnTitle("id"), 44),
-  column("label", markColumnTitle("label"), 150),
-  column("document", markColumnTitle("document"), 110),
-  column("range", markColumnTitle("range"), 150),
-  column("note", markColumnTitle("note"), 340, true),
-]);
-
-/**
- * The Findings.
- *
- * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.Column
- * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentFindingsTable.Column.width
- * @upstream-differs the finding's text takes the slack, where upstream shares it among every
- * column in proportion — a CSS table has one column that grows, not a resizing style
- */
-export const findingColumns = localized((): readonly TableColumn[] => [
-  column("id", findingColumnTitle("id"), 50),
-  column("text", findingColumnTitle("text"), 330, true),
-  column("file", findingColumnTitle("file"), 140),
-  column("place", findingColumnTitle("place"), 150),
-]);
-
 /** Upstream's widths for the Tools page. @upstream ByteRipperApp/Agent/AgentToolsPage.swift#AgentToolsPage.Column.width */
 const TOOL_COLUMN_WIDTHS: Readonly<Record<AgentToolColumn, number>> = {
   tool: 190,
@@ -112,11 +81,7 @@ export const toolColumns = localized((): readonly TableColumn[] =>
 );
 
 /** Upstream's names for the tables' kept widths. */
-export type AgentTableName =
-  | "AgentLogTable"
-  | "AgentMarksTable"
-  | "AgentFindingsTable"
-  | "AgentToolsTable";
+export type AgentTableName = "AgentLogTable" | "AgentToolsTable";
 
 /**
  * A table's columns and their widths, kept under the table's name. The columns are built once per
