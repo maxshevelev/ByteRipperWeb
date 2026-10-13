@@ -31,7 +31,7 @@ import {
 } from "@/state/firmwareStore";
 import { cancelGuidCatalogue, catalogueStore, loadGuidCatalogue } from "@/state/guidCatalogue";
 import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
-import { takeOpensTopLevelRows, takeShowItemAt } from "@/state/opensTopLevelRows";
+import { showItemWishes, takeOpensTopLevelRows, takeShowItemAt } from "@/state/opensTopLevelRows";
 import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
@@ -1639,7 +1639,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealNode = useCallback(
-    async (caret: number) => {
+    async (caret: number, end?: number) => {
       const slot = paneState(context.pane);
       if (slot === undefined) return;
       // Captured before the UEFI half unsets it: a reveal that comes from an ME
@@ -1682,7 +1682,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       setFinding(true);
       const epoch = selectionEpoch.current;
-      const path = await findFirmwareNodeAt(context.pane, caret);
+      let path = await findFirmwareNodeAt(context.pane, caret);
       setFinding(false);
       if (path === undefined) return;
       // The branches were read off the main thread, and by the time they landed the reader
@@ -1692,7 +1692,23 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // Empty padding is left out of the rows unless asked for, so a caret inside it has no
       // row to land on. Say so, and offer the rows, rather than answer with nothing.
       // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
-      const found = firmwareNodeAt(firmwareFor(context.pane)?.roots ?? [], path);
+      const held = firmwareFor(context.pane)?.roots ?? [];
+      // A place that is a node's bytes — an annotation on a node — is that node, not the
+      // innermost one at its first byte: up the path to the one spanning the place exactly.
+      if (end !== undefined) {
+        for (let length = path.length; length > 0; length--) {
+          const above = firmwareNodeAt(held, path.slice(0, length));
+          if (
+            above !== undefined &&
+            above.header[0] === caret &&
+            above.header[0] + wireLength(above) === end
+          ) {
+            path = path.slice(0, length);
+            break;
+          }
+        }
+      }
+      const found = firmwareNodeAt(held, path);
       if (found !== undefined && isEmptyPadding(found) && !showsEmptyPadding) {
         setPaddingQuestion({ path, crossedHalves });
         return;
@@ -1705,11 +1721,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   // A part opened from a Contents search match: once its tree is up, the node the match is in is
   // shown — the branches on the way open, its row selected.
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.showItem
+  const showItemWish = useStore(showItemWishes).get(context.pane);
   useEffect(() => {
-    if (status !== "ready" || roots === undefined) return;
-    const offset = takeShowItemAt(context.pane);
-    if (offset !== undefined) void revealNode(offset);
-  }, [status, roots, context.pane, revealNode]);
+    if (status !== "ready" || roots === undefined || showItemWish === undefined) return;
+    const wish = takeShowItemAt(context.pane);
+    if (wish !== undefined) void revealNode(wish.start, wish.end);
+  }, [status, roots, context.pane, revealNode, showItemWish]);
 
   /**
    * The title row's button: the node under the caret — the start of a selection.

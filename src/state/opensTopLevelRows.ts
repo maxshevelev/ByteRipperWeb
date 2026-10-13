@@ -1,3 +1,4 @@
+import { createStore } from "@/state/store";
 import type { PaneId } from "@/state/workspaceStore";
 
 /**
@@ -23,24 +24,38 @@ export function takeOpensTopLevelRows(pane: PaneId): boolean {
   return wished.delete(pane);
 }
 
-const itemsWished = new Map<PaneId, number>();
+/** A node to show: the one whose bytes are `[start, end)`, else the innermost holding `start`. */
+export interface ShowItemWish {
+  readonly start: number;
+  readonly end: number | undefined;
+}
 
 /**
- * The UEFI panel is to show the node holding `offset` of the part the first time its tree is
- * shown: a part opened from a Contents search match, its tree opened to the node the match is in.
+ * The UEFI panel is to show a node of the part: a part opened from a Contents search match or an
+ * annotation's place, its tree opened to the node — the branches on the way open, its row
+ * selected. A store, so a panel already up hears a wish made after its tree was shown, as one
+ * raised again from a second double-click does; taken once, so the reader's own moves stand.
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.showItem
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showItem
  * @upstream-differs a wish kept beside the stores, as the top level's is, where upstream asks the
  * part's session once its panel is up
  */
-export function wishShowItemAt(pane: PaneId, offset: number): void {
-  itemsWished.set(pane, offset);
+export const showItemWishes = createStore<ReadonlyMap<PaneId, ShowItemWish>>(new Map());
+
+/** The panel on `pane` is to show the node at `start` — the one spanning to `end`, where given. */
+export function wishShowItemAt(pane: PaneId, start: number, end?: number): void {
+  showItemWishes.update((wishes) => new Map(wishes).set(pane, { start, end }));
 }
 
-/** The offset whose node the panel is to show now — given only the first time asked. */
-export function takeShowItemAt(pane: PaneId): number | undefined {
-  const offset = itemsWished.get(pane);
-  itemsWished.delete(pane);
-  return offset;
+/** The node the panel on `pane` is to show now — given only the first time asked. */
+export function takeShowItemAt(pane: PaneId): ShowItemWish | undefined {
+  const wish = showItemWishes.getSnapshot().get(pane);
+  if (wish === undefined) return undefined;
+  showItemWishes.update((wishes) => {
+    const next = new Map(wishes);
+    next.delete(pane);
+    return next;
+  });
+  return wish;
 }

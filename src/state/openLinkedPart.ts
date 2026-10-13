@@ -92,6 +92,11 @@ export async function openLinkedPart(options: {
     if (open !== undefined) {
       const part = open[0] as PartId;
       raisePart(part);
+      if (options.tool !== undefined) {
+        // Raised again for another place: its tree goes to the node of that place too.
+        wishShowItemAt(part, options.selecting[0], options.selecting[1]);
+        activate(options.tool, part);
+      }
       await select(part, options.selecting);
       return part;
     }
@@ -128,7 +133,9 @@ export async function openLinkedPart(options: {
   if (options.tool !== undefined) {
     wishTopLevelRowsOpen(part);
     // A match selected in the part: its tree opens to the node the match is in.
-    if (options.selecting !== undefined) wishShowItemAt(part, options.selecting[0]);
+    if (options.selecting !== undefined) {
+      wishShowItemAt(part, options.selecting[0], options.selecting[1]);
+    }
     activate(options.tool, part);
   }
   if (options.selecting !== undefined) await select(part, options.selecting);
