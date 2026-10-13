@@ -55,7 +55,7 @@ The window holds three stories and some fixes:
 - [x] **X7 — one set of pattern controls for the Find bar and the Contents search** (`0137760`, `de50064`, and X6's remainder; G87)
 - [x] **X5 — annotations, to their end state: one kind for marks and findings, cards, places in decoded bytes, the person's own, a dock panel, Add Annotation on a node** (`2220481`, `0247de2`, `66ee745`, `0fa1c01`, the annotation half of `7416d51`, the rest of `7197e6f`; G88)
 - [x] **X8 — the language named at the call, `uefi_dmi`, and the rest of `7416d51`** (G89; the language kept by `withEnglish`, made-up names carried as words)
-- [ ] **X9 — a fragment panel let go on a pane becomes that pane** (`7a11bed`)
+- [x] **X9 — a fragment panel let go on a pane becomes that pane** (`7a11bed`; n/a — no tab to tear a part off into, GAPS §2)
 
 Order, as it turned out: X6 and X7 before X5. Upstream rewrites the
 annotations five times inside the window, and the last form leans on the

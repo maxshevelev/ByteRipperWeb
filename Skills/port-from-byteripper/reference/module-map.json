@@ -4522,7 +4522,9 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testWithoutAStoreThereIsNoDMIButton": "later — an app flow test; it needs the shell's panes and a tool panel on a screen, which the store tests stand in for",
         "ByteRipperTests/SettingsWindowSizeTests.swift#SettingsWindowSizeTests.testTheTabOnScreenIsMarkedAndNamed": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/SettingsWindowTests.swift#SettingsWindowTests.testTheViewTabsLabelsLineUp": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
-        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep"
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep",
+        "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testASecondPanelLetGoOnATornOffTabIsComparedWithTheFirst": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testOptionLettingAPanelGoOnATabsFreeHalfCopiesIt": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold"
       }
     },
     {
@@ -4906,7 +4908,9 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openableRecentFiles": "n/a — a row whose file is gone is dropped when the page learns it (NotFound), and the list is of handles, not of paths to look up on disk",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.emptyStateFittingWindowHeight": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
