@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type Json, member } from "@/core/agent/json";
 import { agentAnnotationStore, allAnnotations, drawnIn } from "@/state/agent/agentAnnotationStore";
+import { closeFirmware, firmwareFor, firmwareNodeAt } from "@/state/firmwareStore";
 import { surfaceOf } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
 import { setUpFirmwareAgent } from "@/state/testing/firmwareAgent";
@@ -151,5 +152,47 @@ describe("an annotation in decoded bytes", () => {
       "dev.maxik.tool.uefi-structure"
     );
     expect(went.map((one) => one.range)).toEqual([[0x10, 0x14]]);
+  });
+
+  // A file whose tree is not read yet — just opened to show the place — is read first, and the
+  // branches down to the section the place is in are opened, before the place goes to UEFI
+  // Structure: the route is the tree's to choose, and chosen before it the file opened with no
+  // panel of the place.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInAFileNotOpenWaitsForItsTree
+  // @upstream-differs the file's tree is dropped in place of opening a file not open, which the
+  // harness has no disk for; the panel's link stands in for the React panel
+  it("in decoded bytes waits for the tree and its branches before it opens", async () => {
+    open(compressedTestImage("SECRET-MODEL-GH51G"));
+    const match = await modelMatch();
+    await answer("annotate", {
+      node: member(member(match, "node"), "id") as string,
+      offset: member(match, "node_offset") as Json,
+      length: 5,
+      title: "Model",
+    });
+    closeFirmware("a");
+    expect(firmwareFor("a")).toBeUndefined();
+
+    let section: readonly number[] | undefined;
+    let foundThere = false;
+    const gone = registerUefiPanelLink("a", {
+      goTo: async () => undefined,
+      open: async (asked: WireContentMatch) => {
+        section = asked.section;
+        const held = firmwareFor("a");
+        foundThere =
+          held?.status === "ready" &&
+          asked.section !== undefined &&
+          firmwareNodeAt(held.roots ?? [], asked.section) !== undefined;
+      },
+    });
+    try {
+      await agent.service.annotationTools.show("a1");
+    } finally {
+      gone();
+    }
+    expect(section).toBeDefined();
+    // The tree was read, and the section reached, by the time the panel was asked.
+    expect(foundThere).toBe(true);
   });
 });

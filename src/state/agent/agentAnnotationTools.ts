@@ -32,11 +32,17 @@ import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { readyFirmware } from "@/state/firmwareReady";
-import { askUefiAgent, firmwareFor } from "@/state/firmwareStore";
+import {
+  askUefiAgent,
+  firmwareFor,
+  firmwareNodeAt,
+  reachFirmwarePaths,
+} from "@/state/firmwareStore";
 import { recordJump } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
 import { surfaceOf } from "@/state/paneId";
 import { activate, selectPane, sessionOn, toolController } from "@/state/toolController";
+import { beginBlockingWork } from "@/state/toolWork";
 import { uefiPanelLink } from "@/state/uefiPanelLinks";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import { notesPanelIsUp, type PaneId, paneState, workspaceStore } from "@/state/workspaceStore";
@@ -601,6 +607,32 @@ export class AgentAnnotationTools {
     if (annotation.range !== undefined && annotation.range[1] > place.document.size) return;
     recordJump(pane);
     const match = matchOf(annotation);
+    // A file just opened has its tree still to read, and whether the place is a node — and how to
+    // open it — is the tree's to say; the block or the section the place is in may sit in
+    // branches nobody has opened, and a compressed one is decompressed to open it. Seconds on a
+    // large image: the window says so, in a modal the person can cancel, and the place is gone to
+    // once all of it is read. Without the wait the route was chosen before the tree was there,
+    // and the file opened with no panel of the place.
+    if (annotation.site !== undefined || annotation.decoded !== undefined) {
+      const ids = [match?.node, match?.section].filter((one) => one !== undefined);
+      const held = firmwareFor(pane);
+      const roots = held?.status === "ready" ? held.roots : undefined;
+      if (roots === undefined || ids.some((id) => firmwareNodeAt(roots, id) === undefined)) {
+        let cancelled = false;
+        const work = beginBlockingWork(L("Reading UEFI…"), () => {
+          cancelled = true;
+        });
+        try {
+          await readyFirmware(pane);
+          if (!cancelled && ids.length > 0) await reachFirmwarePaths(pane, ids);
+        } catch {
+          // A tree that cannot be read leaves the bytes to go to, below.
+        } finally {
+          work.finish();
+        }
+        if (cancelled) return;
+      }
+    }
     // A file the tree reads as nothing but padding is no firmware: its place is shown in the dump
     // alone.
     const isFirmware =

@@ -5774,7 +5774,6 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnACardRemovesIt": "later — a component test of NotesPanel",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheNotesWindowListsAnnotationsWithTheirRelationsAndStandsEmptyWithout": "later — a component test of NotesPanel; the relation in the tooltip is in agentAnnotationTools.test, and the panel is never empty (it goes with the last annotation)",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowSpeaksTheAppsLanguageAndTheAgentEnglish": "later — with X8, the language named at the call",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInAFileNotOpenWaitsForItsTree": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)",
