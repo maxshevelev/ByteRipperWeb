@@ -3,6 +3,8 @@
 import { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { installCatalogue, L, withEnglish } from "@/core/localization/localization";
+import { maskedFromWire } from "@/core/search/maskedSearch";
+import { SearchCancelled } from "@/core/search/searchEngine";
 import { sourceOver } from "@/firmware/byteSource";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
@@ -100,6 +102,7 @@ import { type AgentTree, repairsOver } from "@/tools/uefi/agent/uefiAgentTree";
 import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { acerDMIRowText } from "@/tools/uefi/uefiAcerDMIDetail";
+import { type ContentSearchResult, runContentSearch } from "@/tools/uefi/uefiContentSearch";
 import {
   decodableBlockOf,
   encodingRole,
@@ -403,6 +406,35 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   subtypeText: subtypeText(node),
   children: node.children.map((child) => wireNode(child, node)),
 });
+
+/** The worker's tree as the agent's queries and the Contents search read it. */
+function agentTreeHere(here: ImageReader, diagnostics: UEFIDiagnostic[]): AgentTree {
+  return {
+    get roots() {
+      return roots;
+    },
+    size: here.count,
+    reader: here,
+    spaceReaders: new SpaceReaders(here, { limits: DEFAULT_LIMITS, buffers }),
+    open: (node) => open(node, diagnostics),
+    detail: (node, path) => detailOf(node, path),
+    image: () => new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff }),
+    repairs: (node, path, file) =>
+      file === undefined ? repairsFor(node, path) : repairsOver(roots, node, path, file),
+  };
+}
+
+/**
+ * Which tree the worker holds: moved on by every open and every edit, so a Contents search
+ * remembered for one is not answered for another.
+ */
+let treeGeneration = 0;
+
+/** The Contents searches running, by job, and whether each has been told to stop. */
+const contentSearches = new Map<number, { stopped: boolean }>();
+
+/** A turn of the worker's loop, so a stop sent while a search runs reaches it. */
+const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.node */
 function nodeAt(path: readonly number[]): UEFINode | undefined {
@@ -742,6 +774,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
       // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.init
       case "openFirmware": {
         reader = new ImageReader(new BlobByteSource(request.content));
+        treeGeneration += 1;
         buffers = new DecompressedBuffers();
         protectedRanges = undefined;
         dvarSettings = undefined;
@@ -773,6 +806,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // read again — by a later `firmwareChildren` — from current bytes. This
         // is the whole of what a live byte source buys upstream.
         reader = new ImageReader(new BlobByteSource(request.content));
+        treeGeneration += 1;
         // A buffer whose section the edit touched is stale with the nodes that
         // came out of it: an overwrite drops what it overlaps, and an insert or
         // a delete drops everything at or past it, the offsets behind it having
@@ -986,21 +1020,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           });
           return;
         }
-        const here = reader;
-        const tree: AgentTree = {
-          get roots() {
-            return roots;
-          },
-          size: here.count,
-          reader: here,
-          spaceReaders: new SpaceReaders(here, { limits: DEFAULT_LIMITS, buffers }),
-          open: (node) => open(node, diagnostics),
-          detail: (node, path) => detailOf(node, path),
-          image: () =>
-            new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff }),
-          repairs: (node, path, file) =>
-            file === undefined ? repairsFor(node, path) : repairsOver(roots, node, path, file),
-        };
+        const tree = agentTreeHere(reader, diagnostics);
         // The questions that are asked of bytes, not of the tree alone: the search reads in chunks.
         if (request.query === "uefi_find_bytes" || request.query === "uefi_refs") {
           void (
@@ -1008,11 +1028,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               ? refs(tree, new AgentArguments(request.values, request.answerBound), {
                   contentVersion: request.contentVersion,
                 })
-              : findInNode(
-                  tree,
-                  request.values as unknown as FindInNodeParams,
-                  request.contentVersion
-                )
+              : findInNode(tree, request.values as unknown as FindInNodeParams, treeGeneration)
           ).then(
             (answer) => post({ kind: "agentUefi", id: request.id, answer }),
             (error: unknown) =>
@@ -1421,11 +1437,84 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
-      case "cancel":
-        // Nothing to cancel: every request here answers in one turn of the
-        // worker's loop, and the main thread drops a reply to a job it has
-        // already superseded.
+      case "cancel": {
+        // Only the Contents search outlives a turn of the worker's loop; every other request
+        // answers in one, and the main thread drops a reply to a job it has already superseded.
+        const running = contentSearches.get(request.id);
+        if (running !== undefined) running.stopped = true;
         return;
+      }
+
+      // The UEFI panel's Contents search: every attempt in turn until one finds something, with
+      // its progress and a stop, and the tree it opened handed back with the answer.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findAllContents
+      case "firmwareContentSearch": {
+        if (reader === undefined) {
+          post({ kind: "firmwareContentSearch", id: request.id, result: undefined, roots: [] });
+          return;
+        }
+        const diagnostics: UEFIDiagnostic[] = [];
+        const tree = agentTreeHere(reader, diagnostics);
+        const job = { stopped: false };
+        contentSearches.set(request.id, job);
+        const count = Math.max(1, request.attempts.length);
+        void (async () => {
+          let found: ContentSearchResult | undefined;
+          let attempt = 0;
+          try {
+            for (const [index, wire] of request.attempts.entries()) {
+              attempt = index;
+              found = await runContentSearch([maskedFromWire(wire)], request.start, tree, {
+                generation: treeGeneration,
+                progress: (fraction) =>
+                  post({
+                    kind: "firmwareContentSearchProgress",
+                    id: request.id,
+                    fraction: (index + fraction) / count,
+                  }),
+                shouldCancel: () => job.stopped,
+                pause,
+              });
+              if (found.total > 0) break;
+            }
+            post({
+              kind: "firmwareContentSearch",
+              id: request.id,
+              result:
+                found === undefined
+                  ? undefined
+                  : {
+                      matches: found.matches.map((match) => ({
+                        pattern: attempt,
+                        space: match.space,
+                        range: [match.range.start, match.range.end] as const,
+                        decodedXORKey: match.decodedXORKey,
+                        node: match.node,
+                        section: match.section,
+                        excerpt: match.excerpt,
+                        excerptMatch: [match.excerptMatch.start, match.excerptMatch.end] as const,
+                      })),
+                      total: found.total,
+                      attempt,
+                    },
+              roots: roots.map((root) => wireNode(root)),
+            });
+          } catch (error) {
+            post({
+              kind: "firmwareContentSearch",
+              id: request.id,
+              result: undefined,
+              roots: roots.map((root) => wireNode(root)),
+              ...(error instanceof SearchCancelled
+                ? {}
+                : { problem: error instanceof Error ? error.message : String(error) }),
+            });
+          } finally {
+            contentSearches.delete(request.id);
+          }
+        })();
+        return;
+      }
     }
   } catch (error) {
     // The language, alone among the requests, carries no job to fail.

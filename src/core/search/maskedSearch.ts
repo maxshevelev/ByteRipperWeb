@@ -381,3 +381,32 @@ export function scanPatterns(
     cursor += fresh;
   }
 }
+
+/** A masked pattern as it crosses to a worker: plain arrays and the folding by name. */
+export interface MaskedPatternWire {
+  readonly bytes: readonly number[];
+  readonly wild: readonly boolean[];
+  readonly folding: "exact" | "asciiBytes" | "utf16le";
+}
+
+export function maskedToWire(pattern: MaskedPattern): MaskedPatternWire {
+  const folding = pattern.folding;
+  return {
+    bytes: [...pattern.bytes],
+    wild: [...pattern.isWild],
+    folding:
+      folding.kind === "utf16" ? "utf16le" : folding.kind === "asciiBytes" ? "asciiBytes" : "exact",
+  };
+}
+
+export function maskedFromWire(wire: MaskedPatternWire): MaskedPattern {
+  return maskedPattern(wire.bytes, {
+    isWild: wire.wild,
+    folding:
+      wire.folding === "utf16le"
+        ? { kind: "utf16", littleEndian: true }
+        : wire.folding === "asciiBytes"
+          ? { kind: "asciiBytes" }
+          : { kind: "exact" },
+  });
+}

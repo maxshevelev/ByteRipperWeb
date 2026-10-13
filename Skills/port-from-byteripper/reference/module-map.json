@@ -251,6 +251,9 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift": "src/state/duplicatePane.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts",
         "MaskedSearch.swift": "src/core/search/maskedSearch.ts",
+        "Packages/BytePattern/Sources/BytePattern/PatternScan.swift": "src/core/search/maskedSearch.ts",
+        "Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift": "src/core/search/maskedSearch.ts",
+        "Packages/BytePattern/Sources/BytePattern/CaseFolding.swift": "src/core/search/searchPattern.ts",
         "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts"
       },
       "unported": {
@@ -946,7 +949,11 @@
         "UEFIAgentChecksums.swift": "src/tools/uefi/agent/uefiAgentChecksums.ts",
         "UEFIAgentRegions.swift": "src/tools/uefi/agent/uefiAgentRegions.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAgentRegionsTests.swift": "src/tools/uefi/agent/uefiAgentRegions.test.ts",
-        "UEFIAgentLocator.swift": "src/tools/uefi/agent/uefiAgentLocator.ts"
+        "UEFIAgentLocator.swift": "src/tools/uefi/agent/uefiAgentLocator.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift": "src/tools/uefi/uefiContentSearch.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIContentSearchTests.swift": "src/tools/uefi/uefiContentSearch.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAgentContentSearch.swift": "src/tools/uefi/agent/uefiAgentFind.ts",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift": "src/tools/uefi/UefiContentResults.tsx"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",

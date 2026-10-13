@@ -3137,6 +3137,81 @@ button.uefi-title {
   font-size: 0.92em;
 }
 
+/* The Names / Contents switch, and the scope after it. */
+.uefi-search-mode {
+  display: inline-flex;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.uefi-search-mode button {
+  padding: 1px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.uefi-search-mode button[aria-pressed="true"] {
+  background: var(--selection);
+}
+
+.uefi-search-scope {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The Contents search's results under the tree: the dump's search results, with the node the
+ * match lies in for a first column. Its own height, so the tree keeps the rest of the pane.
+ */
+.uefi-content-results {
+  flex: none;
+  height: 180px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.uefi-content-results .search-results-head,
+.uefi-content-results .search-result {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 2fr);
+}
+
+.uefi-content-progress {
+  flex: none;
+  width: 120px;
+}
+
+.content-result-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--ui-font, system-ui);
+}
+
+.content-result-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-result-dot {
+  color: var(--text-faint);
+}
+
 .uefi-reveal svg,
 .uefi-dmi-glyph,
 .uefi-search-toggle svg,

@@ -667,6 +667,7 @@ export type FirmwareWorkerRequest =
   | FirmwareDmiStoresRequest
   | FirmwareLenovoReadersRequest
   | FirmwareNodeAtOffsetRequest
+  | FirmwareContentSearchRequest
   | FirmwareChildrenRequest
   | FirmwareInvalidateRequest
   | FirmwareAddressesRequest
@@ -947,6 +948,64 @@ export interface FirmwareSpaceBytesResponse {
  * The innermost node covering an offset, with every branch on the way to it
  * opened — so the whole tree comes back, not only the path.
  */
+/**
+ * The UEFI tree's Contents search, asked by the panel: the patterns in the order to try them, the
+ * first that finds anything being the answer, from `start` (the root for the whole tree).
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findAllContents
+ */
+export interface FirmwareContentSearchRequest {
+  readonly kind: "firmwareContentSearch";
+  readonly id: JobId;
+  readonly attempts: readonly WireMaskedPattern[];
+  readonly start: readonly number[];
+}
+
+/** A masked pattern as it crosses the wire. */
+export interface WireMaskedPattern {
+  readonly bytes: readonly number[];
+  readonly wild: readonly boolean[];
+  readonly folding: "exact" | "asciiBytes" | "utf16le";
+}
+
+/** How far the Contents search has got, from 0 to 1, over every attempt. */
+export interface FirmwareContentSearchProgress {
+  readonly kind: "firmwareContentSearchProgress";
+  readonly id: JobId;
+  readonly fraction: number;
+}
+
+/** One match of the Contents search, as it crosses the wire. */
+export interface WireContentMatch {
+  readonly pattern: number;
+  readonly space: readonly number[];
+  readonly range: readonly [number, number];
+  readonly decodedXORKey?: number | undefined;
+  readonly node?: readonly number[] | undefined;
+  readonly section?: readonly number[] | undefined;
+  readonly excerpt: Uint8Array;
+  readonly excerptMatch: readonly [number, number];
+}
+
+/**
+ * The Contents search's answer: the matches, every one counted, which attempt found them — and
+ * the tree as the search left it, every branch opened, so the panel can show any match's node.
+ * Nothing but the roots for a search that was stopped.
+ */
+export interface FirmwareContentSearchResponse {
+  readonly kind: "firmwareContentSearch";
+  readonly id: JobId;
+  readonly result:
+    | {
+        readonly matches: readonly WireContentMatch[];
+        readonly total: number;
+        readonly attempt: number;
+      }
+    | undefined;
+  readonly roots: readonly WireNode[];
+  readonly problem?: string | undefined;
+}
+
 export interface FirmwareNodeAtOffsetResponse {
   readonly kind: "firmwareNodeAtOffset";
   readonly id: JobId;
@@ -1060,6 +1119,8 @@ export type FirmwareWorkerResponse =
   | FirmwareDmiStoresResponse
   | FirmwareLenovoReadersResponse
   | FirmwareNodeAtOffsetResponse
+  | FirmwareContentSearchProgress
+  | FirmwareContentSearchResponse
   | FirmwareRepairResponse
   | FirmwareRebuildProgress
   | FirmwareRebuildResponse

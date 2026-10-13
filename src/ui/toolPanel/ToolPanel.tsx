@@ -216,7 +216,7 @@ export function ToolPanel({
     // A part a tool opened with the layout its panel reads it as — a node of the UEFI tree —
     // opens with that tool on, as upstream's `UEFIPartOpening` does.
     // @upstream ByteRipperApp/Tools/PaneToolHost.swift#PaneToolHost.openPart
-    openPart: (name, source, codec, layout) => {
+    openPart: (name, source, codec, layout, selecting) => {
       void openLinkedPart({
         parent: boundPane,
         name,
@@ -224,6 +224,7 @@ export function ToolPanel({
         codec,
         layout,
         tool: layout === undefined ? undefined : tool?.id,
+        selecting,
       });
     },
   };

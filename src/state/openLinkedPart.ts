@@ -1,11 +1,20 @@
 import { L } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCodec";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
+import { agentShell } from "@/state/agent/agentShell";
 import { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
 import { wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
 import { activate } from "@/state/toolController";
-import { openPart, type PaneId, type PartId, paneState, reportAlert } from "@/state/workspaceStore";
+import {
+  openPart,
+  type PaneId,
+  type PartId,
+  paneState,
+  raisePart,
+  reportAlert,
+  workspaceStore,
+} from "@/state/workspaceStore";
 
 /**
  * Opens a part of `parent`'s file as a panel over it — the one way a part opens,
@@ -55,12 +64,38 @@ export async function openLinkedPart(options: {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
    */
   readonly tool?: string | undefined;
+  /**
+   * What to select in the part once it is up, in the part's own addresses: a Contents search
+   * match. A part of the same bytes already open is raised and selected rather than opened twice.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
+   */
+  readonly selecting?: readonly [number, number] | undefined;
 }): Promise<PartId | undefined> {
   const { parent, name, source } = options;
   const slot = paneState(parent);
   if (slot === undefined) return undefined;
   const codec = options.codec ?? new CopyPartCodec();
   const partName = options.partName ?? partNameOf(name, slot.name);
+  if (options.selecting !== undefined) {
+    const open = Object.entries(workspaceStore.getSnapshot().parts).find(([, held]) => {
+      const origin = held?.origin;
+      return (
+        origin !== undefined &&
+        origin.parent === parent &&
+        origin.sourceRange[0] === source[0] &&
+        origin.sourceRange[1] === source[1] &&
+        origin.codec.constructor === codec.constructor &&
+        held?.name === name
+      );
+    });
+    if (open !== undefined) {
+      const part = open[0] as PartId;
+      raisePart(part);
+      await select(part, options.selecting);
+      return part;
+    }
+  }
   let bytes: Uint8Array;
   try {
     bytes = await codec.decode({
@@ -94,7 +129,17 @@ export async function openLinkedPart(options: {
     wishTopLevelRowsOpen(part);
     activate(options.tool, part);
   }
+  if (options.selecting !== undefined) await select(part, options.selecting);
   return part;
+}
+
+/** Selects `[start, end)` of `part` and brings it on screen, through the shell's reveal. */
+async function select(part: PartId, range: readonly [number, number]): Promise<void> {
+  if (agentShell.reveal !== undefined) {
+    await agentShell.reveal(part, range[0], range[1], true);
+    return;
+  }
+  await paneState(part)?.typing.setSelection(range[0], range[1]);
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import { currentCatalogue, L } from "@/core/localization/localization";
+import { type MaskedPattern, maskedToWire } from "@/core/search/maskedSearch";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
@@ -20,6 +21,7 @@ import { dvarSettingsFromWire } from "@/workers/dvarWire";
 import type {
   AgentUefiRequest,
   AgentUefiResponse,
+  FirmwareContentSearchResponse,
   FirmwareDetailResponse,
   FirmwareProtectedRangesResponse,
   FirmwareRebuildResponse,
@@ -340,6 +342,19 @@ function ensureWorker(pane: PaneId): PaneWorker {
       case "firmwareRebuildProgress":
         rebuildProgress.get(pane)?.(response.phase, response.fraction);
         return;
+      case "firmwareContentSearchProgress":
+        contentProgress.get(pane)?.(response.fraction);
+        return;
+      case "firmwareContentSearch": {
+        // The worker's tree is the truth, and the search has opened every branch of it; taking it
+        // whole lets the panel show any match's node.
+        if (response.roots.length > 0) update(pane, { roots: response.roots });
+        const waiter = contentWaiters.get(pane);
+        contentWaiters.delete(pane);
+        contentProgress.delete(pane);
+        waiter?.(response);
+        return;
+      }
       case "firmwareRebuild":
         rebuildWaiters.get(pane)?.(response);
         rebuildWaiters.delete(pane);
@@ -602,6 +617,66 @@ const offsetWaiters = new Map<PaneId, (path: readonly number[] | undefined) => v
  * The path of the innermost node covering `offset`, once every branch on the
  * way to it is open — or nothing when no node covers it.
  */
+const contentWaiters = new Map<
+  PaneId,
+  (response: FirmwareContentSearchResponse | undefined) => void
+>();
+const contentProgress = new Map<PaneId, (fraction: number) => void>();
+const contentJobs = new Map<PaneId, number>();
+
+/**
+ * The UEFI panel's Contents search, run where the tree is: each attempt in turn until one finds
+ * something, with how far it has got, and a stop. A second search supersedes the first, which is
+ * then told nothing was found.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findAllContents
+ */
+export function searchFirmwareContents(
+  pane: PaneId,
+  attempts: readonly MaskedPattern[],
+  start: readonly number[],
+  onProgress: (fraction: number) => void
+): {
+  readonly answer: Promise<FirmwareContentSearchResponse | undefined>;
+  readonly stop: () => void;
+} {
+  const current = firmwareFor(pane);
+  if (current === undefined || current.status !== "ready") {
+    return { answer: Promise.resolve(undefined), stop: () => undefined };
+  }
+  stopFirmwareContentSearch(pane);
+  const id = nextAskJob(pane, "firmwareContentSearch");
+  ensureWorker(pane).latest.set("firmwareContentSearchProgress", id);
+  contentJobs.set(pane, id);
+  const answer = new Promise<FirmwareContentSearchResponse | undefined>((resolve) => {
+    contentWaiters.set(pane, resolve);
+    contentProgress.set(pane, onProgress);
+    send(pane, {
+      kind: "firmwareContentSearch",
+      id,
+      attempts: attempts.map(maskedToWire),
+      start,
+    });
+  });
+  return {
+    answer,
+    stop: () => {
+      if (contentJobs.get(pane) === id) stopFirmwareContentSearch(pane);
+    },
+  };
+}
+
+/** Stops the pane's Contents search, if one runs; its waiter is told nothing was found. */
+export function stopFirmwareContentSearch(pane: PaneId): void {
+  const id = contentJobs.get(pane);
+  if (id === undefined) return;
+  contentJobs.delete(pane);
+  send(pane, { kind: "cancel", id });
+  contentWaiters.get(pane)?.(undefined);
+  contentWaiters.delete(pane);
+  contentProgress.delete(pane);
+}
+
 export function findFirmwareNodeAt(
   pane: PaneId,
   offset: number

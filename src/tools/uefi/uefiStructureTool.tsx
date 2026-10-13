@@ -35,7 +35,13 @@ import type { ToolSessionState } from "@/state/parkedToolState";
 import { setDumpActions } from "@/state/toolDumpActions";
 import { applyTransaction } from "@/state/toolEdits";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
-import { setSearchOpen, setSearchQuery, uefiSearchStore } from "@/state/uefiSearchSettings";
+import {
+  setContentQuery,
+  setSearchMode,
+  setSearchOpen,
+  setSearchQuery,
+  uefiSearchStore,
+} from "@/state/uefiSearchSettings";
 import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
@@ -67,6 +73,7 @@ import {
   useMeSubtree,
 } from "@/tools/uefi/meSubtree";
 import { scrollToShowStretch } from "@/tools/uefi/treeScroll";
+import { UefiContentResults } from "@/tools/uefi/UefiContentResults";
 import { UefiSearchBar } from "@/tools/uefi/UefiSearchBar";
 import { UefiUpdateDialog } from "@/tools/uefi/UefiUpdateDialog";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
@@ -111,6 +118,7 @@ import {
   updateTransaction,
   updateZones,
 } from "@/tools/uefi/uefiUpdateComparison";
+import { fileRangeOfPath, useContentSearch } from "@/tools/uefi/useContentSearch";
 import { useTreeSearch } from "@/tools/uefi/useTreeSearch";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
@@ -1211,7 +1219,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecompressedInNewTab
    */
   const openDecompressed = useCallback(
-    (node: WireNode, taken: DecompressedBody) => {
+    (node: WireNode, taken: DecompressedBody, selecting?: readonly [number, number]) => {
       // What it links back to: the compressed section in the file that these
       // bytes came out of, which for a node inside a buffer is the section
       // holding it.
@@ -1233,7 +1241,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           target: { space: taken.space },
           compression: compressionName(taken.space, roots ?? []),
         }),
-        taken.layout
+        taken.layout,
+        selecting
       );
     },
     [context, roots]
@@ -1329,7 +1338,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    */
   // help: panel.uefi.open-decoded-block
   const openDecodedBlock = useCallback(
-    async (node: WireNode) => {
+    async (node: WireNode, selecting?: readonly [number, number]) => {
       const found = node.decodableBlock;
       const stored =
         found === undefined ? undefined : await readSpaceBytes(context.pane, [], found.range);
@@ -1341,7 +1350,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         L("%1$@ (decoded)", found.name),
         [found.range[0], found.range[1]],
         new LenovoDMIBlockCodec(new LENVBlock(found.range[0], stored)),
-        IMAGE_LAYOUT
+        IMAGE_LAYOUT,
+        selecting === undefined
+          ? undefined
+          : [selecting[0] - found.range[0], selecting[1] - found.range[0]]
       );
     },
     [context]
@@ -1433,6 +1445,45 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     },
     [context]
   );
+
+  /**
+   * The bar's Contents search: Find All over what the tree holds, its results under the tree, a
+   * row gone to as a click on the tree's row goes, and the bytes a match behind a codec is in
+   * opened as a panel, the match selected.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.goTo
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openContentMatch
+   */
+  const contentSearch = useContentSearch({
+    pane: context.pane,
+    text: searchState.content.text,
+    wholeTree: searchState.content.wholeTree,
+    selected: selected === undefined ? undefined : pathOf(selected),
+    nameOf: (node, from) => nameRef.current(node, from),
+    goTo: (match, from) => {
+      const inFile =
+        match.space.length === 0
+          ? match.range
+          : match.node === undefined
+            ? undefined
+            : fileRangeOfPath(match.node, from);
+      if (match.node !== undefined && firmwareNodeAt(from, match.node) !== undefined) {
+        showRevealed(match.node, false);
+      }
+      if (inFile !== undefined) context.reveal(inFile[0], inFile[1], true);
+    },
+    open: (match, from) => {
+      if (match.decodedXORKey !== undefined) {
+        const node = match.node === undefined ? undefined : firmwareNodeAt(from, match.node);
+        if (node !== undefined) void openDecodedBlock(node, match.range);
+        return;
+      }
+      const section = match.section === undefined ? undefined : firmwareNodeAt(from, match.section);
+      const taken = section === undefined ? undefined : decompressedBody(section);
+      if (section === undefined || taken === undefined) return;
+      openDecompressed(section, taken, match.range);
+    },
+  });
 
   /**
    * The DMI button: goes to the store of the board's identity at `index` of the tree's
@@ -2159,6 +2210,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       {searchState.isOpen ? (
         <UefiSearchBar
           query={searchState.query}
+          mode={searchState.mode}
+          content={searchState.content}
+          selectedNodeName={(() => {
+            const node =
+              selected === undefined ? undefined : firmwareNodeAt(roots ?? [], pathOf(selected));
+            return node === undefined ? undefined : shownName(node, roots ?? []);
+          })()}
+          onMode={setSearchMode}
+          onContent={setContentQuery}
+          onFindAll={() => void contentSearch.findAll()}
           status={treeSearch.status}
           progress={treeSearch.progress}
           showsMeNote={meRegionKey !== undefined}
@@ -2349,6 +2410,18 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
               ))}
             </div>
           </div>
+
+          {contentSearch.shown ? (
+            <UefiContentResults
+              state={contentSearch.state}
+              rows={contentSearch.rows}
+              selected={contentSearch.selected}
+              onChoose={contentSearch.choose}
+              onOpen={contentSearch.open}
+              onStop={contentSearch.stop}
+              onClose={contentSearch.close}
+            />
+          ) : null}
 
           <ToolRowMarksLegend
             panel={UEFI_PANEL}

@@ -155,7 +155,9 @@ export interface ToolContext {
      *
      * @upstream Packages/UEFIImage/Sources/UEFIImage/RootLayout.swift#UEFIRootLayout
      */
-    layout?: UEFIRootLayout
+    layout?: UEFIRootLayout,
+    /** What to select in the part once it is up, in its own addresses. */
+    selecting?: readonly [number, number]
   ) => void;
 }
 

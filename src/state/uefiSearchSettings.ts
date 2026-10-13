@@ -22,13 +22,37 @@ import {
  * @upstream-differs a store the panels subscribe to, where upstream posts a notification;
  * `localStorage` for the panel defaults
  */
+/**
+ * What the bar looks for: a node by what it is called, or a pattern in what the nodes hold.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.Mode
+ */
+export type UEFISearchMode = "names" | "contents";
+
+/**
+ * What the Contents search asks for: the text in its field, and whether in the whole tree or in
+ * the node selected when it starts.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.Content
+ */
+export interface UEFIContentQuery {
+  readonly text: string;
+  readonly wholeTree: boolean;
+}
+
 export interface UEFISearchState {
   readonly query: UEFITreeQuery;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.mode */
+  readonly mode: UEFISearchMode;
+  /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.content */
+  readonly content: UEFIContentQuery;
   /** Whether the bar is open: the reader opens it from the tree's header, and it stays so. */
   readonly isOpen: boolean;
   /** Moves on each time the field is asked to take the keyboard (Edit ▸ Find in the tree). */
   readonly focusToken: number;
 }
+
+const EMPTY_CONTENT: UEFIContentQuery = { text: "", wholeTree: true };
 
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.textKey */
 export const SEARCH_KEY = "byteripper.uefiSearch";
@@ -38,7 +62,13 @@ export const SEARCH_KEY = "byteripper.uefiSearch";
  * shape. A code is a number, and "none" is no number at all.
  */
 export function parseSearchState(stored: string | null): UEFISearchState {
-  const empty: UEFISearchState = { query: EMPTY_QUERY, isOpen: false, focusToken: 0 };
+  const empty: UEFISearchState = {
+    query: EMPTY_QUERY,
+    mode: "names",
+    content: EMPTY_CONTENT,
+    isOpen: false,
+    focusToken: 0,
+  };
   if (stored === null) return empty;
   try {
     const value = JSON.parse(stored) as {
@@ -46,6 +76,9 @@ export function parseSearchState(stored: string | null): UEFISearchState {
       type?: unknown;
       subtype?: unknown;
       isOpen?: unknown;
+      mode?: unknown;
+      contentText?: unknown;
+      contentFromSelection?: unknown;
     };
     const code = (one: unknown): number | undefined =>
       typeof one === "number" && Number.isInteger(one) && one >= 0 && one <= 0xff ? one : undefined;
@@ -55,6 +88,13 @@ export function parseSearchState(stored: string | null): UEFISearchState {
         text: typeof value.text === "string" ? value.text : "",
         type,
         subtype: hasSubtypes(type) ? code(value.subtype) : undefined,
+      },
+      mode: value.mode === "contents" ? "contents" : "names",
+      // Stored as "from the selection", so a bench that never touched the box searches the whole
+      // tree.
+      content: {
+        text: typeof value.contentText === "string" ? value.contentText : "",
+        wholeTree: value.contentFromSelection !== true,
       },
       isOpen: value.isOpen === true,
       focusToken: 0,
@@ -68,7 +108,7 @@ function stored(): UEFISearchState {
   try {
     return parseSearchState(localStorage.getItem(SEARCH_KEY));
   } catch {
-    return { query: EMPTY_QUERY, isOpen: false, focusToken: 0 };
+    return parseSearchState(null);
   }
 }
 
@@ -83,6 +123,9 @@ function remember(state: UEFISearchState): void {
         type: state.query.type,
         subtype: state.query.subtype,
         isOpen: state.isOpen,
+        mode: state.mode,
+        contentText: state.content.text,
+        contentFromSelection: !state.content.wholeTree,
       })
     );
   } catch {
@@ -95,6 +138,28 @@ export function setSearchQuery(query: UEFITreeQuery): void {
   uefiSearchStore.update((current) => {
     if (sameQuery(current.query, query)) return current;
     const next = { ...current, query };
+    remember(next);
+    return next;
+  });
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.mode */
+export function setSearchMode(mode: UEFISearchMode): void {
+  uefiSearchStore.update((current) => {
+    if (current.mode === mode) return current;
+    const next = { ...current, mode };
+    remember(next);
+    return next;
+  });
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchSettings.swift#UEFISearchSettings.content */
+export function setContentQuery(content: UEFIContentQuery): void {
+  uefiSearchStore.update((current) => {
+    if (current.content.text === content.text && current.content.wholeTree === content.wholeTree) {
+      return current;
+    }
+    const next = { ...current, content };
     remember(next);
     return next;
   });
