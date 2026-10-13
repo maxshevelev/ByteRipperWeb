@@ -1992,6 +1992,126 @@ textarea,
   color: var(--semantic-bad);
 }
 
+/* ── Where a file opens: the window drawn small ───────────────────────── */
+
+.pane-choice-dialog {
+  width: min(36rem, 94vw);
+  max-width: min(36rem, 94vw);
+}
+
+/* The window's frame, the panes inside it laid out as they are on screen. */
+.pane-choice-window {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+}
+
+.pane-choice-window.is-sideBySide {
+  flex-direction: row;
+}
+
+.pane-choice-window.is-stacked {
+  flex-direction: column;
+}
+
+/* One pane: a tile that is chosen by a click, its state in words and in colour both. */
+.pane-choice {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  min-height: 7.5rem;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* One above the other, a tile is as tall as what it says; side by side the two share the width. */
+.pane-choice-window.is-stacked .pane-choice {
+  flex: none;
+  min-height: 5.5rem;
+}
+
+/* A line of the tile keeps its height: the name and the incoming file clip their width, and a
+   column would otherwise squeeze them flat to fit the tile. */
+.pane-choice > span {
+  flex: none;
+}
+
+.pane-choice:hover {
+  border-color: var(--border-strong);
+}
+
+.pane-choice:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* The chosen pane: the accent's frame, thicker, so it is not told by hue alone. */
+.pane-choice.is-chosen {
+  border: 2px solid var(--accent);
+  padding: 7px 9px;
+}
+
+.pane-choice-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* The file the chosen pane loses: struck through, as text that is going. */
+.pane-choice-name.is-leaving {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.pane-choice-size,
+.pane-choice-state {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pane-choice-state.is-bad {
+  color: var(--semantic-bad);
+  font-weight: 600;
+}
+
+.pane-choice-state.is-caution {
+  color: var(--semantic-caution);
+}
+
+/* The file arriving, where the chosen pane's file was. */
+.pane-choice-incoming {
+  max-width: 100%;
+  margin-top: auto;
+  padding-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.pane-choice-warning {
+  margin: 0.5rem 0 0;
+  font-size: 12px;
+  color: var(--semantic-bad);
+}
+
 /* ── The commands menu ────────────────────────────────────────────────── */
 
 .menu-root {

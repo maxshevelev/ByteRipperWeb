@@ -60,11 +60,17 @@ export function allAnnotations(
   });
 }
 
-/** What the page can tell of the file a pane holds whole; nothing for a part or a new document. */
+/**
+ * What the page can tell of the file a pane holds whole — its name, size and date, and in the
+ * desktop shell its full path — nothing for a part or a new document.
+ */
 export function fileIdentityOf(pane: PaneId): FileIdentity | undefined {
   const held = paneState(pane);
   if (held === undefined || held.untitled || held.origin !== undefined) return undefined;
-  return { name: held.file.name, size: held.file.size, modified: held.file.lastModified };
+  const { name, size, lastModified, path } = held.file;
+  return path === undefined
+    ? { name, size, modified: lastModified }
+    : { name, size, modified: lastModified, path };
 }
 
 /** Whether `annotation` is about the file `identity` names. */

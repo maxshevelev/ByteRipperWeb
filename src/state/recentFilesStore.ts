@@ -129,8 +129,8 @@ export function dropRecentFile(name: string): void {
  * clicking a row is; a launch, pruning at start, is not, and so does not call
  * this at all.
  *
- * @upstream-differs upstream re-opens by the path it kept; the page has no path,
- * only the handle, and the handle is what carries the write access with it
+ * @upstream-differs upstream re-opens by the path it kept; a browser gives the page
+ * no path, only the handle, and the handle is what carries the write access with it
  */
 export async function fileFromRecentHandle(handle: FileSystemFileHandle): Promise<File> {
   const permissions = handle as HandlePermissions;

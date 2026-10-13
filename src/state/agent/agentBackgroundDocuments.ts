@@ -61,25 +61,6 @@ export class AgentBackgroundDocuments {
   }
 
   /**
-   * Whether there is no file at `path` any more — what a `stat` answers for a file deleted or
-   * moved away. A `stat` that could not be made for any other reason — the shell's agent service
-   * switched off, a folder it may not read — is not an answer that the file is gone.
-   *
-   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
-   * @upstream-differs upstream asks FileManager.fileExists; the web asks the shell's bridge
-   */
-  async isGone(path: string): Promise<boolean> {
-    const bridge = this.bridge();
-    if (bridge === undefined) return false;
-    try {
-      await bridge.file({ op: "stat", path });
-      return false;
-    } catch (error) {
-      return /\b(ENOENT|ENOTDIR)\b/.test(reason(error));
-    }
-  }
-
-  /**
    * The file at `path`, opened or already open. Throws what opening it threw — no such file, not
    * readable.
    *
@@ -113,6 +94,7 @@ export class AgentBackgroundDocuments {
       size: stat.size,
       lastModified: Math.floor(stat.modified),
       source,
+      path: stat.path,
     });
     if (known !== undefined) {
       this.dispose(known.pane);

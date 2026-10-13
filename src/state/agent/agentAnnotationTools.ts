@@ -27,11 +27,11 @@ import {
   fileIdentityOf,
   removeAnnotations,
 } from "@/state/agent/agentAnnotationStore";
-import type { BackgroundEntry } from "@/state/agent/agentBackgroundDocuments";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
+import { type Reopened, reopenFile } from "@/state/fileReopen";
 import { readyFirmware } from "@/state/firmwareReady";
 import {
   askUefiAgent,
@@ -46,7 +46,13 @@ import { activate, selectPane, sessionOn, toolController } from "@/state/toolCon
 import { beginBlockingWork } from "@/state/toolWork";
 import { uefiPanelLink } from "@/state/uefiPanelLinks";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
-import { notesPanelIsUp, type PaneId, paneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  notesPanelIsUp,
+  openInPane,
+  type PaneId,
+  paneState,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { decodedFromWire, type WireDecoded } from "@/tools/uefi/agent/uefiAgentAnnotations";
 import type { WireContentMatch } from "@/workers/protocol";
 
@@ -573,10 +579,12 @@ export class AgentAnnotationTools {
    * results go to a match: in the file's own bytes as a click on a row does; in decompressed or
    * decoded bytes as a double-click does — a fragment panel of them, the place selected.
    *
-   * The file is opened again from its path when no pane has it. A file no longer at that path is
+   * A file no pane has is opened again the way File ▸ Open Recent opens one — by the handle it was
+   * opened with, or in the desktop shell by its full path (`reopenFile`). A file no longer there is
    * said to be gone, as upstream's Notes window says it, and nothing else is: a file that is there
-   * but could not be opened says why. With both panes holding a file, the person — `byPerson`, a
-   * card's double-click — is asked which one gives way; an agent's `reveal` is refused instead.
+   * but could not be opened says why. Into a free pane; with both panes holding a file the person —
+   * `byPerson`, a card's double-click — is asked which one gives way, and an agent's `reveal` is
+   * refused, since an agent never replaces a pane.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.go
@@ -587,45 +595,43 @@ export class AgentAnnotationTools {
     if (annotation === undefined) return;
     let place = this.placeOf(annotation);
     if (place === undefined) {
-      const path = annotationPath(annotation.file);
-      if (path === undefined) {
-        showNotice("warning", [
-          L("“%1$@” is not open.", annotationFileName(annotation.file)),
-          L("Annotations"),
-        ]);
-        return;
+      const name = annotationFileName(annotation.file);
+      const reopened: Reopened =
+        annotation.file.kind === "disk"
+          ? await reopenFile(annotation.file.identity)
+          : { kind: "unreachable" };
+      switch (reopened.kind) {
+        case "unreachable":
+          showNotice("warning", [L("“%1$@” is not open.", name), L("Annotations")]);
+          return;
+        case "gone":
+          showNotice("warning", [
+            L("The file is not there"),
+            L("“%1$@” has been moved or deleted since the annotation was made.", reopened.where),
+          ]);
+          return;
+        case "failed":
+          showNotice("warning", [L("Could not open file."), reopened.reason]);
+          return;
+        case "opened":
+          break;
       }
-      if (await this.desk.background.isGone(path)) {
-        showNotice("warning", [
-          L("The file is not there"),
-          L("“%1$@” has been moved or deleted since the annotation was made.", path),
-        ]);
-        return;
+      let slot: SlotId | undefined = PANE_IDS.find((one) => paneState(one) === undefined);
+      if (slot === undefined) {
+        const choose = agentShell.choosePaneToReplace;
+        if (!byPerson || choose === undefined) {
+          showNotice("warning", [
+            L("Could not open file."),
+            "Both panes of the window hold a file, and an agent does not replace one.",
+          ]);
+          return;
+        }
+        slot = await choose(name);
+        if (slot === undefined) return;
       }
-      // Asked before the file is read: reading a large image through the shell takes a while,
-      // and a person who declines has nothing to wait for.
-      let replacing: SlotId | undefined;
-      const choose = agentShell.choosePaneToReplace;
-      if (byPerson && choose !== undefined && PANE_IDS.every((slot) => paneState(slot) !== undefined)) {
-        replacing = await choose(annotationFileName(annotation.file));
-        if (replacing === undefined) return;
-      }
-      let entry: BackgroundEntry | undefined;
-      try {
-        entry = await this.desk.background.open(path);
-        const opened = entry.id;
-        const background = this.desk.places().find((one) => one.id === opened);
-        if (background === undefined) return;
-        place = this.dumpTools.openOnScreen(background, replacing);
-      } catch (error) {
-        showNotice("warning", [
-          L("Could not open file."),
-          error instanceof Error ? error.message : String(error),
-        ]);
-        return;
-      } finally {
-        if (entry !== undefined) this.desk.background.close(entry.pane);
-      }
+      openInPane(slot, reopened.file);
+      place = this.desk.placeOf(slot);
+      if (place === undefined) return;
     }
     const pane = place.onScreen();
     agentShell.bringForward?.(pane);

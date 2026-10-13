@@ -24,6 +24,7 @@ import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
+import { rememberOpenedFile } from "@/state/fileReopen";
 import {
   collapsePanels,
   EMPTY_DOCK,
@@ -589,6 +590,8 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
       },
       activePane: pane,
     }));
+    // Its handle is kept, so an annotation on it can open it again once the pane holds another.
+    rememberOpenedFile(file);
     // A file arrives as one piece covering it, whatever the pane held before.
     forgetJoins(pane);
     resetSegments(pane, document.size);

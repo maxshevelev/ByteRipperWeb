@@ -1533,9 +1533,11 @@
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
 "“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";
 "Where should “%1$@” open?" = "Wo soll „%1$@“ geöffnet werden?";
-"Both panes hold a file: “%1$@” is open as File A, “%2$@” as File B. The file in the pane you choose is replaced; the other pane stays as it is." = "Beide Bereiche sind belegt: „%1$@“ ist als Datei A geöffnet, „%2$@“ als Datei B. Im gewählten Bereich wird die geöffnete Datei ersetzt; der andere Bereich bleibt unverändert.";
-"Replace File A" = "Datei A ersetzen";
-"Replace File B" = "Datei B ersetzen";
-"Replace “%1$@”?" = "„%1$@“ ersetzen?";
 "Replace and Break Link" = "Ersetzen und Verbindung trennen";
 "Replace and Break Links" = "Ersetzen und Verbindungen trennen";
+"Both panes hold a file. Choose the pane “%1$@” opens in; the file there is closed." = "Beide Bereiche sind belegt. Wählen Sie den Bereich, in dem „%1$@“ geöffnet wird; die dort geöffnete Datei wird geschlossen.";
+"No unsaved changes" = "Keine ungesicherten Änderungen";
+"Open Here" = "Hier öffnen";
+"Panes" = "Bereiche";
+"Replace and Discard Edits" = "Ersetzen und Änderungen verwerfen";
+"The unsaved changes in “%1$@” are lost." = "Die ungesicherten Änderungen in „%1$@“ gehen verloren.";

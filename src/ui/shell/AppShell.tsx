@@ -117,6 +117,7 @@ import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { OperationDialog } from "@/ui/dialogs/OperationDialog";
+import { type PaneChoice, PaneChoiceDialog } from "@/ui/dialogs/PaneChoiceDialog";
 import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import {
@@ -523,8 +524,8 @@ export function AppShell() {
    * picker, always the same file.
    *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFile
-   * @upstream-differs upstream re-opens by the path it kept; the page has no
-   * path, only the handle, and the handle re-opens the file with its write access
+   * @upstream-differs upstream re-opens by the path it kept; a browser gives the
+   * page no path, only the handle, and the handle re-opens the file with its write access
    */
   const openRecentFile = useCallback(
     (index: number) => {
@@ -765,6 +766,15 @@ export function AppShell() {
    * dialog takes the keyboard and the mouse, so no second close can be asked
    * until this one is answered.
    */
+  /** The pane-choice question while it is up, and the answer it is waiting for. */
+  const [paneAsk, setPaneAsk] = useState<
+    | {
+        incoming: string;
+        panes: readonly PaneChoice[];
+        answer: (slot: SlotId | undefined) => void;
+      }
+    | undefined
+  >(undefined);
   const [closeAsk, setCloseAsk] = useState<
     | {
         title: string;
@@ -1307,70 +1317,39 @@ export function AppShell() {
 
   /**
    * Which of the two panes gives way to `incoming`, when both hold a file and the person asked
-   * for a file no pane has — a double-click on an annotation's card. Each pane is named with the
-   * file it holds, so the choice is made knowing what goes. Then, as closing asks and in the same
-   * order: the panels taken out of the chosen file that lose their way back, and its unsaved
-   * edits. The slot, or nothing when any answer was no.
+   * for a file no pane has — a double-click on an annotation's card. The window is drawn small with
+   * each pane where it is, the file it holds, its unsaved edits and the panels taken out of it, so
+   * what replacing it costs is read before it is chosen; the button says it, once. The slot, or
+   * nothing when the person cancelled.
    *
    * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
+   * @upstream-differs upstream asks about the stranded panels and the unsaved edits in alerts of
+   * their own, after the choice; here they are on the panes being chosen between, and the button
+   * that replaces says what it throws away
    */
   const choosePaneToReplace = useCallback(async (incoming: string): Promise<SlotId | undefined> => {
     const a = paneState("a");
     const b = paneState("b");
     if (a === undefined) return "a";
     if (b === undefined) return "b";
-    const picked = await new Promise<CloseChoice>((resolve) =>
-      setCloseAsk({
-        title: L("Where should “%1$@” open?", incoming),
-        message: L(
-          "Both panes hold a file: “%1$@” is open as File A, “%2$@” as File B. The file in the pane you choose is replaced; the other pane stays as it is.",
-          a.name,
-          b.name
-        ),
-        confirmLabel: L("Replace File A"),
-        otherLabel: L("Replace File B"),
-        answer: resolve,
-      })
+    const choiceOf = (slot: SlotId, held: PaneState): PaneChoice => ({
+      slot,
+      name: held.name,
+      size: held.document.size,
+      dirty: held.document.isDirty,
+      linkedParts: partsLinkedTo(slot).length,
+    });
+    const slot = await new Promise<SlotId | undefined>((resolve) =>
+      setPaneAsk({ incoming, panes: [choiceOf("a", a), choiceOf("b", b)], answer: resolve })
     );
-    setCloseAsk(undefined);
-    if (picked === "cancel") return undefined;
-    const slot: SlotId = picked === "confirm" ? "a" : "b";
-    const occupant = slot === "a" ? a : b;
-    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
-    const stranded = partsLinkedTo(slot).length;
-    if (stranded > 0) {
-      const answered = await new Promise<boolean>((resolve) =>
-        setCloseAsk({
-          title: L("Replace “%1$@”?", occupant.name),
-          message: strandingSentence(stranded),
-          confirmLabel: stranded === 1 ? L("Replace and Break Link") : L("Replace and Break Links"),
-          answer: (choice) => resolve(choice === "confirm"),
-        })
-      );
-      setCloseAsk(undefined);
-      if (!answered) return undefined;
-    }
-    // @upstream-differs upstream offers Save and Replace / Replace Without Saving / Cancel;
-    // the web asks a plain confirm and replaces, as Open… into an occupied pane does
-    if (
-      occupant.document.isDirty &&
-      !window.confirm(L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, incoming))
-    ) {
-      return undefined;
-    }
+    setPaneAsk(undefined);
     // A report about the file this pane is losing would stand over the one arriving.
-    forgetTransientMessage(slot);
+    if (slot !== undefined) forgetTransientMessage(slot);
     return slot;
   }, []);
 
-  /**
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicateDocument
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicatePaneDocument
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicate
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canDuplicate
-   */
   const doDuplicate = useCallback(() => {
     void duplicatePane(workspaceStore.getSnapshot().activePane).catch((error: unknown) =>
       reportAlert(
@@ -2656,6 +2635,13 @@ export function AppShell() {
           revealIn(pane, piece.start, false);
         }}
         onClose={() => setSegmentsPane(undefined)}
+      />
+      <PaneChoiceDialog
+        incoming={paneAsk?.incoming}
+        layout={state.layout}
+        panes={paneAsk?.panes ?? []}
+        onChoose={(slot) => paneAsk?.answer(slot)}
+        onCancel={() => paneAsk?.answer(undefined)}
       />
       <ConfirmDialog
         open={closeAsk !== undefined}

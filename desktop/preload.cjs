@@ -3,7 +3,7 @@
 // its commands.
 // A chosen item comes back through main.cjs, not through here: it has to
 // arrive as a user gesture, which a message over IPC is not.
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 // The agent service's end of the page (Design/PORT_AGENT.md): the connections an agent's relay
 // makes, as bytes in and out, and files by path. No message is read here.
@@ -23,6 +23,18 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     send: (id, bytes) => ipcRenderer.send("agent:send", id, bytes),
     end: (id) => ipcRenderer.send("agent:end", id),
     file: (request) => ipcRenderer.invoke("agent:file", request),
+  },
+  // The full path of a file the person opened — through the picker, the file input or a drop —
+  // which a page is never told; and that file read again by it.
+  files: {
+    pathOf: (file) => {
+      try {
+        return webUtils.getPathForFile(file) || undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    file: (request) => ipcRenderer.invoke("file:read", request),
   },
   setMenu: (menus) => ipcRenderer.send("menu:set", menus),
   zoom: (step) => ipcRenderer.send("zoom", step),

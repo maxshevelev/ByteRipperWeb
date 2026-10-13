@@ -166,6 +166,18 @@ function register(ipcMain, fromApp, app) {
   ipcMain.handle("agent:file", async (event, request) => {
     if (!fromApp(event)) throw new Error("Not the app's page.");
     if (!enabled) throw new Error("The agent service is off.");
+    return fileRequest(request, true);
+  });
+
+  // The page's own way back to a file it opened: the path the shell gave it for a file the person
+  // chose, read again to go to an annotation on it. Not the agent's, so not behind its switch —
+  // the person opening their own file again is what Open Recent does — and no listing.
+  ipcMain.handle("file:read", async (event, request) => {
+    if (!fromApp(event)) throw new Error("Not the app's page.");
+    return fileRequest(request, false);
+  });
+
+  async function fileRequest(request, listing) {
     const file = expand(request.path);
     if (!path.isAbsolute(file)) throw new Error("A path must be absolute, or start with ~/.");
     switch (request.op) {
@@ -179,6 +191,7 @@ function register(ipcMain, fromApp, app) {
         };
       }
       case "list": {
+        if (!listing) throw new Error(`Unknown file request: ${request.op}`);
         const found = [];
         const walk = async (folder) => {
           for (const entry of await fs.promises.readdir(folder, { withFileTypes: true })) {
@@ -208,7 +221,7 @@ function register(ipcMain, fromApp, app) {
       default:
         throw new Error(`Unknown file request: ${request.op}`);
     }
-  });
+  }
 
   app.on("will-quit", stop);
 }

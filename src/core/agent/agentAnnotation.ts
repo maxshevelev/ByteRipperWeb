@@ -3,11 +3,12 @@ import { L } from "@/core/localization/localization";
 
 /**
  * What tells a file on disk apart from another, as far as a page can tell: its name, size and date
- * — and its path, where the file was read by path.
+ * — and its full path, which the desktop shell gives for every file the person opens and for every
+ * file read by path.
  *
- * @web-only upstream's `FileIdentity` is an inode and a volume, which a browser cannot see; a file
- * the page opened is known by its name, size and date, so a save gives it a new date, and it is
- * then another file
+ * @web-only upstream's `FileIdentity` is an inode and a volume, which a browser cannot see; with a
+ * path on both sides the path decides, and a browser, which tells a page no path, knows a file by
+ * its name, size and date, so a save there gives it a new date, and it is then another file
  */
 export interface FileIdentity {
   readonly name: string;
@@ -37,7 +38,8 @@ export type AnnotationFile =
    * A file on disk, found again by its identity when it is opened.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.File.url
-   * @upstream-differs known by its identity alone, with a path only where the shell read it by one
+   * @upstream-differs known by its identity — with its full path in the desktop shell, by name, size
+   * and date in a browser
    */
   | { readonly kind: "disk"; readonly identity: FileIdentity }
   /**

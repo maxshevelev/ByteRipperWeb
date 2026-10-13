@@ -173,3 +173,26 @@ test("files by path are read only while the service is on", async () => {
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test("the page reads a file it opened by path with the service off, and lists nothing", async () => {
+  const folder = temporary();
+  const { invoke } = harness();
+  const file = path.join(folder, "dump.bin");
+  fs.writeFileSync(file, Buffer.from([1, 2, 3, 4, 5, 6]));
+  try {
+    await assert.rejects(invoke("agent:file", { op: "stat", path: file }), /off/);
+    const stat = await invoke("file:read", { op: "stat", path: file });
+    assert.equal(stat.size, 6);
+    assert.deepEqual(
+      [...(await invoke("file:read", { op: "read", path: file, offset: 1, length: 2 }))],
+      [2, 3]
+    );
+    await assert.rejects(invoke("file:read", { op: "list", path: folder }), /Unknown/);
+    await assert.rejects(
+      invoke("file:read", { op: "stat", path: path.join(folder, "gone.bin") }),
+      /ENOENT/
+    );
+  } finally {
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

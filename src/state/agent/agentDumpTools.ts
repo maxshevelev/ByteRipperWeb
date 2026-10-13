@@ -194,17 +194,15 @@ export class AgentDumpTools {
 
   /**
    * Opens a background document into a pane of the window that holds no file, and gives back the
-   * place it has there. Both panes taken is the person's to settle: `replacing` is the pane the
-   * person chose to give way, and only the person chooses one — an agent never does.
+   * place it has there. Both panes taken is the person's to settle.
    *
    * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.openInNewTab
    * @upstream-differs a free pane of the window, where upstream opens a tab
    */
-  openOnScreen(place: AgentPlace, replacing?: SlotId): AgentPlace {
+  openOnScreen(place: AgentPlace): AgentPlace {
     const held = place.state;
     if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
-    const free =
-      replacing ?? (["a", "b"] as const).find((slot: SlotId) => paneState(slot) === undefined);
+    const free = (["a", "b"] as const).find((slot: SlotId) => paneState(slot) === undefined);
     if (free === undefined) {
       throw new AgentToolError(
         "Both panes of the window hold a file, and an agent does not replace one. " +

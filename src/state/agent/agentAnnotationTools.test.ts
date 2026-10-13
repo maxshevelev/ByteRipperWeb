@@ -3,6 +3,7 @@ import { annotationTitles, drawnTooltip } from "@/core/agent/agentAnnotation";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { type DesktopFiles, installDesktopFilesForTesting } from "@/platform/desktop/desktopFiles";
 import {
   agentAnnotationStore,
   allAnnotations,
@@ -12,6 +13,7 @@ import {
 } from "@/state/agent/agentAnnotationStore";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
+import { forgetOpenedFilesForTesting } from "@/state/fileReopen";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { noticeStore } from "@/state/noticeStore";
@@ -64,6 +66,12 @@ const bridge = (): AgentBridge => ({
     const offset = request.offset ?? 0;
     return held.bytes.slice(offset, offset + (request.length ?? held.bytes.length));
   }) as AgentBridge["file"],
+});
+
+/** The shell's files for the page's own use, over the same machine's files. */
+const pageFiles = (): DesktopFiles => ({
+  pathOf: () => undefined,
+  file: bridge().file as DesktopFiles["file"],
 });
 
 const leave: (() => void)[] = [];
@@ -128,6 +136,7 @@ const selection = (pane: PaneId = "a") => {
 };
 
 beforeEach(() => {
+  installDesktopFilesForTesting(pageFiles());
   navigationHistory.removeAll();
   disk.clear();
   service = new AgentService(bridge());
@@ -147,6 +156,8 @@ afterEach(() => {
   scrollLink.forget("b");
   forgetCaretOnScreen("a");
   forgetCaretOnScreen("b");
+  installDesktopFilesForTesting();
+  forgetOpenedFilesForTesting();
   agentShell.reveal = undefined;
   agentShell.bringForward = undefined;
   agentShell.choosePaneToReplace = undefined;
@@ -335,6 +346,61 @@ describe("on screen", () => {
     expect(paneState("b")?.name).toBe("front.bin");
     expect(selection("b")).toEqual([0x40, 0x44]);
     expect(service.desk.background.entries).toEqual([]);
+  });
+
+  // The person's own note on a file the shell gave a path for keeps the path, and the file is
+  // opened again by it once its pane holds another — with the agent service off.
+  // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
+  it("by the person on a file with a path opens it again by that path", async () => {
+    const bytes = counting(0x1000);
+    disk.set("/dumps/front.bin", { bytes, modified: 1000 });
+    openInPane("a", {
+      name: "front.bin",
+      size: bytes.length,
+      lastModified: 1000,
+      source: new Blob([bytes]),
+      path: "/dumps/front.bin",
+    });
+    await service.annotationTools.addNote("Mine", "", "a", 0x40, 0x44);
+    expect(allAnnotations()[0]?.file).toMatchObject({ identity: { path: "/dumps/front.bin" } });
+    open(counting(0x100), "other.bin", "a");
+
+    selectOnReveal();
+    await service.annotationTools.show("a1", true);
+    expect(paneState("b")?.name).toBe("front.bin");
+    expect(paneState("b")?.file.path).toBe("/dumps/front.bin");
+    expect(selection("b")).toEqual([0x40, 0x44]);
+  });
+
+  // A file opened through the picker or a drop is opened again by its handle, as File ▸ Open
+  // Recent does — the browser's way back, with no path.
+  it("by the person on a file with a handle opens it again by the handle", async () => {
+    const bytes = counting(0x1000);
+    const file = new File([bytes], "picked.bin", { lastModified: 2000 });
+    const handle = { kind: "file", name: "picked.bin", getFile: async () => file };
+    openInPane("a", {
+      name: "picked.bin",
+      size: bytes.length,
+      lastModified: 2000,
+      source: file,
+      handle: handle as unknown as FileSystemFileHandle,
+    });
+    await service.annotationTools.addNote("Picked", "", "a", 0x10, 0x12);
+    open(counting(0x100), "other.bin", "a");
+
+    selectOnReveal();
+    await service.annotationTools.show("a1", true);
+    expect(paneState("b")?.name).toBe("picked.bin");
+    expect(selection("b")).toEqual([0x10, 0x12]);
+  });
+
+  // With neither a handle nor a path there is no way back, and the card says the file is not open.
+  it("on a file with no way back says it is not open", async () => {
+    open(counting(0x1000), "plain.bin", "a");
+    await service.annotationTools.addNote("Plain", "", "a", 0, 2);
+    open(counting(0x100), "other.bin", "a");
+    await service.annotationTools.show("a1", true);
+    expect(noticeStore.getSnapshot().current?.lines[0]).toBe("“plain.bin” is not open.");
   });
 
   // A double-click on a card goes to its bytes, and Back comes back.
