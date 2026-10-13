@@ -5806,7 +5806,6 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.newWindowForTab": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.refresh": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.shared": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidBecomeKey": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidDeminiaturize": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView*": "n/a — the panel goes with the last annotation, so it is never empty",

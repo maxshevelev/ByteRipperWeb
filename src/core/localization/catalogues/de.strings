@@ -1220,6 +1220,7 @@
 "The title and the note change; the place stays." = "Titel und Erläuterung ändern sich; die Stelle bleibt dieselbe.";
 "This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of." = "Dieser Knoten hat hier keine Stelle in der Datei, an der eine Anmerkung angebracht werden kann. Ein Knoten in einem komprimierten Abschnitt eines Fragments wird aus dem Baum der Datei annotiert, aus der das Fragment stammt.";
 "“%1$@” has been moved or deleted since the annotation was made." = "„%1$@“ wurde verschoben oder gelöscht, nachdem die Anmerkung angelegt wurde.";
+"The file is not there" = "Die Datei ist nicht vorhanden";
 "Start ByteRipper when an agent connects" = "ByteRipper starten, wenn sich ein Agent verbindet";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Eingeschaltet erlaubt die Konfiguration unten dem Agentenprogramm, ByteRipper zu starten, wenn der Agent es braucht und es nicht geöffnet ist. Ausgeschaltet erreicht der Agent ByteRipper nur, solange es geöffnet ist, und ein beendetes ByteRipper bleibt beendet. Nach einer Änderung die Konfiguration erneut in das Agentenprogramm kopieren.";
 "Log" = "Protokoll";
@@ -1531,3 +1532,10 @@
 "Annotations not seen yet" = "Noch nicht angesehene Anmerkungen";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
 "“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";
+"Where should “%1$@” open?" = "Wo soll „%1$@“ geöffnet werden?";
+"Both panes hold a file: “%1$@” is open as File A, “%2$@” as File B. The file in the pane you choose is replaced; the other pane stays as it is." = "Beide Bereiche sind belegt: „%1$@“ ist als Datei A geöffnet, „%2$@“ als Datei B. Im gewählten Bereich wird die geöffnete Datei ersetzt; der andere Bereich bleibt unverändert.";
+"Replace File A" = "Datei A ersetzen";
+"Replace File B" = "Datei B ersetzen";
+"Replace “%1$@”?" = "„%1$@“ ersetzen?";
+"Replace and Break Link" = "Ersetzen und Verbindung trennen";
+"Replace and Break Links" = "Ersetzen und Verbindungen trennen";

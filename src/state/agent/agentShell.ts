@@ -1,4 +1,4 @@
-import type { PaneId } from "@/state/paneId";
+import type { PaneId, SlotId } from "@/state/paneId";
 
 /**
  * What only the shell can do on an agent's behalf: show a place in a pane. Set by the app's
@@ -29,4 +29,13 @@ export const agentShell: {
    * driven: a dialog is up.
    */
   busy?: (() => string | undefined) | undefined;
+  /**
+   * Asks the person which of the window's two panes gives way to the file `incoming` — naming
+   * the file each now holds — and then what the replacement costs: the panels taken out of it
+   * that lose their way back, its unsaved edits. The slot to open into, or nothing when the
+   * person declined at any of the questions.
+   *
+   * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
+   */
+  choosePaneToReplace?: ((incoming: string) => Promise<SlotId | undefined>) | undefined;
 } = {};

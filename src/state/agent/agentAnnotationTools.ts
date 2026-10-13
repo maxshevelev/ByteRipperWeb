@@ -27,6 +27,7 @@ import {
   fileIdentityOf,
   removeAnnotations,
 } from "@/state/agent/agentAnnotationStore";
+import type { BackgroundEntry } from "@/state/agent/agentBackgroundDocuments";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
@@ -40,7 +41,7 @@ import {
 } from "@/state/firmwareStore";
 import { recordJump } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
-import { surfaceOf } from "@/state/paneId";
+import { PANE_IDS, type SlotId, surfaceOf } from "@/state/paneId";
 import { activate, selectPane, sessionOn, toolController } from "@/state/toolController";
 import { beginBlockingWork } from "@/state/toolWork";
 import { uefiPanelLink } from "@/state/uefiPanelLinks";
@@ -572,10 +573,16 @@ export class AgentAnnotationTools {
    * results go to a match: in the file's own bytes as a click on a row does; in decompressed or
    * decoded bytes as a double-click does — a fragment panel of them, the place selected.
    *
+   * The file is opened again from its path when no pane has it. A file no longer at that path is
+   * said to be gone, as upstream's Notes window says it, and nothing else is: a file that is there
+   * but could not be opened says why. With both panes holding a file, the person — `byPerson`, a
+   * card's double-click — is asked which one gives way; an agent's `reveal` is refused instead.
+   *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.go
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
    */
-  async show(id: string): Promise<void> {
+  async show(id: string, byPerson = false): Promise<void> {
     const annotation = allAnnotations().find((one) => one.id === id);
     if (annotation === undefined) return;
     let place = this.placeOf(annotation);
@@ -588,18 +595,36 @@ export class AgentAnnotationTools {
         ]);
         return;
       }
+      if (await this.desk.background.isGone(path)) {
+        showNotice("warning", [
+          L("The file is not there"),
+          L("“%1$@” has been moved or deleted since the annotation was made.", path),
+        ]);
+        return;
+      }
+      // Asked before the file is read: reading a large image through the shell takes a while,
+      // and a person who declines has nothing to wait for.
+      let replacing: SlotId | undefined;
+      const choose = agentShell.choosePaneToReplace;
+      if (byPerson && choose !== undefined && PANE_IDS.every((slot) => paneState(slot) !== undefined)) {
+        replacing = await choose(annotationFileName(annotation.file));
+        if (replacing === undefined) return;
+      }
+      let entry: BackgroundEntry | undefined;
       try {
-        const entry = await this.desk.background.open(path);
-        const background = this.desk.places().find((one) => one.id === entry.id);
+        entry = await this.desk.background.open(path);
+        const opened = entry.id;
+        const background = this.desk.places().find((one) => one.id === opened);
         if (background === undefined) return;
-        place = this.dumpTools.openOnScreen(background);
-        this.desk.background.close(entry.pane);
+        place = this.dumpTools.openOnScreen(background, replacing);
       } catch (error) {
         showNotice("warning", [
-          L("“%1$@” has been moved or deleted since the annotation was made.", path),
+          L("Could not open file."),
           error instanceof Error ? error.message : String(error),
         ]);
         return;
+      } finally {
+        if (entry !== undefined) this.desk.background.close(entry.pane);
       }
     }
     const pane = place.onScreen();

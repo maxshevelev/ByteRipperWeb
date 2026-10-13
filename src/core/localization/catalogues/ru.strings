@@ -1220,6 +1220,7 @@
 "The title and the note change; the place stays." = "Меняются заголовок и пояснение; место остаётся прежним.";
 "This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of." = "У этого узла здесь нет места в файле, к которому можно привязать заметку. Узел внутри сжатой секции фрагмента размечается из дерева файла, из которого взят фрагмент.";
 "“%1$@” has been moved or deleted since the annotation was made." = "Файл «%1$@» перемещён или удалён после того, как была сделана заметка.";
+"The file is not there" = "Файл не найден";
 "Start ByteRipper when an agent connects" = "Запускать ByteRipper при подключении агента";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Если флажок установлен, настройка ниже позволяет программе агента запускать ByteRipper, когда он нужен агенту, а программа не открыта. Если снят, агент подключается к ByteRipper только пока тот открыт, а закрытый ByteRipper остаётся закрытым. После изменения флажка скопируйте настройку в программу агента заново.";
 "Log" = "Журнал";
@@ -1530,3 +1531,10 @@
 "Annotations not seen yet" = "Заметки, которые ещё не просмотрены";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Заметка отображается поверх байтов узла и перечисляется в панели «Заметки».";
 "“%1$@” is not open." = "Файл «%1$@» не открыт.";
+"Where should “%1$@” open?" = "Где открыть «%1$@»?";
+"Both panes hold a file: “%1$@” is open as File A, “%2$@” as File B. The file in the pane you choose is replaced; the other pane stays as it is." = "Обе панели заняты: «%1$@» открыт как файл A, «%2$@» — как файл B. В выбранной панели открытый файл будет заменён; другая панель не изменится.";
+"Replace File A" = "Заменить файл A";
+"Replace File B" = "Заменить файл B";
+"Replace “%1$@”?" = "Заменить «%1$@»?";
+"Replace and Break Link" = "Заменить и разорвать связь";
+"Replace and Break Links" = "Заменить и разорвать связи";

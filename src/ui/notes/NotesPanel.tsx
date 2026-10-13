@@ -123,7 +123,7 @@ export function NotesPanel() {
       setChosen(new Set([id]));
     }
   };
-  const show = (id: string) => void agentService.annotationTools.show(id);
+  const show = (id: string) => void agentService.annotationTools.show(id, true);
   const remove = (doomed: ReadonlySet<string>) => {
     removeAnnotations((one) => doomed.has(one.id));
     setChosen(new Set());

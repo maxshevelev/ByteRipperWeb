@@ -14,6 +14,7 @@ import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
+import { noticeStore } from "@/state/noticeStore";
 import {
   closePane,
   foldParts,
@@ -148,6 +149,7 @@ afterEach(() => {
   forgetCaretOnScreen("b");
   agentShell.reveal = undefined;
   agentShell.bringForward = undefined;
+  agentShell.choosePaneToReplace = undefined;
 });
 
 describe("an annotation", () => {
@@ -282,6 +284,57 @@ describe("on screen", () => {
       title: "X",
     });
     expect(missing.text).toBe("There is no file at /nonexistent/file.bin.");
+  });
+
+  // A file no longer at its path is said to be gone; one that is there but cannot be put on
+  // screen says why instead, rather than claiming it was moved.
+  // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
+  it("showing it says the file is gone only when it is", async () => {
+    disk.set("/dumps/front.bin", { bytes: counting(0x1000), modified: 1000 });
+    await answer("annotate", { path: "/dumps/front.bin", offset: "0x40", title: "Result" });
+    disk.delete("/dumps/front.bin");
+    await service.annotationTools.show("a1", true);
+    expect(noticeStore.getSnapshot().current?.lines).toEqual([
+      "The file is not there",
+      "“/dumps/front.bin” has been moved or deleted since the annotation was made.",
+    ]);
+
+    disk.set("/dumps/front.bin", { bytes: counting(0x1000), modified: 1000 });
+    open(counting(0x100), "left.bin", "a");
+    open(counting(0x100), "right.bin", "b");
+    await service.annotationTools.show("a1");
+    expect(noticeStore.getSnapshot().current?.lines[0]).toBe("Could not open file.");
+    expect(paneState("a")?.name).toBe("left.bin");
+    expect(paneState("b")?.name).toBe("right.bin");
+  });
+
+  // With both panes holding a file, the person is asked which gives way, naming the file coming
+  // in; the one chosen is replaced, and a declined question leaves both as they were.
+  // @web-only upstream opens the file in a tab of its own
+  it("showing it from a card asks which pane gives way when both are taken", async () => {
+    disk.set("/dumps/front.bin", { bytes: counting(0x1000), modified: 1000 });
+    await answer("annotate", { path: "/dumps/front.bin", offset: "0x40", length: 4, title: "R" });
+    open(counting(0x100), "left.bin", "a");
+    open(counting(0x100), "right.bin", "b");
+    selectOnReveal();
+    const asked: string[] = [];
+    let chosen: "a" | "b" | undefined;
+    agentShell.choosePaneToReplace = async (incoming) => {
+      asked.push(incoming);
+      return chosen;
+    };
+
+    await service.annotationTools.show("a1", true);
+    expect(asked).toEqual(["front.bin"]);
+    expect(paneState("a")?.name).toBe("left.bin");
+    expect(paneState("b")?.name).toBe("right.bin");
+
+    chosen = "b";
+    await service.annotationTools.show("a1", true);
+    expect(paneState("a")?.name).toBe("left.bin");
+    expect(paneState("b")?.name).toBe("front.bin");
+    expect(selection("b")).toEqual([0x40, 0x44]);
+    expect(service.desk.background.entries).toEqual([]);
   });
 
   // A double-click on a card goes to its bytes, and Back comes back.

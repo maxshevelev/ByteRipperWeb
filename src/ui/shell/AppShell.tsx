@@ -1306,6 +1306,66 @@ export function AppShell() {
   }, []);
 
   /**
+   * Which of the two panes gives way to `incoming`, when both hold a file and the person asked
+   * for a file no pane has — a double-click on an annotation's card. Each pane is named with the
+   * file it holds, so the choice is made knowing what goes. Then, as closing asks and in the same
+   * order: the panels taken out of the chosen file that lose their way back, and its unsaved
+   * edits. The slot, or nothing when any answer was no.
+   *
+   * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
+   */
+  const choosePaneToReplace = useCallback(async (incoming: string): Promise<SlotId | undefined> => {
+    const a = paneState("a");
+    const b = paneState("b");
+    if (a === undefined) return "a";
+    if (b === undefined) return "b";
+    const picked = await new Promise<CloseChoice>((resolve) =>
+      setCloseAsk({
+        title: L("Where should “%1$@” open?", incoming),
+        message: L(
+          "Both panes hold a file: “%1$@” is open as File A, “%2$@” as File B. The file in the pane you choose is replaced; the other pane stays as it is.",
+          a.name,
+          b.name
+        ),
+        confirmLabel: L("Replace File A"),
+        otherLabel: L("Replace File B"),
+        answer: resolve,
+      })
+    );
+    setCloseAsk(undefined);
+    if (picked === "cancel") return undefined;
+    const slot: SlotId = picked === "confirm" ? "a" : "b";
+    const occupant = slot === "a" ? a : b;
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
+    const stranded = partsLinkedTo(slot).length;
+    if (stranded > 0) {
+      const answered = await new Promise<boolean>((resolve) =>
+        setCloseAsk({
+          title: L("Replace “%1$@”?", occupant.name),
+          message: strandingSentence(stranded),
+          confirmLabel: stranded === 1 ? L("Replace and Break Link") : L("Replace and Break Links"),
+          answer: (choice) => resolve(choice === "confirm"),
+        })
+      );
+      setCloseAsk(undefined);
+      if (!answered) return undefined;
+    }
+    // @upstream-differs upstream offers Save and Replace / Replace Without Saving / Cancel;
+    // the web asks a plain confirm and replaces, as Open… into an occupied pane does
+    if (
+      occupant.document.isDirty &&
+      !window.confirm(L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, incoming))
+    ) {
+      return undefined;
+    }
+    // A report about the file this pane is losing would stand over the one arriving.
+    forgetTransientMessage(slot);
+    return slot;
+  }, []);
+
+  /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicateDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicatePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicate
@@ -1400,12 +1460,14 @@ export function AppShell() {
       if (select) await paneState(pane)?.typing.setSelection(start, end);
       revealIn(pane, start, !select);
     };
+    agentShell.choosePaneToReplace = choosePaneToReplace;
     return () => {
       agentShell.reveal = undefined;
       agentShell.bringForward = undefined;
       agentShell.busy = undefined;
+      agentShell.choosePaneToReplace = undefined;
     };
-  }, [revealIn]);
+  }, [revealIn, choosePaneToReplace]);
 
   // The agent service reads its switches and opens its endpoint if it was on, where there is a shell
   // to serve through.
