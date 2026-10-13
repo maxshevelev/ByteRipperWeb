@@ -3507,7 +3507,6 @@
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testAResizeStretchesTheOverviewKeepingItTheRightWayUp": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.modifiedInkBounds": "n/a — test scaffolding",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testAModifiedByteMarksItsWholeRowInTheOverview": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/MinimapTests.swift#MinimapTests.testARowWideFillStopsWhereTheFileEnds": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testATypedByteDoesNotRepaintTheWholeOverview": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testAnInsertMarksTheWholeShiftedTailInTheOverview": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testAnInsertKeepsTheOverviewPictureWhileItIsRecomputed": "later — an app flow test; the port has no component or end-to-end test for it yet",

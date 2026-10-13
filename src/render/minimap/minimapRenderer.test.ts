@@ -1,9 +1,17 @@
 import { describe, expect, it, test } from "vitest";
-import { matchBarFor, overviewTone, withAlpha } from "@/render/minimap/minimapRenderer";
+import {
+  type MinimapColors,
+  MinimapRenderer,
+  matchBarFor,
+  type OverviewPicture,
+  overviewModifiedTone,
+  overviewTone,
+  withAlpha,
+} from "@/render/minimap/minimapRenderer";
 
-// The renderer itself needs a canvas; what is testable without one is the
-// colour arithmetic the tone scale rests on. The drawing is checked in the
-// browser, and the paint page measures it.
+// The colour arithmetic the tone scale rests on, and — over a canvas that records its fills —
+// what the overview draws over what. The pixels are checked in the browser, and the paint page
+// measures them.
 
 test("a resolved rgb colour takes an alpha", () => {
   expect(withAlpha("rgb(20, 30, 40)", 0.5)).toBe("rgba(20, 30, 40, 0.5)");
@@ -77,5 +85,82 @@ describe("a match's mark on the overview", () => {
 
   it("marks nothing for an empty mask", () => {
     expect(matchBarFor(0, cellWidth, 80)).toBeUndefined();
+  });
+});
+
+describe("the overview's marks", () => {
+  /** A canvas whose 2D context writes down every fill, in order. */
+  function recorded() {
+    const fills: { readonly style: string; readonly x: number; readonly y: number }[] = [];
+    const context = {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      setTransform: () => undefined,
+      fillRect(x: number, y: number) {
+        fills.push({ style: String(this.fillStyle), x, y });
+      },
+      strokeRect: () => undefined,
+    };
+    const canvas = { width: 0, height: 0, getContext: () => context };
+    const colors = new Proxy({} as MinimapColors, {
+      get: (_, key) =>
+        key === "modified" ? "rgb(255, 0, 0)" : key === "byte" ? "rgb(0, 0, 0)" : `#${String(key)}`,
+    });
+    const renderer = new MinimapRenderer(canvas as unknown as HTMLCanvasElement, colors);
+    renderer.resize(200, 64, 1);
+    return { renderer, fills };
+  }
+
+  /** A picture of `rows` rows over a file that fills them all. */
+  function picture(rows: number, change: Partial<OverviewPicture>): OverviewPicture {
+    const density = new Uint8Array(rows * 16);
+    // The upper half erased padding, the lower half dense content.
+    density.fill(255, (rows / 2) * 16);
+    return {
+      extent: rows * 1024,
+      fileSize: rows * 1024,
+      rowCount: rows,
+      density,
+      modified: new Uint16Array(rows),
+      different: new Uint16Array(rows),
+      ...change,
+    };
+  }
+
+  // A difference is drawn behind the overview's content, not instead of it: the longer file's
+  // tail, differing whole, kept its padding and its code apart.
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testOverviewDrawsContentOverTheDifference
+  it("draws the content over a difference", () => {
+    const { renderer, fills } = recorded();
+    renderer.draw({
+      mode: "overview",
+      picture: picture(8, { different: new Uint16Array(8).fill(0xffff) }),
+    });
+    const difference = fills.findIndex((one) => one.style === "#difference");
+    expect(difference).toBeGreaterThanOrEqual(0);
+    // After the row's difference come its cells' tones, over it.
+    const after = fills.slice(difference).find((one) => one.style !== "#difference");
+    expect(after?.style).toBe(withAlpha("rgb(0, 0, 0)", overviewTone(0)));
+    const dense = fills.filter((one) => one.style === withAlpha("rgb(0, 0, 0)", overviewTone(255)));
+    expect(dense.length).toBe(4 * 16);
+  });
+
+  // A modified row is drawn in red ink, not filled red: its padding and its content still read
+  // apart, the content the darker.
+  // @upstream ByteRipperTests/MinimapTests.swift#MinimapTests.testModifiedRowsKeepTheirContentInTheOverview
+  it("draws a modified row's content in the modified ink", () => {
+    const { renderer, fills } = recorded();
+    renderer.draw({
+      mode: "overview",
+      picture: picture(8, { modified: new Uint16Array(8).fill(1) }),
+    });
+    const sparse = withAlpha("rgb(255, 0, 0)", overviewModifiedTone(0));
+    const dense = withAlpha("rgb(255, 0, 0)", overviewModifiedTone(255));
+    expect(fills.filter((one) => one.style === sparse).length).toBe(4 * 16);
+    expect(fills.filter((one) => one.style === dense).length).toBe(4 * 16);
+    // Plainly red even where the row holds nothing but padding.
+    expect(overviewModifiedTone(0)).toBeGreaterThan(overviewTone(255) - 0.2);
+    expect(overviewModifiedTone(255)).toBe(1);
   });
 });

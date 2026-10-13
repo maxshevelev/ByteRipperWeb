@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "8df685703812f4f58e6211de4545cd7a28ad9caa",
-  "baselineNote": "Help (ru): the annotations and agent pages keep the \u00ab\u043d\u0430\u0437\u044b\u0432\u0430\u0442\u044c\u00bb rule (2026-10-13)"
+  "baseCommit": "30f5b29afd366cc6fc40016697cef11576c27a46",
+  "baselineNote": "Minimap overview: a modified row is red ink, not a red fill (2026-10-13)"
 }

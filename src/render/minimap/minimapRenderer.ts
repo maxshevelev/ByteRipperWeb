@@ -176,6 +176,15 @@ const MAX_TONE = 0.55;
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewToneGamma
  */
 const TONE_GAMMA = 0.75;
+/**
+ * The ramp for a row holding modified bytes, in the modified ink and set much higher: an edited
+ * row is a mark the user has to find on the map.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewModifiedMinTone
+ */
+const MODIFIED_MIN_TONE = 0.45;
+/** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewModifiedMaxTone */
+const MODIFIED_MAX_TONE = 1;
 
 /**
  * The floor on a mark's height, in device pixels.
@@ -511,39 +520,54 @@ export class MinimapRenderer {
     const cellWidth = this.mapWidth / MINIMAP_COLUMNS;
     const markHeight = Math.max(rowHeight, this.minMarkHeight);
 
-    // The density picture first, as the ground everything else marks.
+    // Each row as the dump draws its bytes: a difference is the cells' background, the file's
+    // own content is drawn over it, and a row holding modified bytes is that content in the
+    // modified ink. Neither mark ever hides the content. Filled instead of the content, the
+    // longer file's tail past the shorter one's end — every byte of it a difference — came out a
+    // blank orange band, and an insert near the start, which leaves the whole tail modified,
+    // turned the map below it into one red band.
     //
-    // Every cell inside the file is drawn, including the ones holding nothing
-    // but 0x00/0xFF fill: the tone ramp has a floor, so an erased region reads
-    // as a pale band that is part of the file rather than as bare paper. Skip
-    // those cells and a chip that is mostly erased flash looks like a chip that
-    // is mostly absent — which is the opposite of what the map is for.
+    // Every cell inside the file is drawn, including the ones holding nothing but 0x00/0xFF
+    // fill: the tone ramp has a floor, so an erased region reads as a pale band that is part of
+    // the file rather than as bare paper. Cells past this file's own end stay bare — not a fill,
+    // not a difference: the extent is the longer of the two files, and the shorter map's tail
+    // would otherwise claim content it does not have.
     //
-    // Cells past this file's own end are the ones that stay bare. The extent is
-    // the longer of the two files, so without that bound the shorter map's tail
-    // would wash pale all the way down and claim content it does not have.
+    // A mark — a differing cell, an edited row — is drawn at least two device pixels tall: one
+    // cell of a one-pixel row is invisible inside a dense region, so it spills into the next row
+    // rather than disappearing, and that row's content is drawn over the spill.
     for (let row = 0; row < picture.rowCount; row++) {
       const y = row * rowHeight;
+      const markY = Math.min(y, this.height - markHeight);
       const base = row * MINIMAP_COLUMNS;
       const rowStart = Math.floor((picture.extent * row) / picture.rowCount);
       const rowEnd = Math.floor((picture.extent * (row + 1)) / picture.rowCount);
       const lastColumn = lastColumnInFile(rowStart, rowEnd - rowStart, picture.fileSize);
+      if (lastColumn < 0) continue;
+      const different = picture.different[row] ?? 0;
+      if (different !== 0) {
+        context.fillStyle = this.colors.difference;
+        for (let column = 0; column <= lastColumn; column++) {
+          if ((different & (1 << column)) === 0) continue;
+          context.fillRect(this.mapLeft + column * cellWidth, markY, cellWidth, markHeight);
+        }
+      }
+      // A row holding bytes the user changed is in the modified ink across its whole width
+      // (§19.4): per cell the mark was unfindable — one edited byte is one cell of sixteen in
+      // one row of a thousand, and a column of a 16 MB dump's row is a kilobyte.
+      const modified = (picture.modified[row] ?? 0) !== 0;
       for (let column = 0; column <= lastColumn; column++) {
-        context.fillStyle = this.toneFor(picture.density[base + column] ?? 0);
-        context.fillRect(this.mapLeft + column * cellWidth, y, cellWidth, rowHeight);
+        const density = picture.density[base + column] ?? 0;
+        context.fillStyle = modified ? this.modifiedToneFor(density) : this.toneFor(density);
+        context.fillRect(
+          this.mapLeft + column * cellWidth,
+          modified ? markY : y,
+          cellWidth,
+          modified ? markHeight : rowHeight
+        );
       }
     }
 
-    // Then the overlays, each at least two device pixels tall so a single byte
-    // among millions is still a mark the eye can find.
-    this.drawMask(
-      picture.different,
-      picture.rowCount,
-      rowHeight,
-      markHeight,
-      this.colors.difference
-    );
-    this.drawMask(picture.modified, picture.rowCount, rowHeight, markHeight, this.colors.modified);
     // Matches last, and in two passes of their own — see below.
     this.drawMatches(picture, rowHeight, cellWidth);
   }
@@ -613,40 +637,6 @@ export class MinimapRenderer {
     return bar === undefined ? undefined : { x: this.mapLeft + bar.x, width: bar.width };
   }
 
-  private drawMask(
-    mask: Uint16Array | undefined,
-    rowCount: number,
-    rowHeight: number,
-    markHeight: number,
-    color: string
-  ): void {
-    if (mask === undefined) return;
-    const context = this.context;
-    // The map's own columns, not the canvas's: a mark stands for the bytes
-    // under it, so it has to sit over them. Measured from the canvas it ran
-    // into the margins, and a whole-row mark reached edge to edge where the
-    // bytes it was about stopped two columns short.
-    const left = this.mapLeft;
-    const mapWidth = this.mapWidth;
-    const cellWidth = mapWidth / MINIMAP_COLUMNS;
-    context.fillStyle = color;
-
-    for (let row = 0; row < rowCount; row++) {
-      const word = mask[row] ?? 0;
-      if (word === 0) continue;
-      // A mark grown past its row must not be pushed off the bottom edge.
-      const y = Math.min(row * rowHeight, this.height - markHeight);
-      if (word === 0xffff) {
-        context.fillRect(left, y, mapWidth, markHeight);
-        continue;
-      }
-      for (let column = 0; column < MINIMAP_COLUMNS; column++) {
-        if ((word & (1 << column)) === 0) continue;
-        context.fillRect(left + column * cellWidth, y, cellWidth, markHeight);
-      }
-    }
-  }
-
   /**
    * The ink a cell's density earns, as a colour.
    *
@@ -655,6 +645,11 @@ export class MinimapRenderer {
    */
   private toneFor(density: number): string {
     return withAlpha(this.colors.byte, overviewTone(density));
+  }
+
+  /** The same for a row holding modified bytes, in the modified ink. */
+  private modifiedToneFor(density: number): string {
+    return withAlpha(this.colors.modified, overviewModifiedTone(density));
   }
 }
 
@@ -672,6 +667,19 @@ export function overviewTone(density: number): number {
   const fraction = density / 255;
   const shaped = fraction > 0 ? fraction ** TONE_GAMMA : 0;
   return MIN_TONE + (MAX_TONE - MIN_TONE) * shaped;
+}
+
+/**
+ * The ink alpha for a modified row's cell holding `density` content: the same ramp, set much
+ * higher, so even a row of erased padding stays plainly red while the content in it still reads
+ * as denser or sparser.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.overviewModifiedTone
+ */
+export function overviewModifiedTone(density: number): number {
+  const fraction = density / 255;
+  const shaped = fraction > 0 ? fraction ** TONE_GAMMA : 0;
+  return MODIFIED_MIN_TONE + (MODIFIED_MAX_TONE - MODIFIED_MIN_TONE) * shaped;
 }
 
 /**
@@ -711,9 +719,8 @@ export function matchBarFor(
 /**
  * The last of a row's cells that holds a byte of this file, or -1 for none.
  *
- * Ported from `MinimapView.lastColumnInFile`.
- *
- * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.lastColumnInFile
+ * @web-only upstream works the same column out inline, in `drawOverviewCells`, since its row-wide
+ * fills went (30f5b29)
  */
 function lastColumnInFile(rowStart: number, span: number, fileSize: number): number {
   if (fileSize <= rowStart) return -1;
