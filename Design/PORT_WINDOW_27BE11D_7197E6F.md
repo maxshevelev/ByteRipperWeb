@@ -21,6 +21,12 @@ the baseline moves. What the web holds of `ce0ff33e` is behaviour the master
 does not have; whether upstream builds it or the web takes it back is the
 owner's decision, asked on 2026-10-12.
 
+**Found (2026-10-13).** The commits were on upstream's branch `main_fixes`.
+Upstream cherry-picked them onto `main` as `aaabeece..9ade875c`, added
+`8df68570` (the same rule in the ru Annotations and Agent pages), pushed, and
+deleted the branch. The web's `90eb4fc` matches them in content; `8df68570` is
+brought across with this window's close, and the baseline moves to it.
+
 Standing rules: shared upstream strings word for word, the web's own strings
 translated here; help edited in all three languages and re-stamped
 (`help-coverage --bless`); anything the browser cannot do is an `unported`
