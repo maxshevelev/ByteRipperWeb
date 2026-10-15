@@ -1211,6 +1211,10 @@
 "Edit this annotation" = "Titel und Erläuterung dieser Anmerkung bearbeiten";
 "Made by the agent" = "Vom Agenten angelegt";
 "Related Annotations: %1$@" = "Zugehörige Anmerkungen: %1$@";
+"No Annotations" = "Keine Anmerkungen";
+"Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…" = "Hier stehen die Anmerkungen, die von Hand oder von einem verbundenen Agenten angelegt wurden. Bytes in einem Dump oder einen Knoten der UEFI-Struktur auswählen, mit der rechten Maustaste klicken und „Anmerkung hinzufügen…“ wählen.";
+"annotation tag|New" = "Neu";
+"Open Annotation “%1$@”" = "Anmerkung „%1$@“ öffnen";
 "Remove Annotation" = "Anmerkung entfernen";
 "Remove this annotation" = "Diese Anmerkung entfernen";
 "Show in UEFI Structure" = "In UEFI-Struktur zeigen";

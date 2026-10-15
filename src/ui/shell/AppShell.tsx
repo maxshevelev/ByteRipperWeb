@@ -11,6 +11,7 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
@@ -831,6 +832,8 @@ export function AppShell() {
     void restoreBookmarks();
     // The favourites and this browser's identity, from the last visit.
     void restoreFavorites();
+    // The annotations, with the order of their cards, from the last visit.
+    void restoreAnnotations();
     // The files opened most recently, back for File ▸ Open Recent.
     void restoreRecentFiles();
   }, []);
@@ -970,6 +973,8 @@ export function AppShell() {
         }
         case "z":
         case "y": {
+          // The Annotations cards have their own: it takes back a removal there.
+          if (target instanceof Element && target.closest(".notes-cards") !== null) return;
           // Undo and Redo belong to the Edit menu and act on the active pane
           // wherever the keyboard is — after a click on the toolbar, say. A text
           // field keeps its own: undoing a typed character is not undoing a cut.
@@ -1096,8 +1101,9 @@ export function AppShell() {
       event.preventDefault();
       // A tool's tree or table keeps the focus a click would have given it:
       // its rows are what the arrows move, and with the focus left where it was
-      // they went to the dump's caret, or scrolled the list under the pointer.
-      const list = target.closest('[role="tree"], [role="grid"]');
+      // they went to the dump's caret, or scrolled the list under the pointer. So does the
+      // Annotations cards' list, whose Delete, Select All and Undo are the cards' own.
+      const list = target.closest('[role="tree"], [role="grid"], .notes-cards');
       if (list instanceof HTMLElement && list.tabIndex >= 0) list.focus({ preventScroll: true });
     };
     window.addEventListener("mousedown", onMouseDown);
@@ -1428,6 +1434,8 @@ export function AppShell() {
   // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
   useEffect(() => {
+    // One of a comparison's two panes becomes the active one, as `activateOwnPane` does.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateOwnPane
     const bringForward = (pane: PaneId) => {
       if (isSlot(pane)) {
         foldParts();

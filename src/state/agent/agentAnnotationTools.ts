@@ -24,6 +24,7 @@ import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import {
   addAnnotation,
   allAnnotations,
+  claimAnnotationId,
   fileIdentityOf,
   removeAnnotations,
 } from "@/state/agent/agentAnnotationStore";
@@ -39,7 +40,7 @@ import {
   firmwareNodeAt,
   reachFirmwarePaths,
 } from "@/state/firmwareStore";
-import { recordJump } from "@/state/navigationStore";
+import { recordJump, recordStepFromNotes } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
 import { PANE_IDS, type SlotId, surfaceOf } from "@/state/paneId";
 import { activate, selectPane, sessionOn, toolController } from "@/state/toolController";
@@ -78,12 +79,10 @@ export const MAX_NOTE = 600;
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.tools
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.maxTitle
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.maxNote
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.nextID
  */
 export class AgentAnnotationTools {
   readonly desk: AgentDesk;
   private readonly dumpTools: AgentDumpTools;
-  private nextId = 1;
 
   constructor(desk: AgentDesk, dumpTools: AgentDumpTools) {
     this.desk = desk;
@@ -377,7 +376,7 @@ export class AgentAnnotationTools {
       }).then(siteFrom, () => undefined);
     }
     const annotation: AgentAnnotation = {
-      id: `a${this.nextId}`,
+      id: claimAnnotationId(),
       file,
       range,
       node,
@@ -388,7 +387,6 @@ export class AgentAnnotationTools {
       site,
       author,
     };
-    this.nextId += 1;
     addAnnotation(annotation, notesPanelIsUp(workspaceStore.getSnapshot()));
     if (args.bool("reveal", false)) await this.show(annotation.id);
     const described = this.describe(annotation);
@@ -593,6 +591,8 @@ export class AgentAnnotationTools {
   async show(id: string, byPerson = false): Promise<void> {
     const annotation = allAnnotations().find((one) => one.id === id);
     if (annotation === undefined) return;
+    // A card's double-click leaves the panel: Back in the tab goes to the panel again.
+    const fromNotes = notesPanelIsUp(workspaceStore.getSnapshot());
     let place = this.placeOf(annotation);
     if (place === undefined) {
       const name = annotationFileName(annotation.file);
@@ -636,7 +636,8 @@ export class AgentAnnotationTools {
     const pane = place.onScreen();
     agentShell.bringForward?.(pane);
     if (annotation.range !== undefined && annotation.range[1] > place.document.size) return;
-    recordJump(pane);
+    if (fromNotes) recordStepFromNotes();
+    else recordJump(pane);
     const match = matchOf(annotation);
     // A file just opened has its tree still to read, and whether the place is a node — and how to
     // open it — is the tree's to say; the block or the section the place is in may sit in

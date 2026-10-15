@@ -809,7 +809,8 @@
       "unported": {
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.documentID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.paneID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
-        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal"
+        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
+        "ByteRipperApp/Navigation/NavigationHistory.swift#NavigationHistory.pushForward": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it"
       }
     },
     {
@@ -4909,7 +4910,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.arriveFromNotes": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
@@ -5641,8 +5643,16 @@
           "src/state/agent/agentAnnotationStore.ts",
           "src/tools/uefi/agent/uefiAgentAnnotations.ts"
         ],
-        "AgentAnnotationCards.swift": "src/ui/notes/NotesPanel.tsx",
-        "ByteRipperTests/AgentAnnotationTests.swift": "src/state/agent/agentAnnotationTools.test.ts"
+        "AgentAnnotationCards.swift": [
+          "src/ui/notes/NotesPanel.tsx",
+          "src/core/agent/annotationOrder.ts"
+        ],
+        "ByteRipperTests/AgentAnnotationTests.swift": [
+          "src/state/agent/agentAnnotationTools.test.ts",
+          "src/state/agent/agentAnnotationOrder.test.ts",
+          "src/core/agent/annotationOrder.test.ts",
+          "src/ui/shell/openAnnotationMenu.test.ts"
+        ]
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
@@ -5748,7 +5758,6 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onShow": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.rows": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.scroll": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.shownTexts": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5781,7 +5790,31 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)",
-        "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test"
+        "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.beginCarry": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.endCarry": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.moveCarry": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.moveDuration": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.dragThreshold": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.isCarrying": "n/a — AppKit's mouse-carried drag of a card, with the cards moving aside animated; the browser's drag and drop lands a card where the pointer is (`carried`, the card's drag handlers in NotesPanel)",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.draw": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.hitTest": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.hue": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.init": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.intrinsicContentSize": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.text": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardCarriedBelowTheShorterColumnGoesLast": "n/a — the drop's last place is `carried(ids, id, undefined)`, tested in annotationOrder.test.ts; the column's drop target is the panel's, which has no runner (G24)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardMeasuredWhileTheCardsMoveIsAsTallAsEver": "n/a — AppKit's animated update and frame arithmetic; a card's height is the CSS box's",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteMadeShowsTheWindowAndBackReturnsToItsPlace": "n/a — the state half is `navigationStore.test.ts` (the panel's step); the menu item and dialog that call it are the shell's (G24)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceInTheInactivePaneOfAComparisonActivatesItAndMovesUEFIStructure": "n/a — `bringForward` in AppShell makes the pane active and `show` selects the pane UEFI Structure is bound to, but the effect is the shell's, which no test mounts (G24)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPressWithCommandOrShiftOnlySelects": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRemovingACardClosesTheGapAnimated": "n/a — the animation; the removal itself is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testSelectAllSelectsEveryCard": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShiftSelectsARunAndCommandOneCard": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — React draws the cards at the page's zoom whenever it changes",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — the panel has a header with its own help button, no toolbar and no tab; the window's toolbar keeps Back and Forward in view over it",
+        "ByteRipperTests/AgentDiffToolsTests.swift#AgentDiffToolsTests.testRevealDiffInTheInactivePaneActivatesItAndGoesFromItsCaret": "n/a — `bringForward` in AppShell makes the pane active, but the effect is the shell's, which no test mounts (G24)",
+        "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealInTheInactivePaneOfAComparisonActivatesIt": "n/a — `bringForward` in AppShell makes the pane active, but the effect is the shell's, which no test mounts (G24)"
       }
     },
     {
@@ -5820,7 +5853,30 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.side": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.init": "n/a — AppKit; NoteFormDialog is a React form",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.noteView": "n/a — AppKit; NoteFormDialog is a React form",
-        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form"
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop.controller": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop.place": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.backStops": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.forwardStops": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameBack": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameForward": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateBack": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateForward": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateBack": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateForward": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.syncAgentItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbarAllowedItemIdentifiers": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbarDefaultItemIdentifiers": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateToolbarItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidMiniaturize": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidResignKey": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowWillClose": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.id": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.init": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.pane": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object"
       }
     },
     {

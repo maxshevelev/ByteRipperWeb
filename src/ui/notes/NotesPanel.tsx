@@ -1,16 +1,28 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type AgentAnnotation,
   annotationFileName,
   annotationPath,
   annotationTitles,
 } from "@/core/agent/agentAnnotation";
+import { carried } from "@/core/agent/annotationOrder";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import {
   agentAnnotationStore,
-  allAnnotations,
-  removeAnnotations,
+  arrangeAnnotations,
+  orderedAnnotations,
+  redoRemoval,
+  removeFromPanel,
+  selectAnnotations,
+  undoRemoval,
   updateAnnotation,
 } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
@@ -19,6 +31,7 @@ import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
 /**
@@ -76,24 +89,30 @@ const reckonedHeight = (annotation: AgentAnnotation): number =>
  * after the badges of the codecs a place in decoded bytes came through; the note whole; the
  * annotations it is about, as links to their cards. A click selects, ⌘ and ⇧ add; a double-click
  * or Return goes to the place; the ✕ in the corner removes the card, Delete the selected ones; the
- * arrows move between cards.
+ * arrows move between cards; ⌘A takes every card, ⌘Z puts back the cards last removed, where they
+ * stood. The newest card comes first and wears a New tag until the panel is folded; a card is
+ * dragged to another place and stays there.
  *
  * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCardView
  * @upstream-differs a React panel of the dock; the cards in columns of their own, where upstream
- * lays a collection view out
+ * lays a collection view out; a card is dropped where the pointer lands, with a bar in front of the
+ * place, where upstream's cards move aside animated
  */
 // help: window.notes
 export function NotesPanel() {
   const state = useStore(agentAnnotationStore);
   // Whether each file is open, which the cards' dots say, moves with the workspace.
   useStore(workspaceStore);
-  const notes = allAnnotations(state);
+  const notes = orderedAnnotations(state);
   const titles = annotationTitles(notes);
-  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const chosen = state.chosen;
   const anchor = useRef<string | undefined>(undefined);
   const list = useRef<HTMLDivElement | null>(null);
+  // The card being carried, and the place it would land: before a card, or last.
+  const [carrying, setCarrying] = useState<string | undefined>(undefined);
+  const [landing, setLanding] = useState<string | "end" | undefined>(undefined);
   const [width, setWidth] = useState(800);
   useEffect(() => {
     const element = list.current;
@@ -105,29 +124,26 @@ export function NotesPanel() {
   }, []);
 
   const ids = notes.map((one) => one.id);
+  // A click selects, Shift-click the run from the card last clicked, Ctrl/⌘-click one card.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.click
   const choose = (id: string, how: "only" | "toggle" | "range") => {
     if (how === "range" && anchor.current !== undefined && ids.includes(anchor.current)) {
       const [from, to] = [ids.indexOf(anchor.current), ids.indexOf(id)].sort((a, b) => a - b);
-      setChosen(new Set(ids.slice(from, (to ?? 0) + 1)));
+      selectAnnotations(ids.slice(from, (to ?? 0) + 1));
       return;
     }
     anchor.current = id;
     if (how === "toggle") {
-      setChosen((current) => {
-        const next = new Set(current);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
+      const next = new Set(chosen);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      selectAnnotations(next);
     } else {
-      setChosen(new Set([id]));
+      selectAnnotations([id]);
     }
   };
   const show = (id: string) => void agentService.annotationTools.show(id, true);
-  const remove = (doomed: ReadonlySet<string>) => {
-    removeAnnotations((one) => doomed.has(one.id));
-    setChosen(new Set());
-  };
+  const remove = (doomed: ReadonlySet<string>) => removeFromPanel(doomed);
   // help: window.notes.edit
   const edit = (annotation: AgentAnnotation) =>
     askNote({
@@ -142,6 +158,27 @@ export function NotesPanel() {
   /** Return goes to the selected card's place, Delete removes the selected, the arrows move. */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const first = ids.find((id) => chosen.has(id));
+    // Select All takes every card, not the page's text; Undo and Redo take back and make again the
+    // removals made here, not an edit of a dump.
+    // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.selectAllBytes
+    // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectAll
+    // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.undoEdit
+    // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.redoEdit
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const chord = shortcutKey(event);
+      if (chord === "a") {
+        event.preventDefault();
+        selectAnnotations(ids);
+        return;
+      }
+      const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
+      if (chord === "z" || (chord === "y" && redo)) {
+        event.preventDefault();
+        if (chord === "z" && !redo) undoRemoval();
+        else redoRemoval();
+        return;
+      }
+    }
     if (event.key === "Enter" && first !== undefined) {
       event.preventDefault();
       show(first);
@@ -160,6 +197,14 @@ export function NotesPanel() {
     }
   };
 
+  /** A card dropped: it stands where the pointer was, the others closing up behind it. */
+  const drop = () => {
+    if (carrying !== undefined && landing !== undefined) {
+      arrangeAnnotations(carried(ids, carrying, landing === "end" ? undefined : landing));
+    }
+    setCarrying(undefined);
+    setLanding(undefined);
+  };
   const columns = masonry(notes, notesColumns(width), reckonedHeight);
   return (
     <section className="notes-panel" aria-label={L("Annotations")}>
@@ -171,6 +216,16 @@ export function NotesPanel() {
       >
         <HelpButton link={topicLink(TOPIC.notes)} shape="inline" />
       </DockPanelHeader>
+      {notes.length === 0 ? (
+        <div className="notes-empty">
+          <h3>{L("No Annotations")}</h3>
+          <p>
+            {L(
+              "Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…"
+            )}
+          </p>
+        </div>
+      ) : null}
       <div
         className="notes-cards"
         ref={list}
@@ -181,8 +236,22 @@ export function NotesPanel() {
         onKeyDown={onKeyDown}
       >
         {columns.map((column, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a column is its place
-          <div key={index} className="notes-column">
+          // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for a card carried
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: a column is its place
+            key={index}
+            className="notes-column"
+            onDragOver={(event) => {
+              if (carrying === undefined) return;
+              // Below the last card of the column under the pointer is the last place.
+              event.preventDefault();
+              setLanding("end");
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              drop();
+            }}
+          >
             {column.map((annotation) => (
               <NoteCard
                 key={annotation.id}
@@ -190,6 +259,17 @@ export function NotesPanel() {
                 titles={titles}
                 isOpen={agentService.annotationTools.placeOf(annotation) !== undefined}
                 isSelected={chosen.has(annotation.id)}
+                isNew={state.marked.has(annotation.id)}
+                isCarried={carrying === annotation.id}
+                landsBefore={carrying !== undefined && landing === annotation.id}
+                onCarry={(on) => {
+                  setCarrying(on ? annotation.id : undefined);
+                  if (!on) setLanding(undefined);
+                }}
+                onLand={(at) =>
+                  setLanding(at === "before" ? annotation.id : nextAfter(ids, annotation.id))
+                }
+                onDrop={drop}
                 onChoose={(how) => choose(annotation.id, how)}
                 onShow={() => show(annotation.id)}
                 onRemove={() => remove(new Set([annotation.id]))}
@@ -204,6 +284,14 @@ export function NotesPanel() {
   );
 }
 
+/** The card after `id` in the cards' order, or "end" where it is the last. */
+const nextAfter = (ids: readonly string[], id: string): string | "end" =>
+  ids[ids.indexOf(id) + 1] ?? "end";
+
+/** A press with Shift or Ctrl/⌘ held only selects: it lands on the card, never on what is in it. */
+const selectsOnly = (event: MouseEvent): boolean =>
+  event.shiftKey || event.metaKey || event.ctrlKey;
+
 /**
  * One annotation, drawn as over the dump: its author's hue as a wash and a dashed outline — a
  * solid one while selected.
@@ -216,6 +304,12 @@ function NoteCard({
   titles,
   isOpen,
   isSelected,
+  isNew,
+  isCarried,
+  landsBefore,
+  onCarry,
+  onLand,
+  onDrop,
   onChoose,
   onShow,
   onRemove,
@@ -226,6 +320,14 @@ function NoteCard({
   readonly titles: ReadonlyMap<string, string>;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
+  /** Wears the New tag on its top edge. */
+  readonly isNew: boolean;
+  readonly isCarried: boolean;
+  /** The card being carried would land in front of this one. */
+  readonly landsBefore: boolean;
+  readonly onCarry: (on: boolean) => void;
+  readonly onLand: (at: "before" | "after") => void;
+  readonly onDrop: () => void;
   readonly onChoose: (how: "only" | "toggle" | "range") => void;
   readonly onShow: () => void;
   readonly onRemove: () => void;
@@ -246,19 +348,42 @@ function NoteCard({
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the list holds the keys
     <article
-      className={`note-card ${byAgent ? "is-agent" : "is-person"}${isSelected ? " is-selected" : ""}`}
+      className={`note-card ${byAgent ? "is-agent" : "is-person"}${isSelected ? " is-selected" : ""}${isCarried ? " is-carried" : ""}${landsBefore ? " lands-before" : ""}`}
       data-note={annotation.id}
+      draggable
+      onDragStart={(event: DragEvent) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", annotation.id);
+        onCarry(true);
+      }}
+      onDragEnd={() => onCarry(false)}
+      onDragOver={(event: DragEvent<HTMLElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const box = event.currentTarget.getBoundingClientRect();
+        onLand(event.clientY < box.top + box.height / 2 ? "before" : "after");
+      }}
+      onDrop={(event: DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onDrop();
+      }}
       onClick={(event) =>
         onChoose(event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "only")
       }
       onDoubleClick={onShow}
     >
+      {/* @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag */}
+      {isNew ? (
+        <span className="note-card-new">{L("New", { context: "annotation tag" })}</span>
+      ) : null}
       <button
         type="button"
         className="note-card-remove"
         aria-label={L("Remove Annotation")}
         title={L("Remove this annotation")}
         onClick={(event) => {
+          if (selectsOnly(event)) return;
           event.stopPropagation();
           onRemove();
         }}
@@ -277,6 +402,7 @@ function NoteCard({
             aria-label={L("Edit Annotation")}
             title={L("Edit this annotation")}
             onClick={(event) => {
+              if (selectsOnly(event)) return;
               event.stopPropagation();
               onEdit();
             }}
@@ -309,6 +435,7 @@ function NoteCard({
               className="note-card-link"
               title={L("Show in UEFI Structure")}
               onClick={(event) => {
+                if (selectsOnly(event)) return;
                 event.stopPropagation();
                 onShow();
               }}
@@ -327,6 +454,7 @@ function NoteCard({
           type="button"
           className="note-card-link"
           onClick={(event) => {
+            if (selectsOnly(event)) return;
             event.stopPropagation();
             onRelated(id);
           }}

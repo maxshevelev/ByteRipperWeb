@@ -26,6 +26,8 @@ export type HelpPlatform = "apple" | "other";
 /** The chord the help can name. Each is one the app binds, in both editions. */
 export type HelpCommand =
   | "undo"
+  | "redo"
+  | "selectAll"
   | "save"
   | "paste"
   | "find"
@@ -80,6 +82,8 @@ export type HelpKeyResolver = (command: string) => string;
  */
 export const HELP_KEY_SPELLINGS: Readonly<Record<HelpCommand, KeySpelling>> = {
   undo: { apple: "⌘Z", other: "Ctrl+Z" },
+  redo: { apple: "⇧⌘Z", other: "Ctrl+Shift+Z" },
+  selectAll: { apple: "⌘A", other: "Ctrl+A" },
   save: { apple: "⌘S", other: "Ctrl+S" },
   paste: { apple: "⌘V", other: "Ctrl+V" },
   find: { apple: "⌘F", other: "Ctrl+F" },

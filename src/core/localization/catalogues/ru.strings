@@ -1211,6 +1211,10 @@
 "Edit this annotation" = "Изменить заголовок и пояснение этой заметки";
 "Made by the agent" = "Заметка агента";
 "Related Annotations: %1$@" = "Связанные заметки: %1$@";
+"No Annotations" = "Заметок нет";
+"Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…" = "Здесь перечисляются заметки, сделанные вручную или подключённым агентом. Выделите байты в дампе или узел в «Структуре UEFI», кликните правой кнопкой и выберите «Добавить заметку…».";
+"annotation tag|New" = "Новая";
+"Open Annotation “%1$@”" = "Открыть заметку «%1$@»";
 "Remove Annotation" = "Удалить заметку";
 "Remove this annotation" = "Удалить эту заметку";
 "Show in UEFI Structure" = "Показать в Структуре UEFI";

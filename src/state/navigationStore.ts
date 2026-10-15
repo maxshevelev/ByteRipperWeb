@@ -12,6 +12,8 @@ import {
 import {
   foldParts,
   isSlot,
+  notesPanelIsUp,
+  openNotesPanel,
   type PaneId,
   paneInFront,
   paneState,
@@ -85,7 +87,23 @@ export interface NavigationPlace {
    * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.isToolStep
    */
   readonly isToolStep?: boolean | undefined;
+  /**
+   * The Annotations panel: a step out of the tab into it — a note made, an annotation opened from
+   * the offset menu — is one Back and Forward take too.
+   *
+   * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.isNotes
+   */
+  readonly isNotes?: boolean | undefined;
 }
+
+/**
+ * The Annotations panel as a place in the history.
+ *
+ * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.notes
+ * @upstream-differs one history holds it, where upstream's window keeps stacks of its own beside
+ * the tab's: the panel is raised over the same panes, so a walk of one stack reaches it
+ */
+export const NOTES_PLACE: NavigationPlace = { spots: [], top: 0, isNotes: true };
 
 /** Two choices of a tool are the same when they name one tool and one mark. */
 const sameChoice = (left: ToolChoice | undefined, right: ToolChoice | undefined): boolean =>
@@ -100,6 +118,7 @@ const sameChoice = (left: ToolChoice | undefined, right: ToolChoice | undefined)
  * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace
  */
 export const samePlace = (left: NavigationPlace, right: NavigationPlace): boolean =>
+  (left.isNotes === true) === (right.isNotes === true) &&
   left.top === right.top &&
   sameChoice(left.tool, right.tool) &&
   left.spots.length === right.spots.length &&
@@ -178,8 +197,10 @@ export function navigationPlaceOf(pane: PaneId): NavigationPlace {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.isReachable
  */
 export const isReachable = (place: NavigationPlace): boolean =>
-  place.spots.length > 0 &&
-  place.spots.every((spot) => paneState(spot.pane)?.document === spot.document);
+  place.isNotes === true
+    ? workspaceStore.getSnapshot().notesPanel !== undefined
+    : place.spots.length > 0 &&
+      place.spots.every((spot) => paneState(spot.pane)?.document === spot.document);
 
 /** The first byte on screen while the caret last was, per pane; absent while it is off screen. */
 const topWithCaretOnScreen = new Map<PaneId, number>();
@@ -219,6 +240,33 @@ export function recordJump(
 }
 
 /**
+ * A card of the Annotations panel is about to take the reader to its place: Back goes to the panel
+ * again.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.recordStepFromNotes
+ */
+export function recordStepFromNotes(): void {
+  if (walking) return;
+  navigationHistory.record({ ...NOTES_PLACE, isToolStep: false });
+  arrivedByToolStep = false;
+  changed();
+}
+
+/**
+ * The Annotations panel shown after a step out of `pane` — a note made on it: the place left is
+ * where Back returns to.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showNotesWindow
+ */
+export function showNotesLeaving(pane: PaneId): void {
+  if (notesPanelIsUp(workspaceStore.getSnapshot())) return;
+  recordJump(pane);
+  openNotesPanel();
+  arrivedByToolStep = false;
+  changed();
+}
+
+/**
  * A tool is about to choose a row on the reader's behalf — a click on a row, a search match, a
  * Go To from a row: the place it leaves is a step of the tool's table, taken before the choice
  * changes (`ToolHost.noteNavigationStep`).
@@ -243,23 +291,30 @@ const frontPaneId = (): PaneId => paneInFront();
 export function canNavigateBack(): boolean {
   const pane = frontPaneId();
   return (
-    paneState(pane) !== undefined &&
-    navigationHistory.canGoBack(navigationPlaceOf(pane), isReachable)
+    (paneState(pane) !== undefined || notesAreUp()) &&
+    navigationHistory.canGoBack(placeNow(pane), isReachable)
   );
 }
+
+/** Whether the Annotations panel is the place the reader stands on. */
+const notesAreUp = (): boolean => notesPanelIsUp(workspaceStore.getSnapshot());
+
+/** Where the reader stands: the Annotations panel while it is up, else `pane`'s place. */
+const placeNow = (pane: PaneId): NavigationPlace =>
+  notesAreUp() ? NOTES_PLACE : navigationPlaceOf(pane);
 
 /** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canNavigateForward */
 export function canNavigateForward(): boolean {
   const pane = frontPaneId();
   return (
-    paneState(pane) !== undefined &&
-    navigationHistory.canGoForward(navigationPlaceOf(pane), isReachable)
+    (paneState(pane) !== undefined || notesAreUp()) &&
+    navigationHistory.canGoForward(placeNow(pane), isReachable)
   );
 }
 
 /** Where the reader stands, with how it was come to. */
 const currentPlace = (): NavigationPlace => ({
-  ...navigationPlaceOf(frontPaneId()),
+  ...placeNow(frontPaneId()),
   isToolStep: arrivedByToolStep,
 });
 
@@ -291,6 +346,17 @@ export function navigateForward(): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.go
  */
 function go(place: NavigationPlace): void {
+  if (place.isNotes === true) {
+    walking = true;
+    try {
+      openNotesPanel();
+      arrivedByToolStep = false;
+    } finally {
+      walking = false;
+    }
+    changed();
+    return;
+  }
   const first = place.spots[0]?.pane;
   if (first === undefined) return;
   // What putting the place back moves is not a step of its own.

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import { agentService } from "@/state/agent/agentService";
-import { noteToolStep } from "@/state/navigationStore";
+import { noteToolStep, showNotesLeaving } from "@/state/navigationStore";
 import { askNote } from "@/state/noteFormStore";
 import { showNotice } from "@/state/noticeStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
@@ -205,16 +205,19 @@ export function ToolPanel({
         title: name,
         note: "",
         done: (title, note) => {
-          agentService.annotationTools.addNodeNote(title, note, boundPane, nodeId).catch(() =>
-            // What refuses a node is worded for an agent, in English: the person is told what to
-            // do instead, in their words.
-            reportAlert(
-              L("Could not add the annotation"),
-              L(
-                "This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of."
-              ),
-              "problem"
-            )
+          // Seen made, as on the bytes: the panel comes up, a step Back returns from to the tree's row.
+          agentService.annotationTools.addNodeNote(title, note, boundPane, nodeId).then(
+            () => showNotesLeaving(boundPane),
+            () =>
+              // What refuses a node is worded for an agent, in English: the person is told what to
+              // do instead, in their words.
+              reportAlert(
+                L("Could not add the annotation"),
+                L(
+                  "This node has no place in the file to annotate here. A node inside a compressed section of a part is annotated from the tree of the file the part came out of."
+                ),
+                "problem"
+              )
           );
         },
       }),
