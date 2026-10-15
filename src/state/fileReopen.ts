@@ -45,6 +45,35 @@ const identityOf = (file: OpenedFile): FileIdentity => ({
   ...(file.path === undefined ? {} : { path: file.path }),
 });
 
+/** What keeps the handles from one visit to the next is told when they change. */
+const listeners = new Set<() => void>();
+
+/** Calls `listener` whenever the kept handles change; returns the way to stop. */
+export function onHandlesChange(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** The handles kept, oldest first, as they are written for the next visit. */
+export const keptHandles = (): readonly {
+  readonly identity: FileIdentity;
+  readonly handle: FileSystemFileHandle;
+}[] => handles;
+
+/**
+ * Takes up the handles the last visit kept, under the ones this visit has gathered already: an
+ * annotation made then still finds its file now, as a row of Open Recent does.
+ */
+export function restoreHandles(
+  kept: readonly { identity: FileIdentity; handle: FileSystemFileHandle }[]
+): void {
+  const fresh = handles;
+  handles = [
+    ...kept.filter((one) => !fresh.some((now) => sameFile(now.identity, one.identity))),
+    ...fresh,
+  ].slice(-HANDLE_LIMIT);
+}
+
 /** Keeps the handle `file` came with, to open it again by. Called for every file a pane opens. */
 export function rememberOpenedFile(file: OpenedFile): void {
   const handle = file.handle;
@@ -53,6 +82,7 @@ export function rememberOpenedFile(file: OpenedFile): void {
   handles = handles.filter((one) => !sameFile(one.identity, identity));
   handles.push({ identity, handle });
   if (handles.length > HANDLE_LIMIT) handles = handles.slice(-HANDLE_LIMIT);
+  for (const listener of listeners) listener();
 }
 
 /** The handle kept for the file `identity` names, the newest first. */

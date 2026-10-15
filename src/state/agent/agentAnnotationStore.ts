@@ -9,6 +9,7 @@ import {
 import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
+import { keptHandles, onHandlesChange, restoreHandles } from "@/state/fileReopen";
 import { createStore } from "@/state/store";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
@@ -534,6 +535,9 @@ export interface StoredAnnotations {
 
 const DATABASE = "byteripper-annotations";
 const KEY = "annotations";
+// The handles the files were opened with, which Open Recent keeps the same way: a file opened by the
+// picker has no path a page can see, so a handle is the only way back to it after a restart.
+const HANDLES_KEY = "handles";
 let storage: KeyValueStore | undefined;
 let keeping = false;
 let saveScheduled = false;
@@ -584,6 +588,10 @@ export function annotationsToStore(
  */
 export async function restoreAnnotations(): Promise<void> {
   storage ??= openKeyValueStore(DATABASE);
+  const heldHandles = await storage
+    .get<Parameters<typeof restoreHandles>[0]>(HANDLES_KEY)
+    .catch(() => undefined);
+  if (Array.isArray(heldHandles)) restoreHandles(heldHandles);
   const kept = await storage.get<StoredAnnotations>(KEY).catch(() => undefined);
   if (kept !== undefined && Array.isArray(kept.annotations)) {
     const items: AgentAnnotation[] = kept.annotations.map((one) => ({
@@ -625,6 +633,9 @@ export async function restoreAnnotations(): Promise<void> {
     });
   }
   keeping = true;
+  // What was opened before the last visit's handles were read is written with them.
+  if (keptHandles().length > 0)
+    void storage.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
 }
 
 /**
@@ -643,4 +654,7 @@ function scheduleSave(): void {
   });
 }
 agentAnnotationStore.subscribe(scheduleSave);
+onHandlesChange(() => {
+  if (keeping) void storage?.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+});
 workspaceStore.subscribe(scheduleSave);

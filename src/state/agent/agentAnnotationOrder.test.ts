@@ -15,6 +15,7 @@ import {
   setAnnotationsStorage,
   undoRemoval,
 } from "@/state/agent/agentAnnotationStore";
+import { forgetOpenedFilesForTesting, keptHandles, rememberOpenedFile } from "@/state/fileReopen";
 import { foldParts, notesPanelIsUp, openNotesPanel, workspaceStore } from "@/state/workspaceStore";
 
 const make = (id: string, relatedTo: string[] = []): AgentAnnotation => ({
@@ -118,6 +119,24 @@ describe("the annotations' cards", () => {
     removeFromPanel(new Set(["a1"]));
     foldParts();
     expect(workspaceStore.getSnapshot().notesPanel).toBeUndefined();
+  });
+
+  it("keeps the handles files were opened with, so a card finds its file after a restart", async () => {
+    const database = memoryKeyValueStore();
+    setAnnotationsStorage(database);
+    forgetOpenedFilesForTesting();
+    await restoreAnnotations();
+    const handle = { kind: "file", name: "a.rom" } as unknown as FileSystemFileHandle;
+    rememberOpenedFile({ name: "a.rom", size: 16, lastModified: 1, source: new Blob([]), handle });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await database.get<unknown[]>("handles")).toHaveLength(1);
+
+    // The next visit: nothing kept in memory, the handles read back with the annotations.
+    forgetOpenedFilesForTesting();
+    expect(keptHandles()).toHaveLength(0);
+    await restoreAnnotations();
+    expect(keptHandles().map((one) => one.identity.name)).toEqual(["a.rom"]);
+    forgetOpenedFilesForTesting();
   });
 
   it("keeps the notes, their order and the ids for the next visit", async () => {
