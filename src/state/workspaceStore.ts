@@ -24,7 +24,7 @@ import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
-import { rememberOpenedFile } from "@/state/fileReopen";
+import { rememberOpenedFile, rememberSavedFile } from "@/state/fileReopen";
 import {
   collapsePanels,
   EMPTY_DOCK,
@@ -879,6 +879,10 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
     overlay.rebase(base);
     slot.document.markSaved();
     noteDocumentChanged();
+    // The file is known again by what the save made of it: an annotation on it, and its handle,
+    // follow a save in place; a Save As is a file of its own, opened again by its own handle.
+    if (outcome.kind === "savedInPlace") rememberSavedFile(slot.file, outcome.file);
+    else rememberOpenedFile(outcome.file);
     workspaceStore.update((current) =>
       withPane(current, pane, {
         ...slot,

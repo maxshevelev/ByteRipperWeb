@@ -6453,6 +6453,8 @@ body[data-pulling-panel] * {
 }
 
 .notes-cards {
+  /* The cards' offsets, which a carried card is tested against, are taken from here. */
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -6488,20 +6490,28 @@ body[data-pulling-panel] * {
   --note-hue: var(--zone-person);
 }
 
+/* The place of the card being carried: kept, and drawn empty. */
 .note-card.is-carried {
-  opacity: 0.4;
+  visibility: hidden;
 }
 
-/* Where the card being carried would stand: a bar in front of this one. */
-.note-card.lands-before::before {
-  content: "";
+/* A card taken out, fading where it stood while the others close up. */
+.note-card-leaving {
   position: absolute;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* The picture of the carried card, following the pointer above the others. */
+.note-card-ghost {
+  position: fixed;
   left: 0;
-  right: 0;
-  top: -8px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--note-hue);
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--surface);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
 }
 
 /* The New tag, on the card's top edge. */

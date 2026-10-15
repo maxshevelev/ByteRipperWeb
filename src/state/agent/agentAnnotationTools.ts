@@ -98,13 +98,20 @@ export class AgentAnnotationTools {
   /**
    * A note the person makes on `[start, end)` of `pane` — the dump's right-click ▸ Add
    * Annotation…: placed the way an agent's on the same bytes is, in a part through to its file.
+   * Answers whether it was made: a pane with no document to hold one makes none.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.addNote
    */
   // help: menu.offset.note
-  async addNote(title: string, note: string, pane: PaneId, start: number, end: number) {
+  async addNote(
+    title: string,
+    note: string,
+    pane: PaneId,
+    start: number,
+    end: number
+  ): Promise<boolean> {
     const place = this.desk.placeOf(pane);
-    if (place === undefined) return;
+    if (place === undefined) return false;
     await this.annotate(
       new AgentArguments({
         title,
@@ -115,6 +122,7 @@ export class AgentAnnotationTools {
       }),
       "person"
     );
+    return true;
   }
 
   /**
@@ -122,13 +130,14 @@ export class AgentAnnotationTools {
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.addNote
    */
-  async addNodeNote(title: string, note: string, pane: PaneId, id: string) {
+  async addNodeNote(title: string, note: string, pane: PaneId, id: string): Promise<boolean> {
     const place = this.desk.placeOf(pane);
-    if (place === undefined) return;
+    if (place === undefined) return false;
     await this.annotate(
       new AgentArguments({ title, note, document: place.id, node: id }),
       "person"
     );
+    return true;
   }
 
   // MARK: - annotate
@@ -591,8 +600,9 @@ export class AgentAnnotationTools {
   async show(id: string, byPerson = false): Promise<void> {
     const annotation = allAnnotations().find((one) => one.id === id);
     if (annotation === undefined) return;
-    // A card's double-click leaves the panel: Back in the tab goes to the panel again.
-    const fromNotes = notesPanelIsUp(workspaceStore.getSnapshot());
+    // A card's double-click leaves the panel: Back in the tab goes to the panel again. An agent's
+    // reveal leaves the place the person was on, whatever is up over it.
+    const fromNotes = byPerson && notesPanelIsUp(workspaceStore.getSnapshot());
     let place = this.placeOf(annotation);
     if (place === undefined) {
       const name = annotationFileName(annotation.file);

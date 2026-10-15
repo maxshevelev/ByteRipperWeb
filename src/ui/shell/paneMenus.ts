@@ -8,7 +8,7 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
-import { drawnIn, selectAnnotations } from "@/state/agent/agentAnnotationStore";
+import { drawnIn, showAnnotationCards } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import {
   addBookmarkAtOffset,
@@ -767,7 +767,7 @@ function noteItems(pane: PaneId, offset: number): MenuEntry[] {
       label: L("Open Annotation “%1$@”", one.annotation.title),
       onSelect: () => {
         showNotesLeaving(pane);
-        selectAnnotations([one.annotation.id]);
+        showAnnotationCards([one.annotation.id]);
       },
     }));
 }
@@ -792,7 +792,9 @@ export function addNoteToSelection(pane: PaneId, start: number, end: number): vo
     // @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.showNotesWindow
     done: (title, note) =>
       void agentService.annotationTools.addNote(title, note, pane, start, end).then(
-        () => showNotesLeaving(pane),
+        (made) => {
+          if (made) showNotesLeaving(pane);
+        },
         () => undefined
       ),
   });

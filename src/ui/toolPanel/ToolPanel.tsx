@@ -207,7 +207,9 @@ export function ToolPanel({
         done: (title, note) => {
           // Seen made, as on the bytes: the panel comes up, a step Back returns from to the tree's row.
           agentService.annotationTools.addNodeNote(title, note, boundPane, nodeId).then(
-            () => showNotesLeaving(boundPane),
+            (made) => {
+              if (made) showNotesLeaving(boundPane);
+            },
             () =>
               // What refuses a node is worded for an agent, in English: the person is told what to
               // do instead, in their words.

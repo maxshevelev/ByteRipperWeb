@@ -414,6 +414,24 @@ describe("on screen", () => {
     expect(canNavigateBack()).toBe(true);
   });
 
+  // Only a card's own double-click leaves the panel as a step; the agent's reveal while the panel
+  // is up leaves the bytes the person was on, and Back never raises the panel for it.
+  it("records the panel as the place left only for the person's show", async () => {
+    open(counting(0x10000));
+    selectOnReveal();
+    await answer("annotate", { offset: "0x8000", length: 8, title: "Far" });
+    openNotesPanel();
+    await service.annotationTools.show("a1");
+    expect(navigationHistory.backStack.some((place) => place.isNotes === true)).toBe(false);
+    openNotesPanel();
+    await service.annotationTools.show("a1", true);
+    expect(navigationHistory.backStack.at(-1)?.isNotes).toBe(true);
+    // A person's note that could not be made — no document in the pane — is no step at all.
+    const steps = navigationHistory.backStack.length;
+    expect(await service.annotationTools.addNote("None", "", "b", 0, 2)).toBe(false);
+    expect(navigationHistory.backStack).toHaveLength(steps);
+  });
+
   // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRevealBringsThePlaceOnScreen
   it("with reveal brings the place on screen", async () => {
     open(counting(0x10000));

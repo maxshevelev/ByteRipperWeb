@@ -9,7 +9,7 @@ import {
 import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
-import { keptHandles, onHandlesChange, restoreHandles } from "@/state/fileReopen";
+import { keptHandles, onFileReplaced, onHandlesChange, restoreHandles } from "@/state/fileReopen";
 import { createStore } from "@/state/store";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
@@ -52,6 +52,10 @@ export interface AgentAnnotationState {
   readonly marked: ReadonlySet<string>;
   /** The cards selected. */
   readonly chosen: ReadonlySet<string>;
+  /** The card a Shift-click selects the run from: the one last clicked, or last selected alone. */
+  readonly anchor: string | undefined;
+  /** A card selected from outside the panel, for it to scroll to: a new object every time. */
+  readonly reveal: { readonly id: string } | undefined;
   /** The number the next annotation's id is made with. */
   readonly nextId: number;
 }
@@ -63,6 +67,8 @@ export const agentAnnotationStore = createStore<AgentAnnotationState>({
   order: [],
   marked: new Set(),
   chosen: new Set(),
+  anchor: undefined,
+  reveal: undefined,
   nextId: 1,
 });
 
@@ -126,12 +132,33 @@ export function arrangeAnnotations(ids: readonly string[]): void {
 }
 
 /**
- * The cards `ids` name selected, and no others.
+ * The cards `ids` name selected, and no others; with `anchor`, that card is where a Shift-click
+ * selects the run from.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
  */
-export function selectAnnotations(ids: Iterable<string>): void {
-  agentAnnotationStore.update((state) => ({ ...state, chosen: new Set(ids) }));
+export function selectAnnotations(ids: Iterable<string>, anchor?: string): void {
+  agentAnnotationStore.update((state) => ({
+    ...state,
+    chosen: new Set(ids),
+    anchor: anchor ?? state.anchor,
+  }));
+}
+
+/**
+ * The cards `ids` name selected from outside the panel — the offset menu, a card's link to
+ * another, an undo — and the panel scrolled to the first of them.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
+ */
+export function showAnnotationCards(ids: readonly string[]): void {
+  // One card selected alone is the run's start, as a click on it would be.
+  selectAnnotations(ids, ids.length === 1 ? ids[0] : undefined);
+  const wanted = new Set(ids);
+  const first = orderedAnnotations().find((one) => wanted.has(one.id));
+  if (first !== undefined) {
+    agentAnnotationStore.update((state) => ({ ...state, reveal: { id: first.id } }));
+  }
 }
 
 /**
@@ -423,6 +450,8 @@ workspaceStore.subscribe(syncPanel);
  */
 export function discardAnnotationsForTesting(): void {
   keeping = false;
+  restoring = undefined;
+  lastWritten = undefined;
   undoable = [];
   redoable = [];
   agentAnnotationStore.update(() => ({
@@ -432,6 +461,8 @@ export function discardAnnotationsForTesting(): void {
     order: [],
     marked: new Set(),
     chosen: new Set(),
+    anchor: undefined,
+    reveal: undefined,
     nextId: 1,
   }));
 }
@@ -486,7 +517,7 @@ export function undoRemoval(): void {
   if (removal === undefined) return;
   restoreRemoval(removal);
   redoable.push(removal);
-  selectAnnotations(removal.ids);
+  showAnnotationCards(removal.ids);
 }
 
 /**
@@ -545,6 +576,8 @@ let saveScheduled = false;
 /** Points the annotations at another store: a test's memory one. */
 export function setAnnotationsStorage(store: KeyValueStore): void {
   storage = store;
+  restoring = undefined;
+  lastWritten = undefined;
 }
 
 /** What the store holds now, as it is written. */
@@ -586,7 +619,15 @@ export function annotationsToStore(
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.keep
  */
-export async function restoreAnnotations(): Promise<void> {
+export function restoreAnnotations(): Promise<void> {
+  // Once a visit: StrictMode mounts the shell twice, and a second read would add every kept
+  // annotation again under a fresh id.
+  restoring ??= readKept();
+  return restoring;
+}
+let restoring: Promise<void> | undefined;
+
+async function readKept(): Promise<void> {
   storage ??= openKeyValueStore(DATABASE);
   const heldHandles = await storage
     .get<Parameters<typeof restoreHandles>[0]>(HANDLES_KEY)
@@ -607,10 +648,11 @@ export async function restoreAnnotations(): Promise<void> {
       author: one.author,
     }));
     agentAnnotationStore.update((state) => {
-      const known = new Set(state.items.map((one) => one.id));
-      const added = items.filter((one) => !known.has(one.id));
+      const { added, renamed, nextId } = mergedKept(state.items, items, kept.nextId);
       const ids = new Set(added.map((one) => one.id));
-      const order = kept.order.filter((id) => ids.has(id));
+      const rename = (list: readonly string[]) =>
+        list.map((id) => renamed.get(id) ?? id).filter((id) => ids.has(id));
+      const order = rename(kept.order);
       // Ones with no place in the order stand in front, the newest of them first.
       order.push(
         ...added
@@ -618,24 +660,48 @@ export async function restoreAnnotations(): Promise<void> {
           .filter((id) => !order.includes(id))
           .reverse()
       );
-      const highest = Math.max(
-        0,
-        ...[...state.items, ...added].map((one) => Number(one.id.slice(1)) || 0)
-      );
       return {
         ...state,
         items: [...added, ...state.items],
         order: [...state.order, ...order],
-        fresh: new Set([...state.fresh, ...kept.fresh.filter((id) => ids.has(id))]),
-        unseen: new Set([...state.unseen, ...kept.unseen.filter((id) => ids.has(id))]),
-        nextId: Math.max(state.nextId, kept.nextId, highest + 1),
+        fresh: new Set([...state.fresh, ...rename(kept.fresh)]),
+        unseen: new Set([...state.unseen, ...rename(kept.unseen)]),
+        nextId: Math.max(state.nextId, nextId),
       };
     });
   }
   keeping = true;
+  // What came of putting the two together — a kept card given a new id — is written at once.
+  scheduleSave();
   // What was opened before the last visit's handles were read is written with them.
   if (keptHandles().length > 0)
     void storage.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+}
+
+/**
+ * The kept annotations beside the ones made before they were read — by an agent that reconnected
+ * the moment the page came back, given ids from 1 again. Those keep the ids the agent was told;
+ * a kept one whose id is taken gets a new one, and the kept ones that point at it follow it.
+ *
+ * @web-only the desktop reads what it kept before anything can annotate; a page reads its
+ * database while an agent may already be at work
+ */
+export function mergedKept(
+  present: readonly AgentAnnotation[],
+  kept: readonly AgentAnnotation[],
+  keptNextId: number
+): { added: AgentAnnotation[]; renamed: Map<string, string>; nextId: number } {
+  const number = (id: string) => Number(id.slice(1)) || 0;
+  const taken = new Set(present.map((one) => one.id));
+  let nextId = Math.max(keptNextId, ...[...present, ...kept].map((one) => number(one.id) + 1), 1);
+  const renamed = new Map<string, string>();
+  for (const one of kept) if (taken.has(one.id)) renamed.set(one.id, `a${nextId++}`);
+  const added = kept.map((one) => ({
+    ...one,
+    id: renamed.get(one.id) ?? one.id,
+    relatedTo: one.relatedTo.map((id) => renamed.get(id) ?? id),
+  }));
+  return { added, renamed, nextId };
 }
 
 /**
@@ -650,11 +716,32 @@ function scheduleSave(): void {
   saveScheduled = true;
   queueMicrotask(() => {
     saveScheduled = false;
-    void storage?.put(KEY, annotationsToStore()).catch(() => undefined);
+    // A click on a card, a tag coming or going, changes nothing that is kept: nothing is written.
+    const kept = annotationsToStore();
+    const written = JSON.stringify(kept);
+    if (written === lastWritten) return;
+    lastWritten = written;
+    void storage?.put(KEY, kept).catch(() => undefined);
   });
 }
+/** What was written last, as text, to tell a change worth writing from one that is not. */
+let lastWritten: string | undefined;
 agentAnnotationStore.subscribe(scheduleSave);
+// A save in place gave the file a new date: what is on it stays on it.
+onFileReplaced((from, to) => {
+  agentAnnotationStore.update((state) =>
+    state.items.some((one) => one.file.kind === "disk" && sameFile(one.file.identity, from))
+      ? {
+          ...state,
+          items: state.items.map((one) =>
+            one.file.kind === "disk" && sameFile(one.file.identity, from)
+              ? { ...one, file: { kind: "disk", identity: to } }
+              : one
+          ),
+        }
+      : state
+  );
+});
 onHandlesChange(() => {
   if (keeping) void storage?.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
 });
-workspaceStore.subscribe(scheduleSave);

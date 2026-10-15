@@ -99,6 +99,33 @@ export function forgetOpenedFilesForTesting(): void {
   handles = [];
 }
 
+/** Who follows a file that a save in place gave a new date, and maybe a new size. */
+const replacedListeners = new Set<(from: FileIdentity, to: FileIdentity) => void>();
+
+/** Calls `listener` with the old identity and the new whenever a save in place changes one. */
+export function onFileReplaced(
+  listener: (from: FileIdentity, to: FileIdentity) => void
+): () => void {
+  replacedListeners.add(listener);
+  return () => replacedListeners.delete(listener);
+}
+
+/**
+ * A file saved in place: the same file, which the page now knows by the date — and the size —
+ * the save gave it. Its handle is kept under that, and what was known by the old is told.
+ *
+ * @web-only upstream knows a file by its URL, which a save leaves as it was; a page without a path
+ * knows one by its name, size and date, which a save changes
+ */
+export function rememberSavedFile(before: OpenedFile, after: OpenedFile): void {
+  const from = identityOf(before);
+  const to = identityOf(after);
+  if (after.handle !== undefined) handles = handles.filter((one) => !sameFile(one.identity, from));
+  rememberOpenedFile(after);
+  if (sameFile(from, to)) return;
+  for (const listener of replacedListeners) listener(from, to);
+}
+
 /** Opens the file `identity` names again, by its handle and then by its path. */
 export async function reopenFile(identity: FileIdentity): Promise<Reopened> {
   const handle = handleFor(identity);

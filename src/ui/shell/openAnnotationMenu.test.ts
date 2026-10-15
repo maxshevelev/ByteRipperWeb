@@ -22,7 +22,6 @@ import { dumpMenu, type PaneMenuActions } from "@/ui/shell/paneMenus";
  * Annotations panel up with that card selected.
  *
  * @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheOffsetMenuOpensTheAnnotationsOnTheByte
- * @upstream-differs the panel is not a step of the history its Back returns from (G93)
  */
 
 const actions = new Proxy({} as PaneMenuActions, { get: () => () => {} });
@@ -96,5 +95,8 @@ describe("Open Annotation in the offset menu", () => {
     item.onSelect();
     expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
     expect([...agentAnnotationStore.getSnapshot().chosen]).toEqual(["a1"]);
+    // The card is scrolled to, and a Shift-click runs from it.
+    expect(agentAnnotationStore.getSnapshot().reveal).toEqual({ id: "a1" });
+    expect(agentAnnotationStore.getSnapshot().anchor).toBe("a1");
   });
 });

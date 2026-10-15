@@ -1,18 +1,27 @@
 import {
-  type DragEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   type AgentAnnotation,
   annotationFileName,
   annotationPath,
   annotationTitles,
 } from "@/core/agent/agentAnnotation";
-import { carried } from "@/core/agent/annotationOrder";
+import {
+  type CardFrame,
+  type ColumnSpan,
+  cardChange,
+  carryTarget,
+  movedTo,
+  stillSettled,
+} from "@/core/agent/annotationOrder";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import {
@@ -22,6 +31,7 @@ import {
   redoRemoval,
   removeFromPanel,
   selectAnnotations,
+  showAnnotationCards,
   undoRemoval,
   updateAnnotation,
 } from "@/state/agent/agentAnnotationStore";
@@ -33,6 +43,7 @@ import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
+import { prefersReducedMotion } from "@/ui/toolPanel/cardMotion";
 
 /**
  * How many columns the cards take: one below 640 pixels, two below 980, three above.
@@ -75,6 +86,52 @@ const reckonedHeight = (annotation: AgentAnnotation): number =>
   annotation.relatedTo.length;
 
 /**
+ * How far the pointer goes before a press is a drag, not a click.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.dragThreshold
+ */
+const DRAG_THRESHOLD = 4;
+
+/**
+ * How long the cards take to move aside, and the card to settle in, in milliseconds.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.moveDuration
+ */
+const MOVE_MS = 250;
+
+/** How close to the list's top or bottom edge the pointer carrying a card makes it scroll. */
+const SCROLL_EDGE = 32;
+
+/**
+ * A card on its way to another place.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.Carry
+ */
+interface Carry {
+  readonly id: string;
+  /** Where the pointer took hold of it, from the card's corner. */
+  readonly gripX: number;
+  readonly gripY: number;
+  readonly width: number;
+  /** The cards' order while it is carried: its place is where it would land. */
+  readonly order: readonly string[];
+  /** Where the pointer was, in the list's coordinates, when the cards last moved aside. */
+  readonly settledAt: { readonly x: number; readonly y: number } | undefined;
+  /** Let go: the picture is settling into the place. */
+  readonly landing: boolean;
+}
+
+/**
+ * The cards' order while one is carried: as the carry has it, with a card made meanwhile in front
+ * and one removed meanwhile gone.
+ */
+const orderWhileCarried = (order: readonly string[], ids: readonly string[]): string[] => {
+  const present = new Set(ids);
+  const known = new Set(order);
+  return [...ids.filter((id) => !known.has(id)), ...order.filter((id) => present.has(id))];
+};
+
+/**
  * The Annotations panel: every annotation made on the files — by an agent or by the person — as
  * cards, in a panel of the dock beside the fragment panels.
  *
@@ -97,8 +154,8 @@ const reckonedHeight = (annotation: AgentAnnotation): number =>
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCardView
  * @upstream-differs a React panel of the dock; the cards in columns of their own, where upstream
- * lays a collection view out; a card is dropped where the pointer lands, with a bar in front of the
- * place, where upstream's cards move aside animated
+ * lays a collection view out; the picture of a carried card is the card drawn again over the page,
+ * where upstream caches the card's drawing
  */
 // help: window.notes
 export function NotesPanel() {
@@ -108,11 +165,31 @@ export function NotesPanel() {
   const notes = orderedAnnotations(state);
   const titles = annotationTitles(notes);
   const chosen = state.chosen;
-  const anchor = useRef<string | undefined>(undefined);
   const list = useRef<HTMLDivElement | null>(null);
-  // The card being carried, and the place it would land: before a card, or last.
-  const [carrying, setCarrying] = useState<string | undefined>(undefined);
-  const [landing, setLanding] = useState<string | "end" | undefined>(undefined);
+  // The card being carried — in state for the drawing, in a ref for the pointer's handlers.
+  const [carry, setCarryState] = useState<Carry | undefined>(undefined);
+  const carrying = useRef<Carry | undefined>(undefined);
+  const setCarry = (next: Carry | undefined) => {
+    carrying.current = next;
+    setCarryState(next);
+  };
+  const ghost = useRef<HTMLDivElement | null>(null);
+  const pointer = useRef({ x: 0, y: 0 });
+  // The cards' boxes and the columns' spans as laid out, without the motion of moving aside.
+  const laidOut = useRef<{
+    ids: string[];
+    frames: CardFrame[];
+    columns: ColumnSpan[];
+  }>({ ids: [], frames: [], columns: [] });
+  // Each card as the last drawing laid it out, in the list's coordinates, and its element: where
+  // the cards move from when they move aside, close up or make room.
+  const lastLaidOut = useRef<Map<string, { box: CardFrame; card: HTMLElement }>>(new Map());
+  const lastShown = useRef<readonly string[]>([]);
+  // The carried card has just taken another's place: the cards move aside for it.
+  const carryMoved = useRef(false);
+  // What a carry leaves behind to undo if the panel goes in the middle of it.
+  const carryCleanup = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => () => carryCleanup.current?.(), []);
   const [width, setWidth] = useState(800);
   useEffect(() => {
     const element = list.current;
@@ -124,22 +201,28 @@ export function NotesPanel() {
   }, []);
 
   const ids = notes.map((one) => one.id);
+
+  // A card selected from outside — the offset menu, a link, an undo — is scrolled into view.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
+  useEffect(() => {
+    if (state.reveal === undefined) return;
+    list.current
+      ?.querySelector(`[data-note="${state.reveal.id}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [state.reveal]);
   // A click selects, Shift-click the run from the card last clicked, Ctrl/⌘-click one card.
   // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.click
   const choose = (id: string, how: "only" | "toggle" | "range") => {
-    if (how === "range" && anchor.current !== undefined && ids.includes(anchor.current)) {
-      const [from, to] = [ids.indexOf(anchor.current), ids.indexOf(id)].sort((a, b) => a - b);
+    const anchor = state.anchor;
+    if (how === "range" && anchor !== undefined && ids.includes(anchor)) {
+      const [from, to] = [ids.indexOf(anchor), ids.indexOf(id)].sort((a, b) => a - b);
       selectAnnotations(ids.slice(from, (to ?? 0) + 1));
-      return;
-    }
-    anchor.current = id;
-    if (how === "toggle") {
-      const next = new Set(chosen);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      selectAnnotations(next);
+    } else if (how === "only") {
+      selectAnnotations([id], id);
+    } else if (chosen.has(id)) {
+      selectAnnotations([...chosen].filter((one) => one !== id));
     } else {
-      selectAnnotations([id]);
+      selectAnnotations([...chosen, id], id);
     }
   };
   const show = (id: string) => void agentService.annotationTools.show(id, true);
@@ -197,15 +280,275 @@ export function NotesPanel() {
     }
   };
 
-  /** A card dropped: it stands where the pointer was, the others closing up behind it. */
-  const drop = () => {
-    if (carrying !== undefined && landing !== undefined) {
-      arrangeAnnotations(carried(ids, carrying, landing === "end" ? undefined : landing));
-    }
-    setCarrying(undefined);
-    setLanding(undefined);
+  // The cards as drawn: while one is carried, in the order that has it where it would land.
+  const shownIds = carry === undefined ? ids : orderWhileCarried(carry.order, ids);
+  const byId = new Map(notes.map((one) => [one.id, one]));
+  const shown = shownIds.flatMap((id) => byId.get(id) ?? []);
+  const latestIds = useRef(ids);
+  latestIds.current = ids;
+
+  /** The picture of the carried card, its corner where the pointer holds it. */
+  const placeGhost = () => {
+    const held = carrying.current;
+    if (ghost.current === null || held === undefined) return;
+    const x = pointer.current.x - held.gripX;
+    const y = pointer.current.y - held.gripY;
+    ghost.current.style.transform = `translate(${x}px, ${y}px)`;
   };
-  const columns = masonry(notes, notesColumns(width), reckonedHeight);
+
+  /**
+   * Lifts card `id`, pressed at the pointer: its place stays, empty, and a picture of it follows
+   * the pointer above the others. A card not among the selected is selected alone.
+   *
+   * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.beginCarry
+   */
+  const beginCarry = (id: string, card: HTMLElement, x: number, y: number) => {
+    const box = card.getBoundingClientRect();
+    if (!chosen.has(id)) selectAnnotations([id]);
+    setCarry({
+      id,
+      gripX: x - box.left,
+      gripY: y - box.top,
+      width: box.width,
+      order: latestIds.current,
+      settledAt: undefined,
+      landing: false,
+    });
+  };
+
+  /**
+   * The pointer, carrying a card, has moved: the picture follows it, and over another card the
+   * carried one takes that card's place, the others moving aside.
+   *
+   * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.moveCarry
+   */
+  const moveCarry = () => {
+    const held = carrying.current;
+    const element = list.current;
+    if (held === undefined || held.landing || element === null) return;
+    placeGhost();
+    const box = element.getBoundingClientRect();
+    const x = pointer.current.x - box.left - element.clientLeft + element.scrollLeft;
+    const y = pointer.current.y - box.top - element.clientTop + element.scrollTop;
+    if (stillSettled(held.settledAt, x, y)) return;
+    const { ids: order, frames, columns } = laidOut.current;
+    const from = order.indexOf(held.id);
+    if (from < 0) return;
+    const to = carryTarget(frames, columns, from, x, y);
+    if (to === undefined || to === from) return;
+    carryMoved.current = true;
+    setCarry({ ...held, order: movedTo(order, from, to), settledAt: { x, y } });
+  };
+
+  /**
+   * The card is let go: it settles into its place, and the order is kept. One removed while it was
+   * carried — by the agent — is let go of where it is.
+   *
+   * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.endCarry
+   */
+  const endCarry = () => {
+    const held = carrying.current;
+    if (held === undefined) return;
+    const order = orderWhileCarried(held.order, latestIds.current);
+    const place = list.current?.querySelector<HTMLElement>(`[data-note="${held.id}"]`);
+    if (!order.includes(held.id) || place == null || ghost.current === null) {
+      setCarry(undefined);
+      return;
+    }
+    arrangeAnnotations(order);
+    setCarry({ ...held, landing: true });
+    const box = place.getBoundingClientRect();
+    const duration = prefersReducedMotion() ? 0 : MOVE_MS;
+    ghost.current.style.transition = `transform ${duration}ms ease`;
+    ghost.current.style.transform = `translate(${box.left}px, ${box.top}px)`;
+    const settled = window.setTimeout(() => setCarry(undefined), duration);
+    carryCleanup.current = () => window.clearTimeout(settled);
+  };
+
+  /**
+   * A press on a card: past the threshold it is a drag, carried until the button is let go;
+   * short of it, a click, left to the card. A press with Shift or Ctrl/⌘ only selects, and one
+   * on the card's ✕, pencil or link is theirs.
+   *
+   * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.dragIfDragged
+   */
+  const press = (id: string, event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || selectsOnly(event) || carrying.current !== undefined) return;
+    if (event.target instanceof Element && event.target.closest("button") !== null) return;
+    const card = event.currentTarget;
+    const start = { x: event.clientX, y: event.clientY };
+    let dragged = false;
+    // The pointer held still near an edge goes on scrolling.
+    let scrolling: number | undefined;
+    const scroll = () => {
+      const element = list.current;
+      if (element === null) return;
+      const box = element.getBoundingClientRect();
+      const { y } = pointer.current;
+      const step =
+        y < box.top + SCROLL_EDGE
+          ? -Math.ceil((box.top + SCROLL_EDGE - y) / 2)
+          : y > box.bottom - SCROLL_EDGE
+            ? Math.ceil((y - box.bottom + SCROLL_EDGE) / 2)
+            : 0;
+      if (step === 0) return;
+      element.scrollTop += step;
+      moveCarry();
+    };
+    const move = (next: PointerEvent) => {
+      pointer.current = { x: next.clientX, y: next.clientY };
+      if (!dragged) {
+        if (Math.hypot(next.clientX - start.x, next.clientY - start.y) < DRAG_THRESHOLD) return;
+        dragged = true;
+        beginCarry(id, card, start.x, start.y);
+        scrolling = window.setInterval(scroll, 50);
+        return;
+      }
+      moveCarry();
+      scroll();
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (scrolling !== undefined) window.clearInterval(scrolling);
+    };
+    const up = () => {
+      stop();
+      if (!dragged) return;
+      endCarry();
+      // The release ends a drag, not a click on whatever card it is over.
+      const swallow = (click: Event) => {
+        click.stopPropagation();
+        click.preventDefault();
+      };
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      window.setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    carryCleanup.current = stop;
+  };
+
+  // The picture takes its place under the pointer as soon as it is drawn.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: placed once, when a carry begins
+  useLayoutEffect(placeGhost, [carry?.id]);
+
+  // After every drawing: the boxes the pointer is tested against, read without the motion; and the
+  // cards moved, as upstream moves them — aside for a carried card, up to close the gap a removed
+  // one leaves, aside to make room for one put in — each sent from where it was to where it is.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.remove
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.insert
+  // @upstream-differs a card whose relations changed with a removal says so at once, where upstream
+  // says it again once the cards have settled
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (element === null) return;
+    const cards = new Map(
+      [...element.querySelectorAll<HTMLElement>("[data-note]")].map((card) => [
+        card.dataset.note ?? "",
+        card,
+      ])
+    );
+    // Offsets, not the boxes on screen: a card still moving is where it goes.
+    const boxOf = (card: HTMLElement): CardFrame => ({
+      x: card.offsetLeft,
+      y: card.offsetTop,
+      width: card.offsetWidth,
+      height: card.offsetHeight,
+    });
+    const before = lastLaidOut.current;
+    const now = new Map([...cards].map(([id, card]) => [id, { box: boxOf(card), card }]));
+    lastLaidOut.current = now;
+    const half = 6;
+    laidOut.current = {
+      ids: shownIds,
+      frames: shownIds.map((id) => now.get(id)?.box ?? { x: 0, y: 0, width: 0, height: 0 }),
+      columns: [...element.querySelectorAll<HTMLElement>(".notes-column")].map((column) => ({
+        left: column.offsetLeft - half,
+        right: column.offsetLeft + column.offsetWidth + half,
+      })),
+    };
+    const shownBefore = lastShown.current;
+    lastShown.current = shownIds;
+    const moved = carryMoved.current;
+    carryMoved.current = false;
+    // Moved only when cards only went or only came, the rest standing in the order they stood; any
+    // other change — an order arranged, the panel widened — lays the cards out again at once.
+    const change = moved
+      ? "carry"
+      : carry === undefined
+        ? cardChange(shownBefore, shownIds)
+        : "other";
+    const animate = change !== "other" && !prefersReducedMotion();
+    const moving: HTMLElement[] = [];
+    for (const [id, { box, card }] of now) {
+      const was = before.get(id);
+      if (was === undefined) {
+        // A card put in shows itself in its place.
+        if (animate && change === "insert") {
+          card.style.transition = "none";
+          card.style.opacity = "0";
+          moving.push(card);
+        }
+        continue;
+      }
+      if (was.box.x === box.x && was.box.y === box.y) continue;
+      if (!animate) {
+        card.style.transition = "none";
+        card.style.transform = "";
+        continue;
+      }
+      // From where it is on screen: where it stood, and as far as a move still under way took it.
+      const under = was.card.isConnected
+        ? new DOMMatrix(getComputedStyle(was.card).transform)
+        : undefined;
+      const dx = was.box.x + (under?.m41 ?? 0) - box.x;
+      const dy = was.box.y + (under?.m42 ?? 0) - box.y;
+      card.style.transition = "none";
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      moving.push(card);
+    }
+    // A card taken out fades where it stood, as the others close up.
+    const fading: HTMLElement[] = [];
+    if (animate && change === "remove") {
+      for (const [id, { box, card }] of before) {
+        if (now.has(id)) continue;
+        const picture = card.cloneNode(true) as HTMLElement;
+        picture.removeAttribute("data-note");
+        picture.classList.add("note-card-leaving");
+        Object.assign(picture.style, {
+          left: `${box.x}px`,
+          top: `${box.y}px`,
+          width: `${box.width}px`,
+          height: `${box.height}px`,
+          transform: "",
+          transition: "none",
+        });
+        element.append(picture);
+        fading.push(picture);
+      }
+    }
+    if (moving.length === 0 && fading.length === 0) return;
+    // The browser takes the cards where they were before they set off.
+    void element.offsetWidth;
+    const motion = `transform ${MOVE_MS}ms ease, opacity ${MOVE_MS}ms ease`;
+    for (const card of moving) {
+      card.style.transition = motion;
+      card.style.transform = "";
+      card.style.opacity = "";
+    }
+    for (const picture of fading) {
+      picture.style.transition = motion;
+      picture.style.opacity = "0";
+      window.setTimeout(() => picture.remove(), MOVE_MS);
+    }
+  });
+
+  const columns = masonry(shown, notesColumns(width), reckonedHeight);
+  const carried = carry === undefined ? undefined : byId.get(carry.id);
   return (
     <section className="notes-panel" aria-label={L("Annotations")}>
       <DockPanelHeader
@@ -234,33 +577,12 @@ export function NotesPanel() {
         aria-multiselectable
         tabIndex={0}
         onKeyDown={onKeyDown}
-        // The dock's panel host refuses every drag that enters it, so that a file let go over a
-        // panel opens nowhere; a card being carried is the list's own, and is let in.
-        onDragEnter={(event) => {
-          if (carrying === undefined) return;
-          event.preventDefault();
-          event.stopPropagation();
-          event.dataTransfer.dropEffect = "move";
-        }}
       >
         {columns.map((column, index) => (
-          // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for a card carried
           <div
             // biome-ignore lint/suspicious/noArrayIndexKey: a column is its place
             key={index}
             className="notes-column"
-            onDragOver={(event) => {
-              if (carrying === undefined) return;
-              // Below the last card of the column under the pointer is the last place.
-              event.preventDefault();
-              event.stopPropagation();
-              event.dataTransfer.dropEffect = "move";
-              setLanding("end");
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              drop();
-            }}
           >
             {column.map((annotation) => (
               <NoteCard
@@ -270,33 +592,47 @@ export function NotesPanel() {
                 isOpen={agentService.annotationTools.placeOf(annotation) !== undefined}
                 isSelected={chosen.has(annotation.id)}
                 isNew={state.marked.has(annotation.id)}
-                isCarried={carrying === annotation.id}
-                landsBefore={carrying !== undefined && landing === annotation.id}
-                onCarry={(on) => {
-                  setCarrying(on ? annotation.id : undefined);
-                  if (!on) setLanding(undefined);
-                }}
-                onLand={(at) =>
-                  setLanding(at === "before" ? annotation.id : nextAfter(ids, annotation.id))
-                }
-                onDrop={drop}
+                isCarried={carry?.id === annotation.id}
+                onPress={(event) => press(annotation.id, event)}
                 onChoose={(how) => choose(annotation.id, how)}
                 onShow={() => show(annotation.id)}
                 onRemove={() => remove(new Set([annotation.id]))}
                 onEdit={() => edit(annotation)}
-                onRelated={(id) => choose(id, "only")}
+                onRelated={(id) => showAnnotationCards([id])}
               />
             ))}
           </div>
         ))}
       </div>
+      {carry !== undefined && carried !== undefined
+        ? createPortal(
+            <div
+              ref={ghost}
+              className="note-card-ghost"
+              style={{ width: carry.width }}
+              aria-hidden="true"
+            >
+              <NoteCard
+                annotation={carried}
+                titles={titles}
+                isOpen={agentService.annotationTools.placeOf(carried) !== undefined}
+                isSelected={chosen.has(carried.id)}
+                isNew={state.marked.has(carried.id)}
+                isCarried={false}
+                onPress={() => undefined}
+                onChoose={() => undefined}
+                onShow={() => undefined}
+                onRemove={() => undefined}
+                onEdit={() => undefined}
+                onRelated={() => undefined}
+              />
+            </div>,
+            document.body
+          )
+        : null}
     </section>
   );
 }
-
-/** The card after `id` in the cards' order, or "end" where it is the last. */
-const nextAfter = (ids: readonly string[], id: string): string | "end" =>
-  ids[ids.indexOf(id) + 1] ?? "end";
 
 /** A press with Shift or Ctrl/⌘ held only selects: it lands on the card, never on what is in it. */
 const selectsOnly = (event: MouseEvent): boolean =>
@@ -316,10 +652,7 @@ function NoteCard({
   isSelected,
   isNew,
   isCarried,
-  landsBefore,
-  onCarry,
-  onLand,
-  onDrop,
+  onPress,
   onChoose,
   onShow,
   onRemove,
@@ -332,12 +665,13 @@ function NoteCard({
   readonly isSelected: boolean;
   /** Wears the New tag on its top edge. */
   readonly isNew: boolean;
+  /**
+   * Carried away: its place stays, empty.
+   *
+   * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.emptyIndex
+   */
   readonly isCarried: boolean;
-  /** The card being carried would land in front of this one. */
-  readonly landsBefore: boolean;
-  readonly onCarry: (on: boolean) => void;
-  readonly onLand: (at: "before" | "after") => void;
-  readonly onDrop: () => void;
+  readonly onPress: (event: ReactPointerEvent<HTMLElement>) => void;
   readonly onChoose: (how: "only" | "toggle" | "range") => void;
   readonly onShow: () => void;
   readonly onRemove: () => void;
@@ -358,27 +692,9 @@ function NoteCard({
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the list holds the keys
     <article
-      className={`note-card ${byAgent ? "is-agent" : "is-person"}${isSelected ? " is-selected" : ""}${isCarried ? " is-carried" : ""}${landsBefore ? " lands-before" : ""}`}
+      className={`note-card ${byAgent ? "is-agent" : "is-person"}${isSelected ? " is-selected" : ""}${isCarried ? " is-carried" : ""}`}
       data-note={annotation.id}
-      draggable
-      onDragStart={(event: DragEvent) => {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", annotation.id);
-        onCarry(true);
-      }}
-      onDragEnd={() => onCarry(false)}
-      onDragOver={(event: DragEvent<HTMLElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.dataTransfer.dropEffect = "move";
-        const box = event.currentTarget.getBoundingClientRect();
-        onLand(event.clientY < box.top + box.height / 2 ? "before" : "after");
-      }}
-      onDrop={(event: DragEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onDrop();
-      }}
+      onPointerDown={onPress}
       onClick={(event) =>
         onChoose(event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "only")
       }
