@@ -149,9 +149,8 @@ async function partOfTheFile(): Promise<{
   const part = await openGivenPart({
     parent: "a",
     bytes: await slot.document.read(file.start, file.end - file.start),
-    name: "bios_MyDriver.bin",
+    name: "MyDriver",
     source: [file.start, file.end],
-    partName: "MyDriver",
     back: new UEFIPartCodec({ pane: "a", target: { space: [], range: file } }),
   });
   return { part, file, bytes };
@@ -252,9 +251,8 @@ describe("a part the image is laid out again around", () => {
     const part = await openGivenPart({
       parent: "a",
       bytes: new Uint8Array(0x60),
-      name: "bios_body.bin",
+      name: "body",
       source: [0x20, 0x80],
-      partName: "body",
       back: new UEFIPartCodec({ pane: "a", target: { space: [0x20] } }),
     });
     await paneState(part)?.document.overwrite(0, Uint8Array.from([0x01]));

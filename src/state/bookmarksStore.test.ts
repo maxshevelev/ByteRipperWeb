@@ -211,9 +211,8 @@ describe("a panel's view of the list", () => {
     return openGivenPart({
       parent: "a",
       bytes: await slot.document.read(start, end - start),
-      name: "zone.bin",
+      name: "zone",
       source: [start, end],
-      partName: "zone",
       ...(kind === undefined ? {} : { back: new ElsewhereCodec() }),
     });
   }
@@ -275,9 +274,8 @@ describe("a panel's view of the list", () => {
     const inner = await openGivenPart({
       parent: outer,
       bytes: await outerSlot.document.read(0x40, 0x20),
-      name: "inner.bin",
+      name: "inner",
       source: [0x40, 0x60],
-      partName: "inner",
     });
 
     addBookmark(inner, 0, "deep");
@@ -326,9 +324,8 @@ describe("a panel's view of the list", () => {
     const inner = await openGivenPart({
       parent: body,
       bytes: await bodySlot.document.read(0, 0x20),
-      name: "inner.bin",
+      name: "inner",
       source: [0, 0x20],
-      partName: "inner",
     });
 
     expect(marksFor(inner)).toBeUndefined();

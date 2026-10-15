@@ -410,4 +410,13 @@ export class LenovoDMIBlockCodec implements PartCodec {
       ),
     };
   }
+
+  /**
+   * A block stored in the clear is the file's bytes: nothing to name.
+   *
+   * @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIValue.swift#LenovoDMIBlockCodec.transform
+   */
+  get transform(): string | undefined {
+    return this.encodes ? `XOR ${hexText(this.key, 2, false)}` : undefined;
+  }
 }

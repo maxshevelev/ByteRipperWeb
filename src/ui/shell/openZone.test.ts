@@ -6,6 +6,7 @@ import {
   type PaneId,
   paneState,
   partPane,
+  saveAsName,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { publishZones } from "@/state/zoneStore";
@@ -143,25 +144,31 @@ describe("opening a zone", () => {
   });
 
   /**
-   * The name is the export's: the file's stem and the zone's own name, so a
-   * part and the file the same zone would have been saved to are called the
-   * same thing.
+   * A fragment is named by what was opened, without the dump around it: the
+   * panel, its pill and its link all say the zone's name.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAFragmentIsNamedByWhatWasOpenedAlone
+   * @upstream ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersOpeningItInAPanel
+   * @upstream-differs at the state: the pill's title is the part's name, which is what is read
    */
-  it("names the part after the file it came out of and the zone", async () => {
+  it("names the part after the zone alone", async () => {
     const { menu } = dumpWithZones([zone("r", "#2 Row", 4, 8)], 5);
 
     pick(menu, `Open Zone “#2 Row”`);
 
-    expect(paneState(await opened())?.name).toBe("1_#2 Row.bin");
+    const part = paneState(await opened());
+    expect(part?.name).toBe("#2 Row");
+    expect(part?.origin?.partName).toBe("#2 Row");
+    expect(saveAsName(part)).toBe("#2 Row.bin");
   });
 
-  /** A nameless zone falls back to its range, as the saved file does. */
+  /** A nameless zone falls back to its range. */
   it("names a nameless zone by where it is", async () => {
     const { menu } = dumpWithZones([zone("r", "", 4, 8)], 5);
 
     pick(menu, `Open Zone “”`);
 
-    expect(paneState(await opened())?.name).toBe("1_00000004-00000008.bin");
+    expect(paneState(await opened())?.name).toBe("00000004-00000008");
   });
 
   /** The dump it came out of is untouched, and stays where it was. */

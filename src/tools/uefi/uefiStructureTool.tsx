@@ -93,9 +93,9 @@ import {
   nodeOpenTitle,
   nodeSaveTitle,
   partName,
+  saveName,
   uefiZones,
   uefiZonesOutlining,
-  unpackedPartName,
 } from "@/tools/uefi/uefiPresenter";
 import {
   counterpartMenuTitle,
@@ -1237,7 +1237,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // sections (§6). The codec decompresses them for the panel and compresses them again
       // on the way back.
       context.openPart(
-        partName(taken.suggestedName, paneState(context.pane)?.name ?? ""),
+        taken.partName,
         source,
         new UEFIPartCodec({
           pane: context.pane,
@@ -1274,14 +1274,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         return;
       }
       context.openPart(
-        unpackedPartName(node, paneState(context.pane)?.name ?? ""),
+        partName(node, true),
         source,
         new ReadOnlyPartCodec(
           text,
           LocalizedText.of("This cannot be put back"),
           LocalizedText.of(
             "This is the text the variable unpacks to, and nothing here packs it again."
-          )
+          ),
+          "bzip2"
         )
       );
     },
@@ -1322,7 +1323,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
               compression: compressionName(open.space, roots ?? []),
             });
       context.openPart(
-        partName(open.suggestedName, paneState(context.pane)?.name ?? ""),
+        open.partName,
         open.source,
         codec,
         await askFirmwareLayout(context.pane, { node: node.id, body })
@@ -1350,7 +1351,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         return;
       }
       context.openPart(
-        L("%1$@ (decoded)", found.name),
+        found.name,
         [found.range[0], found.range[1]],
         new LenovoDMIBlockCodec(new LENVBlock(found.range[0], stored)),
         IMAGE_LAYOUT,
@@ -1399,7 +1400,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 
   /**
    * Saves a node of the tree — or its body alone — to a file: the bytes opening it
-   * would show, wherever the node lives, under the name its panel would have.
+   * would show, wherever the node lives, named after the dump and the node.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.saveNode
    * @upstream-differs the browser's download flow in place of the save panel, as
@@ -1419,7 +1420,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }
       downloadBlob(
         new Blob([bytes.slice()], { type: "application/octet-stream" }),
-        partName(open.suggestedName, paneState(context.pane)?.name ?? "")
+        saveName(open.suggestedName, paneState(context.pane)?.name ?? "")
       );
       context.report(L("Saved %1$@ bytes.", bytes.length));
     },

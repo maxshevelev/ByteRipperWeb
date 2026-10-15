@@ -830,6 +830,27 @@ export function renamePane(pane: PaneId, raw: string): boolean {
 }
 
 /**
+ * The name a save offers: the pane's own, with `.bin` after it for a document
+ * never saved that has no extension of its own. A fragment's name is a node's
+ * or a zone's and never a file's — `Intel ME v11.8.50` is not a file with the
+ * extension `50` — so it always gets one.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveAsName
+ * @upstream-differs offered to whichever route the browser saves by — the
+ * picker, or the download a browser without one falls back to
+ */
+export function saveAsName(
+  slot: Pick<PaneState, "name" | "untitled" | "origin"> | undefined
+): string {
+  if (slot === undefined) return "";
+  const name = slot.name;
+  if (!slot.untitled) return name;
+  const dot = name.lastIndexOf(".");
+  if (slot.origin === undefined && dot > 0 && dot < name.length - 1) return name;
+  return `${name}.bin`;
+}
+
+/**
  * Saves a pane, by whichever route the browser offers.
  *
  * The outcome matters to the caller: a save in place rebases the document onto
@@ -850,7 +871,7 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const overlay = slot.document.storage as EditOverlayStorage;
   const request = {
     storage: slot.document.storage,
-    name: slot.name,
+    name: saveAsName(slot),
     handle: slot.file.handle,
     capabilities: state.capabilities,
     baseSize: overlay.baseSize,

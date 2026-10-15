@@ -45,6 +45,10 @@ export class GivenBytesCodec implements PartCodec {
   get badge(): PartBadge | undefined {
     return this.back.badge;
   }
+
+  get transform(): string | undefined {
+    return this.back.transform;
+  }
 }
 
 /**
@@ -58,6 +62,7 @@ export class ElsewhereCodec implements PartCodec {
   readonly decodesImmediately = true;
   readonly keepsOffsets = false;
   readonly badge = undefined;
+  readonly transform = undefined;
 
   decode(parent: PartParent): Promise<Uint8Array> {
     return sourceBytes(parent);

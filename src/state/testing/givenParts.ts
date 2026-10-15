@@ -16,7 +16,6 @@ export async function openGivenPart(options: {
   readonly bytes: Uint8Array;
   readonly name: string;
   readonly source: readonly [number, number];
-  readonly partName?: string;
   readonly layout?: UEFIRootLayout;
   readonly back?: PartCodec;
 }): Promise<PartId> {
@@ -24,7 +23,6 @@ export async function openGivenPart(options: {
     parent: options.parent,
     name: options.name,
     source: options.source,
-    partName: options.partName,
     layout: options.layout,
     codec: new GivenBytesCodec(options.bytes, options.back ?? new CopyPartCodec()),
   });

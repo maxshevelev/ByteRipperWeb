@@ -116,6 +116,10 @@
   --notice-icon: rgb(0 0 0 / 0.53);
   /* A part codec's capsule in a pane header: upstream's quaternary label fill. */
   --part-badge-fill: rgb(0 0 0 / 0.1);
+  /* The same capsule on the raised dock pill: a wash away from the pill's ink, so
+     the word in the ink reads better on it than on the pill rather than worse —
+     a white wash under white ink, upstream's, leaves a 10 px word at 3.5:1. */
+  --pill-badge-wash: rgb(0 0 0 / 0.22);
   --empty-state-icon: rgb(0 0 0 / 0.259);
 
   --segment-0: #d6f0d6;
@@ -194,6 +198,8 @@
        block for what they mean). */
     --notice-icon: rgb(255 255 255 / 0.55);
     --part-badge-fill: rgb(255 255 255 / 0.1);
+    /* The ink here is dark on a light accent: the capsule is lightened. */
+    --pill-badge-wash: rgb(255 255 255 / 0.45);
     --empty-state-icon: rgb(255 255 255 / 0.247);
     --segment-0: #29402b;
     --segment-1: #4a2b36;
@@ -274,6 +280,7 @@
      block for what they mean). */
   --notice-icon: rgb(255 255 255 / 0.55);
   --part-badge-fill: rgb(255 255 255 / 0.1);
+  --pill-badge-wash: rgb(255 255 255 / 0.45);
   --empty-state-icon: rgb(255 255 255 / 0.247);
   --segment-0: #29402b;
   --segment-1: #4a2b36;

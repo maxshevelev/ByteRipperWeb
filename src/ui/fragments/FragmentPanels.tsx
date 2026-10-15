@@ -23,6 +23,7 @@ import {
   FragmentPanelHost,
   foldAwayOnClose,
 } from "@/ui/fragments/FragmentPanelView";
+import { partTransform } from "@/ui/fragments/partTransform";
 import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
 import { HelpPanel } from "@/ui/help/HelpPanel";
 import { NotesPanel } from "@/ui/notes/NotesPanel";
@@ -104,37 +105,45 @@ export function FragmentPanels({
   // up, and which of them have bytes the parent has not got back.
   //
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.refreshDock
-  const items: DockItem[] = state.dock.panels.map((id) => ({
-    id,
-    title:
-      id === state.helpPanel
-        ? L("Help", { context: "panel" })
-        : id === state.agentPanel
-          ? L("Agent")
-          : id === state.notesPanel
-            ? L("Annotations")
-            : (state.parts[partPane(id)]?.name ?? ""),
-    kind:
-      id === state.helpPanel
-        ? "help"
-        : id === state.agentPanel
-          ? "agent"
-          : id === state.notesPanel
-            ? "notes"
-            : "part",
-    unseen: id === state.notesPanel ? annotations.unseen.size : undefined,
-    connected: id === state.agentPanel && agent.connections > 0,
-    isUp: state.dock.expanded === id,
-    // The dot is "the parent has not got these bytes", which is the link's
-    // question; a part with no link falls back to its own unsaved work, which
-    // is upstream's own fallback.
-    // A book has no bytes to give back, so it never wears the dot.
-    hasChanges:
-      id !== state.helpPanel &&
-      id !== state.agentPanel &&
-      id !== state.notesPanel &&
-      unreturned.has(partPane(id)),
-  }));
+  const items: DockItem[] = state.dock.panels.map((id) => {
+    const transform =
+      id === state.helpPanel || id === state.agentPanel || id === state.notesPanel
+        ? undefined
+        : partTransform(state, partPane(id));
+    return {
+      id,
+      title:
+        id === state.helpPanel
+          ? L("Help", { context: "panel" })
+          : id === state.agentPanel
+            ? L("Agent")
+            : id === state.notesPanel
+              ? L("Annotations")
+              : (state.parts[partPane(id)]?.name ?? ""),
+      kind:
+        id === state.helpPanel
+          ? "help"
+          : id === state.agentPanel
+            ? "agent"
+            : id === state.notesPanel
+              ? "notes"
+              : "part",
+      unseen: id === state.notesPanel ? annotations.unseen.size : undefined,
+      connected: id === state.agentPanel && agent.connections > 0,
+      isUp: state.dock.expanded === id,
+      // The dot is "the parent has not got these bytes", which is the link's
+      // question; a part with no link falls back to its own unsaved work, which
+      // is upstream's own fallback.
+      // A book has no bytes to give back, so it never wears the dot.
+      hasChanges:
+        id !== state.helpPanel &&
+        id !== state.agentPanel &&
+        id !== state.notesPanel &&
+        unreturned.has(partPane(id)),
+      transform: transform?.text,
+      transformExplanation: transform?.explanation,
+    };
+  });
   if (items.length === 0) return null;
 
   // The one leaving stays on stage until it is gone; the one arriving waits for it.

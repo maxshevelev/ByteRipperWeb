@@ -10,7 +10,6 @@ import {
   type CompressedSectionNode,
   contentOf,
   decompressedBody,
-  partName,
   type ZonedNode,
 } from "@/tools/uefi/uefiPresenter";
 import { typeText } from "@/tools/uefi/uefiTreeDisplay";
@@ -82,7 +81,9 @@ describe("an AMI BIOS Guard update in the panel", () => {
     expect(body?.space).toEqual([0]);
     expect(body?.openTitle).toBe("Open Assembled BIOS Region");
     expect(body?.saveTitle).toBe("Save Assembled BIOS Region as…");
-    expect(partName(body?.suggestedName ?? "", "X1704VAPF.306")).toBe("X1704VAPF_BIOS region.bin");
+    // A saved file is named by what it is; a panel by the node it was opened from, then body.
+    expect(body?.suggestedName).toBe("BIOS region.bin");
+    expect(body?.partName).toBe("AMI BIOS Guard update body");
     expect(contentOf(wire(update))).toBe("decompressedBody");
   });
 

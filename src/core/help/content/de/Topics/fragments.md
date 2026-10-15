@@ -1,4 +1,4 @@
-@source-sha c4f0d9f631311e12dc5f6a771c651ef6353a2885fb7da715e2d9fa059e31eeb7
+@source-sha 076142211856ebdabe18027fba7e662a8fdd24c7938db7b27445e34a42cff0dd
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -6,6 +6,8 @@
 Ein Teil eines Images, den ein [[topic:tools-overview|Werkzeugbereich]] bereitstellt — eine Region, ein Volume, ein Modul, der entpackte Rumpf einer Sektion —, öffnet sich als **Fragment-Bereich**: ein Bereich, der von unten über den Dump fährt, aus dem der Teil stammt.
 
 Die Quelle bleibt darüber sichtbar. Eingeklappt wird das Fragment zu einer Pille im Dock am unteren Rand des Arbeitsbereichs. Ein Dock dient dem ganzen Arbeitsbereich: Es fasst die Teile, die aus beiden geöffneten Images entnommen wurden, und die Hilfe selbst, die dasselbe Dock benutzt.
+
+Ein Fragment trägt den Namen dessen, was geöffnet wurde – des Knotens oder der Zone –, und sonst nichts: Weder der Name des Dumps noch die Art, wie die Bytes umgewandelt wurden, wird angehängt. Der Rumpf eines Knotens mit Kopf heißt wie der Knoten, gefolgt von *body* – in jeder Sprache englisch, wie im Namen einer gespeicherten Datei. Beim ersten Sichern wird ein Fragment unter seinem Namen mit der Endung *.bin* angeboten. Haben die Bytes einen Codec durchlaufen, zeigt die Pille hinter dem Namen des Fragments den Namen dieses Codecs – **LZMA**, **XOR** mit Schlüssel, **bzip2** –; unter dem Mauszeiger erscheint dieselbe Erläuterung wie beim Abzeichen in der Kopfzeile des Bereichs (siehe unten). Ein Fragment, das aus einem solchen Fragment geöffnet wird – etwa ein Knoten einer entpackten Sektion –, trägt denselben Codec-Namen, denn seine Bytes sind ebenso wenig die der Datei selbst wie die des Fragments, aus dem es stammt. Eine Pille ohne dieses Abzeichen enthält die Bytes der Datei selbst.
 
 Es ist immer nur ein Panel oben. Ein anderes hochzuholen klappt das bisherige ein; deshalb räumt die geöffnete Hilfe einen Teil weg, statt ihn zu verdecken.
 

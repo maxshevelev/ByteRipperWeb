@@ -286,6 +286,15 @@ export interface PartCodec {
    * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartCodec.badge
    */
   readonly badge: PartBadge | undefined;
+  /**
+   * The codec the bytes went through on their way out of the file — `LZMA`,
+   * `XOR 77`, `bzip2` — for the dock's pill, which has room for that word and
+   * no more. Nothing when the panel holds the file's own bytes, whatever else
+   * its header's badge says about them.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#PartCodec.transform
+   */
+  readonly transform: string | undefined;
 }
 
 /**
@@ -300,6 +309,7 @@ export class CopyPartCodec implements PartCodec {
   readonly decodesImmediately = true;
   readonly keepsOffsets = true;
   readonly badge = undefined;
+  readonly transform = undefined;
 
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#CopyPartCodec.decode */
   decode(parent: PartParent): Promise<Uint8Array> {
@@ -340,11 +350,23 @@ export class ReadOnlyPartCodec implements PartCodec {
   readonly title: LocalizedText;
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.reason */
   readonly reason: LocalizedText;
+  /**
+   * What the bytes were unpacked with, when they were.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.transform
+   */
+  readonly transform: string | undefined;
 
-  constructor(bytes: Uint8Array, title: LocalizedText, reason: LocalizedText) {
+  constructor(
+    bytes: Uint8Array,
+    title: LocalizedText,
+    reason: LocalizedText,
+    transform?: string | undefined
+  ) {
     this.bytes = bytes;
     this.title = title;
     this.reason = reason;
+    this.transform = transform;
   }
 
   /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#ReadOnlyPartCodec.decode */

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { openLinkedPart, partNameOf } from "@/state/openLinkedPart";
+import { openLinkedPart } from "@/state/openLinkedPart";
 import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
 import {
   partsLinkedTo,
@@ -50,7 +50,7 @@ async function fileInA(length = 0x40): Promise<void> {
 }
 
 /** Takes `[start, end)` of pane A out as a part, linked to it. */
-async function partOfA(start: number, end: number, name = "bios_zone.bin"): Promise<PartId> {
+async function partOfA(start: number, end: number, name = "zone"): Promise<PartId> {
   const slot = paneState("a");
   if (slot === undefined) throw new Error("pane A should be open");
   return openGivenPart({
@@ -58,7 +58,6 @@ async function partOfA(start: number, end: number, name = "bios_zone.bin"): Prom
     bytes: await slot.document.read(start, end - start),
     name,
     source: [start, end],
-    partName: "zone",
   });
 }
 
@@ -163,15 +162,6 @@ describe("the link", () => {
     await paneState("a")?.document.overwrite(0x30, Uint8Array.from([0xff]));
 
     expect(await origin?.state()).toBe("intact");
-  });
-
-  /**
-   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAToolTabsPartIsNamedWithoutTheDumpAroundIt
-   */
-  it("names a part without the dump around it", () => {
-    expect(partNameOf("bios_LZMA section.bin", "bios.rom")).toBe("LZMA section");
-    expect(partNameOf("elsewhere.bin", "bios.rom")).toBe("elsewhere");
-    expect(partNameOf("bios_.bin", "bios.rom")).toBe("bios_");
   });
 });
 

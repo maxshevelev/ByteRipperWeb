@@ -6,6 +6,7 @@ import {
   IMAGE_LAYOUT,
   type UEFIRootLayout,
 } from "@/firmware/uefi/rootLayout";
+import { displayName, type NameText } from "@/firmware/uefi/uefiNode";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import type { ZoneMap } from "@/tools/zone";
 
@@ -36,6 +37,8 @@ import type { ZoneMap } from "@/tools/zone";
 export interface ZonedNode {
   readonly id: readonly number[];
   readonly name: string;
+  /** The made-up name put into words, where the caller has it: what a panel is called. */
+  readonly nameText?: NameText | undefined;
   /**
    * What the node is, where the caller has it — a wire node does. It decides
    * one thing here: whether the node is a structure the image can be laid out
@@ -62,6 +65,7 @@ const PART_SEPARATOR = "#";
 export interface CompressedSectionNode {
   readonly kind: string;
   readonly name: string;
+  readonly nameText?: NameText | undefined;
   readonly header: readonly [number, number];
   readonly body: readonly [number, number];
   readonly tail: readonly [number, number];
@@ -89,8 +93,19 @@ export interface DecompressedBody {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.layout
    */
   readonly layout: UEFIRootLayout;
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.suggestedName */
+  /**
+   * What a saved file is called: on disk nothing but the name tells the body
+   * from the section it came out of.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.suggestedName
+   */
   readonly suggestedName: string;
+  /**
+   * What the panel is called (`partName`).
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.partName
+   */
+  readonly partName: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.saveTitle */
   readonly saveTitle: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.openTitle */
@@ -185,18 +200,22 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
       space: [...node.space, node.header[0]],
       layout: IMAGE_LAYOUT,
       suggestedName: "BIOS region.bin",
+      partName: partName(node, true),
       saveTitle: L("Save Assembled BIOS Region as…"),
       openTitle: L("Open Assembled BIOS Region"),
     };
   }
-  // What came *out* of a section says so in its name. Without it the section opened as a
-  // node and the same section's decompressed body arrive under one name —
-  // `bios_LZMA Section.bin` twice — and the two hold entirely different bytes. A node with
-  // no name is already called `decompressed`, so it says it once.
+  // A saved file that came *out* of a section says so in its name. Without it the section
+  // saved as a node and the same section's decompressed body land under one name —
+  // `LZMA Section.bin` twice — and the two hold entirely different bytes. A node with no
+  // name is already called `decompressed`, so it says it once. A panel says it with the
+  // codec's badge on its pill, and its name is the section's. Both say `body` after the
+  // section's name where it has a header.
   const base = Array.from(node.name.length === 0 ? "decompressed" : node.name)
     .map((character) => ("/:".includes(character) ? "_" : character))
     .join("");
-  const marked = node.name.length === 0 ? base : `${base} decompressed`;
+  const marked =
+    (node.name.length === 0 ? base : `${base} decompressed`) + (hasHeader(node) ? " body" : "");
   return {
     // The buffer this section opens to: its own space with the section's header offset on
     // the end.
@@ -206,6 +225,7 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
     // section, a stretch of flash out of the BIOS image the AMD PSP inflates.
     layout: node.kind === "section" ? DECOMPRESSED_BODY_LAYOUT : IMAGE_LAYOUT,
     suggestedName: `${marked}.bin`,
+    partName: partName(node, true),
     saveTitle: L("Save Decompressed Body as…"),
     openTitle: L("Open Decompressed Body"),
   };
@@ -220,16 +240,6 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
  */
 export function isBZip2Variable(node: { readonly kind: string; readonly name: string }): boolean {
   return node.kind === "sysFEntry" && node.name === APPLE_OVERRIDES_VARIABLE;
-}
-
-/**
- * The name of the part the unpacked text opens as, as a decompressed body's is: the dump it
- * came out of, then what it is.
- *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.unpackedTabName
- */
-export function unpackedPartName(node: { readonly name: string }, fileName: string): string {
-  return partName(`${node.name} decompressed.txt`, fileName);
 }
 
 /**
@@ -268,13 +278,38 @@ export function contentOf(node: CompressedSectionNode & ZonedNode): NodeContent 
 }
 
 /**
- * The part's name: the dump it came out of, then what it is —
- * `bios_LZMA compressed section decompressed.bin`, the way a zone's is named.
+ * What a fragment panel opened from `node` is called — the node, its body, what it
+ * decompresses or unpacks to, its LENV block decoded: the node's name as the tree shows it,
+ * and `body` after it for the body of a node that has a header, since the node and its body
+ * are two different stretches of bytes. Nothing else: not the dump's name, which the panel's
+ * link names, and not what was done to the bytes, which the codec's badge on the pill says.
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.tabName
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.partName
+ * `body` is English in every language, as it is in a saved file's name: the name is the
+ * file's, and a file's name is not translated.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.partName
+ * @upstream-differs the language in force, as `displayName` has it, where upstream takes one
  */
-export function partName(suggestedName: string, fileName: string): string {
+export function partName(
+  node: Pick<ZonedNode, "name" | "nameText" | "header">,
+  body = false
+): string {
+  const shown = displayName(node);
+  const name = shown.length === 0 ? L("Node") : shown;
+  return body && hasHeader(node) ? `${name} body` : name;
+}
+
+/** Whether `node` has a header, so that its body is less than the node. */
+const hasHeader = (node: { readonly header: readonly [number, number] }): boolean =>
+  node.header[1] > node.header[0];
+
+/**
+ * A saved file's name: the dump it came out of, then what it is —
+ * `bios_Inner decompressed.bin` — so files saved from two dumps do not land under one name.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.saveName
+ */
+export function saveName(suggestedName: string, fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   const stem = dot <= 0 ? fileName : fileName.slice(0, dot);
   return stem.length === 0 ? suggestedName : `${stem}_${suggestedName}`;
@@ -327,8 +362,18 @@ export interface NodeOpen {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.rebuild
    */
   readonly rebuild?: RebuildTarget | undefined;
-  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.suggestedName */
+  /**
+   * What a saved file is called after: what it is.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.suggestedName
+   */
   readonly suggestedName: string;
+  /**
+   * What the panel is called (`partName`).
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.partName
+   */
+  readonly partName: string;
   /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.menuTitle */
   readonly menuTitle: string;
 }
@@ -412,9 +457,12 @@ export function nodeOpen(
   const range: readonly [number, number] = body ? [node.body[0], node.body[1]] : wholeRange(node);
   const source = space.length === 0 ? range : fileSourceOf(node, roots ?? []);
   if (source === undefined) return undefined;
-  // Bytes of a decoded buffer say so in the name, so that a node and the node of the same
-  // name in the file do not arrive as one file.
-  const suffix = (space.length === 0 ? "" : " decompressed") + (body ? " body" : "");
+  // Bytes of a decoded buffer say so in a saved file's name, so that a node and the node of
+  // the same name in the file do not land as one file. A panel says so with the codec's badge
+  // on its pill. `body` as a panel's name says it: only where there is a header the body is
+  // less than the node.
+  const decompressed = space.length === 0 ? "" : " decompressed";
+  const suffix = body && hasHeader(node) ? " body" : "";
   // A whole node of the file is a structure the image can be laid out again
   // around; a body, or a slice of a buffer, is bytes going back where they
   // were, through the section they came out of.
@@ -427,7 +475,8 @@ export function nodeOpen(
     source,
     ...(rebuild === undefined ? {} : { rebuild }),
     // A picture or a sound saves as what it is, so the file opens in a viewer or a player.
-    suggestedName: `${fileNameOf(node.name, "node")}${suffix}.${extensionOf(node)}`,
+    suggestedName: `${fileNameOf(node.name, "node")}${decompressed}${suffix}.${extensionOf(node)}`,
+    partName: partName(node, body),
     menuTitle: title,
   };
 }

@@ -96,11 +96,22 @@ export class UEFIPartCodec implements PartCodec {
       };
     }
     return {
-      text: this.compression ?? L("Decompressed", { context: "part badge" }),
+      text: this.transform ?? L("Decompressed", { context: "part badge" }),
       explanation: L(
         "Decompressed from the file. Update in Parent compresses it again the way the section was compressed."
       ),
     };
+  }
+
+  /**
+   * What a decompressed buffer was compressed with; a node of the file is the
+   * file's bytes.
+   *
+   * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.transform
+   */
+  get transform(): string | undefined {
+    if (this.isFile) return undefined;
+    return this.compression ?? L("Decompressed", { context: "part badge" });
   }
 
   /** @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.decode */

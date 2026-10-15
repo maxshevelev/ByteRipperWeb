@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "3c91a61d0d9a9c13d923f6f2577787271121c5c1",
-  "baselineNote": "Bringing a place forward activates its pane, for every agent tool alike (2026-10-15)"
+  "baseCommit": "ec31062ca418b71f48fe7b42ed8c780a0ceefd2b",
+  "baselineNote": "A body fragment says body; a fragment saved first is offered as .bin (2026-10-15)"
 }

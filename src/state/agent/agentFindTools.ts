@@ -17,7 +17,6 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import { type Json, jsonText, member } from "@/core/agent/json";
-import { L } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec } from "@/core/parts/partCodec";
 import { maskedMatches } from "@/core/search/maskedSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -37,7 +36,7 @@ import {
   askUefiAgent,
   readSpaceBytes,
 } from "@/state/firmwareStore";
-import { openLinkedPart, partNameOf } from "@/state/openLinkedPart";
+import { openLinkedPart } from "@/state/openLinkedPart";
 import { surfaceOf } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
 import { sessionOn, toolController } from "@/state/toolController";
@@ -50,7 +49,6 @@ import {
   decompressedBody,
   fileSourceOf,
   nodeOpen,
-  partName,
 } from "@/tools/uefi/uefiPresenter";
 import type { WireNode } from "@/workers/protocol";
 
@@ -376,7 +374,6 @@ export class AgentFindTools {
   async openPart(args: AgentArguments): Promise<Json> {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const parent = place.onScreen();
-    const parentName = paneState(parent)?.name ?? place.name;
     const named = args.optionalString("name");
     const answer: { [key: string]: Json } = { parent: place.id };
 
@@ -391,7 +388,7 @@ export class AgentFindTools {
       if (which === "decompressed" || which === "decoded") {
         const plan =
           which === "decompressed"
-            ? await this.decompressedPart(node, roots, nodeText, parent, parentName, {
+            ? await this.decompressedPart(node, roots, nodeText, parent, {
                 answerBound: args.answerBound,
                 contentVersion: this.moduleTools.hostFor(place).contentVersion,
               })
@@ -401,7 +398,7 @@ export class AgentFindTools {
         answer.in_compressed = which === "decompressed";
         answer.source = rangeJson(plan.source[0], plan.source[1]);
         answer.size = hexText(plan.size);
-        const reused = this.reusedPart(parent, parentName, plan);
+        const reused = this.reusedPart(parent, plan);
         if (reused !== undefined) return this.reuse(reused, answer);
         return this.finishOpening(
           await openLinkedPart({
@@ -434,7 +431,7 @@ export class AgentFindTools {
               },
               compression: compressionName(open.space, roots),
             });
-      const defaultName = partName(open.suggestedName, parentName);
+      const defaultName = open.partName;
       answer.node = nodeText;
       answer.part = which;
       answer.in_compressed = open.space.length !== 0;
@@ -448,7 +445,7 @@ export class AgentFindTools {
           'part: "decoded" opens it decoded.';
       }
       const layout = await askFirmwareLayout(parent, { node: node.id, body });
-      const reused = this.reusedPart(parent, parentName, {
+      const reused = this.reusedPart(parent, {
         source: open.source,
         layout,
         codec,
@@ -478,8 +475,6 @@ export class AgentFindTools {
       );
     }
     const source: [number, number] = [offset, offset + length];
-    const dot = parentName.lastIndexOf(".");
-    const stem = dot <= 0 ? parentName : parentName.slice(0, dot);
     // As Open Zone: a stretch that is a structure of the image goes back through the rebuild
     // planner, any other as it is.
     const reading = await askFirmwarePart(parent, { range: source });
@@ -489,8 +484,8 @@ export class AgentFindTools {
         : new UEFIPartCodec({ pane: parent, target: reading.rebuild });
     answer.source = rangeJson(source[0], source[1]);
     answer.size = hexText(length);
-    const defaultName = `${stem}_${hexText(offset)}-${hexText(source[1])}`;
-    const reused = this.reusedPart(parent, parentName, {
+    const defaultName = `${hexText(offset)}-${hexText(source[1])}`;
+    const reused = this.reusedPart(parent, {
       source,
       layout: reading.layout,
       codec,
@@ -523,10 +518,8 @@ export class AgentFindTools {
    */
   private reusedPart(
     parent: PaneId,
-    parentName: string,
     plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">
   ): PartId | undefined {
-    const wanted = partNameOf(plan.name, parentName);
     for (const part of partsLinkedTo(parent)) {
       const origin = paneState(part)?.origin;
       if (origin === undefined) continue;
@@ -535,7 +528,7 @@ export class AgentFindTools {
         origin.sourceRange[1] === plan.source[1] &&
         sameLayout(origin.layout, plan.layout) &&
         origin.codec.constructor === plan.codec.constructor &&
-        origin.partName === wanted
+        origin.partName === plan.name
       ) {
         return part;
       }
@@ -598,7 +591,6 @@ export class AgentFindTools {
     roots: readonly WireNode[],
     nodeText: string,
     parent: PaneId,
-    parentName: string,
     asking: { readonly answerBound: number; readonly contentVersion: number }
   ): Promise<PartPlan> {
     const body = decompressedBody(node);
@@ -620,7 +612,7 @@ export class AgentFindTools {
       throw new AgentToolError(`Section ${nodeText} could not be decompressed.`);
     }
     return {
-      name: partName(body.suggestedName, parentName),
+      name: body.partName,
       source,
       layout: body.layout,
       codec: new UEFIPartCodec({
@@ -647,8 +639,10 @@ export class AgentFindTools {
         `Node ${nodeText} is not a LENV block, or in one, that has anything to decode.`
       );
     }
+    // The panel's name is the block's, as the panel the person opens on the same block is
+    // named: the pill's badge says it is decoded.
     return {
-      name: L("%1$@ (decoded)", found.name),
+      name: found.name,
       source: [found.range[0], found.range[1]],
       layout: IMAGE_LAYOUT,
       codec: new LenovoDMIBlockCodec(new LENVBlock(found.range[0], stored)),

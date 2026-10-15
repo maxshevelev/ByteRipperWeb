@@ -5553,7 +5553,31 @@ button.uefi-title {
   height: 11px;
 }
 
-/* A dot, not a word: the pill has room for a name and no more. */
+/* The codec the part's bytes went through — LZMA, XOR 77 — in a capsule after the
+   name: the header's badge, upstream's one PartBadgeView for both — 10 pt medium,
+   6 × 1 insets, the secondary label on the quaternary fill. It keeps its word
+   whole; the name gives way. */
+.fragment-pill-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--part-badge-fill);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* In the pill that is up, where the grey on the grey capsule does not read: the
+   word in the pill's ink, as upstream has it, on a capsule washed away from that
+   ink — darker under white ink, lighter under dark — so it reads in every theme. */
+.fragment-pill[data-up] .fragment-pill-badge {
+  background: var(--pill-badge-wash);
+  color: inherit;
+}
+
+/* A dot, not a word: the pill has room for a name and a codec's word and no more. */
 .fragment-pill-dot {
   flex: none;
   font-size: 13px;

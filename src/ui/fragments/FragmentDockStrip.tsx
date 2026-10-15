@@ -49,6 +49,22 @@ export interface DockItem {
    */
   readonly hasChanges: boolean;
   /**
+   * The codec's word for what the part's bytes went through — `LZMA`, `XOR 77`
+   * — in a capsule after the name; nothing for a part that holds the file's own
+   * bytes. What the name used to say with `decompressed` or `(decoded)`, said
+   * once for every kind of part.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transform
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.transform
+   */
+  readonly transform?: string | undefined;
+  /**
+   * The badge's sentence, under the pointer.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transformExplanation
+   */
+  readonly transformExplanation?: string | undefined;
+  /**
    * What the pill holds: a part of a dump, the help book or the Agent window.
    * Decides the glyph and what the ✕ is called — the dock holds identity and
    * order and nothing else, so a book is not a document, and "Close chip.bin"
@@ -128,12 +144,23 @@ function FragmentPill({
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
+        {/* The badge keeps its word whole; the name gives way to it. In the pill
+            that is up it is drawn in the pill's ink.
+            @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.ink
+            @upstream-differs the pill's stylesheet inks it, where upstream hands the badge a colour;
+            the capsule is washed away from the ink rather than with it, which keeps the word legible
+            in every theme */}
+        {item.transform === undefined ? null : (
+          <span className="fragment-pill-badge" title={item.transformExplanation}>
+            {item.transform}
+          </span>
+        )}
         {item.unseen !== undefined && item.unseen > 0 ? (
           <span className="fragment-pill-unseen" title={L("Annotations not seen yet")}>
             {item.unseen}
           </span>
         ) : null}
-        {/* A dot, not a word: the pill has room for a name and no more. */}
+        {/* A dot, not a word: the pill has room for a name and a codec's word and no more. */}
         {item.hasChanges ? (
           <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")}>
             •

@@ -1087,7 +1087,7 @@
 "Windows key" = "Ключ Windows";
 "part badge|Plain" = "Без кодирования";
 "%1$@ (Valid for the body encoded again)" = "%1$@ (сходится для закодированного блока)";
-"%1$@ (decoded)" = "%1$@ (декодирован)";
+"Part of “%1$@”, whose bytes were converted with %2$@ when taken out of the file." = "Часть фрагмента «%1$@», байты которого при извлечении из файла преобразованы с помощью %2$@.";
 "%1$@ = %2$@" = "%1$@ = %2$@";
 "%1$@ bytes: shorter than the %2$@-byte header." = "%1$@ байт: короче заголовка длиной %2$@ байт.";
 "%1$@ of %2$@ declared" = "%1$@ из %2$@ заявленных";
