@@ -1098,6 +1098,14 @@ export function AppShell() {
       // chosen, and its own handler asks for the focus.
       if (target.closest(".hex-scroller") !== null) return;
       if (selectableText(target)) return;
+      // An Annotations card is carried by a drag, which a cancelled press never begins: it is let
+      // through, and the list it stands in takes the keyboard as a click on a tree does.
+      const card = target.closest(".note-card");
+      if (card !== null) {
+        const cards = card.closest(".notes-cards");
+        if (cards instanceof HTMLElement) cards.focus({ preventScroll: true });
+        return;
+      }
       event.preventDefault();
       // A tool's tree or table keeps the focus a click would have given it:
       // its rows are what the arrows move, and with the focus left where it was

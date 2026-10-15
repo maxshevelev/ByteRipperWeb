@@ -234,6 +234,14 @@ export function NotesPanel() {
         aria-multiselectable
         tabIndex={0}
         onKeyDown={onKeyDown}
+        // The dock's panel host refuses every drag that enters it, so that a file let go over a
+        // panel opens nowhere; a card being carried is the list's own, and is let in.
+        onDragEnter={(event) => {
+          if (carrying === undefined) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = "move";
+        }}
       >
         {columns.map((column, index) => (
           // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for a card carried
@@ -245,6 +253,8 @@ export function NotesPanel() {
               if (carrying === undefined) return;
               // Below the last card of the column under the pointer is the last place.
               event.preventDefault();
+              event.stopPropagation();
+              event.dataTransfer.dropEffect = "move";
               setLanding("end");
             }}
             onDrop={(event) => {
@@ -360,6 +370,7 @@ function NoteCard({
       onDragOver={(event: DragEvent<HTMLElement>) => {
         event.preventDefault();
         event.stopPropagation();
+        event.dataTransfer.dropEffect = "move";
         const box = event.currentTarget.getBoundingClientRect();
         onLand(event.clientY < box.top + box.height / 2 ? "before" : "after");
       }}
