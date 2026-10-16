@@ -1,6 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
+import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
@@ -125,11 +126,8 @@ function FragmentPill({
         {item.kind === "help" ? (
           <HelpGlyph className="fragment-pill-glyph" />
         ) : item.kind === "notes" ? (
-          // Upstream's `note.text`.
-          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 1.5h10v13H3Z" />
-            <path d="M5.5 5h5M5.5 8h5M5.5 11h3" />
-          </svg>
+          // The panel's one picture, as its header and its empty view wear it.
+          <NotesGlyph className="fragment-pill-glyph" size={11} />
         ) : item.kind === "agent" ? (
           // The toolbar button's own glyph, so the pill is recognisably what that button opened.
           <span className="fragment-pill-glyph fragment-pill-icon">

@@ -136,7 +136,7 @@ export async function reopenFile(identity: FileIdentity): Promise<Reopened> {
     } catch (error) {
       // A handle whose file is gone may still have a path that leads somewhere else; any other
       // failure is the file's own, and is said.
-      if (!(error instanceof DOMException && error.name === "NotFound")) {
+      if (!(error instanceof DOMException && error.name === "NotFoundError")) {
         return { kind: "failed", reason: error instanceof Error ? error.message : String(error) };
       }
       missing = true;

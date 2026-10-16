@@ -5837,8 +5837,6 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.shared": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidBecomeKey": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidDeminiaturize": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView*": "n/a — the panel goes with the last annotation, so it is never empty",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesSymbol*": "n/a — an SF Symbol name; the pill is labelled with the panel's name",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.draw": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.hitTest": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.intrinsicContentSize": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",

@@ -41,6 +41,7 @@ import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 import { prefersReducedMotion } from "@/ui/toolPanel/cardMotion";
@@ -559,24 +560,46 @@ export function NotesPanel() {
       >
         <HelpButton link={topicLink(TOPIC.notes)} shape="inline" />
       </DockPanelHeader>
+      {/* What the panel shows with no annotation in it: what goes here, and how to make one,
+          in the middle of the panel.
+          @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView
+          @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.init
+          @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.title
+          @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.message
+          @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.draw
+          @upstream-differs the panel's own ground, where upstream fills the text background */}
       {notes.length === 0 ? (
         <div className="notes-empty">
+          <NotesGlyph className="notes-empty-icon" size={48} />
           <h3>{L("No Annotations")}</h3>
           <p>
             {L(
               "Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…"
             )}
           </p>
+          <HelpButton link={topicLink(TOPIC.notes)} />
         </div>
       ) : null}
       <div
         className="notes-cards"
+        hidden={notes.length === 0}
         ref={list}
         role="listbox"
         aria-label={L("Annotations")}
         aria-multiselectable
         tabIndex={0}
         onKeyDown={onKeyDown}
+        // A press on the ground between the cards takes the selection away, as a collection
+        // view's does; with Shift or Ctrl/⌘ held it leaves it be. On the press rather than the
+        // click: a card carried and let go over the ground ends in a click there.
+        // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards
+        // @upstream-differs NSCollectionView does it by itself; a list has to be told
+        onPointerDown={(event) => {
+          if (event.button !== 0 || selectsOnly(event)) return;
+          if (event.target instanceof Element && event.target.closest(".note-card") !== null)
+            return;
+          if (chosen.size > 0) selectAnnotations([]);
+        }}
       >
         {columns.map((column, index) => (
           <div
@@ -790,24 +813,6 @@ function NoteCard({
         </button>
       ))}
     </article>
-  );
-}
-
-/** Upstream's `note.text`: what the pill and the header wear. */
-export function NotesGlyph() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="14"
-      height="14"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.2"
-    >
-      <path d="M3 1.5h10v13H3Z" />
-      <path d="M5.5 5h5M5.5 8h5M5.5 11h3" />
-    </svg>
   );
 }
 

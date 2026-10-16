@@ -1544,3 +1544,5 @@
 "Panes" = "Панели";
 "Replace and Discard Edits" = "Заменить и отбросить правки";
 "The unsaved changes in “%1$@” are lost." = "Несохранённые изменения в «%1$@» будут потеряны.";
+"File not found" = "Файл не найден";
+"“%1$@” is no longer there." = "«%1$@» больше нет на месте.";

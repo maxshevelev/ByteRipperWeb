@@ -5502,6 +5502,12 @@ button.uefi-title {
   background: color-mix(in srgb, var(--surface) 95%, transparent);
 }
 
+/* A pill with no ✕ — the Annotations panel's — ends as it begins, the name as far
+   from the right edge as the glyph is from the left. */
+.fragment-pill:not(:has(> .close-button)) {
+  padding-right: 10px;
+}
+
 /* Filled rather than outlined, so the dock says at a glance which pill the
    panel in front belongs to. */
 .fragment-pill[data-up] {
@@ -5590,6 +5596,17 @@ button.uefi-title {
 .fragment-pill[data-up] .fragment-pill-dot,
 .fragment-pill[data-up] .close-button {
   color: inherit;
+}
+
+/* The ✕ in a pill is round under the pointer, as the pill is. In the pill that is
+   up it keeps the pill's ink, on the badge's wash — the window's grey would put a
+   white cross on a light grey. */
+.fragment-pill .close-button {
+  border-radius: 50%;
+}
+
+.fragment-pill[data-up] .close-button:hover {
+  background: var(--pill-badge-wash);
 }
 
 /* ============================================================================
@@ -6457,22 +6474,44 @@ body[data-pulling-panel] * {
   font-size: 12px;
 }
 
+/* Upstream's NotesEmptyView: a stack in the middle of the panel — the panel's
+   picture at 48, light, in the tertiary grey; the title at 17 semibold and the
+   message in the secondary; the ?. 10 apart, 16 under the picture. */
 .notes-empty {
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-  padding: 32px 16px 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  overflow: auto;
   color: var(--text-muted);
   text-align: center;
 }
 
+.notes-empty-icon {
+  flex: none;
+  margin-bottom: 6px;
+  color: var(--empty-state-icon);
+  stroke-width: 1;
+}
+
 .notes-empty h3 {
   margin: 0;
-  font-size: 1.15em;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .notes-empty p {
   max-width: 360px;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* The ? stands in the stack, under the message, rather than at the panel's edge. */
+.notes-empty .help-button {
   margin: 0;
 }
 
@@ -6487,6 +6526,11 @@ body[data-pulling-panel] * {
   gap: 12px;
   padding: 12px;
   outline: none;
+}
+
+/* With no card the empty view takes the panel; the list stays, for the keys. */
+.notes-cards[hidden] {
+  display: none;
 }
 
 .notes-column {

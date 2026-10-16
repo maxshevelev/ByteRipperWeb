@@ -535,11 +535,23 @@ export function AppShell() {
       void fileFromRecentHandle(row.handle)
         .then((file) => accept([openedFileFrom(file, row.handle)], undefined, "activePane"))
         .catch((error: unknown) => {
-          // A file that is gone (NotFound) drops out of the menu at once; a
-          // refused permission, or any other failure, is kept — the file exists,
-          // and the next re-open can ask for it again.
-          if (error instanceof DOMException && error.name === "NotFound") dropRecentFile(row.name);
-          reportAlert(L("Could not open file."), L("This file could not be opened."));
+          // A file that is gone drops out of the menu at once, and the alert says it is gone,
+          // as upstream's does; a refused permission, or any other failure, is kept — the file
+          // exists, and the next re-open can ask for it again — and the alert says which.
+          const name = error instanceof DOMException ? error.name : "";
+          if (name === "NotFoundError") {
+            dropRecentFile(row.name);
+            reportAlert(L("File not found"), L("“%1$@” is no longer there.", row.name));
+          } else if (name === "NotAllowedError" || name === "SecurityError") {
+            reportAlert(L("Could not open file."), L("The browser refused access to this file."));
+          } else {
+            reportAlert(
+              L("Could not open file."),
+              error instanceof Error && error.message.length > 0
+                ? error.message
+                : L("This file could not be opened.")
+            );
+          }
         });
     },
     [accept]

@@ -1545,3 +1545,5 @@
 "Panes" = "Bereiche";
 "Replace and Discard Edits" = "Ersetzen und Änderungen verwerfen";
 "The unsaved changes in “%1$@” are lost." = "Die ungesicherten Änderungen in „%1$@“ gehen verloren.";
+"File not found" = "Datei nicht gefunden";
+"“%1$@” is no longer there." = "„%1$@“ ist nicht mehr da.";
