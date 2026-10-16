@@ -166,3 +166,13 @@ Six assets, the tag is the latest release, and the CI run on the tagged
 commit is green (`gh run list --limit 3`). The *Deploy to Pages* run for the
 tag has finished, and https://maxshevelev.github.io/ByteRipperWeb/ says
 "ByteRipper <version>" on its landing screen. Report the release URL.
+
+**A tag on a commit `main` has already deployed publishes nothing.** Pages
+names a deployment after the commit, and the tag's run deploys the same commit
+the push to `main` did a few minutes earlier: the run reports success, and the
+site keeps the earlier copy, whose root is still the previous release (check
+the page's `last-modified`, or the version in its script). This happens
+whenever the release tags the last commit pushed to `main` without a commit of
+its own, as when the version was already set by the port. A push of the next
+commit to `main` deploys the root from the newest tag under a new commit and
+puts it right; a re-run of the tag's workflow does not, being the same commit.
