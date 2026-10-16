@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "ec31062ca418b71f48fe7b42ed8c780a0ceefd2b",
-  "baselineNote": "A body fragment says body; a fragment saved first is offered as .bin (2026-10-15)"
+  "baseCommit": "6cd23a8140cb26d0938cb4273130be2334ebae5d",
+  "baselineNote": "Set 0.9.3, and say in the README what it is (2026-10-16)"
 }

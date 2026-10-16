@@ -332,6 +332,43 @@ describe("survey", () => {
     expect(member((member(answer, "failed") as Json[])[0], "file")).toBe("short.bin");
   });
 
+  /**
+   * Dumps of one board are often all `bios.bin`, one to a folder: a file is named by its path from
+   * the folder, or from the folder the `paths` share, and `root` joined to it is the file.
+   *
+   * @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyNamesAFileByItsPathFromTheFolder
+   */
+  it("names a file by its path from the folder", async () => {
+    disk.put("/boards/X1/bios.bin", [1, 9]);
+    disk.put("/boards/T14/bios.bin", [1, 8]);
+    const question = { tool: "read", arguments: { offset: 0, length: 1, format: "u8" } };
+    const survey = (
+      await call("survey", {
+        folder: "/boards",
+        recursive: true,
+        ...question,
+        group_by: "values.0",
+      })
+    ).json;
+    const groups = member(survey, "groups") as Json[];
+    expect(member(groups[0], "files")).toEqual(["T14/bios.bin", "X1/bios.bin"]);
+    expect(member(survey, "root")).toBe("/boards");
+
+    const listed = (
+      await call("survey", {
+        paths: ["/boards/X1/bios.bin", "/boards/T14/bios.bin"],
+        ...question,
+        group_by: "values.0",
+      })
+    ).json;
+    // From the folder they share, in the order given.
+    expect(member((member(listed, "groups") as Json[])[0], "files")).toEqual([
+      "X1/bios.bin",
+      "T14/bios.bin",
+    ]);
+    expect(member(listed, "root")).toBe(member(survey, "root"));
+  });
+
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOnlyRunsToolsThatTakeADocument
   it("only runs tools that take a document", async () => {
     const refused = await call("survey", { folder: "/dumps", tool: "documents" });

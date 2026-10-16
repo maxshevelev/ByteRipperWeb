@@ -5586,9 +5586,10 @@ button.uefi-title {
 /* A dot, not a word: the pill has room for a name and a codec's word and no more. */
 .fragment-pill-dot {
   flex: none;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
   color: var(--text-muted);
 }
 

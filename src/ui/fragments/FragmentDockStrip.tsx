@@ -158,11 +158,17 @@ function FragmentPill({
             {item.unseen}
           </span>
         ) : null}
-        {/* A dot, not a word: the pill has room for a name and a codec's word and no more. */}
+        {/* A dot, not a word: the pill has room for a name and a codec's word and no more. A
+            disc on the pill's centre line, not a "•", which sits where the font puts it — below
+            the middle; and not there at all without changes, so it takes no width before the ✕.
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.diameter
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.color
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.draw
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.intrinsicContentSize
+            @upstream-differs a styled span, its size and disc in the pill's stylesheet */}
         {item.hasChanges ? (
-          <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")}>
-            •
-          </span>
+          <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")} />
         ) : null}
       </button>
       {/* The Annotations panel has no ✕: it is there while there is an annotation. */}
