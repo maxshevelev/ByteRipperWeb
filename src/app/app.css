@@ -6475,6 +6475,11 @@ body[data-pulling-panel] * {
   font-size: 12px;
 }
 
+/* The panel takes the keys when its last card goes; it draws no ring for it. */
+.notes-panel:focus {
+  outline: none;
+}
+
 /* Upstream's NotesEmptyView: a stack in the middle of the panel — the panel's
    picture at 48, light, in the tertiary grey; the title at 17 semibold and the
    message in the secondary; the ?. 10 apart, 16 under the picture. */

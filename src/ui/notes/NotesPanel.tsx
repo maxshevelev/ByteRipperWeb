@@ -167,6 +167,7 @@ export function NotesPanel() {
   const titles = annotationTitles(notes);
   const chosen = state.chosen;
   const list = useRef<HTMLDivElement | null>(null);
+  const panel = useRef<HTMLElement | null>(null);
   // The card being carried — in state for the drawing, in a ref for the pointer's handlers.
   const [carry, setCarryState] = useState<Carry | undefined>(undefined);
   const carrying = useRef<Carry | undefined>(undefined);
@@ -239,30 +240,50 @@ export function NotesPanel() {
       done: (title, note) => updateAnnotation(annotation.id, title, note),
     });
 
+  /**
+   * Undo and Redo take back and make again the removals made here, not an edit of a dump. Answered
+   * by the list and by the panel itself, which holds the keys once the last card is gone — the list
+   * is hidden then, and a hidden element holds no focus.
+   *
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.undoEdit
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.redoEdit
+   */
+  const undoKeys = (event: KeyboardEvent<HTMLElement>): boolean => {
+    if (!(event.metaKey || event.ctrlKey) || event.altKey) return false;
+    const chord = shortcutKey(event);
+    const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
+    if (chord !== "z" && !(chord === "y" && redo)) return false;
+    event.preventDefault();
+    if (chord === "z" && !redo) undoRemoval();
+    else redoRemoval();
+    return true;
+  };
+
+  // The last card removed with the keys in the list: the list is hidden, and the keys go to the
+  // panel rather than to the page, so Undo still reaches the removal; and back to the list when
+  // the cards come back, so Delete and the arrows work on them again.
+  const hasNotes = notes.length > 0;
+  useEffect(() => {
+    const held = document.activeElement;
+    if (hasNotes) {
+      if (held === panel.current) list.current?.focus({ preventScroll: true });
+    } else if (held === null || held === document.body || list.current?.contains(held) === true) {
+      panel.current?.focus({ preventScroll: true });
+    }
+  }, [hasNotes]);
+
   /** Return goes to the selected card's place, Delete removes the selected, the arrows move. */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const first = ids.find((id) => chosen.has(id));
-    // Select All takes every card, not the page's text; Undo and Redo take back and make again the
-    // removals made here, not an edit of a dump.
+    // Select All takes every card, not the page's text.
     // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.selectAllBytes
     // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectAll
-    // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.undoEdit
-    // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.redoEdit
-    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
-      const chord = shortcutKey(event);
-      if (chord === "a") {
-        event.preventDefault();
-        selectAnnotations(ids);
-        return;
-      }
-      const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
-      if (chord === "z" || (chord === "y" && redo)) {
-        event.preventDefault();
-        if (chord === "z" && !redo) undoRemoval();
-        else redoRemoval();
-        return;
-      }
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && shortcutKey(event) === "a") {
+      event.preventDefault();
+      selectAnnotations(ids);
+      return;
     }
+    if (undoKeys(event)) return;
     if (event.key === "Enter" && first !== undefined) {
       event.preventDefault();
       show(first);
@@ -551,7 +572,16 @@ export function NotesPanel() {
   const columns = masonry(shown, notesColumns(width), reckonedHeight);
   const carried = carry === undefined ? undefined : byId.get(carry.id);
   return (
-    <section className="notes-panel" aria-label={L("Annotations")}>
+    <section
+      className="notes-panel"
+      aria-label={L("Annotations")}
+      ref={panel}
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        // The list answers its own keys; the panel only those that reach it directly.
+        if (event.target === event.currentTarget) undoKeys(event);
+      }}
+    >
       <DockPanelHeader
         glyph={<NotesGlyph />}
         title={L("Annotations")}
