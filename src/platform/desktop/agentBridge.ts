@@ -17,6 +17,11 @@ export interface AgentRelayInfo {
   /** The environment the client sets for it. */
   readonly environment: { readonly [key: string]: string };
   readonly platform: string;
+  /**
+   * The computer's memory in bytes (`os.totalmem()`), which the bound on the memory of the files an
+   * agent opened by path is offered as a share of. Missing from a shell that predates it.
+   */
+  readonly memory?: number;
 }
 
 export type AgentFileRequest =

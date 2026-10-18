@@ -116,6 +116,7 @@ import {
   nvramValueFields,
 } from "@/tools/uefi/nvramValueText";
 import { acerDMIDetail, readsAcerDMI } from "@/tools/uefi/uefiAcerDMIDetail";
+import { hpDMIDetail } from "@/tools/uefi/uefiHPDMIDetail";
 import { lenovoDMIDetail, readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { dvarMeaning, kindLabel, type OwnNameNode, ownName } from "@/tools/uefi/uefiTreeDisplay";
@@ -148,15 +149,20 @@ export function buildNodeDetail(
   const detail = withMapRegions(
     withListedRanges(
       withVariableHistory(
-        withAcerDMI(
-          withLenovoDMI(
-            buildDetailRows(node, image, reader, repairs),
+        withHPDMI(
+          withAcerDMI(
+            withLenovoDMI(
+              buildDetailRows(node, image, reader, repairs),
+              node,
+              image,
+              reader,
+              lenovoDMIReaders
+            ),
             node,
-            image,
-            reader,
-            lenovoDMIReaders
+            reader
           ),
           node,
+          image,
           reader
         ),
         node,
@@ -198,6 +204,28 @@ function withAcerDMI(detail: NodeDetail, node: UEFINode, reader: ImageReader): N
     ...detail,
     fields: [...detail.fields, ...acer.fields],
     tables: [...detail.tables, ...acer.tables],
+  };
+}
+
+/**
+ * HP's identity, on the `HP_MUD` entry: its fields and the variables beside it in the store,
+ * as BCU reports them.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withHPDMI(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): NodeDetail {
+  if (node.kind !== "vssEntry") return detail;
+  const hp = hpDMIDetail(node, image, reader);
+  if (hp.fields.length === 0 && hp.tables.length === 0) return detail;
+  return {
+    ...detail,
+    fields: [...detail.fields, ...hp.fields],
+    tables: [...detail.tables, ...hp.tables],
   };
 }
 

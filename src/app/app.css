@@ -1377,25 +1377,42 @@ textarea,
   width: auto;
 }
 
-/* A named mark's name, while the pointer rests on it. Positioned against the
-   scroller's viewport, so it stays put while the rows under it scroll. */
-.bookmark-tip {
-  position: absolute;
-  z-index: 5;
-  width: max-content;
-  max-width: 24rem;
-  margin: 0;
-  /* Two lines in a panel: the mark's name, then the address the same row has in
-     the file the mark belongs to (§20.7). */
-  white-space: pre-line;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--bookmark);
-  color: var(--bookmark-text);
-  font-size: 0.85em;
+/* The hover callout (HoverCallout.tsx, §19.4.3, §20.3): the tooltip's grey,
+   lifted a little lighter, with an edge firmer than a separator so it holds its
+   shape over bytes of any colour; the interface's regular 13 px text, a glyph
+   before it, a long note wrapped at 360 px. Fixed over the page, never under
+   the pointer's clicks. One line reads as a pill, several as a rounded plate. */
+.hover-callout {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  box-sizing: border-box;
+  max-width: 100vw;
+  padding: 5px 10px;
+  border-radius: 13px;
+  border: 1px solid var(--callout-rim);
+  background: var(--callout-fill);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 16px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
   pointer-events: none;
-  transform: translateY(-0.15rem);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+}
+
+.hover-callout-glyph {
+  flex: none;
+  /* Level with the first line, whatever follows it. */
+  margin-top: 1px;
+}
+
+.hover-callout-text {
+  max-width: 360px;
+  /* A note's title, its words and its relations are lines of their own. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 /* The bookmark popover (§20.3): 300 wide, the stack inset 14 and 16, lines 8
@@ -3124,13 +3141,12 @@ button.uefi-title {
   color: var(--text);
 }
 
-/* Show DMI Area: left of the search, the same quiet icon, and in the row only when the
-   image keeps the board's identity somewhere the tree reads. */
+/* Show DMI Area: left of the search, in the same quiet ink, and in the row only when the
+   image keeps the board's identity somewhere the tree reads. As wide as its badge. */
 .uefi-dmi {
   flex: none;
   display: grid;
   place-items: center;
-  width: 18px;
   height: 18px;
   padding: 0;
   border: 0;
@@ -3358,7 +3374,26 @@ button.uefi-title {
 }
 
 .uefi-reveal svg,
-.uefi-dmi-glyph,
+/* The DMI button's face: the word in a rounded frame, 15 px high, 5 px between the word
+   and the frame. Centred on its capitals: a word in capitals has no descenders to keep
+   room for. A press fills the frame faintly. */
+.uefi-dmi-badge {
+  box-sizing: border-box;
+  display: block;
+  height: 15px;
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 13px;
+  letter-spacing: 0.02em;
+}
+
+.uefi-dmi:active .uefi-dmi-badge {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
 .uefi-search-toggle svg,
 .tool-detail-glyph {
   width: 13px;
@@ -3808,19 +3843,35 @@ button.uefi-title {
   font-weight: 600;
 }
 
+/* The one list every panel draws a named value with (`ToolFieldList`): a grid
+   whose rows share its two columns, so every name is one width and the rows
+   read as a column of pairs, and a value too long for its column wraps inside
+   it rather than running off the side. The name column is the shared one —
+   `detailLabelWidth`, 104 points at upstream's design size of 11 — or a list's
+   own (`--tool-detail-name`), and never more than half the list (less the gap between the columns), where a
+   name too long for it wraps. A container, so a name can be held to that half
+   by the list's own width. */
 .tool-detail-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: min(var(--tool-detail-name, 9.5em), calc(50% - 3px)) minmax(0, 1fr);
+  gap: 3px 6px;
   margin: 0;
+  container-type: inline-size;
 }
 
-/* Every label one width, so the rows read as a column of pairs, and a value too
-   long for its column wraps inside it rather than running off the side. */
+/* The ME Analyzer's and the FIT's details: as wide as the longest name, never
+   narrower than the shared column, and still never more than half the list
+   (`ToolFieldList.nameWidth`). A name breaks anywhere, so its least width is a
+   letter's and `fit-content` is what decides: the name's whole width, up to
+   the half. */
+.tool-detail-fields[data-names="longest"] {
+  grid-template-columns: fit-content(calc(50% - 3px)) minmax(0, 1fr);
+}
+
 .tool-detail-row {
   display: grid;
-  grid-template-columns: 9.5em minmax(0, 1fr);
-  column-gap: 6px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: baseline;
 }
 
@@ -3828,6 +3879,12 @@ button.uefi-title {
   color: var(--text-muted);
   /* A name too long for its column continues on the next line. */
   overflow-wrap: anywhere;
+}
+
+/* The floor under a column that takes the longest name: the list's own width
+   for a short list, half the list at most. */
+.tool-detail-fields[data-names="longest"] dt {
+  min-width: min(var(--tool-detail-name, 9.5em), calc(50cqi - 3px));
 }
 
 .tool-detail-row dd {
@@ -3860,6 +3917,12 @@ button.uefi-title {
 
 .tool-detail-row dd[data-tone="bad"] {
   color: var(--semantic-bad);
+}
+
+/* A value nobody has answered yet — the ME Analyzer's "Coming soon" and
+   "Loading…": a promise, and drawn as one. */
+.tool-detail-row dd[data-soon] {
+  color: var(--text-faint);
 }
 
 /* A check that passed: a tick in the value's own colour, sat on the text's
@@ -4362,57 +4425,23 @@ button.uefi-title {
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface);
-}
-
-/* One grid for every block, so the values line up from the table to the
-   messages. */
-.me-summary-grid {
-  display: grid;
-  grid-template-columns: minmax(8em, max-content) minmax(0, 1fr);
-  gap: 3px 16px;
-  align-items: baseline;
+  /* The rows are the shared detail list's, and select as its do: a drag across
+     rows, a word, a row, a block by Ctrl+A or ⌘A. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .me-summary-title {
-  grid-column: 1 / -1;
   margin: 10px 0 2px;
   color: var(--text);
   font-size: inherit;
   font-weight: 600;
 }
 
-.me-summary-label {
-  color: var(--text-muted);
-}
-
-.me-summary-value {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-/* A row the engine does not decode yet: a promise, and drawn as one. */
-.me-summary-value[data-soon] {
-  color: var(--text-faint);
-}
-
-/* A status-toned value (File System State) is bold as well as coloured — the
-   weight makes the state read at a glance among the rows around it, which is
-   why it is a step heavier than a block heading. */
-.me-summary-value[data-emphasis] {
-  font-weight: 700;
-}
-
-.me-summary-value[data-tone="good"] {
-  color: var(--semantic-good);
-}
-
-.me-summary-value[data-tone="caution"] {
-  color: var(--semantic-caution);
-}
-
-.me-summary-value[data-tone="bad"] {
-  color: var(--semantic-bad);
+/* A block's list, focusable so a select-all and a copy arrive at it — and the
+   ring that would say so is not wanted on a list of text. */
+.me-summary-block {
+  outline: none;
 }
 
 .me-tree {

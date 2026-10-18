@@ -502,6 +502,12 @@
         "Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift": "src/firmware/uefi/dmiStore.ts",
         "Packages/UEFIImage/Sources/UEFIImage/AcerDMIStore.swift": "src/firmware/uefi/acerDmiStore.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift": "src/firmware/uefi/acerDmiStore.test.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift": "src/firmware/uefi/hpDmiArea.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift": [
+          "src/firmware/uefi/hpDmiArea.test.ts",
+          "src/firmware/testing/testHPDMI.ts",
+          "src/workers/firmwareWorker.test.ts"
+        ],
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIStore.swift": "src/firmware/uefi/lenovoDmiStore.ts",
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIFirmwareReaders.swift": "src/firmware/uefi/lenovoDmiFirmwareReaders.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift": "src/firmware/uefi/lenovoDmiStore.test.ts",
@@ -520,6 +526,16 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.image": "n/a — test scaffolding",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.imageWithUnusedMap": "n/a — test scaffolding",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.stores": "n/a — test scaffolding",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.serial": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.uuid": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.utf16": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.mud": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.text": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.variable": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.variables": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.image": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.store": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.area": "n/a — test scaffolding (testHPDMI.ts)",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.serial": "n/a — test scaffolding",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.motherboardSerial": "n/a — test scaffolding",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.uuid": "n/a — test scaffolding",
@@ -534,7 +550,6 @@
         "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.firstNode": "n/a — allNodes().find where it is needed",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Target.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.ProtectedRange.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.message": "n/a — the refusal is an Error, and the sentence is its own message",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Bytes.crc32": "n/a — the same routine, ported once as Checksums.crc32 in src/firmware/uefi/checksums.ts",
         "Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#*": "n/a — tools reach the shared tree through src/state/firmwareStore.ts, not through a protocol",
         "Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaGuidEntryHeaderSize": "n/a — the parser reads these entries through the data entry's header layout, so the separate size is not needed",
@@ -964,6 +979,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAcerDMIDetail.swift": "src/tools/uefi/uefiAcerDMIDetail.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift": "src/tools/uefi/uefiAcerDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift": "src/tools/uefi/uefiHPDMIDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift": "src/tools/uefi/uefiHPDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift": "src/tools/uefi/agent/uefiAgentQueries.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift": "src/tools/uefi/agent/uefiAgentNodeData.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts",
@@ -980,6 +998,19 @@
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.serial": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.utf16": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.mud": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.le32": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.variable": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.image": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.parsed": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.value": "n/a — test scaffolding",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.font": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.inset": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.badgeHeight": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.attributedWord": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.intrinsicContentSize": "n/a — the button is as wide as its badge by layout",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.all": "n/a — the module's list is `uefiAgentQueries`",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.isCompressedSection": "n/a — a check on the node's own fields, inline",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.all": "n/a — the module's list is `uefiAgentQueries`",
@@ -1177,7 +1208,7 @@
         "src/tools/me/agent"
       ],
       "status": "in-progress",
-      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The summary's values are selectable as upstream makes them (`value.isSelectable` on each), and its labels are not, which is also upstream's arrangement: there the name column is a plain label with the flag left off. Nothing checks it (G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
+      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The Summary's blocks and the detail under the tree are the shared detail list (`DetailFields`, upstream's `ToolFieldList` since d20c8f1d): a drag selects across rows, names and values alike, Ctrl+A or ⌘A takes a block, and a copy is a name, a tab and its value per line; the Summary's name column is upstream's 200 points at its design size of 11 and the detail's the longest name's, both capped at half the list, where a name wraps (detailSelection.test.tsx, G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
       "files": {
         "MEASummary.swift": "src/tools/me/meaSummary.ts",
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
@@ -1207,6 +1238,11 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.endBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testANewDatabaseMakesThePanelReadAgain": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testASummaryCopyIsConfirmedOverTheWindowWithItsButtonsGlyph": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnotherFileShowsTheWaitNotTheLastFilesAnalysis": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testNothingIsConfirmedWhileThereIsNoSummaryToCopy": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheDetailDrawsStatusValuesLikeTheOtherPanels": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
@@ -1323,6 +1359,9 @@
         "ByteRipperApp/Hex/HexView.swift#HexView.accessibilityLabel": "n/a — what a screen reader is told about the dump was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Hex/HexView.swift#HexView.accessibilityValue": "n/a — what a screen reader is told about the dump was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Hex/HexView.swift#HexView.isFlipped": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Hex/HexView.swift#HexView.updateTrackingAreas": "n/a — AppKit view plumbing: the scroller's pointer events arrive without a tracking area",
+        "ByteRipperApp/Hex/HexView.swift#HexView.viewWillMove": "n/a — a pane that goes away unmounts its callout with it; there is no window for it to move out of",
+        "ByteRipperApp/Hex/HexView.swift#HexView.viewDidHide": "n/a — a pane that goes away unmounts its callout with it",
         "ByteRipperApp/Hex/HexView.swift#HexView.acceptsFirstResponder": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.becomeFirstResponder": "n/a — focus is the grid element's own",
         "ByteRipperApp/Hex/HexView.swift#HexView.resignFirstResponder": "n/a — focus is the grid element's own",
@@ -1368,6 +1407,8 @@
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.standInDraws": "n/a — a test seam over AppKit's repaint",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isFlipped": "n/a — AppKit view plumbing",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateTrackingAreas": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewWillMove": "n/a — a map that is put away unmounts its callout with it; there is no window for it to move out of",
+        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewDidHide": "n/a — a map that is put away unmounts its callout with it",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.geometrySettleDelay": "n/a — the old picture is stretched by CSS; there is no settle timer",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.accessibility*": "n/a — what a screen reader is told about the minimap was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isAccessibilityElement": "n/a — what a screen reader is told about the minimap was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
@@ -2320,6 +2361,7 @@
         "ByteRipperTests/MainWindowMenuTests.swift": "tests/e2e",
         "ByteRipperTests/MinimapTests.swift": "tests/e2e",
         "ByteRipperTests/MinimapZoneTests.swift": "tests/e2e",
+        "ByteRipperTests/NoteOutlineTests.swift": "src/render/hexGrid/spanContour.test.ts",
         "ByteRipperTests/MouseSelectionTests.swift": "tests/e2e",
         "ByteRipperTests/MultiWindowTests.swift": "tests/e2e",
         "ByteRipperTests/NamePatternSheetTests.swift": "tests/e2e",
@@ -2449,6 +2491,8 @@
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testAMarkedRowIsMarkedInTheMargin": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testRemovingTheBookmarkRemovesTheMark": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheOverviewMarksTheRowToo": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test (G24): the events that take the callout away are MinimapPanel's — a press, the wheel, a scroll of the panes, the marks, pieces or zones changing, the mode, a resize, the window losing the focus — and the port has no component test to drive them; what the callout says and where is minimapHover.test.ts",
+        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing test of painting a real canvas (G24); the test runner has none, and the fold that makes it cheap is tested in spanContour.test.ts",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testNoMarkPastAShorterFilesEnd": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testBothMarkersAreEquilateralTrianglesAndTheBookmarkIsSmaller": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testBothMarkersApexOnTheSameLine": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -2503,7 +2547,6 @@
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAnAddressMarksItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAMarkedRowOpensItForEditing": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testOnlyTheOffsetColumnMarksOnDoubleClick": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkShowsItsNameAsATooltip": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testAccessibilityValueSaysWhetherTheCaretsRowIsMarkedAndWhatItIsCalled": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkEditPopoverController": "n/a — test scaffolding",
         "ByteRipperTests/BookmarkTests.swift#BookmarkEditPopoverController.labelTexts": "n/a — test scaffolding",
@@ -3374,9 +3417,7 @@
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheChecksumsRowFillsInWhenItIsLookedAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testARevertDropsTheCachedAnalysisBeforeAnnouncingTheReload": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testALongValueWrapsInsideItsColumn": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnWidensForLongFieldNamesAndWrapsAtHalfTheList": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.zoom": "n/a — test scaffolding",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.detailNameLabels": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.detailContent": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.isOnScreen": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.textWidth": "n/a — test scaffolding",
@@ -4104,7 +4145,6 @@
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.waitForUEFIParse": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.waitForFITParse": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.zoom": "n/a — test scaffolding",
-        "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.fields": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFITreeFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFIHeaderFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFIDetailFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
@@ -4460,6 +4500,7 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingIntoAnUnopenedMERegionOpensItAndPicksTheRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAMappableMENodePublishesItsRange": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentLinkTests.swift#SegmentLinkCommandTests": "later — an app flow test (the strip menu's revert and the length question are the platform layer's); its two source-changed-prompt tests are n/a — a page holds its bytes in memory, so no source changes behind its back",
         "ByteRipperTests/SegmentLinkTests.swift#SegmentSourceWriteGuardTests": "later — an app flow test; the guard's state is unit-tested in `segmentSources.test.ts`, but the save panel's re-show loop is the platform layer's",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.dvarImage": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -4663,6 +4704,34 @@
       },
       "files": {
         "ByteRipperApp/Window/TransientNoticeView.swift": ""
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Window/HoverCallout",
+      "web": [
+        "src/ui/callout/hoverCalloutGeometry.ts",
+        "src/ui/callout/HoverCallout.tsx"
+      ],
+      "status": "ported",
+      "note": "The capsule that names what the pointer is on — a bookmark's mark in the dump or on the minimap, a segment piece or a cut, a zone's bracket, a note's outline — the moment the pointer reaches it, in place of the browser's `title` tooltip, whose wait is as fixed as the system tooltip's upstream. The placement is pure and tested (hoverCalloutGeometry.ts: capsuleFrame, opensRight, aroundPointer); the component is a fixed element in a portal over the page, measured and placed before the frame is painted, with the glyph as inline SVG. It is a transient overlay, not a panel of the fragment dock: no pill, no focus, no clicks. Its users are HexPane (hexPointer.ts: hexHover, noteContour) and MinimapPanel (minimapHover.ts), each hiding it on the events after which it would be wrong.",
+      "files": {
+        "ByteRipperApp/Window/HoverCallout.swift": [
+          "src/ui/callout/hoverCalloutGeometry.ts",
+          "src/ui/callout/HoverCallout.tsx"
+        ],
+        "ByteRipperTests/HoverCalloutTests.swift": [
+          "src/ui/callout/hoverCalloutGeometry.test.ts",
+          "src/ui/pane/hexPointer.test.ts"
+        ]
+      },
+      "unported": {
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.attributes": "n/a — the text's font and wrapping are the stylesheet's (.hover-callout-text in src/app/app.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.textSize": "n/a — the browser lays the words out and the component measures the capsule it made",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.shadowMargin": "n/a — a CSS box-shadow is drawn outside the box without room being made for it",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.wash": "n/a — the lifted grey is a theme token (--callout-fill in src/ui/theme/theme.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.rim": "n/a — the edge is a theme token (--callout-rim in src/ui/theme/theme.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.isShowing": "n/a — a test seam: whether the element is in the page",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test (G24): the events that take the callout away are HexPane's — the pointer leaving, a scroll, a press, an edit, the bookmarks or notes changing, the window losing the focus — and the port has no component test to drive them; what it says and where is hexPointer.test.ts"
       }
     },
     {
@@ -5211,9 +5280,13 @@
         ],
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift": [
           "src/state/largeDetailStore.ts",
-          "src/ui/toolPanel/ToolDetail.tsx"
+          "src/ui/toolPanel/ToolDetail.tsx",
+          "src/ui/toolPanel/largeDetailClick.ts"
         ],
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": "src/state/largeDetailStore.test.ts",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": [
+          "src/state/largeDetailStore.test.ts",
+          "src/ui/toolPanel/largeDetailClick.test.ts"
+        ],
         "ToolModuleKit/SearchWrapSigns.swift": "src/state/noticeStore.ts",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift": "src/tools/seam.test.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent.swift": "src/tools/toolAgent.ts"
@@ -5342,10 +5415,7 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.entries": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces": "n/a — no web caller joins sentences still to be put into words",
-        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isJoin": "n/a — no web caller joins sentences still to be put into words",
-        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.joined": "n/a — no web caller joins sentences still to be put into words"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
       }
     },
     {
@@ -5783,6 +5853,7 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsCardsHoldAllOfTheirText": "n/a — AppKit layout of a card; the React cards size to their text in CSS",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFillTheShortestColumnAndDeleteRemoves": "later — a component test of NotesPanel: the columns, Delete, the node named as UEFI Structure names it",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnACardRemovesIt": "later — a component test of NotesPanel",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnTheCardThatTookARemovedOnesPlaceRemovesIt": "n/a — NSCollectionView keeps a removed card's view hidden for reuse, and its ✕ took the click; NotesPanel keys each card by its annotation, so a removed card is unmounted and nothing hidden is left to answer",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheNotesWindowListsAnnotationsWithTheirRelationsAndStandsEmptyWithout": "later — a component test of NotesPanel; the relation in the tooltip is in agentAnnotationTools.test, and the panel is never empty (it goes with the last annotation)",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowSpeaksTheAppsLanguageAndTheAgentEnglish": "later — with X8, the language named at the call",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",

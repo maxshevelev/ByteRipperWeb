@@ -1,20 +1,24 @@
-import type { ImageRange } from "@/firmware/imageReader";
+import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
+import { readHPDMIArea } from "@/firmware/uefi/hpDmiArea";
 import { flattened, nodeRange, type UEFINode, type UEFINodeKind } from "@/firmware/uefi/uefiNode";
 
 /**
  * Where an image keeps the board's identity — the serial numbers, the UUID, the
  * model, the Windows key — in a store the tree reads as a row of its own: Lenovo's
- * DMI store (`lenovoDmiStore.ts`), AMI's GPNV store, ASUS's (`gpnvStore.ts`), or Acer's
- * DMI area (`acerDmiStore.ts`). What a bench looks for first in a dump, and what can sit
- * several levels down: in padding inside a region, or after a volume's free space.
+ * DMI store (`lenovoDmiStore.ts`), AMI's GPNV store, ASUS's (`gpnvStore.ts`), Acer's DMI
+ * area (`acerDmiStore.ts`), or HP's `HP_MUD` variable (`hpDmiArea.ts`), the one store that
+ * is an NVRAM entry rather than a row of its own. What a bench looks for first in a dump,
+ * and what can sit several levels down: in padding inside a region, or after a volume's free
+ * space.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIStore
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIStore.init
  */
 export interface DMIStore {
   /**
-   * The row's kind: `lenovoDMIStore`, `gpnvStore` or `acerDMIStore`.
+   * The row's kind: `lenovoDMIStore`, `gpnvStore`, `acerDMIStore`, or `vssEntry` for HP's
+   * `HP_MUD`.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIStore.kind
    */
@@ -38,14 +42,23 @@ export const isDMIStore = (kind: string): boolean =>
 
 /**
  * Every store in `nodes` and below, in file order. Only in the file: none of the formats
- * turns up inside a compressed section.
+ * turns up inside a compressed section. HP's is found only with `reader`: a VSS entry is told
+ * for one by its name, and a marked entry's name is in its bytes, not on the node.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIStore.all
  */
-export function allDMIStores(nodes: readonly UEFINode[]): DMIStore[] {
-  return nodes
-    .flatMap((node) => flattened(node))
-    .filter((node) => isDMIStore(node.kind) && isFileSpace(node.space))
-    .map((node) => ({ kind: node.kind, range: nodeRange(node) }))
-    .sort((left, right) => left.range.start - right.range.start);
+export function allDMIStores(nodes: readonly UEFINode[], reader?: ImageReader): DMIStore[] {
+  const inFile = nodes.flatMap((node) => flattened(node)).filter((node) => isFileSpace(node.space));
+  const rows: DMIStore[] = inFile
+    .filter((node) => isDMIStore(node.kind))
+    .map((node) => ({ kind: node.kind, range: nodeRange(node) }));
+  const hp: DMIStore[] = [];
+  if (reader !== undefined) {
+    for (const store of inFile) {
+      if (store.kind !== "vssStore" && store.kind !== "vss2Store") continue;
+      const area = readHPDMIArea(store, reader);
+      if (area !== undefined) hp.push({ kind: "vssEntry", range: area.entry });
+    }
+  }
+  return [...rows, ...hp].sort((left, right) => left.range.start - right.range.start);
 }

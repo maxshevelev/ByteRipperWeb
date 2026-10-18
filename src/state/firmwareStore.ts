@@ -1,5 +1,5 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
-import { currentCatalogue, L } from "@/core/localization/localization";
+import { currentCatalogue, L, LocalizedText } from "@/core/localization/localization";
 import { type MaskedPattern, maskedToWire } from "@/core/search/maskedSearch";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
@@ -210,6 +210,12 @@ function ensureWorker(pane: PaneId): PaneWorker {
       agentAsks.delete(response.id);
       return;
     }
+    if (response.kind === "firmwareHeldBytes") {
+      heldBytesKnown[pane] = response.bytes;
+      heldBytesAsks.get(response.id)?.(response.bytes);
+      heldBytesAsks.delete(response.id);
+      return;
+    }
     const latest = held.latest.get(response.kind);
     if (latest === undefined ? response.id !== held.job : response.id !== latest) return;
 
@@ -340,7 +346,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
         layoutWaiters.delete(pane);
         return;
       case "firmwareRebuildProgress":
-        rebuildProgress.get(pane)?.(response.phase, response.fraction);
+        rebuildProgress.get(pane)?.(LocalizedText.from(response.phase), response.fraction);
         return;
       case "firmwareReach": {
         update(pane, { roots: response.roots });
@@ -961,7 +967,7 @@ export async function askFirmwareRebuild(
   pane: PaneId,
   bytes: Uint8Array,
   target: RebuildTarget,
-  onProgress?: (phase: string, fraction: number) => void,
+  onProgress?: (phase: LocalizedText, fraction: number) => void,
   accepting: readonly RebuildCaution[] = []
 ): Promise<FirmwareRebuildResponse | undefined> {
   const content = await currentContent(pane);
@@ -1625,7 +1631,7 @@ const layoutWaiters = new Map<PaneId, (reading: PartReading) => void>();
 const rebuildWaiters = new Map<PaneId, (response: FirmwareRebuildResponse | undefined) => void>();
 
 /** Where a running rebuild's progress goes, by pane. */
-const rebuildProgress = new Map<PaneId, (phase: string, fraction: number) => void>();
+const rebuildProgress = new Map<PaneId, (phase: LocalizedText, fraction: number) => void>();
 
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<
@@ -1788,6 +1794,7 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.invalidate
  */
 export function closeFirmware(pane: PaneId): void {
+  delete heldBytesKnown[pane];
   workers[pane]?.worker.terminate();
   helpers[pane]?.worker.terminate();
   delete helpers[pane];
@@ -1831,6 +1838,40 @@ function replaceChildren(
     if (at !== index) return node;
     if (rest.length === 0) return { ...node, children, hiddenCopies, isExpandable: false };
     return { ...node, children: replaceChildren(node.children, rest, children, hiddenCopies) };
+  });
+}
+
+/** What each pane's worker last said its tree holds beyond its nodes. */
+const heldBytesKnown: Partial<Record<PaneId, number>> = {};
+const heldBytesAsks = new Map<number, (bytes: number) => void>();
+let heldBytesAskId = 0;
+/** How long a busy worker is waited for before its last answer stands in for this one. */
+const HELD_BYTES_WAIT = 250;
+
+/**
+ * How many bytes the pane's tree holds beyond its nodes: what the compressed sections opened so
+ * far decompressed to, and are still held. Nothing for a pane no tree has been read for — no
+ * worker is started to say so.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+ * @upstream-differs asked of the worker that holds the tree; a worker busy past a quarter of a
+ * second is answered for by what it said last, so weighing a file never waits on a parse
+ */
+export function heldFirmwareBytes(pane: PaneId): Promise<number> {
+  const held = workers[pane];
+  if (held === undefined) return Promise.resolve(0);
+  heldBytesAskId += 1;
+  const id = heldBytesAskId;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      heldBytesAsks.delete(id);
+      resolve(heldBytesKnown[pane] ?? 0);
+    }, HELD_BYTES_WAIT);
+    heldBytesAsks.set(id, (bytes) => {
+      clearTimeout(timer);
+      resolve(bytes);
+    });
+    held.worker.postMessage({ kind: "firmwareHeldBytes", id });
   });
 }
 

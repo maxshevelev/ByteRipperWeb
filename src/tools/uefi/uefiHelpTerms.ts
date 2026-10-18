@@ -48,6 +48,13 @@ export interface UEFINodeSort {
    * where the node has come over the wire from the worker.
    */
   readonly guid?: EFIGUID | string | undefined;
+  /**
+   * HP's `HP_MUD` entry, which goes to the page about HP's DMI: it is told from the other
+   * VSS entries only by its bytes, so the worker says.
+   *
+   * @upstream-differs upstream reads the bytes here, with a reader beside the node
+   */
+  readonly isHPDMIArea?: boolean | undefined;
 }
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.term */
@@ -55,6 +62,9 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
   // A node at the top of a Top Swap copy goes to the page about Top Swap: what a
   // reader asks of it is why the volumes are there twice.
   if (node.topSwap === "copy") return termId("top-swap");
+  // HP's `HP_MUD` entry goes to the page about HP's DMI: it is told from the other VSS
+  // entries only by its bytes.
+  if (node.isHPDMIArea === true) return termId("hp-dmi");
   switch (node.kind) {
     case "capsule":
       return termId("capsule");

@@ -4,10 +4,17 @@ import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
+import {
+  AGENT_BACKGROUND_LIMITS,
+  defaultMemoryMiB,
+  memoryChoicesMiB,
+  snapped,
+} from "@/state/agent/agentBackgroundDocuments";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
+import { loadAgentSettings, rememberAgentBackgroundFiles } from "@/state/settingsStore";
 import { openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
@@ -228,7 +235,7 @@ describe("open_dump", () => {
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testOnlyTheMostRecentlyUsedAreKept
   it("keeps only the most recently used", async () => {
-    service.desk.background.limit = 2;
+    service.desk.background.fileLimit = 2;
     for (const name of ["a.bin", "b.bin", "c.bin"]) {
       disk.put(`/dumps/${name}`, [0]);
       await call("open_dump", { path: `/dumps/${name}` });
@@ -237,6 +244,87 @@ describe("open_dump", () => {
       "/dumps/b.bin",
       "/dumps/c.bin",
     ]);
+  });
+
+  // Past the memory bound the least recently used file is let go after the call that grew the set —
+  // and the one asked about last stays, though it alone is over the bound.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheMemoryBoundLetsGoOfTheLeastRecentlyUsed
+  // @upstream-differs a file weighs its whole Blob as well as what was read of it into the cache, so
+  // a four-byte file read through weighs eight, and the bound is twelve where upstream's is six
+  it("lets go of the least recently used past the memory bound", async () => {
+    service.desk.background.memoryLimit = 12;
+    for (const name of ["a.bin", "b.bin"]) {
+      disk.put(`/dumps/${name}`, [1, 2, 3, 4]);
+      const opened = (await call("open_dump", { path: `/dumps/${name}` })).json;
+      await call("read", { document: member(opened, "document") as string, offset: 0, length: 4 });
+    }
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/b.bin"]);
+    // The file the bridge read, and what was read of it.
+    expect(await service.desk.background.heldBytes()).toBe(8);
+
+    service.desk.background.memoryLimit = 1;
+    await service.desk.background.trim();
+    // The last one asked about is kept.
+    expect(service.desk.background.entries.length).toBe(1);
+  });
+
+  // A file let go to stay inside the bounds keeps its id: named again, it is read again, and answers
+  // under the same id.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testAFileLetGoIsReadAgainUnderItsId
+  it("reads a file let go again under its id", async () => {
+    service.desk.background.fileLimit = 1;
+    disk.put("/dumps/a.bin", [7, 7]);
+    disk.put("/dumps/b.bin", [0]);
+    const id = member(
+      (await call("open_dump", { path: "/dumps/a.bin" })).json,
+      "document"
+    ) as string;
+    await call("open_dump", { path: "/dumps/b.bin" });
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/b.bin"]);
+
+    const read = (await call("read", { document: id, offset: 0, length: 2, format: "u8" })).json;
+    expect(member(read, "values")).toEqual(["0x07", "0x07"]);
+    expect(member(read, "document")).toBe(id);
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/a.bin"]);
+
+    // One closed on purpose is gone.
+    await call("close_dump", { document: id });
+    expect((await call("read", { document: id, offset: 0, length: 1 })).isError).toBe(true);
+  });
+
+  // The bounds are kept in the settings and reach the open set.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheBoundsAreKeptAndApplied
+  it("keeps the bounds and applies them", async () => {
+    expect(service.store.getSnapshot().backgroundFileLimit).toBe(
+      AGENT_BACKGROUND_LIMITS.defaultFiles
+    );
+    service.setBackgroundFileLimit(16);
+    service.setBackgroundMemoryLimitMiB(256);
+    expect((await loadAgentSettings()).backgroundFiles).toBe(16);
+    expect(service.store.getSnapshot().backgroundMemoryLimitMiB).toBe(256);
+    expect(service.desk.background.fileLimit).toBe(16);
+    expect(service.desk.background.memoryLimit).toBe(256 << 20);
+
+    // A value past the choices is the largest choice.
+    rememberAgentBackgroundFiles(1000);
+    await service.start();
+    expect(service.store.getSnapshot().backgroundFileLimit).toBe(64);
+    expect(service.desk.background.fileLimit).toBe(64);
+    rememberAgentBackgroundFiles(AGENT_BACKGROUND_LIMITS.defaultFiles);
+  });
+
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheMemoryChoicesFollowTheMac
+  it("offers memory bounds that follow the computer", () => {
+    const gib = 2 ** 30;
+    expect(memoryChoicesMiB(8 * gib)).toEqual([256, 512, 1024, 2048]);
+    expect(memoryChoicesMiB(128 * gib).at(-1)).toBe(16384);
+    // The smallest is always offered.
+    expect(memoryChoicesMiB(gib / 2)).toEqual([256]);
+    expect(defaultMemoryMiB(16 * gib)).toBe(1024);
+    expect(defaultMemoryMiB(2 * gib)).toBe(512);
+    expect(snapped(3000, [256, 1024, 4096], 1024)).toBe(1024);
+    expect(snapped(100, [256, 1024], 1024)).toBe(256);
+    expect(snapped(undefined, [256, 1024], 1024)).toBe(1024);
   });
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testCloseDumpClosesABackgroundFileAndRefusesATab

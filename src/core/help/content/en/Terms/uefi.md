@@ -461,7 +461,7 @@ Lost fields are not always lost for good. Some vendors — HP and Acer among the
 
 Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, so carrying them over is in general a job of comparing two images.
 
-Three layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. Each layout was read off the dumps of that vendor's laptops; none of the three has published it.
+Four layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. HP keeps them in NVRAM variables of the main [[term:vss|VSS2]] store, [[term:hp-dmi|HP DMI]]. Each layout was read off the dumps of that vendor's laptops; none of the four vendors has published it.
 
 **Tools ▸ UEFI Structure** shows that store as one row of the tree, **Lenovo DMI**, wherever in the image it lies: in place of the three regions the Insyde flash device map declares as "Unknown", or inside padding where there is no map. Its detail names the block the firmware reads and lists that block's entries decoded, the serial number and the UUID among them; a click on an entry opens its row. Under the row are the change log and both blocks, each entry with its value beside its name.
 
@@ -469,6 +469,7 @@ Three layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps 
 @see term:lenv
 @see term:gpnv
 @see term:acer-dmi
+@see term:hp-dmi
 @see topic:recipe-board-data
 
 @term acer-dmi
@@ -485,6 +486,28 @@ Acer has not published the layout; it was read off the dumps of the laptops at h
 
 @see term:dmi
 @see term:padding
+
+@term hp-dmi
+@name HP DMI
+@short The NVRAM variables in which HP's firmware keeps what the factory wrote of the machine — serial number, SKU, model, UUID, build ID, feature byte — and what HP BIOS Configuration Utility (BCU) reports and writes.
+
+HP's firmware keeps the machine's identity not in a block of its own but in variables of the main [[term:vss|VSS2]] store of the [[term:nvram|NVRAM]]. They are what HP BIOS Configuration Utility (BCU) and the BIOS setup show for the machine:
+
+- `HP_MUD` (GUID `20AB3EB1-3C8F-4A4C-B87E-372426066D97`, 430 bytes): the serial number, the SKU, the product family, the CT number, the product name and the UUID, each a UTF-16 text in a field of fixed length.
+- `BuildId` under the same GUID: the build ID, for example `24WWROBZ602#SABD#DABD`.
+- `FactoryConfig` under the same GUID: the feature byte, the string of two-character codes that ends in `.` and a two-character check, for example `…rbs4.TR`. It lists what the machine was built with, and HP's service utilities need it to be correct.
+- `HP_TAGS` (GUID `FB3B9ECE-4ABA-4933-B49D-B4D67D892351`): the asset tracking number, in its first field. The rest of the variable was blank on every board examined and is not read; what it holds is unknown.
+
+The same GUID also holds `FactoryConfigFlags`, whose meaning is unknown.
+
+The [[topic:tool-uefi|UEFI tool]] shows the `HP_MUD` entry as the row **HP_MUD**, with the serial number beside the name, and the **DMI** badge goes to it. The detail lists the fields in the order BCU uses, then the three variables beside it. Where the asset tracking number is not the serial number, the detail notes it: HP writes the serial number there by default, so another value was set by the owner or came with the store from another machine.
+
+On most of the HP boards examined, the store marks every copy of `HP_MUD`, `BuildId` and `FactoryConfig` as deleted and keeps no current one, while the copy itself is complete. UEFITool calls such an entry Invalid; ByteRipper reads it all the same, shows it as **HP_MUD** and says in the detail that the copy is marked deleted. Where the firmware of such a board takes the identity from at run time cannot be seen in the dump: whether it reads the marked copy or keeps another one outside the BIOS chip is unknown.
+
+HP has not published the layout; it was read off the dumps of HP EliteBooks of 2023–2025, with AMD and Intel processors. A `HP_MUD` of another size is a layout that has not been examined, and the app does not read it. To give a board its identity back, HP's service utilities write these values again from the sticker on the case.
+
+@see term:dmi
+@see term:vss
 
 @term lenv
 @name LENV block

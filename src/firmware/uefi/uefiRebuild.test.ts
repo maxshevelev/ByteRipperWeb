@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { loadCatalogue } from "@/core/localization/bundledCatalogues";
+import {
+  ENGLISH_CATALOGUE,
+  forgetCatalogues,
+  installCatalogue,
+} from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
 import { compress } from "@/firmware/compression/firmwareCompression";
 import { ImageReader } from "@/firmware/imageReader";
@@ -75,6 +81,15 @@ function driver(name = "InnerDriver", extra = 0): Uint8Array {
 
 const parse = (bytes: Uint8Array): UEFIImage => parseUefiImage(sourceOver(bytes));
 
+// The planner's sentences are asked for in Russian and German too, so the catalogues are held,
+// with English in force.
+beforeAll(async () => {
+  installCatalogue(await loadCatalogue("ru"));
+  installCatalogue(await loadCatalogue("de"));
+  installCatalogue(ENGLISH_CATALOGUE);
+});
+afterAll(() => forgetCatalogues());
+
 /** The file with the plan written, and what the plan said. */
 function planned(
   replacement: Uint8Array,
@@ -83,10 +98,10 @@ function planned(
 ): { file: Uint8Array; warnings: readonly string[] } {
   const result = planRebuild(replacement, target, file);
   if (!result.ok) throw new Error(`refused: ${result.refusal.message}`);
-  expect(result.plan.warnings).toContain(RANGES_NOT_CHECKED);
+  expect(result.plan.warnings).toContainEqual(RANGES_NOT_CHECKED);
   const written = Uint8Array.from(file);
   written.set(result.plan.bytes, result.plan.offset);
-  return { file: written, warnings: result.plan.warnings };
+  return { file: written, warnings: result.plan.warnings.map((one) => one.textIn("en")) };
 }
 
 const plan = (replacement: Uint8Array, target: RebuildTarget, file: Uint8Array): Uint8Array =>
@@ -98,7 +113,7 @@ function refusal(
   file: Uint8Array
 ): string | undefined {
   const result = planRebuild(replacement, target, file);
-  return result.ok ? undefined : result.refusal.message;
+  return result.ok ? undefined : result.refusal.messageText.textIn("en");
 }
 
 /** The complaints that mean a structure is broken, by kind. */
@@ -673,11 +688,13 @@ describe("out of a compressed section", () => {
     const squeezed = fits(withFallback as number, true);
     expect(squeezed?.ok).toBe(true);
     if (squeezed?.ok !== true) return;
-    expect(squeezed.plan.warnings.some((one) => one.includes("maximum level"))).toBe(true);
+    const squeezedWarnings = squeezed.plan.warnings.map((one) => one.textIn("en"));
+    expect(squeezedWarnings.some((one) => one.includes("maximum level"))).toBe(true);
     const roomy = fits(normalOnly as number, true);
     expect(roomy?.ok).toBe(true);
     if (roomy?.ok !== true) return;
-    expect(roomy.plan.warnings.some((one) => one.includes("maximum level"))).toBe(false);
+    const roomyWarnings = roomy.plan.warnings.map((one) => one.textIn("en"));
+    expect(roomyWarnings.some((one) => one.includes("maximum level"))).toBe(false);
   });
 
   /**
@@ -751,12 +768,16 @@ describe("out of a compressed section", () => {
 
     expect(result.ok).toBe(true);
     const phases = reports
-      .map((one) => one.phase)
+      .map((one) => one.phase.textIn("en"))
       .filter((phase, index, all) => index === 0 || all[index - 1] !== phase);
     expect(phases.length).toBe(3);
     expect(phases[0]?.startsWith("Reading")).toBe(true);
     expect(phases[1]).toContain("LZMA compressed section");
     expect(phases[2]?.startsWith("Checking")).toBe(true);
+    expect(
+      reports[reports.length - 1]?.phase.textIn("de"),
+      "shown in the reader's language"
+    ).not.toBe(phases[2]);
     const fractions = reports.map((one) => one.fraction);
     expect(fractions).toEqual([...fractions].sort((one, other) => one - other));
     expect(fractions[fractions.length - 1]).toBe(1);
@@ -828,7 +849,9 @@ describe("protected ranges (§6.4)", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.refusal.message).toContain("IBB segment 1");
+    expect(result.refusal.messageText.textIn("en")).toContain("IBB segment 1");
+    const russian = result.refusal.messageText.textIn("ru");
+    expect(russian, "shown in the reader's language").toContain("«IBB segment 1»");
   });
 
   /**
@@ -846,8 +869,14 @@ describe("protected ranges (§6.4)", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.plan.warnings.some((one) => one.includes("AMI hash of DXE"))).toBe(true);
-    expect(result.plan.warnings).not.toContain(RANGES_NOT_CHECKED);
+    const warnings = result.plan.warnings.map((one) => one.textIn("en"));
+    expect(warnings.some((one) => one.includes("AMI hash of DXE"))).toBe(true);
+    const german = result.plan.warnings.map((one) => one.textIn("de"));
+    expect(
+      german.some((one) => one.includes("„AMI hash of DXE“")),
+      "shown in the reader's language"
+    ).toBe(true);
+    expect(result.plan.warnings).not.toContainEqual(RANGES_NOT_CHECKED);
   });
 
   /**
@@ -870,7 +899,8 @@ describe("protected ranges (§6.4)", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.plan.warnings.filter((one) => one.includes(name)).length).toBe(1);
+    const warnings = result.plan.warnings.map((one) => one.textIn("en"));
+    expect(warnings.filter((one) => one.includes(name)).length).toBe(1);
   });
 
   /**

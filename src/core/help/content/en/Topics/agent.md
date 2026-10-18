@@ -11,6 +11,7 @@
 @covers menu.window.agent
 @covers settings.agent.edits
 @covers settings.agent.launch
+@covers settings.agent.background
 
 [[edition:**This page is about the Windows application.** The agent service needs a connection that a page in a browser cannot open, so the browser edition has none; nothing below exists there.||]]
 
@@ -61,7 +62,7 @@ At present an agent can:
 - read the FIT table as **FIT Table** shows it — its rows, what each points at, the rules it breaks — and the Intel ME firmware as **ME Analyzer** shows it: the summary and the decoded structure. This too works with the panels closed;
 - list the NVRAM variables of a dump with their values, read as their types, and set the variables of two dumps side by side by name and GUID: which only one of them has, which differ and in which bytes. Two dumps of different boards or BIOS versions compare as well as two of one board, and a folder of dumps can be compared with one of them at once;
 - set the files of the ME file systems (MFS and EFS) of two dumps side by side by their number in the volume and by content, not by address: which are the same, which differ and in how many bytes, which only one dump has. The volume moves its data to spread the wear on the chip, so in two dumps of one machine the same file can lie at different addresses; a byte comparison of the partition then shows moved data, while this comparison shows which files changed. The Integrity table at the end of a protected file is compared separately: it changes every time the engine writes the file again. A volume one of the dumps cannot be read in is named as not compared, and its files are not counted as missing;
-- annotate a place in a file: a short title and a note — what the bytes are while it explains them, or what it found there. An annotation is drawn over the bytes whenever its file is on screen, in a pane or in a part that keeps the file's addresses: a dashed outline in a colour of its own, the note when the pointer rests on the bytes. It belongs to the file, not to the window: it is kept when the file closes and drawn again when the file is opened, and the agent can annotate a file that is not open — on each file of a folder that matches what it was asked. A place in bytes that are not the file's own — what a compressed section decompresses to, a LENV block with its encoding removed — is kept in those bytes: it is drawn in the fragment panel that shows them, not over the whole section in the dump. An annotation can name others it is about — a pointer and its target, a checksum and what it covers; those are listed after the note, under **Related Annotations:**, by their number and title. The annotations are listed in the **Annotations** panel, beside those made by hand ([[topic:notes|Annotations]]);
+- annotate a place in a file: a short title and a note — what the bytes are while it explains them, or what it found there. An annotation is drawn over the bytes whenever its file is on screen, in a pane or in a part that keeps the file's addresses: a dashed outline in a colour of its own, the note when the pointer reaches the outline. It belongs to the file, not to the window: it is kept when the file closes and drawn again when the file is opened, and the agent can annotate a file that is not open — on each file of a folder that matches what it was asked. A place in bytes that are not the file's own — what a compressed section decompresses to, a LENV block with its encoding removed — is kept in those bytes: it is drawn in the fragment panel that shows them, not over the whole section in the dump. An annotation can name others it is about — a pointer and its target, a checksum and what it covers; those are listed after the note, under **Related Annotations:**, by their number and title. The annotations are listed in the **Annotations** panel, beside those made by hand ([[topic:notes|Annotations]]);
 - open a file by its path without putting it on screen, and ask the same question of every dump in a folder at once — how many copies of a variable each holds, which address a structure starts at — getting the answers grouped by value. A file opened this way is only read; when there is something in it to show, the agent puts it in a free pane of the window — never over a file that is open there; with both panes taken it says so, and the person makes room;
 - compare two files byte by byte, as the comparison of two panes does — at the same addresses, without aligning shifted data. The answer is either a list of the stretches that differ, each with the part of the firmware it lies in (a region, a volume, a variable, an ME partition or file), or a summary over the regions, volumes and ME partitions that names the unchanged ones too. A folder of dumps can be compared with one of them at once;
 - find a text or bytes in a file — as ASCII or UTF-16, in any case, with `??` for a byte that may be anything — including inside the compressed sections of a firmware image, which the file holds only compressed; each match with the part of the firmware it lies in;
@@ -109,6 +110,19 @@ The agent's annotations are not listed in this window: the **Annotations** panel
 ## Files outside the open windows
 
 An agent reads a file by its path with the rights of the user account ByteRipper runs under; Windows asks nothing, and a file the account cannot read is reported to the agent as one it could not open.
+
+## Dumps opened by path
+
+A dump the agent opens by its path, without putting it on screen, is read and parsed once: further questions about it — the ME version, then the DMI serial number — are answered from what was parsed. A question about every dump in a folder opens each of them in the same way.
+
+Such dumps are not all kept. **Settings ▸ Agent** sets two limits:
+
+- **Dumps kept open:** — from 1 to 64; 8 after installation.
+- **Memory for them:** — from 256 MB to a quarter of this computer's memory, at most 16 GB; 1 GB after installation.
+
+Counted are the files themselves, each of which is read whole, the parts of them held ready for reading, and what their compressed sections decompressed to. The tree of the structure and the ME analysis are not counted; beside those buffers they are small. Past either limit, the dump not asked about for the longest time is closed. The dump asked about last stays open even when it alone exceeds the memory limit. When the agent names a closed dump again, it is read and parsed again under the same name; this takes time, but the answer is the same. A dump changed on disk is read again the next time it is asked about.
+
+To ask several questions about every dump in a large folder, it is quicker to ask them dump by dump than question by question: with more dumps than the limits keep, a second pass over the folder reads most of them again.
 
 ## When the service does not start
 

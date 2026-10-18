@@ -463,8 +463,6 @@ export function NotesPanel() {
   // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show
   // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.remove
   // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.insert
-  // @upstream-differs a card whose relations changed with a removal says so at once, where upstream
-  // says it again once the cards have settled
   useLayoutEffect(() => {
     const element = list.current;
     if (element === null) return;

@@ -6,9 +6,11 @@ import {
   addBookmark,
   BOOKMARK_DRAG_HYSTERESIS,
   bookmarkAt,
+  bookmarkHoverText,
   bookmarks,
   bookmarksIn,
   bookmarksStore,
+  editBookmark,
   marksFor,
   moveBookmark,
   pointerRow,
@@ -216,6 +218,19 @@ describe("a panel's view of the list", () => {
       ...(kind === undefined ? {} : { back: new ElsewhereCodec() }),
     });
   }
+
+  // In a pane showing a file whole, the mark's callout is its name and nothing else: the address is
+  // drawn on the mark, under the pointer. An unmarked row, and a mark with no name, say nothing.
+  // @upstream ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkSaysItsNameOnHover
+  it("says a mark's name on hover, and nothing for a row with nothing to add", async () => {
+    await fileInA(64);
+    expect(bookmarkHoverText("a", 0x10)).toBe("");
+    addBookmark("a", 16, "ME region");
+    expect(bookmarkHoverText("a", 0x1f)).toBe("ME region");
+    expect(bookmarkHoverText("a", 0x20)).toBe("");
+    editBookmark("a", 0x10, 0x10, "");
+    expect(bookmarkHoverText("a", 0x10)).toBe("");
+  });
 
   // A mark made in the dump is the same mark in the part taken out of it, at
   // the address the part has it at.

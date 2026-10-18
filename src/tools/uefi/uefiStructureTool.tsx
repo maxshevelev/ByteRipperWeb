@@ -964,6 +964,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   node.dvarValue.number === undefined ? undefined : BigInt(node.dvarValue.number),
               },
         valueRow: node.valueRow,
+        isHPDMIArea: node.isHPDMIArea,
         dvarSettings: state?.dvarSettings,
       },
       catalogue.catalogue
@@ -1651,6 +1652,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       if (mePath !== undefined) {
         const node = meaNodeAt(meRoots, mePath);
         if (node !== undefined) {
+          // The ME half of showing a UEFI focus: a row the panel picked rather than the
+          // reader, so the table moves to it — the focus is state the table is drawn from,
+          // and the scroll target brings the row into view.
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
           context.noteNavigationStep();
           setOpen((current) => {
             const next = new Set(current);
@@ -1889,6 +1894,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const zonePicked = useCallback(
     (zoneId: string) => {
       if (meFocus !== undefined) {
+        // An ME zone goes the way a reveal does: the row is selected, its zone published,
+        // and the table brought to it. The zone on screen is only ever the selected row's,
+        // so the click lands on the row the table is already on.
+        // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
         const mePath = zoneId.length === 0 ? [] : zoneId.split("/").map(Number);
         const node = meaNodeAt(meRoots, mePath);
         if (node === undefined) return;
@@ -2163,11 +2172,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             )}
             aria-label={L("Show DMI Area")}
           >
-            <DmiGlyph />
+            <DmiBadge />
           </button>
         ) : (
           <MenuButton
-            label={<DmiGlyph />}
+            label={<DmiBadge />}
             title={L(
               "Show in the tree where the image keeps the board's serial number, UUID and model"
             )}
@@ -2783,11 +2792,21 @@ export const uefiStructureTool: ToolModule = {
   agentActions: uefiAgentActions,
 };
 
-/** `person.text.rectangle`: the card that says whose machine this is. */
-function DmiGlyph() {
+/**
+ * The DMI button's face: the word in a rounded frame, a badge rather than a glyph — no symbol
+ * says "the board's identity", and the technician knows the area by that name. Drawn in the
+ * text's colour, so the frame and the word follow the theme.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.init
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.draw
+ * @upstream-differs a CSS border and padding (`.uefi-dmi-badge`) where AppKit measures and
+ * strokes the frame itself
+ */
+function DmiBadge() {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" className="uefi-dmi-glyph">
-      <path d="M2.5 3h11v10h-11ZM5.6 6.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM4 11c.3-1 1-1.6 1.6-1.6S6.9 10 7.2 11M9 6.4h2.8M9 8.4h2.8M9 10.4h2" />
-    </svg>
+    <span className="uefi-dmi-badge" aria-hidden="true">
+      {L("DMI")}
+    </span>
   );
 }

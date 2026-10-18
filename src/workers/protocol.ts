@@ -18,7 +18,7 @@
  */
 
 import type { Json } from "@/core/agent/json";
-import type { Catalogue } from "@/core/localization/localization";
+import type { Catalogue, LocalizedTextData } from "@/core/localization/localization";
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
@@ -456,7 +456,8 @@ export interface FirmwareRebuildRequest {
 export interface FirmwareRebuildProgress {
   readonly kind: "firmwareRebuildProgress";
   readonly id: JobId;
-  readonly phase: string;
+  /** The phase as a sentence the page puts into its reader's language (`LocalizedText.from`). */
+  readonly phase: LocalizedTextData;
   /** In `[0, 1]`. */
   readonly fraction: number;
 }
@@ -473,13 +474,14 @@ export interface FirmwareRebuildResponse {
     | {
         readonly offset: number;
         readonly bytes: Uint8Array;
-        readonly warnings: readonly string[];
+        /** Sentences the page puts into its reader's language (`LocalizedText.from`). */
+        readonly warnings: readonly LocalizedTextData[];
         /** Where the part is held in the file once the plan is written. */
         readonly source: readonly [number, number];
       }
     | undefined;
-  /** The refusal's sentence, when there is no plan. */
-  readonly refusal: string | undefined;
+  /** The refusal's sentence, when there is no plan — put into words by the page, as a warning is. */
+  readonly refusal: LocalizedTextData | undefined;
   /** Set when the refusal is the planner's caution, which the reader may go on past. */
   readonly caution?: RebuildCaution | undefined;
 }
@@ -656,8 +658,27 @@ export interface AgentUefiResponse {
   readonly error?: string | undefined;
 }
 
+/**
+ * How many bytes the worker's tree holds beyond its nodes: what the compressed sections opened so
+ * far decompressed to. What the agent's background files are weighed by.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+ * @upstream-differs a question to the worker that holds the tree, upstream's tree being in-process
+ */
+export interface FirmwareHeldBytesRequest {
+  readonly kind: "firmwareHeldBytes";
+  readonly id: JobId;
+}
+
+export interface FirmwareHeldBytesResponse {
+  readonly kind: "firmwareHeldBytes";
+  readonly id: JobId;
+  readonly bytes: number;
+}
+
 export type FirmwareWorkerRequest =
   | AgentUefiRequest
+  | FirmwareHeldBytesRequest
   | FirmwareOpenRequest
   | SpeakLanguageRequest
   | MeChecksumsRequest
@@ -741,6 +762,13 @@ export interface WireNode {
    * store's format that says where it lies
    */
   readonly valueRow?: string | undefined;
+  /**
+   * For HP's `HP_MUD` entry the DMI area is read from: set, and `valueRow` is
+   * `HP_MUD · <serial>` — on a copy the store marks deleted too.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the store
+   */
+  readonly isHPDMIArea?: boolean | undefined;
   /**
    * For a LENV block of Lenovo's DMI store: the badge it wears for how it is stored.
    *
@@ -1124,6 +1152,7 @@ export interface MeChecksumsResponse {
 
 export type FirmwareWorkerResponse =
   | AgentUefiResponse
+  | FirmwareHeldBytesResponse
   | MeAnalyzeResponse
   | MeFileNamesResponse
   | MeChecksumsResponse

@@ -100,7 +100,7 @@ export const summaryValueText = (value: MEASummaryValue): string =>
  * fact behind it yet to draw attention to. Upstream says the same thing from
  * the value's own side of the switch.
  *
- * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryRowView
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
  */
 export function isEmphasized(row: MEASummaryRow): boolean {

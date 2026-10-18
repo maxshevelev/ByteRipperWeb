@@ -297,3 +297,17 @@ describe("against a plain array", () => {
     }
   });
 });
+
+describe("what it holds", () => {
+  // What a holder of many documents weighs one by: the chunks read of the file, and the bytes added.
+  // @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.residentByteCount
+  it("counts the chunks read and the bytes added", async () => {
+    const file = new FileBackedStorage(new MemoryByteSource(new Uint8Array(16)));
+    const storage = new EditOverlayStorage(file);
+    expect(storage.residentByteCount).toBe(0);
+    await storage.read(0, 4);
+    expect(storage.residentByteCount).toBe(16);
+    await storage.insert(0, Uint8Array.from([1, 2, 3]));
+    expect(storage.residentByteCount).toBe(19);
+  });
+});

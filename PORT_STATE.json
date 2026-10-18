@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "6cd23a8140cb26d0938cb4273130be2334ebae5d",
-  "baselineNote": "Set 0.9.3, and say in the README what it is (2026-10-16)"
+  "baseCommit": "cab45101d129984386462d326d07f0b63f3bdb03",
+  "baselineNote": "A card stops naming a removed annotation at once, not when the move ends (2026-10-19)"
 }

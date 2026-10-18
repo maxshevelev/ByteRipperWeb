@@ -84,7 +84,7 @@ describe("the values a detail shows", () => {
 
   it("are text, over a body that selects nothing", () => {
     expect(rules.get("tool-detail")).toBe("text");
-    expect(rules.get("me-summary-value")).toBe("text");
+    expect(rules.get("me-summary")).toBe("text");
   });
 
   // UEFI Structure, FIT and the ME Analyzer all render this one component.
@@ -119,5 +119,93 @@ describe("the values a detail shows", () => {
       />
     );
     expect(selectability(html, rules).get("16.1.25.1865")).toBe("text");
+  });
+});
+
+/** The rules of the stylesheet that name exactly `selector`, comments left out. */
+function declarations(selector: string): string {
+  const css = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
+  let found = "";
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selectors = (match[1] ?? "").split(",").map((one: string) => one.trim());
+    if (selectors.includes(selector)) found += match[2] ?? "";
+  }
+  return found;
+}
+
+/**
+ * The name column of the list every panel draws its fields with. The browser measures
+ * the names, so what is checked is what it is told: the rows share the list's columns,
+ * and the name column is held to half the list.
+ */
+describe("the name column of a detail list", () => {
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolFieldListTests.swift#ToolFieldListTests.testANameThatDoesNotFitHalfTheRowWraps
+  // @upstream-differs the cap is the stylesheet's, read from it rather than measured
+  it("is one column for every row, never more than half the list, and a name wraps in it", () => {
+    expect(declarations(".tool-detail-row")).toMatch(/grid-template-columns:\s*subgrid/);
+    expect(declarations(".tool-detail-fields")).toMatch(
+      /grid-template-columns:\s*min\(var\(--tool-detail-name, 9\.5em\), calc\(50% - 3px\)\)/
+    );
+    expect(declarations(".tool-detail-row dt")).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolFieldListTests.swift#ToolFieldListTests.testAColumnIsAsWideAsItsWidestName
+  // @upstream ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnFitsTheLongestNameAndStopsAtHalfTheList
+  // @upstream-differs the column is the stylesheet's, read from it rather than measured
+  it("takes the longest name where the list asks, never narrower than the shared column", () => {
+    const html = renderToStaticMarkup(
+      <ToolDetail
+        subject="0"
+        detail={{ title: "FTPR", fields: [field("systemHeaderCRCValid", "Yes")], tables: [] }}
+        placeholder="Select a row"
+        names="longest"
+      />
+    );
+    expect(html).toContain('<dl class="tool-detail-fields" data-names="longest">');
+    expect(declarations('.tool-detail-fields[data-names="longest"]')).toMatch(
+      /grid-template-columns:\s*fit-content\(calc\(50% - 3px\)\)/
+    );
+    expect(declarations('.tool-detail-fields[data-names="longest"] dt')).toMatch(
+      /min-width:\s*min\(var\(--tool-detail-name, 9\.5em\), calc\(50cqi - 3px\)\)/
+    );
+    // The shared column where the list does not ask.
+    expect(
+      renderToStaticMarkup(<ToolDetail subject="0" detail={detail} placeholder="Select a row" />)
+    ).toContain('<dl class="tool-detail-fields">');
+  });
+});
+
+/**
+ * The ME Analyzer's Summary is drawn with the same list as the detail under its tree:
+ * one list per block, under the block's heading.
+ */
+describe("the ME Analyzer's Summary", () => {
+  const blocks = [
+    {
+      title: "Firmware",
+      rows: [
+        { label: "Version", value: shown("16.1.25.1865"), tone: "standard" as const },
+        { label: "SKU", value: COMING_SOON, tone: "standard" as const },
+      ],
+    },
+    {
+      title: "Messages",
+      rows: [{ label: "File System State", value: shown("Configured"), tone: "good" as const }],
+    },
+  ];
+  const html = renderToStaticMarkup(<SummaryView blocks={blocks} scrollRef={createRef()} />);
+
+  it("draws its rows as the detail list's, one list per block", () => {
+    expect(html.match(/class="tool-detail-fields"/g)?.length).toBe(2);
+    expect(html.match(/class="tool-detail-row"/g)?.length).toBe(3);
+    expect(html).toContain("<dt>Version</dt>");
+    // Its own column, wider than the detail's, for its long labels.
+    expect(html).toContain("--tool-detail-name:calc(200em / 11)");
+  });
+
+  it("draws a promise grey and a status in its tone, with the tick", () => {
+    expect(html).toMatch(/<dd data-soon="">[^<]*<\/dd>/);
+    expect(html).toMatch(/<dd data-tone="good"><svg/);
+    expect(declarations(".tool-detail-row dd[data-soon]")).toMatch(/color:\s*var\(--text-faint\)/);
   });
 });

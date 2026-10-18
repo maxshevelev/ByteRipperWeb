@@ -96,6 +96,10 @@
   --zone-other: #dad554;
   --zone-agent: #b151d9;
   --zone-person: #2e9e54;
+  /* The hover callout: the tooltip's grey lifted a little lighter, and an edge
+     firmer than a separator. HoverCallout.wash and .rim upstream. */
+  --callout-fill: #f4f4f5;
+  --callout-rim: rgb(0 0 0 / 0.28);
 
   /* Ported from AppPalette.RowMarks: what a row is tinted for, and the one
      solid colour a mark is drawn in (`Design/ROW_MARKS.md` §3). A tint is
@@ -191,6 +195,8 @@
     --zone-other: #dad554;
     --zone-agent: #ce8af4;
     --zone-person: #6bd185;
+    --callout-fill: #3a3a3d;
+    --callout-rim: rgb(255 255 255 / 0.28);
     --row-mark-ibb: rgb(255 55 95 / 0.24);
     --row-mark-firmware: rgb(100 210 255 / 0.2);
     --row-mark-decompressed: rgb(125 122 255);
@@ -273,6 +279,8 @@
   --zone-other: #dad554;
   --zone-agent: #ce8af4;
   --zone-person: #6bd185;
+  --callout-fill: #3a3a3d;
+  --callout-rim: rgb(255 255 255 / 0.28);
   --row-mark-ibb: rgb(255 55 95 / 0.24);
   --row-mark-firmware: rgb(100 210 255 / 0.2);
   --row-mark-decompressed: rgb(125 122 255);

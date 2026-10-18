@@ -887,6 +887,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           subject={focus === undefined || tableFocused ? undefined : String(focus)}
           detail={detail}
           placeholder={L("Select a row to see what it is.")}
+          // The shared list, its name column as wide as the longest name — a microcode
+          // header's, a translated one — up to half the list, where it wraps.
+          // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.renderDetail
+          names="longest"
         />
       </div>
 

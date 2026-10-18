@@ -329,7 +329,7 @@ describe("the compressed BIOS image", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.refusal.caution).toEqual({ kind: "pspBIOSImage", name: "BIOS" });
-    expect(result.refusal.message).toContain("the PSP decompresses itself");
+    expect(result.refusal.messageText.textIn("en")).toContain("the PSP decompresses itself");
   });
 
   /**
@@ -350,7 +350,9 @@ describe("the compressed BIOS image", () => {
     if (!result.ok) throw result.refusal;
     const plan = result.plan;
     expect(
-      plan.warnings.some((line) => line.includes("Whether the PSP accepts it is not known"))
+      plan.warnings
+        .map((line) => line.textIn("en"))
+        .some((line) => line.includes("Whether the PSP accepts it is not known"))
     ).toBe(true);
     const file = Uint8Array.from(fixed.bytes);
     file.set(plan.bytes, plan.offset);
@@ -384,6 +386,6 @@ describe("the compressed BIOS image", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.refusal.caution).toBeUndefined();
-    expect(result.refusal.message).toContain("has to keep its size");
+    expect(result.refusal.messageText.textIn("en")).toContain("has to keep its size");
   });
 });

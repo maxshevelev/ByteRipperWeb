@@ -33,9 +33,29 @@ export class AgentDesk {
    * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.background
    */
   readonly background: AgentBackgroundDocuments;
+  /**
+   * The background files let go to stay inside the bounds: the agent still holds their ids, and
+   * naming one reads the file again. By id, the path each let-go one was.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.released
+   */
+  private readonly released = new Map<string, string>();
+  /**
+   * A let-go id the file answers under another id now: the agent opened the same path again
+   * meanwhile, or the file is open in the window.
+   *
+   * @web-only upstream's lookup reads the file again inside itself and hands back that place; the
+   * page's read is a wait, done before the tool runs (`revive`), so the place it found is noted here
+   */
+  private readonly standIns = new Map<string, string>();
+  private readonly bridge: () => AgentBridge | undefined;
 
   constructor(bridge: () => AgentBridge | undefined = () => undefined) {
+    this.bridge = bridge;
     this.background = new AgentBackgroundDocuments(bridge, () => this.mint());
+    this.background.onRelease = (entry) => {
+      this.released.set(entry.id, entry.path);
+    };
   }
 
   private mint(): string {
@@ -110,13 +130,55 @@ export class AgentDesk {
    */
   placeNamed(id: string | undefined): AgentPlace {
     if (id !== undefined) {
-      const found = this.places().find((place) => place.id === id);
+      const places = this.places();
+      const standIn = this.standIns.get(id);
+      const found =
+        places.find((place) => place.id === id) ??
+        (standIn === undefined ? undefined : places.find((place) => place.id === standIn));
       if (found === undefined) throw new AgentToolError(noSuchDocument(id));
       return found;
     }
     const focused = this.focused();
     if (focused === undefined) throw new AgentToolError(NOTHING_OPEN);
     return focused;
+  }
+
+  /**
+   * A background document let go to stay inside the bounds, read again under the id it had — or
+   * found under the one it has now, when the agent opened the same path again meanwhile or the file
+   * is open in the window. Nothing when the id was never one, is open now, or the file can no longer
+   * be read; `placeNamed` then refuses it as it would any other.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.reopened
+   * @upstream-differs a wait before the tool runs, reading the file being one, where upstream reads
+   * it inside the lookup
+   */
+  async revive(id: string): Promise<void> {
+    const path = this.released.get(id);
+    if (path === undefined) return;
+    const places = this.places();
+    if (places.some((place) => place.id === id)) return;
+    const standIn = this.standIns.get(id);
+    if (standIn !== undefined && places.some((place) => place.id === standIn)) return;
+    const bridge = this.bridge();
+    if (bridge === undefined) return;
+    try {
+      const stat = await bridge.file({ op: "stat", path });
+      const onScreen = this.onScreenPlaceOf(stat.path, stat);
+      if (onScreen !== undefined) {
+        this.standIns.set(id, onScreen.id);
+        return;
+      }
+      const entry = await this.background.open(path, id);
+      if (entry.id === id) {
+        this.released.delete(id);
+        this.standIns.delete(id);
+      } else {
+        this.standIns.set(id, entry.id);
+      }
+    } catch {
+      // A file that can no longer be read is no document: the call names an id nothing answers to.
+    }
   }
 
   /**

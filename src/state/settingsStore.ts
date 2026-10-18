@@ -542,23 +542,53 @@ export const AGENT_EDITS_KEY = "AgentEditsAllowed";
  */
 export const AGENT_LAUNCHES_APP_KEY = "AgentClientLaunchesApp";
 
+/**
+ * Where the bounds on the files an agent opened by path are kept: how many, and how many MiB
+ * between them (`AgentBackgroundLimits`).
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFilesKey
+ */
+export const AGENT_BACKGROUND_FILES_KEY = "AgentBackgroundFileLimit";
+/** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryKey */
+export const AGENT_BACKGROUND_MEMORY_KEY = "AgentBackgroundMemoryLimitMiB";
+
 /** What the service's switches were left at; all off for a visit that remembers nothing. */
 export async function loadAgentSettings(): Promise<{
   readonly enabled: boolean;
   readonly editsAllowed: boolean;
   readonly launchesApp: boolean;
+  /** As kept, before it is brought inside the choices offered; nothing when none was. */
+  readonly backgroundFiles: number | undefined;
+  readonly backgroundMemoryMiB: number | undefined;
 }> {
   const store = values();
-  const [enabled, editsAllowed, launchesApp] = await Promise.all([
-    store.get<boolean>(AGENT_ENABLED_KEY).catch(() => undefined),
-    store.get<boolean>(AGENT_EDITS_KEY).catch(() => undefined),
-    store.get<boolean>(AGENT_LAUNCHES_APP_KEY).catch(() => undefined),
-  ]);
+  const [enabled, editsAllowed, launchesApp, backgroundFiles, backgroundMemoryMiB] =
+    await Promise.all([
+      store.get<boolean>(AGENT_ENABLED_KEY).catch(() => undefined),
+      store.get<boolean>(AGENT_EDITS_KEY).catch(() => undefined),
+      store.get<boolean>(AGENT_LAUNCHES_APP_KEY).catch(() => undefined),
+      store.get<unknown>(AGENT_BACKGROUND_FILES_KEY).catch(() => undefined),
+      store.get<unknown>(AGENT_BACKGROUND_MEMORY_KEY).catch(() => undefined),
+    ]);
+  const count = (value: unknown) =>
+    typeof value === "number" && Number.isInteger(value) ? value : undefined;
   return {
     enabled: enabled === true,
     editsAllowed: editsAllowed === true,
     launchesApp: launchesApp === true,
+    backgroundFiles: count(backgroundFiles),
+    backgroundMemoryMiB: count(backgroundMemoryMiB),
   };
+}
+
+/** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFileLimit */
+export function rememberAgentBackgroundFiles(count: number): void {
+  remember(AGENT_BACKGROUND_FILES_KEY, count);
+}
+
+/** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryLimitMiB */
+export function rememberAgentBackgroundMemoryMiB(mib: number): void {
+  remember(AGENT_BACKGROUND_MEMORY_KEY, mib);
 }
 
 export function rememberAgentEnabled(enabled: boolean): void {

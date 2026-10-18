@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isDarkTheme, saturatedHighlight } from "@/ui/theme/hexColors";
+import { isDarkTheme, saturatedHighlight, zoneHoverHighlight } from "@/ui/theme/hexColors";
 
 /**
  * The hovered segment band's tint, and which theme is in force.
@@ -132,6 +132,37 @@ describe("which theme is in force", () => {
     expect(isDarkTheme(root(null))).toBe(true);
     vi.stubGlobal("matchMedia", () => ({ matches: false }));
     expect(isDarkTheme(root(null))).toBe(false);
+  });
+});
+
+/** The zone colours as `theme.css` has them: focused and other, light then dark. */
+const LIGHT_ZONES = ["#59adc4", "#dad554"];
+const DARK_ZONES = ["#6ac4dc", "#dad554"];
+
+describe("a hovered zone bracket's colour", () => {
+  // @upstream ByteRipperTests/MinimapZoneTests.swift#MinimapZoneTests.testTheHoverShadeKeepsTheHueAndIsMoreSaturated
+  it("keeps the hue, is plainly more saturated and opaque, in both themes", () => {
+    for (const [zones, dark] of [
+      [LIGHT_ZONES, false],
+      [DARK_ZONES, true],
+    ] as const) {
+      for (const colour of zones) {
+        const plain = toHsb(resolve(colour));
+        const shade = zoneHoverHighlight(colour, dark);
+        const vivid = toHsb(shade);
+        expect(vivid.h).toBeCloseTo(plain.h, 2);
+        expect(vivid.s).toBeGreaterThan(plain.s + 0.3);
+        expect(shade.startsWith("rgb(")).toBe(true);
+      }
+    }
+  });
+
+  // @web-only the dark theme's lift, which upstream states in the doc comment of HexTheme.zoneHoverHighlight and tests only through the drawn bracket
+  it("is lifted in dark theme and dipped a little in light", () => {
+    expect(toHsb(zoneHoverHighlight("#6ac4dc", true)).v).toBeGreaterThan(
+      toHsb(resolve("#6ac4dc")).v
+    );
+    expect(toHsb(zoneHoverHighlight("#59adc4", false)).v).toBeLessThan(toHsb(resolve("#59adc4")).v);
   });
 });
 

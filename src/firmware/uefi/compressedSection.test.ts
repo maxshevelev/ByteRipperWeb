@@ -435,6 +435,8 @@ describe("the buffers", () => {
     expect(read.ok).toBe(true);
     if (read.ok) expect([...(read.reader.bytes(read.reader.all) ?? [])]).toEqual([...driver()]);
     expect(buffers.count).toBe(1);
+    // What the held buffer weighs: the driver it decoded to.
+    expect(buffers.byteCount).toBe(driver().length);
 
     buffers.dropOverlapping({ start: 0, end: 0x10 });
     // An edit before the section leaves it.
@@ -442,6 +444,7 @@ describe("the buffers", () => {
     buffers.dropOverlapping({ start: 0x30, end: 0x31 });
     // An edit inside it does not.
     expect(buffers.count).toBe(0);
+    expect(buffers.byteCount).toBe(0);
   });
 
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/CompressedSectionTests.swift#CompressedSectionTests.testAnEvictedBufferIsDecodedAgainFromTheFile

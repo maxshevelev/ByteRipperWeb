@@ -339,21 +339,21 @@ export function bookmarkHostName(pane: PaneId): string | undefined {
 }
 
 /**
- * What the mark's tooltip says on the row containing `offset`, and nothing when
- * there is nothing to say (§20.2, §20.7).
+ * What the mark's callout says on the row containing `offset`, and nothing when
+ * there is nothing to say (§20.3, §20.7).
  *
  * In a pane showing a file whole that is the mark's name and nothing else: the
- * address is drawn on the mark, right under the pointer, and a tooltip
+ * address is drawn on the mark, right under the pointer, and a callout
  * repeating it would explain a thing to itself. In a fragment panel the address
- * under the pointer is the *part's*, so the tooltip adds the one the same row
+ * under the pointer is the *part's*, so the callout adds the one the same row
  * has in the file the mark belongs to — which is the address the reader will
  * come back to it by, and the only place the panel says it. That line shows for
  * an unnamed mark too, because there it is not a repetition of anything.
  *
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkTooltip
- * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmarkTooltip
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexBookmarkHoverText
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmarkHoverText
  */
-export function bookmarkTooltip(pane: PaneId, offset: number): string {
+export function bookmarkHoverText(pane: PaneId, offset: number): string {
   const space = marksFor(pane);
   const mark = space?.at(offset);
   if (space === undefined || mark === undefined) return "";

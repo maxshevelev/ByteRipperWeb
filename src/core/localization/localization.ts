@@ -166,6 +166,7 @@ export interface LContext {
 const isContext = (value: unknown): value is LContext =>
   typeof value === "object" &&
   value !== null &&
+  !(value instanceof LocalizedText) &&
   typeof (value as { context?: unknown }).context === "string";
 
 /**
@@ -227,25 +228,65 @@ export class LocalizedText {
   readonly context: string | undefined;
   readonly args: readonly string[];
   readonly isVerbatim: boolean;
+  /**
+   * What goes into it that is a sentence of its own, put into words in the same language as this
+   * one, at its argument's place; nothing at the place of an argument given as it is. For a join,
+   * the sentences joined.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.arguments
+   * @upstream-differs beside `args`, which keeps every argument as a string (a sentence's in
+   * English), where upstream's arguments are all sentences, a plain one verbatim
+   */
+  readonly parts: readonly (LocalizedText | undefined)[];
+  /**
+   * `parts` put one after another with `key` between them.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isJoin
+   */
+  readonly isJoin: boolean;
 
   private constructor(
     key: string,
     context: string | undefined,
     args: readonly string[],
-    isVerbatim: boolean
+    isVerbatim: boolean,
+    parts: readonly (LocalizedText | undefined)[] = [],
+    isJoin = false
   ) {
     this.key = key;
     this.context = context;
     this.args = args;
     this.isVerbatim = isVerbatim;
+    this.parts = parts;
+    this.isJoin = isJoin;
   }
 
-  /** A sentence for `key`, with what goes into it. */
-  static of(key: string, ...rest: readonly (LContext | LMessageArgument)[]): LocalizedText {
+  /**
+   * A sentence for `key`, with what goes into it — a sentence among it put into words in the
+   * language this one is.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces
+   */
+  static of(
+    key: string,
+    ...rest: readonly (LContext | LMessageArgument | LocalizedText)[]
+  ): LocalizedText {
     const first = rest[0];
     const context = isContext(first) ? first.context : undefined;
-    const args = (context === undefined ? rest : rest.slice(1)) as readonly LMessageArgument[];
-    return new LocalizedText(key, context, args.map(String), false);
+    const args = (context === undefined ? rest : rest.slice(1)) as readonly (
+      | LMessageArgument
+      | LocalizedText
+    )[];
+    const parts = args.map((one) => (one instanceof LocalizedText ? one : undefined));
+    return new LocalizedText(
+      key,
+      context,
+      args.map((one) =>
+        one instanceof LocalizedText ? one.textIn(FALLBACK_LANGUAGE) : String(one)
+      ),
+      false,
+      parts.some((one) => one !== undefined) ? parts : []
+    );
   }
 
   /** Words that have no key — a parser's own English. */
@@ -253,14 +294,50 @@ export class LocalizedText {
     return new LocalizedText(text, undefined, [], true);
   }
 
+  /**
+   * `parts` one after another, `separator` between them — each in the language the whole is shown
+   * in.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.joined
+   */
+  static joined(parts: readonly LocalizedText[], separator: string): LocalizedText {
+    return new LocalizedText(separator, undefined, [], false, parts, true);
+  }
+
+  /**
+   * A sentence again from the plain data a worker's message carried it as: structured clone keeps
+   * the fields and drops the class.
+   *
+   * @web-only a sentence made in a worker reaches the page as data, where upstream's stays a value
+   * in one process
+   */
+  static from(data: LocalizedTextData): LocalizedText {
+    return new LocalizedText(
+      data.key,
+      data.context,
+      data.args,
+      data.isVerbatim,
+      data.parts.map((part) =>
+        part === undefined || part === null ? undefined : LocalizedText.from(part)
+      ),
+      data.isJoin
+    );
+  }
+
   /** The sentence in `language`. */
   textIn(language: AppLanguage): string {
     if (this.isVerbatim) return this.key;
+    if (this.isJoin) return this.parts.map((part) => part?.textIn(language) ?? "").join(this.key);
     const catalogue = catalogueFor(language);
     const word =
       (this.context === undefined ? undefined : catalogue.entries[`${this.context}|${this.key}`]) ??
       catalogueString(catalogue, this.key);
-    return formatMessage(word, this.args);
+    return formatMessage(
+      word,
+      this.parts.length === 0
+        ? this.args
+        : this.args.map((one, index) => this.parts[index]?.textIn(language) ?? one)
+    );
   }
 
   /** The sentence in the language in force where it is asked for. */
@@ -271,6 +348,21 @@ export class LocalizedText {
   toString(): string {
     return this.text;
   }
+}
+
+/**
+ * A `LocalizedText` as structured clone carries it across a worker's message: its fields, without
+ * its class. `LocalizedText.from` makes the sentence again.
+ *
+ * @web-only a worker's answer is plain data
+ */
+export interface LocalizedTextData {
+  readonly key: string;
+  readonly context: string | undefined;
+  readonly args: readonly string[];
+  readonly isVerbatim: boolean;
+  readonly parts: readonly (LocalizedTextData | undefined | null)[];
+  readonly isJoin: boolean;
 }
 
 /**

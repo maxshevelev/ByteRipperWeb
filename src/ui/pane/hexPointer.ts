@@ -1,5 +1,8 @@
 import type { InputRegion } from "@/core/edit/typingController";
-import type { HexHit, HexLayout } from "@/render/hexGrid/hexLayout";
+import { BOOKMARK_PADDING, PEER_CONTOUR_PADDING } from "@/render/hexGrid/hexGridRenderer";
+import { BYTES_PER_ROW, type HexHit, type HexLayout } from "@/render/hexGrid/hexLayout";
+import { contourNear, contourRowSpan, selectionContours } from "@/render/hexGrid/spanContour";
+import { aroundPointer, type CalloutRect, type HoverMark } from "@/ui/callout/hoverCalloutGeometry";
 
 /**
  * What a pointer in the hex grid means.
@@ -234,4 +237,130 @@ export function pointerTarget(
     case "text":
       return { offset: layout.byteOffset(hit.row, hit.column.column), region: "text", nibble: 0 };
   }
+}
+
+/**
+ * How near a note's dashed outline the pointer has to be for the note to speak:
+ * either side of the line.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.noteContourReach
+ */
+export const NOTE_CONTOUR_REACH = 4;
+
+/** A note as the pane draws it: its stretch at the pane's own addresses. */
+export interface NoteSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * The note whose outline runs under `(x, y)` — the innermost one where two
+ * outlines meet there — or `undefined`. Only the notes whose outline reaches
+ * the rows round the point are looked at: an outline further off cannot reach
+ * it.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.noteContour
+ */
+export function noteContour<Note extends NoteSpan>(
+  layout: HexLayout,
+  notes: readonly Note[],
+  fileSize: number,
+  x: number,
+  y: number
+): Note | undefined {
+  if (layout.rowHeight <= 0 || fileSize <= 0) return undefined;
+  const row = Math.floor(y / layout.rowHeight);
+  let found: Note | undefined;
+  for (const note of notes) {
+    const end = Math.min(note.end, fileSize);
+    if (end <= note.start) continue;
+    const rows = contourRowSpan(note.start, end);
+    if (row + 1 < rows.first || row - 1 >= rows.end) continue;
+    const contours = selectionContours(note.start, end, layout, PEER_CONTOUR_PADDING);
+    if (!contourNear(contours, x, y, NOTE_CONTOUR_REACH)) continue;
+    if (found === undefined || note.end - note.start < found.end - found.start) found = note;
+  }
+  return found;
+}
+
+/**
+ * The box of a row's bookmark mark, which its callout stands beside: the
+ * Offset column's frame and the padding the mark is drawn with.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkRect
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkBody
+ */
+export function bookmarkMarkRect(layout: HexLayout, row: number): CalloutRect {
+  const frame = layout.offsetColumnFrame(row);
+  return {
+    x: frame.x - BOOKMARK_PADDING,
+    y: frame.y,
+    width: frame.width + 2 * BOOKMARK_PADDING,
+    height: frame.height,
+  };
+}
+
+/** What the callout over the dump says, the glyph it wears, and what it stands beside. */
+export interface HexHover {
+  readonly text: string;
+  readonly mark: HoverMark;
+  /** In content coordinates: the pane turns it into the window's. */
+  readonly anchor: CalloutRect;
+}
+
+/**
+ * What the callout over the dump says for the pointer at `(x, y)`, or
+ * `undefined` over anything with nothing to say. On an address it is the row's
+ * bookmark, standing beside the mark — over the start of the row's bytes,
+ * never over the address itself (§20.3). On a note's outline it is that note,
+ * following the pointer along the line. Only on the outline: a note can cover
+ * a whole region, and a callout up over every byte inside it would keep
+ * covering the bytes being read. Nothing while a mark is being dragged: it is
+ * on another row a moment later (§20.6).
+ *
+ * A named mark has the address. An address with nothing to say goes on to the
+ * notes: the Offset column runs right up to the first byte, and the outer half
+ * of a note's left edge lies in it — the same reach the right edge has over
+ * the gap before the decoded text.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.updateHoverCallout
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.offsetColumnOffset
+ */
+export function hexHover<Note extends NoteSpan>(options: {
+  readonly layout: HexLayout;
+  readonly fileSize: number;
+  readonly x: number;
+  readonly y: number;
+  readonly dragging: boolean;
+  /** What the mark on the row starting at `offset` says; "" for nothing. */
+  readonly bookmarkText: (offset: number) => string;
+  readonly notes: readonly Note[];
+  /** What a note says, and whether the person said it; `undefined` for nothing. */
+  readonly noteText: (
+    note: Note
+  ) => { readonly text: string; readonly byPerson: boolean } | undefined;
+  /** The two hues a note is drawn in. */
+  readonly colors: { readonly person: string; readonly agent: string };
+}): HexHover | undefined {
+  const { layout, fileSize, x, y } = options;
+  if (options.dragging) return undefined;
+  const hit = layout.hitTest(x, y, layout.rowCount(fileSize));
+  if (hit !== undefined && hit.column.kind === "offset") {
+    const offset = hit.row * BYTES_PER_ROW;
+    const text = options.bookmarkText(offset);
+    if (text.length > 0) {
+      return { text, mark: { kind: "bookmark" }, anchor: bookmarkMarkRect(layout, hit.row) };
+    }
+  }
+  const note = noteContour(layout, options.notes, fileSize, x, y);
+  const said = note === undefined ? undefined : options.noteText(note);
+  if (said === undefined) return undefined;
+  return {
+    text: said.text,
+    mark: {
+      kind: "annotation",
+      color: said.byPerson ? options.colors.person : options.colors.agent,
+    },
+    anchor: aroundPointer(x, y),
+  };
 }

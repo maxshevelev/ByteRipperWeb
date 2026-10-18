@@ -9,9 +9,11 @@ import {
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import { AGENT_BACKGROUND_LIMITS } from "@/state/agent/agentBackgroundDocuments";
 import { agentService } from "@/state/agent/agentService";
 import { useStore } from "@/state/useStore";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { memoryTitle } from "@/ui/settings/settingsText";
 
 /**
  * The Agent tab of the Settings window: the switch that opens the agent endpoint, what it does,
@@ -29,6 +31,10 @@ import { HelpButton } from "@/ui/help/HelpButton";
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.editsChanged
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.enableChanged
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.filesChanged
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryChanged
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.filesPopup
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryPopup
  * @upstream-differs a React tab over the service's store
  */
 // help: settings.agent
@@ -106,6 +112,45 @@ export function AgentTab() {
       <p className="settings-caption">
         {L(
           "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this."
+        )}
+      </p>
+
+      {/* help: settings.agent.background */}
+      <div className="settings-grid settings-agent-limits">
+        <label htmlFor="settings-agent-files">{L("Dumps kept open:")}</label>
+        <select
+          id="settings-agent-files"
+          className="settings-select"
+          value={state.backgroundFileLimit}
+          disabled={!agentService.isAvailable}
+          title={L("How many dumps an agent opened by path stay read and parsed at once")}
+          onChange={(event) => agentService.setBackgroundFileLimit(Number(event.target.value))}
+        >
+          {AGENT_BACKGROUND_LIMITS.fileChoices.map((count) => (
+            <option key={count} value={count}>
+              {count}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="settings-agent-memory">{L("Memory for them:")}</label>
+        <select
+          id="settings-agent-memory"
+          className="settings-select"
+          value={state.backgroundMemoryLimitMiB}
+          disabled={!agentService.isAvailable}
+          title={L("How much memory the dumps an agent opened by path may hold between them")}
+          onChange={(event) => agentService.setBackgroundMemoryLimitMiB(Number(event.target.value))}
+        >
+          {agentService.memoryChoicesMiB().map((mib) => (
+            <option key={mib} value={mib}>
+              {memoryTitle(mib)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="settings-caption">
+        {L(
+          "An agent can open a dump by its path, without a window. The dumps it opened last stay parsed, so another question about one of them is answered without reading it again. Past either limit, the dump not asked about for the longest time is closed; named again, it is read again. Counted are the bytes read from the files and what their compressed sections decompressed to. At most a quarter of this computer's memory is offered."
         )}
       </p>
 
