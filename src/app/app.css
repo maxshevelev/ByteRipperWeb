@@ -80,7 +80,7 @@ textarea,
      to themselves a control stands a text line's height in one and a glyph's in
      another, and the row reads as boxes of different sizes. The icon buttons and
      the two pop-ups all read this. */
-  --toolbar-control-height: 26px;
+  --toolbar-control-height: 30px;
   grid-row: 1;
   display: flex;
   align-items: center;
@@ -453,7 +453,7 @@ textarea,
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 30px;
+  width: 34px;
   height: var(--toolbar-control-height);
   padding: 0;
   border: 1px solid transparent;
@@ -6742,4 +6742,24 @@ body[data-pulling-panel] * {
 
 .note-form-note {
   resize: vertical;
+}
+
+/* The bar's glyphs, drawn on a 16-point grid, stand a size up in it: the help's sign, a
+   point smaller on that grid, keeps its point. The same glyphs elsewhere — the agent's in
+   the dock and on the cards — keep the size they are drawn at. */
+.toolbar .toolbar-icon svg,
+.toolbar .menu-trigger > svg:not(.menu-chevron) {
+  width: 19px;
+  height: 19px;
+}
+
+.toolbar .menu-trigger > svg.help-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+/* The commands menu's sign is a character, set a size up with the glyphs beside it. */
+.commands-glyph {
+  font-size: 17px;
+  line-height: 1;
 }

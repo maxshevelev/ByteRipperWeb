@@ -941,7 +941,7 @@ export function Toolbar({
           second. */}
       {nativeMenuBar ? null : (
         <SectionMenu
-          label="☰"
+          label={<span className="commands-glyph">☰</span>}
           ariaLabel={L("Commands")}
           title={L("Commands")}
           sections={sectionsOf(entries)}
