@@ -32,6 +32,7 @@ import { allDMIStores, type DMIStore } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { gpnvRowText } from "@/firmware/uefi/gpnvStore";
+import { type HPDMIArea, readHPDMIArea } from "@/firmware/uefi/hpDmiArea";
 import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import { supersededCopies } from "@/firmware/uefi/nvramVariableHistory";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
@@ -389,8 +390,26 @@ function hpDMIWireFields(
   if (node.kind !== "vssEntry") return {};
   const reader = readerFor(node);
   if (reader === undefined) return {};
-  const text = hpDMIRowText(node, store, reader);
+  const text = hpDMIRowText(node, store, reader, hpDMIAreaOfStore);
   return text === undefined ? {} : { valueRow: text, isHPDMIArea: true };
+}
+
+/**
+ * HP's area of each store, read once. Every entry under HP's GUID asks for its store's area,
+ * and the whole tree crosses the wire on every reveal: read afresh each time, a store of eight
+ * hundred entries was read eight hundred times over, seconds per reveal. Emptied with the
+ * tree, when the image is opened or edited.
+ *
+ * @web-only upstream asks for the rows on screen, here the tree crosses the wire whole
+ */
+let hpDMIAreas = new WeakMap<UEFINode, HPDMIArea | null>();
+
+function hpDMIAreaOfStore(store: UEFINode, reader: ImageReader): HPDMIArea | undefined {
+  const held = hpDMIAreas.get(store);
+  if (held !== undefined) return held ?? undefined;
+  const area = readHPDMIArea(store, reader);
+  hpDMIAreas.set(store, area ?? null);
+  return area;
 }
 
 /**
@@ -807,6 +826,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         protectedRanges = undefined;
         dvarSettings = undefined;
         dmiStores = undefined;
+        hpDMIAreas = new WeakMap();
         lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;
@@ -848,6 +868,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The forms too: an edit may have landed in the driver.
         dvarSettings = undefined;
         dmiStores = undefined;
+        hpDMIAreas = new WeakMap();
         lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;

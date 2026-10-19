@@ -57,12 +57,13 @@ export function hpDMIStoreOf(node: UEFINode, image: UEFIImage): UEFINode | undef
 export function hpDMIAreaOf(
   node: UEFINode,
   store: UEFINode | undefined,
-  reader: ImageReader
+  reader: ImageReader,
+  read: (store: UEFINode, reader: ImageReader) => HPDMIArea | undefined = readHPDMIArea
 ): HPDMIArea | undefined {
   if (node.kind !== "vssEntry" || node.guid === undefined) return undefined;
   if (!guidEquals(node.guid, HP_FACTORY_GUID)) return undefined;
   if (store === undefined || !isVssStore(store)) return undefined;
-  const area = readHPDMIArea(store, reader);
+  const area = read(store, reader);
   if (area === undefined) return undefined;
   const range = nodeRange(node);
   return area.entry.start === range.start && area.entry.end === range.end ? area : undefined;
@@ -119,8 +120,9 @@ export function hpDMIDetail(
 export function hpDMIRowText(
   node: UEFINode,
   store: UEFINode | undefined,
-  reader: ImageReader
+  reader: ImageReader,
+  read?: (store: UEFINode, reader: ImageReader) => HPDMIArea | undefined
 ): string | undefined {
-  const area = hpDMIAreaOf(node, store, reader);
+  const area = hpDMIAreaOf(node, store, reader, read);
   return area === undefined ? undefined : L("%1$@ · %2$@", HP_MUD_NAME, hpSerialNumber(area));
 }

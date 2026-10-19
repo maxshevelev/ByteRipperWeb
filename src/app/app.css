@@ -3373,7 +3373,6 @@ button.uefi-title {
   color: var(--text-faint);
 }
 
-.uefi-reveal svg,
 /* The DMI button's face: the word in a rounded frame, 15 px high, 5 px between the word
    and the frame. Centred on its capitals: a word in capitals has no descenders to keep
    room for. A press fills the frame faintly. */
@@ -3394,6 +3393,7 @@ button.uefi-title {
   background: color-mix(in srgb, currentColor 18%, transparent);
 }
 
+.uefi-reveal svg,
 .uefi-search-toggle svg,
 .tool-detail-glyph {
   width: 13px;
