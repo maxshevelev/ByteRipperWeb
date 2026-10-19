@@ -3123,12 +3123,19 @@ button.uefi-title {
   color: var(--accent);
 }
 
-.uefi-reveal {
+/* The title row's buttons — Show DMI Area, the search, the filter and the reveal — are one
+   size, their faces centred in it, in the same quiet ink. The title gives way first: a long
+   image name truncates before a button does. Show DMI Area is in the row only when the image
+   keeps the board's identity somewhere the tree reads, and is as wide as its badge. */
+.uefi-reveal,
+.uefi-dmi,
+.uefi-filter,
+.uefi-search-toggle {
   flex: none;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  min-width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
   background: none;
@@ -3137,48 +3144,23 @@ button.uefi-title {
 }
 
 .uefi-reveal:hover,
-.uefi-dmi:hover {
+.uefi-dmi:hover,
+.uefi-filter:hover,
+.uefi-search-toggle:hover {
+  background: none;
   color: var(--text);
 }
 
-/* Show DMI Area: left of the search, in the same quiet ink, and in the row only when the
-   image keeps the board's identity somewhere the tree reads. As wide as its badge. */
-.uefi-dmi {
-  flex: none;
-  display: grid;
-  place-items: center;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-/* The title row's filter: a funnel with a menu, tinted while the tree lists anything
-   it leaves out by default. The title gives way first: a long image name truncates
-   before the button does. */
-.uefi-filter {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-}
-
-.uefi-filter:hover {
-  color: var(--text);
-}
+/* The filter: a funnel with a menu, tinted while the tree lists anything it leaves out
+   by default. */
 
 .uefi-filter.is-tinted {
   color: var(--accent);
 }
 
 .uefi-filter-glyph {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.3;
@@ -3186,24 +3168,7 @@ button.uefi-title {
   stroke-linejoin: round;
 }
 
-/* The title row's search: a magnifier left of the filter, accent while the bar is open. */
-.uefi-search-toggle {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.uefi-search-toggle:hover {
-  color: var(--text);
-}
-
+/* The search: a magnifier left of the filter, accent while the bar is open. */
 .uefi-search-toggle.is-open {
   color: var(--accent);
 }
@@ -3373,19 +3338,19 @@ button.uefi-title {
   color: var(--text-faint);
 }
 
-/* The DMI button's face: the word in a rounded frame, 15 px high, 5 px between the word
+/* The DMI button's face: the word in a rounded frame, 17 px high, 5 px between the word
    and the frame. Centred on its capitals: a word in capitals has no descenders to keep
    room for. A press fills the frame faintly. */
 .uefi-dmi-badge {
   box-sizing: border-box;
   display: block;
-  height: 15px;
-  padding: 0 4px;
+  height: 17px;
+  padding: 0 5px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 13px;
+  line-height: 15px;
   letter-spacing: 0.02em;
 }
 
@@ -3403,6 +3368,13 @@ button.uefi-title {
   stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* The title row's icons stand a size above the detail's. */
+.uefi-reveal svg,
+.uefi-search-toggle svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* The rows are set inline from the divider's fraction. */
