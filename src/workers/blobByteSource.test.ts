@@ -7,7 +7,11 @@ import { BlobByteSource, type BlobReader } from "@/workers/blobByteSource";
  * throws. Node has no synchronous way to read a real `Blob`, so the blob is a
  * stand-in whose slices say which bytes they are.
  */
-function stub(bytes: readonly number[], fails = false): BlobByteSource {
+function stub(
+  bytes: ArrayLike<number>,
+  fails = false,
+  reads: [number, number][] = []
+): BlobByteSource {
   type Slice = { readonly start: number; readonly end: number };
   const blob = {
     size: bytes.length,
@@ -17,7 +21,8 @@ function stub(bytes: readonly number[], fails = false): BlobByteSource {
     readAsArrayBuffer(part) {
       if (fails) throw new DOMException("The file could not be read.", "NotReadableError");
       const { start, end } = part as unknown as Slice;
-      return new Uint8Array(bytes.slice(start, end)).buffer;
+      reads.push([start, end]);
+      return new Uint8Array(Array.prototype.slice.call(bytes, start, end)).buffer;
     },
   };
   return new BlobByteSource(blob, reader);
@@ -48,5 +53,26 @@ describe("the Blob a tree is read from", () => {
   // @upstream-differs a failed read throws rather than yielding zeros of the length asked for
   it("lets a failed read fail", () => {
     expect(() => stub([1, 2, 3, 4], true).bytes(0, 3)).toThrow("could not be read");
+  });
+
+  // A parse reads thousands of fields a few bytes long; each is a call into the browser, so the
+  // chunk around one is read once and the fields beside it come from that. A long read is read
+  // whole and kept by nobody.
+  // @web-only upstream reads a document already in memory
+  it("reads a chunk once for the small reads inside it, and a long read whole", () => {
+    const bytes = new Uint8Array(1024 * 1024).map((_, index) => index % 251);
+    const reads: [number, number][] = [];
+    const source = stub(bytes, false, reads);
+    expect([...source.bytes(10, 14)]).toEqual([10, 11, 12, 13]);
+    expect(source.word(100, 2)).toBe(100 + 101 * 256);
+    expect([...source.bytes(65534, 65538)]).toEqual([...bytes.slice(65534, 65538)]);
+    expect(reads).toEqual([
+      [0, 65536],
+      [65536, 131072],
+    ]);
+    reads.length = 0;
+    expect(source.bytes(0, 512 * 1024)).toEqual(bytes.slice(0, 512 * 1024));
+    expect(reads).toEqual([[0, 512 * 1024]]);
+    expect(source.bytes(1024 * 1024 - 2, 1024 * 1024 + 8).length).toBe(2);
   });
 });

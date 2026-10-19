@@ -581,6 +581,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         };
   }, [state?.protectedRanges]);
 
+  // Where the image keeps the board's identity: the button appears when it is found, and
+  // an edit that may have made or unmade a store drops the list. Asked before the protected
+  // ranges, which the same helper reads after it: the search takes a fraction of a second, the
+  // hashing seconds, and a button that waits for them is a button the reader takes for absent.
+  // @upstream-differs upstream asks when the tree is shown; the worker is asked once here
+  const dmiStores = state?.dmiStores ?? [];
+  const dmiSearched = state?.dmiStores !== undefined;
+  useEffect(() => {
+    if (status === "ready" && !dmiSearched) askFirmwareDmiStores(context.pane);
+  }, [status, dmiSearched, context.pane]);
+
   // The protected ranges, once the tree is there to read them over: the reading
   // opens every volume's files and hashes megabytes, so a panel nobody has
   // opened pays for none of it.
@@ -601,14 +612,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     if (status === "ready" && hasDvarStore) askFirmwareDvarSettings(context.pane);
   }, [status, hasDvarStore, context.pane]);
-  // Where the image keeps the board's identity: the button appears when it is found, and
-  // an edit that may have made or unmade a store drops the list.
-  // @upstream-differs upstream asks when the tree is shown; the worker is asked once here
-  const dmiStores = state?.dmiStores ?? [];
-  const dmiSearched = state?.dmiStores !== undefined;
-  useEffect(() => {
-    if (status === "ready" && !dmiSearched) askFirmwareDmiStores(context.pane);
-  }, [status, dmiSearched, context.pane]);
   // The detail on screen is asked again when the drivers that read Lenovo's entries have
   // been found: it says which, which it could not before.
   const lenovoReaders = state?.lenovoDMIReaders;
