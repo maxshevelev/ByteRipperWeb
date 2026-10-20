@@ -150,7 +150,7 @@ export class UEFIPartCodec implements PartCodec {
       this.pane,
       part,
       this.target,
-      (phase, fraction) => parent.progress?.(phase, fraction),
+      (phase, fraction) => parent.progress?.(phase.text, fraction),
       accepting
     );
     const plan = answer?.plan;
@@ -160,7 +160,7 @@ export class UEFIPartCodec implements PartCodec {
         LocalizedText.of("“%1$@” cannot be put back", parent.partName),
         answer?.refusal === undefined
           ? LocalizedText.of("Nothing was changed in %1$@.", parent.name)
-          : LocalizedText.verbatim(answer.refusal)
+          : LocalizedText.fromWire(answer.refusal)
       );
     }
     return {
@@ -170,7 +170,7 @@ export class UEFIPartCodec implements PartCodec {
       notes:
         plan.warnings.length === 0
           ? [LocalizedText.of("Nothing was written inside a Boot Guard or vendor protected range.")]
-          : plan.warnings.map(LocalizedText.verbatim),
+          : plan.warnings.map((warning) => LocalizedText.fromWire(warning)),
     };
   }
 }

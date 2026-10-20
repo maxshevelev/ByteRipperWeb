@@ -350,7 +350,9 @@ describe("the compressed BIOS image", () => {
     if (!result.ok) throw result.refusal;
     const plan = result.plan;
     expect(
-      plan.warnings.some((line) => line.includes("Whether the PSP accepts it is not known"))
+      plan.warnings.some((line) =>
+        line.textIn("en").includes("Whether the PSP accepts it is not known")
+      )
     ).toBe(true);
     const file = Uint8Array.from(fixed.bytes);
     file.set(plan.bytes, plan.offset);

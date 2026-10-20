@@ -18,7 +18,7 @@
  */
 
 import type { Json } from "@/core/agent/json";
-import type { Catalogue } from "@/core/localization/localization";
+import type { Catalogue, LocalizedTextWire } from "@/core/localization/localization";
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
@@ -456,7 +456,8 @@ export interface FirmwareRebuildRequest {
 export interface FirmwareRebuildProgress {
   readonly kind: "firmwareRebuildProgress";
   readonly id: JobId;
-  readonly phase: string;
+  /** The phase as a sentence the page puts into words (`LocalizedText.fromWire`). */
+  readonly phase: LocalizedTextWire;
   /** In `[0, 1]`. */
   readonly fraction: number;
 }
@@ -473,13 +474,13 @@ export interface FirmwareRebuildResponse {
     | {
         readonly offset: number;
         readonly bytes: Uint8Array;
-        readonly warnings: readonly string[];
+        readonly warnings: readonly LocalizedTextWire[];
         /** Where the part is held in the file once the plan is written. */
         readonly source: readonly [number, number];
       }
     | undefined;
   /** The refusal's sentence, when there is no plan. */
-  readonly refusal: string | undefined;
+  readonly refusal: LocalizedTextWire | undefined;
   /** Set when the refusal is the planner's caution, which the reader may go on past. */
   readonly caution?: RebuildCaution | undefined;
 }

@@ -225,27 +225,50 @@ export const LIn = (
 export class LocalizedText {
   readonly key: string;
   readonly context: string | undefined;
-  readonly args: readonly string[];
+  /**
+   * What goes into it: a sentence of its own put into words in the same language as this one,
+   * anything else as it was given.
+   */
+  readonly args: readonly (string | LocalizedText)[];
   readonly isVerbatim: boolean;
+  /**
+   * `args` put one after another with `key` between them.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isJoin
+   */
+  readonly isJoin: boolean;
 
   private constructor(
     key: string,
     context: string | undefined,
-    args: readonly string[],
-    isVerbatim: boolean
+    args: readonly (string | LocalizedText)[],
+    isVerbatim: boolean,
+    isJoin = false
   ) {
     this.key = key;
     this.context = context;
     this.args = args;
     this.isVerbatim = isVerbatim;
+    this.isJoin = isJoin;
   }
 
   /** A sentence for `key`, with what goes into it. */
-  static of(key: string, ...rest: readonly (LContext | LMessageArgument)[]): LocalizedText {
+  static of(
+    key: string,
+    ...rest: readonly (LContext | LMessageArgument | LocalizedText)[]
+  ): LocalizedText {
     const first = rest[0];
     const context = isContext(first) ? first.context : undefined;
-    const args = (context === undefined ? rest : rest.slice(1)) as readonly LMessageArgument[];
-    return new LocalizedText(key, context, args.map(String), false);
+    const args = (context === undefined ? rest : rest.slice(1)) as readonly (
+      | LMessageArgument
+      | LocalizedText
+    )[];
+    return new LocalizedText(
+      key,
+      context,
+      args.map((one) => (one instanceof LocalizedText ? one : String(one))),
+      false
+    );
   }
 
   /** Words that have no key — a parser's own English. */
@@ -253,14 +276,54 @@ export class LocalizedText {
     return new LocalizedText(text, undefined, [], true);
   }
 
+  /**
+   * `parts` one after another, `separator` between them — a list of names, each in the language
+   * the whole is shown in.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.joined
+   */
+  static joined(parts: readonly LocalizedText[], separator: string): LocalizedText {
+    return new LocalizedText(separator, undefined, parts, false, true);
+  }
+
   /** The sentence in `language`. */
   textIn(language: AppLanguage): string {
     if (this.isVerbatim) return this.key;
+    const args = this.args.map((one) => (typeof one === "string" ? one : one.textIn(language)));
+    if (this.isJoin) return args.join(this.key);
     const catalogue = catalogueFor(language);
     const word =
       (this.context === undefined ? undefined : catalogue.entries[`${this.context}|${this.key}`]) ??
       catalogueString(catalogue, this.key);
-    return formatMessage(word, this.args);
+    return formatMessage(word, args);
+  }
+
+  /**
+   * The sentence as plain data, to cross from a worker to the page — a class does not survive
+   * the structured clone — and be put into words there, in the page's language.
+   *
+   * @upstream Packages/Localization/Sources/Localization/Localization.swift#LocalizedText
+   * @upstream-differs upstream's is `Codable`; a worker's message is a structured clone
+   */
+  toWire(): LocalizedTextWire {
+    return {
+      key: this.key,
+      ...(this.context === undefined ? {} : { context: this.context }),
+      args: this.args.map((one) => (typeof one === "string" ? one : one.toWire())),
+      ...(this.isVerbatim ? { verbatim: true } : {}),
+      ...(this.isJoin ? { join: true } : {}),
+    };
+  }
+
+  /** The sentence a worker sent as `toWire` gave it. */
+  static fromWire(wire: LocalizedTextWire): LocalizedText {
+    return new LocalizedText(
+      wire.key,
+      wire.context,
+      wire.args.map((one) => (typeof one === "string" ? one : LocalizedText.fromWire(one))),
+      wire.verbatim === true,
+      wire.join === true
+    );
   }
 
   /** The sentence in the language in force where it is asked for. */
@@ -271,6 +334,15 @@ export class LocalizedText {
   toString(): string {
     return this.text;
   }
+}
+
+/** A `LocalizedText` as plain data (`LocalizedText.toWire`). */
+export interface LocalizedTextWire {
+  readonly key: string;
+  readonly context?: string | undefined;
+  readonly args: readonly (string | LocalizedTextWire)[];
+  readonly verbatim?: boolean | undefined;
+  readonly join?: boolean | undefined;
 }
 
 /**

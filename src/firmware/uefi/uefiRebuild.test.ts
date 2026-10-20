@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import german from "@/core/localization/catalogues/de.strings?raw";
+import russian from "@/core/localization/catalogues/ru.strings?raw";
+import { forgetCatalogues, installCatalogue } from "@/core/localization/localization";
+import { parseStringsFile } from "@/core/localization/stringsFile";
 import { sourceOver } from "@/firmware/byteSource";
 import { compress } from "@/firmware/compression/firmwareCompression";
 import { ImageReader } from "@/firmware/imageReader";
@@ -86,7 +90,7 @@ function planned(
   expect(result.plan.warnings).toContain(RANGES_NOT_CHECKED);
   const written = Uint8Array.from(file);
   written.set(result.plan.bytes, result.plan.offset);
-  return { file: written, warnings: result.plan.warnings };
+  return { file: written, warnings: result.plan.warnings.map((one) => one.textIn("en")) };
 }
 
 const plan = (replacement: Uint8Array, target: RebuildTarget, file: Uint8Array): Uint8Array =>
@@ -125,6 +129,8 @@ function flipLast(bytes: Uint8Array): Uint8Array {
   bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff;
   return bytes;
 }
+
+afterEach(() => forgetCatalogues());
 
 describe("in the file", () => {
   /**
@@ -673,11 +679,15 @@ describe("out of a compressed section", () => {
     const squeezed = fits(withFallback as number, true);
     expect(squeezed?.ok).toBe(true);
     if (squeezed?.ok !== true) return;
-    expect(squeezed.plan.warnings.some((one) => one.includes("maximum level"))).toBe(true);
+    expect(squeezed.plan.warnings.some((one) => one.textIn("en").includes("maximum level"))).toBe(
+      true
+    );
     const roomy = fits(normalOnly as number, true);
     expect(roomy?.ok).toBe(true);
     if (roomy?.ok !== true) return;
-    expect(roomy.plan.warnings.some((one) => one.includes("maximum level"))).toBe(false);
+    expect(roomy.plan.warnings.some((one) => one.textIn("en").includes("maximum level"))).toBe(
+      false
+    );
   });
 
   /**
@@ -751,12 +761,15 @@ describe("out of a compressed section", () => {
 
     expect(result.ok).toBe(true);
     const phases = reports
-      .map((one) => one.phase)
+      .map((one) => one.phase.textIn("en"))
       .filter((phase, index, all) => index === 0 || all[index - 1] !== phase);
     expect(phases.length).toBe(3);
     expect(phases[0]?.startsWith("Reading")).toBe(true);
     expect(phases[1]).toContain("LZMA compressed section");
     expect(phases[2]?.startsWith("Checking")).toBe(true);
+    // Shown in the reader's language.
+    installCatalogue({ language: "de", entries: parseStringsFile(german) });
+    expect(reports.at(-1)?.phase.textIn("de")).not.toBe(phases[2]);
     const fractions = reports.map((one) => one.fraction);
     expect(fractions).toEqual([...fractions].sort((one, other) => one - other));
     expect(fractions[fractions.length - 1]).toBe(1);
@@ -829,6 +842,9 @@ describe("protected ranges (§6.4)", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.refusal.message).toContain("IBB segment 1");
+    // Shown in the reader's language.
+    installCatalogue({ language: "ru", entries: parseStringsFile(russian) });
+    expect(result.refusal.text.textIn("ru")).toContain("«IBB segment 1»");
   });
 
   /**
@@ -846,7 +862,14 @@ describe("protected ranges (§6.4)", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.plan.warnings.some((one) => one.includes("AMI hash of DXE"))).toBe(true);
+    expect(result.plan.warnings.some((one) => one.textIn("en").includes("AMI hash of DXE"))).toBe(
+      true
+    );
+    // Shown in the reader's language.
+    installCatalogue({ language: "de", entries: parseStringsFile(german) });
+    expect(result.plan.warnings.some((one) => one.textIn("de").includes("„AMI hash of DXE“"))).toBe(
+      true
+    );
     expect(result.plan.warnings).not.toContain(RANGES_NOT_CHECKED);
   });
 
@@ -870,7 +893,7 @@ describe("protected ranges (§6.4)", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.plan.warnings.filter((one) => one.includes(name)).length).toBe(1);
+    expect(result.plan.warnings.filter((one) => one.textIn("en").includes(name)).length).toBe(1);
   });
 
   /**

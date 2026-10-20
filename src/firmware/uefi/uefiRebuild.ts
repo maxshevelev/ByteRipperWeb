@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import { friendlySize } from "@/core/text/byteSize";
 import { sourceOver } from "@/firmware/byteSource";
 import { compressLike } from "@/firmware/compression/firmwareCompression";
@@ -76,7 +76,7 @@ export interface RebuildPlan {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Plan.bytes */
   readonly bytes: Uint8Array;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Plan.warnings */
-  readonly warnings: readonly string[];
+  readonly warnings: readonly LocalizedText[];
   /**
    * Where the part is held in the file once the plan is written: the node's
    * new range, or the outermost compressed section's — which a link to the
@@ -95,6 +95,13 @@ export interface RebuildPlan {
  */
 export class Refusal extends Error {
   /**
+   * The sentence, put into words by whoever shows it: the page in its language, an agent in
+   * English. `message` is the English, for a log.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.message
+   */
+  readonly text: LocalizedText;
+  /**
    * Set when the refusal is the planner's caution, not a fact about the bytes.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.caution
@@ -102,9 +109,10 @@ export class Refusal extends Error {
   readonly caution: RebuildCaution | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.init */
-  constructor(message: string, caution?: RebuildCaution) {
-    super(message);
+  constructor(text: LocalizedText, caution?: RebuildCaution) {
+    super(text.textIn("en"));
     this.name = "Refusal";
+    this.text = text;
     this.caution = caution;
   }
 }
@@ -174,7 +182,7 @@ export interface RebuildProtectedRange {
  */
 export interface RebuildProgress {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Progress.phase */
-  readonly phase: string;
+  readonly phase: LocalizedText;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Progress.fraction */
   readonly fraction: number;
 }
@@ -184,8 +192,9 @@ export interface RebuildProgress {
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.rangesNotChecked
  */
-export const RANGES_NOT_CHECKED =
-  "Boot Guard and vendor protected ranges were not checked: an edit inside one stops the platform starting.";
+export const RANGES_NOT_CHECKED: LocalizedText = LocalizedText.of(
+  "Boot Guard and vendor protected ranges were not checked: an edit inside one stops the platform starting."
+);
 
 /**
  * The part a zone of the file is, when a structure the planner can lay out
@@ -246,7 +255,7 @@ export function planRebuild(
   const limits = options.limits ?? DEFAULT_LIMITS;
   const fallback = options.maximumCompressionFallback ?? true;
   const report = new Reporter(options.onProgress);
-  report.phase("Reading the structure of the image");
+  report.phase(LocalizedText.of("Reading the structure of the image"));
   // The ranges are the caller's to give (`protected`), or — asked for with
   // `readsProtectedRanges` — this parse's own, so a caller with no tree of its
   // own does not parse the image twice.
@@ -288,13 +297,17 @@ export function planRebuild(
         throw error;
       }
       context.warnings.push(
-        "The compressed data did not fit at the normal compression level, so it was compressed again at the maximum level."
+        LocalizedText.of(
+          "The compressed data did not fit at the normal compression level, so it was compressed again at the maximum level."
+        )
       );
     }
     if (rebuilt.length !== file.length) {
-      throw new Refusal("The rebuilt image is not the size of the file. Nothing was changed.");
+      throw new Refusal(
+        LocalizedText.of("The rebuilt image is not the size of the file. Nothing was changed.")
+      );
     }
-    report.phase("Checking the rebuilt image");
+    report.phase(LocalizedText.of("Checking the rebuilt image"));
     report.fraction(Reporter.checking);
     verify(rebuilt, image, target, context.targetBytes, limits, (fraction) =>
       report.fraction(Reporter.checking + (1 - Reporter.checking) * fraction)
@@ -325,7 +338,7 @@ export function planRebuild(
     }
   } catch (error) {
     if (error instanceof Refusal) return { ok: false, refusal: error };
-    return { ok: false, refusal: new Refusal(messageOf(error)) };
+    return { ok: false, refusal: new Refusal(LocalizedText.verbatim(messageOf(error))) };
   }
 }
 
@@ -361,21 +374,28 @@ export function changedRuns(rebuilt: Uint8Array, file: Uint8Array): ImageRange[]
 function protectionWarnings(
   runs: readonly ImageRange[],
   protectedRanges: readonly RebuildProtectedRange[]
-): string[] {
-  const warnings: string[] = [];
+): LocalizedText[] {
+  const warnings: LocalizedText[] = [];
   for (const range of protectedRanges) {
     const hit = runs.find((run) => overlaps(run, range.range));
     if (hit === undefined) continue;
     if (range.kind === "ibb") {
       throw new Refusal(
-        `The change writes at 0x${hex(Math.max(hit.start, range.range.start))} inside “${range.name}”, part of the Boot Guard IBB: the processor checks it before the firmware runs, and an edit there stops the platform starting. Nothing was changed.`
+        LocalizedText.of(
+          "The change writes at 0x%1$@ inside “%2$@”, part of the Boot Guard IBB: the processor checks it before the firmware runs, and an edit there stops the platform starting. Nothing was changed.",
+          hex(Math.max(hit.start, range.range.start)),
+          range.name
+        )
       );
     }
     // A list names several ranges one way — every entry of an Insyde flash
     // device map is its "range" — and a change through two of them is still
     // one thing to say.
-    const warning = `The change writes inside “${range.name}”: the hash the firmware checks it against no longer matches.`;
-    if (!warnings.includes(warning)) warnings.push(warning);
+    const warning = LocalizedText.of(
+      "The change writes inside “%1$@”: the hash the firmware checks it against no longer matches.",
+      range.name
+    );
+    if (!warnings.some((one) => one.textIn("en") === warning.textIn("en"))) warnings.push(warning);
   }
   return warnings;
 }
@@ -401,7 +421,7 @@ class Reporter {
   static readonly checking = 0.8;
 
   private readonly sink: ((progress: RebuildProgress) => void) | undefined;
-  private current: RebuildProgress = { phase: "", fraction: 0 };
+  private current: RebuildProgress = { phase: LocalizedText.verbatim(""), fraction: 0 };
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Reporter.init */
   constructor(sink: ((progress: RebuildProgress) => void) | undefined) {
@@ -409,7 +429,7 @@ class Reporter {
   }
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Reporter.phase */
-  phase(phase: string): void {
+  phase(phase: LocalizedText): void {
     if (this.sink === undefined) return;
     this.current = { phase, fraction: this.current.fraction };
     this.sink(this.current);
@@ -480,7 +500,10 @@ function verify(
   for (const [kind, count] of after) {
     if (count > (before.get(kind) ?? 0)) {
       throw new Refusal(
-        `Putting it back would leave the image with a new ${kind} — a fault in the rebuild, not in the edit. Nothing was changed.`
+        LocalizedText.of(
+          "Putting it back would leave the image with a new %1$@ — a fault in the rebuild, not in the edit. Nothing was changed.",
+          kind
+        )
       );
     }
   }
@@ -494,7 +517,9 @@ function verify(
     !sameBytes(read, expected) ||
     (target.range === undefined && reader.count !== expected.length)
   ) {
-    throw new Refusal("The part does not read back from the rebuilt image. Nothing was changed.");
+    throw new Refusal(
+      LocalizedText.of("The part does not read back from the rebuilt image. Nothing was changed.")
+    );
   }
 }
 
@@ -511,7 +536,7 @@ class Context {
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Context.readers */
   readonly readers: SpaceReaders;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Context.warnings */
-  warnings: string[] = [];
+  warnings: LocalizedText[] = [];
   /**
    * The target's bytes as they will read back — the replacement with its own
    * sizes and checksums put right.
@@ -604,14 +629,19 @@ class Context {
       // Nothing but the file itself is written as it comes.
       if (!isFileSpace(space)) {
         throw new Refusal(
-          "The compressed section the part came out of is not in the image any more."
+          LocalizedText.of(
+            "The compressed section the part came out of is not in the image any more."
+          )
         );
       }
       return newSpace;
     }
     if (section.kind === "biosGuardUpdate") {
       throw new Refusal(
-        `“${section.name}” is a BIOS region assembled from signed blocks. It is read here, and not written back: the blocks are the vendor's, and their signatures cannot be made again.`
+        LocalizedText.of(
+          "“%1$@” is a BIOS region assembled from signed blocks. It is read here, and not written back: the blocks are the vendor's, and their signatures cannot be made again.",
+          section.name
+        )
       );
     }
     if (section.kind === "amdFirmwareEntry") {
@@ -619,18 +649,29 @@ class Context {
       // directory.
       if (newSpace.length !== original.length) {
         throw new Refusal(
-          `“${section.name}” would inflate to 0x${hex(newSpace.length)} bytes, and the BIOS directory gives 0x${hex(original.length)}. The directory is not rewritten, so the image has to keep its size.`
+          LocalizedText.of(
+            "“%1$@” would inflate to 0x%2$@ bytes, and the BIOS directory gives 0x%3$@. The directory is not rewritten, so the image has to keep its size.",
+            section.name,
+            hex(newSpace.length),
+            hex(original.length)
+          )
         );
       }
       const caution: RebuildCaution = { kind: "pspBIOSImage", name: section.name };
       if (!this.accepting.has(cautionKey(caution))) {
         throw new Refusal(
-          `“${section.name}” is the BIOS image the PSP decompresses itself. It can be compressed again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known, so it is not known for certain whether the PSP will accept the changed image.`,
+          LocalizedText.of(
+            "“%1$@” is the BIOS image the PSP decompresses itself. It can be compressed again, but the properties of the PSP's decompressor and the way the PSP checks the integrity of the original zlib block are not known, so it is not known for certain whether the PSP will accept the changed image.",
+            section.name
+          ),
           caution
         );
       }
       this.warnings.push(
-        `“${section.name}” was compressed again as a new zlib stream. Whether the PSP accepts it is not known: its decompressor and the check it makes of the original block are not documented.`
+        LocalizedText.of(
+          "“%1$@” was compressed again as a new zlib stream. Whether the PSP accepts it is not known: its decompressor and the check it makes of the original block are not documented.",
+          section.name
+        )
       );
     }
     const parentBytes = this.bytesOf(section.space);
@@ -646,7 +687,9 @@ class Context {
     const reader = this.readers.readerFor(space);
     const bytes = reader?.bytes(reader.all);
     if (bytes === undefined) {
-      throw new Refusal("A compressed section on the way to the part no longer decompresses.");
+      throw new Refusal(
+        LocalizedText.of("A compressed section on the way to the part no longer decompresses.")
+      );
     }
     return bytes;
   }
@@ -677,7 +720,9 @@ class Context {
     const section = this.compressedSection(space);
     if (section === undefined) {
       throw new Refusal(
-        "The compressed section the part came out of is not in the image any more."
+        LocalizedText.of(
+          "The compressed section the part came out of is not in the image any more."
+        )
       );
     }
     return section.children.filter((node) => sameSpace(node.space, space));
@@ -712,7 +757,9 @@ class Context {
     }
     if (exact < 0) {
       throw new Refusal(
-        "The part is not a whole structure of the image, so it cannot be laid out again."
+        LocalizedText.of(
+          "The part is not a whole structure of the image, so it cannot be laid out again."
+        )
       );
     }
     return path.slice(0, exact + 1);
@@ -746,7 +793,7 @@ class Context {
         current,
         this.image.roots,
         bytes.length,
-        "the end of the file",
+        LocalizedText.of("the end of the file"),
         bytes
       );
     }
@@ -847,7 +894,7 @@ class Context {
             replacement,
             parent.children,
             parentRange.end,
-            `the end of “${parent.name}”`,
+            LocalizedText.of("the end of “%1$@”", parent.name),
             bytes
           );
           return result.slice(parentRange.start, parentRange.end);
@@ -874,7 +921,7 @@ class Context {
     replacement: Uint8Array,
     siblings: readonly UEFINode[],
     end: number,
-    endName: string,
+    endName: LocalizedText,
     bytes: Uint8Array
   ): Uint8Array {
     const old = nodeRange(child);
@@ -882,7 +929,12 @@ class Context {
     const newLength = replacement.length;
     if (flattened(child).some(isVolumeTop)) {
       throw new Refusal(
-        `“${child.name}” holds the Volume Top File, which has to end at the top of the address space, so it keeps its size of 0x${hex(oldLength)} bytes and this one is 0x${hex(newLength)}.`
+        LocalizedText.of(
+          "“%1$@” holds the Volume Top File, which has to end at the top of the address space, so it keeps its size of 0x%2$@ bytes and this one is 0x%3$@.",
+          child.name,
+          hex(oldLength),
+          hex(newLength)
+        )
       );
     }
     const next = siblings.find((one) => {
@@ -901,9 +953,25 @@ class Context {
       let room = 0;
       while (old.end + room < limit && bytes[old.end + room] === empty) room += 1;
       if (room < needed) {
-        const before = next === undefined ? endName : `“${next.name}”`;
+        if (next === undefined) {
+          throw new Refusal(
+            LocalizedText.of(
+              "“%1$@” is 0x%2$@ bytes longer than before, and only 0x%3$@ empty bytes follow it before %4$@.",
+              child.name,
+              hex(needed),
+              hex(room),
+              endName
+            )
+          );
+        }
         throw new Refusal(
-          `“${child.name}” is 0x${hex(needed)} bytes longer than before, and only 0x${hex(room)} empty bytes follow it before ${before}, which stays where it is.`
+          LocalizedText.of(
+            "“%1$@” is 0x%2$@ bytes longer than before, and only 0x%3$@ empty bytes follow it before “%4$@”, which stays where it is.",
+            child.name,
+            hex(needed),
+            hex(room),
+            next.name
+          )
         );
       }
     }
@@ -911,14 +979,30 @@ class Context {
       newLength > oldLength
         ? spliced(bytes, { start: old.start, end: old.start + newLength }, replacement)
         : spliced(bytes, old, concat(replacement, repeated(empty, oldLength - newLength)));
-    const change =
+    let warning =
       newLength > oldLength
-        ? `0x${hex(newLength - oldLength)} bytes longer, taken from the empty space after it`
-        : `0x${hex(oldLength - newLength)} bytes shorter, given back to the empty space after it`;
-    let warning = `“${child.name}” is now 0x${hex(newLength)} bytes, ${change}; what follows stays where it was.`;
+        ? LocalizedText.of(
+            "“%1$@” is now 0x%2$@ bytes, 0x%3$@ bytes longer, taken from the empty space after it; what follows stays where it was.",
+            child.name,
+            hex(newLength),
+            hex(newLength - oldLength)
+          )
+        : LocalizedText.of(
+            "“%1$@” is now 0x%2$@ bytes, 0x%3$@ bytes shorter, given back to the empty space after it; what follows stays where it was.",
+            child.name,
+            hex(newLength),
+            hex(oldLength - newLength)
+          );
     if (child.kind === "volume") {
-      warning +=
-        " The flash map the firmware carries (PCDs, vendor tables, an Insyde FDM) still gives its old size.";
+      warning = LocalizedText.joined(
+        [
+          warning,
+          LocalizedText.of(
+            "The flash map the firmware carries (PCDs, vendor tables, an Insyde FDM) still gives its old size."
+          ),
+        ],
+        " "
+      );
     }
     this.warnings.push(warning);
     return result;
@@ -951,7 +1035,7 @@ class Context {
    */
   volumeSized(volume: Uint8Array, name: string): Uint8Array {
     if (volume.length < FV.headerSize) {
-      throw new Refusal(`“${name}” is shorter than a volume header.`);
+      throw new Refusal(LocalizedText.of("“%1$@” is shorter than a volume header.", name));
     }
     const length = volume.length;
     let declared = 0;
@@ -966,14 +1050,24 @@ class Context {
       length / blockLength > 0xffff_ffff
     ) {
       throw new Refusal(
-        `“${name}” is 0x${hex(length)} bytes, and its header says 0x${hex(declared)}: a volume is whole blocks of its block map, and this one cannot be made to say the new length.`
+        LocalizedText.of(
+          "“%1$@” is 0x%2$@ bytes, and its header says 0x%3$@: a volume is whole blocks of its block map, and this one cannot be made to say the new length.",
+          name,
+          hex(length),
+          hex(declared)
+        )
       );
     }
     const bytes = Uint8Array.from(volume);
     Bytes.put(length, 8, 0x20, bytes);
     Bytes.put32(length / blockLength, FV.headerSize, bytes);
     this.warnings.push(
-      `“${name}” said it was 0x${hex(declared)} bytes: its header now gives 0x${hex(length)}.`
+      LocalizedText.of(
+        "“%1$@” said it was 0x%2$@ bytes: its header now gives 0x%3$@.",
+        name,
+        hex(declared),
+        hex(length)
+      )
     );
     return bytes;
   }
@@ -1029,7 +1123,9 @@ class Context {
     const children = volume.children.filter((one) => sameSpace(one.space, space));
     const index = children.findIndex((one) => sameId(one.id, child.id));
     if (index < 0) {
-      throw new Refusal(`“${child.name}” is not laid out in “${volume.name}”.`);
+      throw new Refusal(
+        LocalizedText.of("“%1$@” is not laid out in “%2$@”.", child.name, volume.name)
+      );
     }
 
     const old = nodeRange(child);
@@ -1082,12 +1178,18 @@ class Context {
       for (const node of moving) {
         if (flattened(node).some((one) => one.isFixed)) {
           throw new Refusal(
-            `“${node.name}” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed.`
+            LocalizedText.of(
+              "“%1$@” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed.",
+              node.name
+            )
           );
         }
         if (node.subtype !== undefined && [0x03, 0x04, 0x06, 0x08].includes(node.subtype)) {
           throw new Refusal(
-            `“${node.name}” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do.`
+            LocalizedText.of(
+              "“%1$@” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do.",
+              node.name
+            )
           );
         }
       }
@@ -1134,14 +1236,22 @@ class Context {
         );
       }
       throw new Refusal(
-        `“${volume.name}” has 0x${hex(absorbEnd - absorbStart)} bytes free where it can take room, and the change needs 0x${hex(newAbsorbStart - absorbStart)}.`
+        LocalizedText.of(
+          "“%1$@” has 0x%2$@ bytes free where it can take room, and the change needs 0x%3$@.",
+          volume.name,
+          hex(absorbEnd - absorbStart),
+          hex(newAbsorbStart - absorbStart)
+        )
       );
     }
     if (padBeforeTop !== undefined) {
       const size = absorbEnd - newAbsorbStart;
       if (size !== 0 && size < FFS.headerSize) {
         throw new Refusal(
-          `There is no room left for the pad file in front of the Volume Top File in “${volume.name}”.`
+          LocalizedText.of(
+            "There is no room left for the pad file in front of the Volume Top File in “%1$@”.",
+            volume.name
+          )
         );
       }
     }
@@ -1169,7 +1279,10 @@ class Context {
     const out = concat(...parts);
     if (out.length !== volumeRange.end - volumeRange.start) {
       throw new Refusal(
-        `“${volume.name}” did not come out its own size — a fault in the rebuild. Nothing was changed.`
+        LocalizedText.of(
+          "“%1$@” did not come out its own size — a fault in the rebuild. Nothing was changed.",
+          volume.name
+        )
       );
     }
     return out;
@@ -1198,19 +1311,29 @@ class Context {
     const blockLength = Bytes.oneBlockLength(bytes, start, end);
     if (blockLength === undefined) {
       throw new Refusal(
-        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its block map is not one a new size can be written into.`
+        LocalizedText.of(
+          "“%1$@” has no room for 0x%2$@ more bytes, and its block map is not one a new size can be written into.",
+          volume.name,
+          hex(needed)
+        )
       );
     }
     const length = end - start;
     if (length % blockLength !== 0) {
       throw new Refusal(
-        `“${volume.name}” has no room for 0x${hex(needed)} more bytes, and its size is not a whole number of its blocks.`
+        LocalizedText.of(
+          "“%1$@” has no room for 0x%2$@ more bytes, and its size is not a whole number of its blocks.",
+          volume.name,
+          hex(needed)
+        )
       );
     }
     const extra = Math.ceil(needed / blockLength) * blockLength;
     const newLength = length + extra;
     if (newLength / blockLength > 0xffff_ffff) {
-      throw new Refusal(`“${volume.name}” would need more blocks than its block map can count.`);
+      throw new Refusal(
+        LocalizedText.of("“%1$@” would need more blocks than its block map can count.", volume.name)
+      );
     }
     const empty = (Bytes.u32(bytes, start + 0x2c) & FV.erasePolarity) !== 0 ? 0xff : 0x00;
 
@@ -1247,7 +1370,9 @@ class Context {
     // A volume growing into the empty space after it is said by `settled`, with
     // what that means for the flash map.
     if (saysSo) {
-      this.warnings.push(`“${volume.name}” grew by 0x${hex(extra)} bytes to make room.`);
+      this.warnings.push(
+        LocalizedText.of("“%1$@” grew by 0x%2$@ bytes to make room.", volume.name, hex(extra))
+      );
     }
     return this.rebuildVolume(bigger, child, replacement, grownBytes, space, "none");
   }
@@ -1288,7 +1413,10 @@ class Context {
         : decodeCompressedSection(located, reader, this.limits.maxDecompressedSize);
     if (located === undefined || decoded === undefined || !decoded.ok) {
       throw new Refusal(
-        `“${section.name}” no longer decompresses, so it cannot be compressed again the same way.`
+        LocalizedText.of(
+          "“%1$@” no longer decompresses, so it cannot be compressed again the same way.",
+          section.name
+        )
       );
     }
     // The stretch of the bar between reading and checking that this section's
@@ -1299,8 +1427,12 @@ class Context {
     const size = friendlySize(buffer.length);
     this.report.phase(
       this.effort === "maximum"
-        ? `Compressing “${section.name}” again at the maximum level (${size})`
-        : `Compressing “${section.name}” (${size})`
+        ? LocalizedText.of(
+            "Compressing “%1$@” again at the maximum level (%2$@)",
+            section.name,
+            size
+          )
+        : LocalizedText.of("Compressing “%1$@” (%2$@)", section.name, size)
     );
     let stream: Uint8Array;
     try {
@@ -1314,7 +1446,13 @@ class Context {
         }
       );
     } catch (error) {
-      throw new Refusal(`“${section.name}” could not be compressed again: ${messageOf(error)}.`);
+      throw new Refusal(
+        LocalizedText.of(
+          "“%1$@” could not be compressed again: %2$@.",
+          section.name,
+          messageOf(error)
+        )
+      );
     }
     const header = Uint8Array.from(parentBytes.subarray(section.header.start, located.body.start));
     if (section.kind === "section" && section.subtype === Section.compression) {
@@ -1348,7 +1486,10 @@ class Context {
     if (section.subtype !== Section.guidDefined || section.guid === undefined) return;
     if (guidEquals(section.guid, SIGNED_GUID)) {
       this.warnings.push(
-        `“${section.name}” is signed, and its signature no longer matches what it holds.`
+        LocalizedText.of(
+          "“%1$@” is signed, and its signature no longer matches what it holds.",
+          section.name
+        )
       );
     }
   }
@@ -1456,12 +1597,17 @@ const Bytes = {
     const bytes = Uint8Array.from(section);
     if (Bytes.u24(bytes, 0) === Section.extendedSizeMarker && bytes.length >= 8) {
       if (bytes.length > 0xffff_ffff) {
-        throw new Refusal(`“${name}” would be larger than a section can say.`);
+        throw new Refusal(LocalizedText.of("“%1$@” would be larger than a section can say.", name));
       }
       Bytes.put32(bytes.length, 4, bytes);
     } else {
       if (bytes.length >= Section.extendedSizeMarker) {
-        throw new Refusal(`“${name}” would grow past 16 MiB, which its short header cannot say.`);
+        throw new Refusal(
+          LocalizedText.of(
+            "“%1$@” would grow past 16 MiB, which its short header cannot say.",
+            name
+          )
+        );
       }
       Bytes.put(bytes.length, 3, 0, bytes);
     }
@@ -1476,7 +1622,7 @@ const Bytes = {
   file(file: Uint8Array, name: string, volumeRevision: number, ffsVersion: number): Uint8Array {
     const bytes = Uint8Array.from(file);
     if (bytes.length < FFS.headerSize) {
-      throw new Refusal(`“${name}” is shorter than a file header.`);
+      throw new Refusal(LocalizedText.of("“%1$@” is shorter than a file header.", name));
     }
     const attributes = bytes[0x13] as number;
     const isLarge = (attributes & FFS.largeFile) !== 0;
@@ -1490,7 +1636,12 @@ const Bytes = {
     } else {
       headerSize = FFS.headerSize;
       if (bytes.length > 0xff_ffff) {
-        throw new Refusal(`“${name}” would grow past 16 MiB in a file with no large-file header.`);
+        throw new Refusal(
+          LocalizedText.of(
+            "“%1$@” would grow past 16 MiB in a file with no large-file header.",
+            name
+          )
+        );
       }
       Bytes.put(bytes.length, 3, 0x14, bytes);
     }

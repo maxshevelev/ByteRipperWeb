@@ -1,5 +1,5 @@
 import type { UndoOperation } from "@/core/edit/undoHistory";
-import { currentCatalogue, L } from "@/core/localization/localization";
+import { currentCatalogue, L, LocalizedText } from "@/core/localization/localization";
 import { type MaskedPattern, maskedToWire } from "@/core/search/maskedSearch";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
@@ -340,7 +340,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
         layoutWaiters.delete(pane);
         return;
       case "firmwareRebuildProgress":
-        rebuildProgress.get(pane)?.(response.phase, response.fraction);
+        rebuildProgress.get(pane)?.(LocalizedText.fromWire(response.phase), response.fraction);
         return;
       case "firmwareReach": {
         update(pane, { roots: response.roots });
@@ -961,7 +961,7 @@ export async function askFirmwareRebuild(
   pane: PaneId,
   bytes: Uint8Array,
   target: RebuildTarget,
-  onProgress?: (phase: string, fraction: number) => void,
+  onProgress?: (phase: LocalizedText, fraction: number) => void,
   accepting: readonly RebuildCaution[] = []
 ): Promise<FirmwareRebuildResponse | undefined> {
   const content = await currentContent(pane);
@@ -1625,7 +1625,7 @@ const layoutWaiters = new Map<PaneId, (reading: PartReading) => void>();
 const rebuildWaiters = new Map<PaneId, (response: FirmwareRebuildResponse | undefined) => void>();
 
 /** Where a running rebuild's progress goes, by pane. */
-const rebuildProgress = new Map<PaneId, (phase: string, fraction: number) => void>();
+const rebuildProgress = new Map<PaneId, (phase: LocalizedText, fraction: number) => void>();
 
 /** Who is waiting for a repair, by the node it is about. */
 const repairWaiters = new Map<

@@ -538,7 +538,6 @@
         "Packages/UEFIImage/Sources/UEFIImage/UEFIImage.swift#UEFIImage.firstNode": "n/a — allNodes().find where it is needed",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Target.init": "n/a — an object literal; there is nothing to construct",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.ProtectedRange.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.message": "n/a — the refusal is an Error, and the sentence is its own message",
         "Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Bytes.crc32": "n/a — the same routine, ported once as Checksums.crc32 in src/firmware/uefi/checksums.ts",
         "Packages/UEFIImage/Sources/UEFIImage/UEFITreeProviding.swift#*": "n/a — tools reach the shared tree through src/state/firmwareStore.ts, not through a protocol",
         "Packages/UEFIImage/Sources/UEFIImage/NvramParser.swift#NVRAM.evsaGuidEntryHeaderSize": "n/a — the parser reads these entries through the data entry's header layout, so the separate size is not needed",
@@ -5349,9 +5348,7 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces": "n/a — no web caller joins sentences still to be put into words",
-        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.isJoin": "n/a — no web caller joins sentences still to be put into words",
-        "Packages/Localization/Sources/Localization/Localization.swift#LocalizedText.joined": "n/a — no web caller joins sentences still to be put into words"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces": "n/a — no web caller joins sentences still to be put into words"
       }
     },
     {

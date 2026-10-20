@@ -377,7 +377,14 @@ export const namedBy = (
 ): { readonly name: string } | { readonly name: string; readonly nameText: NameText } =>
   text.isVerbatim
     ? { name: text.key }
-    : { name: text.textIn("en"), nameText: { key: text.key, args: text.args } };
+    : {
+        name: text.textIn("en"),
+        nameText: {
+          key: text.key,
+          // A name's pieces are words of their own only in English: a name is the parser's.
+          args: text.args.map((one) => (typeof one === "string" ? one : one.textIn("en"))),
+        },
+      };
 
 /**
  * The name in the language in force: the made-up one put into words, or the one the parser read.

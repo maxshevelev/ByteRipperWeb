@@ -1233,7 +1233,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               post({
                 kind: "firmwareRebuildProgress",
                 id: request.id,
-                phase: progress.phase,
+                phase: progress.phase.toWire(),
                 fraction: progress.fraction,
               }),
           }
@@ -1243,7 +1243,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             kind: "firmwareRebuild",
             id: request.id,
             plan: undefined,
-            refusal: result.refusal.message,
+            refusal: result.refusal.text.toWire(),
             caution: result.refusal.caution,
           });
           return;
@@ -1255,7 +1255,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           plan: {
             offset: result.plan.offset,
             bytes: result.plan.bytes,
-            warnings: result.plan.warnings,
+            warnings: result.plan.warnings.map((warning) => warning.toWire()),
             source: [start, end],
           },
           refusal: undefined,
