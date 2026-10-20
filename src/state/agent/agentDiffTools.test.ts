@@ -1,15 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type Json, jsonText, member, parseJson } from "@/core/agent/json";
+import { diffBytes } from "@/core/diff/diffEngine";
+import { DiffHunkIndex } from "@/core/diff/diffHunkIndex";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { discardAnnotationsForTesting, drawnIn } from "@/state/agent/agentAnnotationStore";
 import { divided, runsOf } from "@/state/agent/agentDiffTools";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
+import { diffStore } from "@/state/diffStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { partsLinkedTo } from "@/state/partUpdate";
-import { openInPane, type PaneId, paneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  bringPaneForward,
+  openInPane,
+  type PaneId,
+  paneState,
+  setActivePane,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import type { ToolAgentPlace } from "@/tools/toolAgent";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
@@ -393,6 +403,36 @@ describe("compare and reveal_diff", () => {
     const refused = await call("compare", { against: other });
     expect(refused.isError).toBe(true);
     expect(refused.text).toMatch(/Both panes of the window hold files/);
+  });
+
+  // Walked in the inactive pane, the walk makes it the active one and goes on from its caret, not
+  // the other pane's.
+  // @upstream ByteRipperTests/AgentDiffToolsTests.swift#AgentDiffToolsTests.testRevealDiffInTheInactivePaneActivatesItAndGoesFromItsCaret
+  it("in the inactive pane activates it and goes from its caret", async () => {
+    agentShell.bringForward = bringPaneForward;
+    const bytes = zeros(0x400);
+    open(bytes);
+    bytes[0x100] = 1;
+    bytes[0x300] = 1;
+    const other = await background(bytes);
+    const shown = (await call("compare", { against: other })).json;
+    setActivePane("a");
+    paneState("a")?.document.setSelection({ start: 0, end: 0, fileSize: 0x400 });
+    paneState("b")?.document.setSelection({ start: 0x200, end: 0x200, fileSize: 0x400 });
+    // The comparison the worker would build behind the panes.
+    const index = diffBytes(zeros(0x400), bytes);
+    const idle = diffStore.getSnapshot();
+    diffStore.update((state) => ({
+      ...state,
+      status: "ready",
+      index,
+      hunks: DiffHunkIndex.from(index, 0),
+    }));
+    leave.push(() => diffStore.update(() => idle));
+
+    const found = (await call("reveal_diff", { document: member(shown, "b") as string })).json;
+    expect(workspaceStore.getSnapshot().activePane).toBe("b");
+    expect(member(found, "start"), "from B's caret").toBe("0x300");
   });
 
   // @upstream ByteRipperTests/AgentDiffToolsTests.swift#AgentDiffToolsTests.testRevealDiffNeedsAPair

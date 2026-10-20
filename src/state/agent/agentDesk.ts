@@ -34,8 +34,41 @@ export class AgentDesk {
    */
   readonly background: AgentBackgroundDocuments;
 
+  /**
+   * By id, the file each background document let go to stay inside the bounds was: the agent still
+   * holds the id, and naming it reads the file again.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.released
+   */
+  private readonly released = new Map<string, string>();
+  /** An id let go whose file came back under another — opened again by the agent meanwhile. */
+  private readonly aliases = new Map<string, string>();
+
   constructor(bridge: () => AgentBridge | undefined = () => undefined) {
     this.background = new AgentBackgroundDocuments(bridge, () => this.mint());
+    this.background.onRelease = (entry) => this.released.set(entry.id, entry.path);
+  }
+
+  /**
+   * A background document let go to stay inside the bounds, read again under the id it had — or
+   * under the one it has now, when the agent opened the same path again meanwhile. Nothing when it
+   * was never one, or the file can no longer be read: naming it is then refused as any unknown id.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.reopened
+   * @upstream-differs read before the call rather than inside the lookup, since reading is a wait
+   * here; and read again in the background even when the window has the file open meanwhile, which
+   * a page tells only by a stat the lookup has not got
+   */
+  async reopen(id: string): Promise<void> {
+    const path = this.released.get(id);
+    if (path === undefined) return;
+    try {
+      const entry = await this.background.open(path, id);
+      this.released.delete(id);
+      if (entry.id !== id) this.aliases.set(id, entry.id);
+    } catch {
+      // A file gone since is an id no longer known.
+    }
   }
 
   private mint(): string {
@@ -110,7 +143,8 @@ export class AgentDesk {
    */
   placeNamed(id: string | undefined): AgentPlace {
     if (id !== undefined) {
-      const found = this.places().find((place) => place.id === id);
+      const named = this.aliases.get(id) ?? id;
+      const found = this.places().find((place) => place.id === named);
       if (found === undefined) throw new AgentToolError(noSuchDocument(id));
       return found;
     }

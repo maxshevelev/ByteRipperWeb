@@ -917,6 +917,17 @@ export interface FirmwareDvarSettingsResponse {
   readonly settings: readonly WireDvarSetting[];
 }
 
+/**
+ * How many bytes the compressed sections opened so far decompressed to and are still held — what
+ * this tree weighs beyond its nodes. Said by the worker whenever it changes, unasked.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+ */
+export interface FirmwareHeldBytes {
+  readonly kind: "firmwareHeldBytes";
+  readonly bytes: number;
+}
+
 export interface FirmwareProgress {
   readonly kind: "firmwareProgress";
   readonly id: JobId;
@@ -1158,4 +1169,5 @@ export type FirmwareWorkerResponse =
   | FirmwareRebuildProgress
   | FirmwareRebuildResponse
   | FirmwareProgress
+  | FirmwareHeldBytes
   | FirmwareFailed;

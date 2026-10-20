@@ -17,6 +17,8 @@ export interface AgentRelayInfo {
   /** The environment the client sets for it. */
   readonly environment: { readonly [key: string]: string };
   readonly platform: string;
+  /** The machine's memory in bytes, which the bound on the agent's background files is a share of. */
+  readonly physicalMemory?: number;
 }
 
 export type AgentFileRequest =

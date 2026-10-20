@@ -1280,6 +1280,23 @@ export function togglePart(pane: PartId): void {
 }
 
 /**
+ * Brings `pane` to the front without moving anything in it: a part's panel raised, or the stage
+ * cleared and one of the window's own panes made the active one — so the keys, the caret a
+ * difference is looked for from, and a tool opened next all go to the file shown.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.bringForward
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateOwnPane
+ */
+export function bringPaneForward(pane: PaneId): void {
+  if (isSlot(pane)) {
+    foldParts();
+    setActivePane(pane);
+  } else {
+    raisePart(pane);
+  }
+}
+
+/**
  * Folds the panel that is up, leaving the workspace's own panes in full view.
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.collapse

@@ -77,6 +77,7 @@ import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import {
+  bringPaneForward,
   canRevertToOriginal,
   closePane,
   closePart,
@@ -1441,14 +1442,7 @@ export function AppShell() {
   // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
   useEffect(() => {
-    const bringForward = (pane: PaneId) => {
-      if (isSlot(pane)) {
-        foldParts();
-        setActivePane(pane);
-      } else {
-        raisePart(pane);
-      }
-    };
+    const bringForward = bringPaneForward;
     agentShell.bringForward = bringForward;
     // A dialog the person is in the middle of is not driven over.
     agentShell.busy = () =>

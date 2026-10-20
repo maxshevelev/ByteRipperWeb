@@ -922,6 +922,7 @@ export function Toolbar({
             onClick={() => agentService.toggleWindow()}
           >
             <AgentGlyph connected={agent.connections > 0} />
+            {agent.active ? <AgentActivityBadge /> : null}
           </IconButton>
         );
       case "paneLayout":
@@ -1008,5 +1009,21 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * A red dot on the corner of the toolbar's Agent button that blinks while an agent is at work
+ * (`AgentServiceState.active`): the person sees that the program is being driven before a view
+ * moves under their hands. Steady where the system asks for reduced motion.
+ *
+ * @upstream ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge
+ * @upstream ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.sync
+ * @upstream-differs a span drawn and blinked by CSS, there while the service is active
+ */
+// help: toolbar.agent
+function AgentActivityBadge() {
+  return (
+    <span className="agent-activity-badge" role="img" aria-label={L("The agent is at work")} />
   );
 }

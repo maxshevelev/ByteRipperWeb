@@ -1,6 +1,7 @@
 import type React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { agentService } from "@/state/agent/agentService";
 import { Toolbar } from "@/ui/shell/Toolbar";
 
 /**
@@ -24,5 +25,26 @@ describe("the toolbar on an empty window", () => {
     const button = html.match(/<button[^>]*aria-label="Toggle Minimap"[^>]*>/)?.[0];
     expect(button).toBeDefined();
     expect(button).toContain("disabled");
+  });
+});
+
+describe("the Agent button", () => {
+  // The dot sits on the Agent button while the service is active, and is gone otherwise.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheActivityBadgeBlinksOnTheAgentButton
+  it("wears the red dot while an agent is at work", () => {
+    const before = agentService.store.getSnapshot();
+    try {
+      agentService.store.update((state) => ({ ...state, enabled: true, running: true }));
+      const agentButton = () =>
+        renderToStaticMarkup(<Toolbar {...props} />).match(
+          /<button[^>]*aria-label="Agent"[^>]*>.*?<\/button>/
+        )?.[0];
+      expect(agentButton()).toBeDefined();
+      expect(agentButton()).not.toContain("agent-activity-badge");
+      agentService.store.update((state) => ({ ...state, active: true }));
+      expect(agentButton()).toContain('class="agent-activity-badge"');
+    } finally {
+      agentService.store.update(() => before);
+    }
   });
 });

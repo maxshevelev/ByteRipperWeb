@@ -186,6 +186,17 @@ languageStore.subscribe(() => {
   }
 });
 
+/** By pane, what its worker last said its compressed sections' buffers hold. */
+const heldBytes = new Map<PaneId, number>();
+
+/**
+ * How many bytes the compressed sections of `pane`'s tree opened so far decompressed to and are
+ * still held, as its worker last said; nothing read, nothing held.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+ */
+export const firmwareHeldBytes = (pane: PaneId): number => heldBytes.get(pane) ?? 0;
+
 function ensureWorker(pane: PaneId): PaneWorker {
   const existing = workers[pane];
   if (existing !== undefined) return existing;
@@ -197,6 +208,10 @@ function ensureWorker(pane: PaneId): PaneWorker {
   teachLanguage(held);
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
+    if (response.kind === "firmwareHeldBytes") {
+      heldBytes.set(pane, response.bytes);
+      return;
+    }
     // A reply to a superseded job is an answer to an old question — and what
     // supersedes a one-at-a-time ask is *another ask of its own kind*, not any
     // ask at all. The pane's job counter is shared, so gating every reply on it
@@ -797,6 +812,8 @@ async function askHelper(
 /** What the helper found, taken up if the tree it read is still the pane's. */
 function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerResponse): void {
   const held = workers[pane];
+  // A helper's buffers are a second parse's, gone with it: only the pane's own are counted.
+  if (response.kind === "firmwareHeldBytes") return;
   if (held === undefined || held.job !== helper.job || response.id !== helper.job) return;
   if (response.kind === "firmwareProtectedRanges") {
     const { raw, ...shown } = response;
@@ -1788,6 +1805,7 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.invalidate
  */
 export function closeFirmware(pane: PaneId): void {
+  heldBytes.delete(pane);
   workers[pane]?.worker.terminate();
   helpers[pane]?.worker.terminate();
   delete helpers[pane];

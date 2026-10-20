@@ -11,6 +11,7 @@
 @covers menu.window.agent
 @covers settings.agent.edits
 @covers settings.agent.launch
+@covers settings.agent.background
 
 [[edition:**This page is about the Windows application.** The agent service needs a connection that a page in a browser cannot open, so the browser edition has none; nothing below exists there.||]]
 
@@ -18,7 +19,7 @@ The agent works on the same windows as the user. When it is asked about "this" b
 
 ## Switching the service on
 
-The service is off after installation. It is switched on in **Settings ▸ Agent** with **Let agents connect to ByteRipper**. While it is on, the toolbar has a button for the Agent window, drawn as three joined points; the points are filled while an agent is connected. A connection counts as an agent once its program has sent its first message: one that connected and has said nothing is not counted.
+The service is off after installation. It is switched on in **Settings ▸ Agent** with **Let agents connect to ByteRipper**. While it is on, the toolbar has a button for the Agent window, drawn as three joined points; the points are filled while an agent is connected. A connection counts as an agent once its program has sent its first message: one that connected and has said nothing is not counted. While the agent is at work — a request is being answered, or one was answered less than two seconds ago — a red dot blinks on the corner of that button. With reduced motion asked for in the system's accessibility settings, the dot is steady.
 
 The connection is local. ByteRipper opens a named pipe, `\\.\pipe\ByteRipper-agent-<user name>`, which a program of the same user account opens as it would a file; there is no network port. Where the pipe's name has to be different — a second copy run beside the first — the environment variable `BYTERIPPER_AGENT_SOCKET` names another.
 
@@ -109,6 +110,19 @@ The agent's annotations are not listed in this window: the **Annotations** panel
 ## Files outside the open windows
 
 An agent reads a file by its path with the rights of the user account ByteRipper runs under; Windows asks nothing, and a file the account cannot read is reported to the agent as one it could not open.
+
+## Dumps opened by path
+
+A dump the agent opens by its path, without a pane, is read and parsed once: further questions about it — the ME version, then the DMI serial number — are answered from what was parsed. A question about every dump in a folder opens each of them in the same way.
+
+Such dumps are not all kept. **Settings ▸ Agent** sets two limits:
+
+- **Dumps kept open:** — from 1 to 64; 8 after installation.
+- **Memory for them:** — from 256 MB to a quarter of this computer's memory, at most 16 GB; 1 GB after installation.
+
+Counted are the files, read whole, and what their compressed sections decompressed to. The tree of the structure and the ME analysis are not counted; beside those buffers they are small. Past either limit, the dump not asked about for the longest time is closed. The dump asked about last stays open even when it alone exceeds the memory limit. When the agent names a closed dump again, it is read and parsed again under the same name; this takes time, but the answer is the same. A dump changed on disk is read again the next time it is asked about.
+
+To ask several questions about every dump in a large folder, it is quicker to ask them dump by dump than question by question: with more dumps than the limits keep, a second pass over the folder reads most of them again.
 
 ## When the service does not start
 

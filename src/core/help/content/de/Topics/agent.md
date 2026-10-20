@@ -1,4 +1,4 @@
-@source-sha ea27bf2f0311ddf6677860349f123dd10936cf326a3d977cfb89fe77505ce2e3
+@source-sha 7951d2384e1e1cf943143985e5ef477600227e80d22cd39e67120b7c51419c30
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -19,7 +19,7 @@ Agent und Benutzer arbeiten mit denselben Fenstern. Fragen Sie den Agenten nach 
 
 ## Den Dienst einschalten
 
-Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt. Eine Verbindung gilt als Agent, sobald das Programm seine erste Nachricht gesendet hat; eine Verbindung, die aufgebaut wurde, aber nichts gesendet hat, wird nicht gezählt.
+Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt. Eine Verbindung gilt als Agent, sobald das Programm seine erste Nachricht gesendet hat; eine Verbindung, die aufgebaut wurde, aber nichts gesendet hat, wird nicht gezählt. Solange der Agent arbeitet — eine Anfrage wird beantwortet, oder die letzte Antwort liegt weniger als zwei Sekunden zurück —, blinkt an der Ecke dieser Taste ein roter Punkt. Ist in den Bedienungshilfen des Systems „Bewegung reduzieren“ eingeschaltet, leuchtet der Punkt dauerhaft, ohne zu blinken.
 
 Die Verbindung ist ausschließlich lokal; ein Netzwerkport wird nicht geöffnet. ByteRipper legt dazu eine benannte Pipe an, `\\.\pipe\ByteRipper-agent-<Benutzername>`, die ein Programm desselben Benutzerkontos wie eine Datei öffnet. Soll der Name der Pipe abweichen — etwa bei einer zweiten, neben der ersten gestarteten Kopie —, legt die Umgebungsvariable `BYTERIPPER_AGENT_SOCKET` einen anderen fest.
 
@@ -114,6 +114,19 @@ Die Anmerkungen des Agenten stehen nicht in diesem Fenster: Der Bereich **Anmerk
 ## Zugriff auf Dateien außerhalb der geöffneten Fenster
 
 Der Agent liest eine Datei über ihren Pfad mit den Rechten des Benutzerkontos, unter dem ByteRipper läuft. Windows fragt dabei nichts; eine Datei, die das Konto nicht lesen kann, meldet der Dienst dem Agenten als nicht zu öffnende.
+
+## Über ihren Pfad geöffnete Dumps
+
+Ein Dump, den der Agent über seinen Pfad öffnet, ohne Bereich, wird einmal gelesen und analysiert: Weitere Fragen dazu — die ME-Version, danach die Seriennummer aus DMI — beantwortet der Agent aus den bereits analysierten Daten. Eine Frage an alle Dumps eines Ordners öffnet jeden von ihnen auf dieselbe Weise.
+
+Nicht alle diese Dumps bleiben erhalten. Unter **Einstellungen ▸ Agent** werden zwei Grenzen festgelegt:
+
+- **Höchstens offene Dumps:** — von 1 bis 64; im Auslieferungszustand 8.
+- **Höchstens Arbeitsspeicher dafür:** — von 256 MB bis zu einem Viertel des Arbeitsspeichers dieses Rechners, höchstens 16 GB; im Auslieferungszustand 1 GB.
+
+Gezählt werden die vollständig gelesenen Dateien und der entpackte Inhalt ihrer komprimierten Abschnitte. Der Strukturbaum und das Ergebnis der ME-Analyse werden nicht gezählt; neben diesen Puffern belegen sie wenig. Wird eine der beiden Grenzen überschritten, wird der Dump geschlossen, der am längsten nicht abgefragt wurde. Der zuletzt abgefragte Dump bleibt geöffnet, auch wenn er allein die Speichergrenze überschreitet. Fragt der Agent erneut nach einem geschlossenen Dump, wird dieser unter derselben Bezeichnung neu gelesen und analysiert; das kostet Zeit, die Antwort bleibt dieselbe. Ein auf der Festplatte geänderter Dump wird bei der nächsten Abfrage neu gelesen.
+
+Sollen an alle Dumps eines großen Ordners mehrere Fragen gestellt werden, ist es schneller, sie Dump für Dump zu stellen statt Frage für Frage: Sind es mehr Dumps, als die Grenzen erhalten, liest ein zweiter Durchgang durch den Ordner die meisten von ihnen erneut.
 
 ## Wenn der Dienst nicht startet
 

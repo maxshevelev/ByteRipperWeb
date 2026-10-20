@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { dumpFiles, parsePath, valueAt } from "@/core/agent/agentSurvey";
+import {
+  DEFAULT_BACKGROUND_FILES,
+  defaultMemoryMiB,
+  memoryChoicesMiB,
+  snappedLimit,
+} from "@/core/agent/agentBackgroundLimits";
+import { dumpFiles, parsePath, surveyNames, valueAt } from "@/core/agent/agentSurvey";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
@@ -228,7 +234,7 @@ describe("open_dump", () => {
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testOnlyTheMostRecentlyUsedAreKept
   it("keeps only the most recently used", async () => {
-    service.desk.background.limit = 2;
+    service.desk.background.fileLimit = 2;
     for (const name of ["a.bin", "b.bin", "c.bin"]) {
       disk.put(`/dumps/${name}`, [0]);
       await call("open_dump", { path: `/dumps/${name}` });
@@ -237,6 +243,75 @@ describe("open_dump", () => {
       "/dumps/b.bin",
       "/dumps/c.bin",
     ]);
+  });
+
+  // Past the memory bound the least recently used file is let go after the call that grew the set —
+  // and the one asked about last stays, though it alone is over the bound.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheMemoryBoundLetsGoOfTheLeastRecentlyUsed
+  it("lets go of the least recently used past the memory bound", async () => {
+    service.desk.background.memoryLimit = 6;
+    for (const name of ["a.bin", "b.bin"]) {
+      disk.put(`/dumps/${name}`, [1, 2, 3, 4]);
+      const opened = (await call("open_dump", { path: `/dumps/${name}` })).json;
+      await call("read", { document: member(opened, "document") as string, offset: 0, length: 4 });
+    }
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/b.bin"]);
+    expect(service.desk.background.heldBytes, "b.bin, read whole").toBe(4);
+
+    service.desk.background.memoryLimit = 1;
+    expect(service.desk.background.entries, "the last one asked about is kept").toHaveLength(1);
+  });
+
+  // A file let go to stay inside the bounds keeps its id: named again, it is read again, and
+  // answers under the same id.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testAFileLetGoIsReadAgainUnderItsId
+  it("reads a file let go again under its id", async () => {
+    service.desk.background.fileLimit = 1;
+    disk.put("/dumps/a.bin", [7, 7]);
+    disk.put("/dumps/b.bin", [0]);
+    const id = member((await call("open_dump", { path: "/dumps/a.bin" })).json, "document");
+    await call("open_dump", { path: "/dumps/b.bin" });
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/b.bin"]);
+
+    const read = (
+      await call("read", { document: id as string, offset: 0, length: 2, format: "u8" })
+    ).json;
+    expect(member(read, "values")).toEqual(["0x07", "0x07"]);
+    expect(member(read, "document")).toBe(id);
+    expect(service.desk.background.entries.map((one) => one.path)).toEqual(["/dumps/a.bin"]);
+
+    // One closed on purpose is gone.
+    await call("close_dump", { document: id as string });
+    expect((await call("read", { document: id as string, offset: 0, length: 1 })).isError).toBe(
+      true
+    );
+  });
+
+  // The bounds are kept in the settings and reach the open set.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheBoundsAreKeptAndApplied
+  it("keeps the bounds and applies them", () => {
+    expect(service.backgroundFileLimit).toBe(DEFAULT_BACKGROUND_FILES);
+    service.backgroundFileLimit = 16;
+    service.backgroundMemoryLimitMiB = 256;
+    expect(service.store.getSnapshot().backgroundFilesKept).toBe(16);
+    expect(service.desk.background.fileLimit).toBe(16);
+    expect(service.desk.background.memoryLimit).toBe(256 * 2 ** 20);
+
+    service.store.update((state) => ({ ...state, backgroundFilesKept: 1000 }));
+    expect(service.backgroundFileLimit, "a value past the choices is the largest choice").toBe(64);
+  });
+
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testTheMemoryChoicesFollowTheMac
+  it("offers memory bounds that follow the machine", () => {
+    const gib = 2 ** 30;
+    expect(memoryChoicesMiB(8 * gib)).toEqual([256, 512, 1024, 2048]);
+    expect(memoryChoicesMiB(128 * gib).at(-1)).toBe(16384);
+    expect(memoryChoicesMiB(gib / 2), "the smallest is always offered").toEqual([256]);
+    expect(defaultMemoryMiB(16 * gib)).toBe(1024);
+    expect(defaultMemoryMiB(2 * gib)).toBe(512);
+    expect(snappedLimit(3000, [256, 1024, 4096], 1024)).toBe(1024);
+    expect(snappedLimit(100, [256, 1024], 1024)).toBe(256);
+    expect(snappedLimit(undefined, [256, 1024], 1024)).toBe(1024);
   });
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testCloseDumpClosesABackgroundFileAndRefusesATab
@@ -293,6 +368,47 @@ describe("survey", () => {
     const byValue = new Map(groups.map((one) => [member(one, "value"), one]));
     expect(member(byValue.get("0x01"), "count")).toBe(2);
     expect(member(byValue.get("0x01"), "files")).toEqual(["one.rom", "two.bin"]);
+  });
+
+  // Dumps of one board are often all `bios.bin`, one to a folder: a file is named by its path from
+  // the folder, or from the folder the `paths` share, and `root` joined to it is the file.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyNamesAFileByItsPathFromTheFolder
+  it("names a file by its path from the folder", async () => {
+    disk.put("/boards/X1/bios.bin", [1]);
+    disk.put("/boards/T14/bios.bin", [1]);
+    const question = {
+      tool: "read",
+      arguments: { offset: 0, length: 1, format: "u8" },
+      group_by: "values.0",
+    };
+    const survey = (await call("survey", { ...question, folder: "/boards/", recursive: true }))
+      .json;
+    const groups = member(survey, "groups") as Json[];
+    expect([...((member(groups[0], "files") as string[]) ?? [])].sort()).toEqual([
+      "T14/bios.bin",
+      "X1/bios.bin",
+    ]);
+    expect(member(survey, "root")).toBe("/boards");
+
+    const listed = (
+      await call("survey", { ...question, paths: ["/boards/X1/bios.bin", "/boards/T14/bios.bin"] })
+    ).json;
+    expect(
+      member((member(listed, "groups") as Json[])[0], "files"),
+      "from the folder they share, in the order given"
+    ).toEqual(["X1/bios.bin", "T14/bios.bin"]);
+    expect(member(listed, "root")).toBe(member(survey, "root"));
+  });
+
+  it("names files on a Windows drive from the folder they share", () => {
+    expect(surveyNames(["C:\\dumps\\a.bin", "C:\\other\\b.bin"], undefined)).toEqual({
+      root: "C:\\",
+      names: ["dumps/a.bin", "other/b.bin"],
+    });
+    expect(surveyNames(["/a.bin", "/x/b.bin"], undefined)).toEqual({
+      root: "/",
+      names: ["a.bin", "x/b.bin"],
+    });
   });
 
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveysGroupsArePaged

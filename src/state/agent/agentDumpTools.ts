@@ -1,13 +1,13 @@
 import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import {
-  baseName,
   dumpFiles,
   isAbsolutePath,
   MAX_SURVEY_FILES,
   parsePath,
   SURVEY_VALUE_SHORTENED,
   SurveyGroups,
+  surveyNames,
   valueAt,
 } from "@/core/agent/agentSurvey";
 import {
@@ -45,6 +45,8 @@ import { openInPane, paneState, type SlotId } from "@/state/workspaceStore";
 /** One survey's answers, grouped: what a page of it is cut from. @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun */
 interface SurveyRun {
   readonly key: string;
+  /** The folder the files' names are paths from. @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.SurveyRun.root */
+  readonly root: string;
   readonly files: number;
   readonly groups: readonly { value: Json; files: string[] }[];
   readonly failed: readonly Json[];
@@ -228,8 +230,10 @@ export class AgentDumpTools {
         "file in `folder` (or in `paths`), opening each in the background, and returns the answers " +
         'grouped by the value at `group_by` — a dotted path into the tool\'s answer, e.g. "total", ' +
         '"matches.0.start", "values.0", "chain.-1.name" (a negative index counts from the end). Each ' +
-        "group: the value, how many files gave it, and up to ten of their names; the largest groups " +
-        "first. Files a tool refused are listed under `failed`. Takes a while on many large images; " +
+        "group: the value, how many files gave it, and up to ten of the files; the largest groups " +
+        "first. A file is named by its path from `root` — the `folder`, or the folder all the `paths` " +
+        "share — so files of one name in different subfolders are told apart, and `root` joined to the " +
+        "name is the path to open. Files a tool refused are listed under `failed`. Takes a while on many large images; " +
         `reports progress. At most ${MAX_SURVEY_FILES} files. Pages: \`limit\` is the most groups on ` +
         "one page, a ceiling — a page also stops before the answer passes the size bound and then says " +
         '`truncated: "size"`; pass `next` back as `after`, with the same other arguments, until it is ' +
@@ -297,6 +301,7 @@ export class AgentDumpTools {
     }
     const paging = new AgentPage(args, run.fingerprint, ANOTHER_SURVEY);
     const envelope: { [key: string]: Json } = {
+      root: run.root,
       files: run.files,
       groups_total: run.groups.length,
     };
@@ -328,14 +333,15 @@ export class AgentDumpTools {
     toolArguments: { [key: string]: Json },
     path: readonly string[] | undefined
   ): Promise<SurveyRun> {
-    const files = await this.surveyFiles(call.arguments);
+    const { files, folder } = await this.surveyFiles(call.arguments);
     if (files.length === 0) throw new AgentToolError("No dump files to survey there.");
+    const { root, names } = surveyNames(files, folder);
     const groups = new SurveyGroups();
     const failed: Json[] = [];
     for (const [index, file] of files.entries()) {
       throwIfCancelled(call.signal);
-      call.progress(index, files.length, baseName(file));
-      const name = baseName(file);
+      const name = names[index] ?? file;
+      call.progress(index, files.length, name);
       try {
         const stat = await this.stat(file);
         const onScreen = this.desk.onScreenPlaceOf(file, stat);
@@ -365,6 +371,7 @@ export class AgentDumpTools {
     this.surveyCount += 1;
     return {
       key,
+      root,
       files: files.length,
       groups: groups.sorted(),
       failed,
@@ -372,14 +379,19 @@ export class AgentDumpTools {
     };
   }
 
-  private async surveyFiles(args: AgentArguments): Promise<string[]> {
+  /** The files to survey, and the folder asked about — none for `paths`. */
+  private async surveyFiles(
+    args: AgentArguments
+  ): Promise<{ files: string[]; folder: string | undefined }> {
     const paths = args.strings("paths");
     let found: string[];
+    let asked: string | undefined;
     if (paths.length > 0) {
       found = paths.map((one) => this.filePath(one));
     } else {
       const folder = args.optionalString("folder");
       if (folder === undefined) throw new AgentToolError("Give a `folder` or a list of `paths`.");
+      asked = this.filePath(folder);
       const bridge = this.requireBridge();
       const recursive = args.bool("recursive", false);
       let listing: { files: readonly string[]; truncated: boolean };
@@ -399,7 +411,7 @@ export class AgentDumpTools {
         `${found.length} files; at most ${MAX_SURVEY_FILES} in one survey. Narrow it with \`paths\`.`
       );
     }
-    return found;
+    return { files: found, folder: asked };
   }
 
   // MARK: - Helpers

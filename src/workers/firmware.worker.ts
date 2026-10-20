@@ -268,7 +268,21 @@ let dvarSettings: DellSetupCatalogue | undefined;
 let dmiStores: DMIStore[] | undefined;
 let lenovoReaders: LenovoDMIFirmwareReaders | undefined;
 
-const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
+/** What the worker last said its buffers hold. */
+let heldSaid = 0;
+/**
+ * Posts `message`, and before it what the buffers hold when that changed: a question that opened
+ * a compressed section has made the tree heavier by what it decompressed to, and whoever waits on
+ * the answer weighs the tree as soon as it has it.
+ */
+const post = (message: FirmwareWorkerResponse) => {
+  const held = buffers.byteCount;
+  if (held !== heldSaid) {
+    heldSaid = held;
+    scope.postMessage({ kind: "firmwareHeldBytes", bytes: held } satisfies FirmwareWorkerResponse);
+  }
+  scope.postMessage(message);
+};
 
 /**
  * The tree as an image, for the readings that need the whole of it — which

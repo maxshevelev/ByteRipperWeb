@@ -115,3 +115,45 @@ export class SurveyGroups {
       .map((entry) => entry.group);
   }
 }
+
+/**
+ * What a survey calls each file: its path from `root`, or — for a list of `paths` — from the
+ * deepest folder they all share. A file's name alone is not enough: dumps of one board are often
+ * all `bios.bin`, one to a folder. A file outside the root keeps its whole path.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.surveyNames
+ * @upstream-differs no link is resolved: the shell lists a folder's files under the folder as it
+ * was given, so the two sides already agree
+ */
+export function surveyNames(
+  files: readonly string[],
+  root: string | undefined
+): { root: string; names: string[] } {
+  const sample = root ?? files[0] ?? "";
+  const separator = sample.includes("\\") && !sample.includes("/") ? "\\" : "/";
+  const parts = (path: string): string[] => {
+    const split = path.split(/[\\/]+/);
+    if (split.length > 1 && split.at(-1) === "") split.pop();
+    return split;
+  };
+  const split = files.map(parts);
+  let base = root === undefined ? (split[0] ?? [""]).slice(0, -1) : parts(root);
+  if (root === undefined) {
+    for (const file of split.slice(1)) {
+      const folder = file.slice(0, -1);
+      let shared = 0;
+      while (shared < base.length && shared < folder.length && base[shared] === folder[shared]) {
+        shared += 1;
+      }
+      base = base.slice(0, shared);
+    }
+  }
+  const names = files.map((path, index) => {
+    const file = split[index] ?? [];
+    const inside = file.length > base.length && base.every((one, at) => file[at] === one);
+    return inside ? file.slice(base.length).join("/") : path;
+  });
+  const joined = base.join(separator);
+  const top = joined === "" || /^[A-Za-z]:$/.test(joined) ? `${joined}${separator}` : joined;
+  return { root: top, names };
+}

@@ -85,6 +85,15 @@ export class DecompressedBuffers {
   }
 
   /**
+   * How many bytes the held buffers come to.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DecompressedBuffers.swift#DecompressedBuffers.byteCount
+   */
+  get byteCount(): number {
+    return this.held;
+  }
+
+  /**
    * A reader over the bytes of `space`: the file itself, or the buffer at the
    * end of its chain, decoding whatever on the way is not held.
    *

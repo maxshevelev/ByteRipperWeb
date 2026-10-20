@@ -883,6 +883,7 @@
 "“%1$@” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do." = "„%1$@“ müsste verschoben werden, ist aber Code, der direkt aus dem Flash ausgeführt wird: Das Verschieben erfordert ein Rebase, das dieser Editor nicht durchführt.";
 "“%1$@” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed." = "„%1$@“ müsste verschoben werden, ist aber an seine Adresse gebunden — das Volume Top File, ein FIT-Ziel oder eine als fixed markierte Datei.";
 "“%1$@” would need more blocks than its block map can count." = "„%1$@“ bräuchte mehr Blöcke, als seine Block-Map zählen kann.";
+"The agent is at work" = "Der Agent arbeitet";
 "Apple DMI" = "Apple DMI";
 "Configuration code" = "Konfigurationscode";
 "Sales order number" = "Bestellnummer (Sales Order Number)";
@@ -1289,6 +1290,10 @@
 "“%1$@” has been moved or deleted since the annotation was made." = "„%1$@“ wurde verschoben oder gelöscht, nachdem die Anmerkung angelegt wurde.";
 "The file is not there" = "Die Datei ist nicht vorhanden";
 "Start ByteRipper when an agent connects" = "ByteRipper starten, wenn sich ein Agent verbindet";
+"Dumps kept open:" = "Höchstens offene Dumps:";
+"Memory for them:" = "Höchstens Arbeitsspeicher dafür:";
+"How many dumps an agent opened by path stay read and parsed at once" = "Wie viele Dumps, die ein Agent über ihren Pfad geöffnet hat, gleichzeitig gelesen und analysiert bleiben";
+"How much memory the dumps an agent opened by path may hold between them" = "Wie viel Arbeitsspeicher die Dumps, die ein Agent über ihren Pfad geöffnet hat, zusammen belegen dürfen";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Eingeschaltet erlaubt die Konfiguration unten dem Agentenprogramm, ByteRipper zu starten, wenn der Agent es braucht und es nicht geöffnet ist. Ausgeschaltet erreicht der Agent ByteRipper nur, solange es geöffnet ist, und ein beendetes ByteRipper bleibt beendet. Nach einer Änderung die Konfiguration erneut in das Agentenprogramm kopieren.";
 "Log" = "Protokoll";
 "Connected." = "Verbunden.";
@@ -1339,6 +1344,7 @@
 "%1$@ library files in “%2$@” could not be read." = "%1$@ Bibliotheksdateien in „%2$@“ ließen sich nicht lesen.";
 ". This visit may not write to the library folder — Allow Access… first" = ". Bei diesem Besuch darf nicht in den Bibliotheksordner geschrieben werden — zuerst „Zugriff erlauben…“";
 "Allow Access…" = "Zugriff erlauben…";
+"An agent can open a dump by its path, without a pane. The dumps it opened last stay parsed, so another question about one of them is answered without reading it again. Past either limit, the dump not asked about for the longest time is closed; named again, it is read again. Counted are the files, read whole, and what their compressed sections decompressed to. At most a quarter of this computer's memory is offered." = "Ein Agent kann einen Dump über seinen Pfad öffnen, ohne Bereich. Die zuletzt geöffneten Dumps bleiben analysiert, sodass eine weitere Frage zu einem von ihnen ohne erneutes Lesen der Datei beantwortet wird. Wird eine der beiden Grenzen überschritten, wird der Dump geschlossen, der am längsten nicht abgefragt wurde; fragt der Agent erneut nach ihm, wird er neu gelesen. Gezählt werden die vollständig gelesenen Dateien und der entpackte Inhalt ihrer komprimierten Abschnitte. Angeboten wird höchstens ein Viertel des Arbeitsspeichers dieses Rechners.";
 "ByteRipper pattern library" = "ByteRipper-Musterbibliothek";
 "Cancel Import" = "Import abbrechen";
 "Carry on writing that library instead of keeping a second one" = "Diese Bibliothek weiterschreiben, statt eine zweite anzulegen";

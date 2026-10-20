@@ -449,7 +449,37 @@ textarea,
 
 /* An icon-only toolbar button: the glyph, a platter on hover, and a pressed
    look for the ones that carry a state. */
+/* The red dot on the Agent button while an agent is at work: on the button's corner, blinking —
+   steady under reduced motion. */
+.agent-activity-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--semantic-bad);
+  pointer-events: none;
+  animation: agent-activity-blink 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes agent-activity-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-activity-badge {
+    animation: none;
+  }
+}
+
 .toolbar-icon {
+  position: relative;
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -4891,6 +4921,21 @@ button.uefi-title {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* The two bounds on an agent's background dumps: labels right-aligned before their menus, as
+   upstream's grid stands them. */
+.settings-agent-limits {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.settings-agent-limits > .settings-label {
+  justify-self: end;
 }
 
 .settings-select {

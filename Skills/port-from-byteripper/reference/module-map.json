@@ -5646,6 +5646,7 @@
           "src/state/agent/agentAnnotationStore.ts",
           "src/tools/uefi/agent/uefiAgentAnnotations.ts"
         ],
+        "AgentActivityBadge.swift": "src/ui/shell/Toolbar.tsx",
         "AgentAnnotationCards.swift": "src/ui/notes/NotesPanel.tsx",
         "ByteRipperTests/AgentAnnotationTests.swift": "src/state/agent/agentAnnotationTools.test.ts"
       },
@@ -5727,7 +5728,6 @@
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.frameAutosaveName": "n/a — the Agent window is a panel of the fragment dock, which has no frame of its own: where it opens and how big is the dock's (the one workspace per tab), and a column's width is kept by `useAgentColumns`",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.initialSize": "n/a — the Agent window is a panel of the fragment dock, which has no frame of its own: where it opens and how big is the dock's (the one workspace per tab), and a column's width is kept by `useAgentColumns`",
         "ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController.shownRows": "n/a — a test hook of the AppKit window; the web's tests read the log's words through `logText`",
-        "ByteRipperApp/Agent/AgentService.swift#AgentService.recordForTesting": "n/a — a test hook; the web's tests hand records to the connection itself",
         "ByteRipperApp/Agent/AgentNodeURLs.swift#*": "n/a — a link names a file by its path on disk, and a page is never told the path of a file it opens; the browser cannot register a URL scheme, and the shell, which could, opens files through the page as well. Answers carry `label` and `document_label`; no `link`",
         "ByteRipperApp/Agent/AgentService.swift#AgentService.openNode": "n/a — opens a node link (AgentNodeURLs), which the web does not hand out",
         "ByteRipperApp/Agent/AgentService.swift#AgentService.say": "n/a — the alerts of openNode",
@@ -5793,7 +5793,9 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShiftSelectsARunAndCommandOneCard": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnTheCardThatTookARemovedOnesPlaceRemovesIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — the panels do not follow the tool panels' zoom (GAPS, the Agent window's row): the browser's page zoom is the zoom",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — a window's toolbar; the panel sits under the tab's own toolbar, whose Back and Forward walk its steps"
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — a window's toolbar; the panel sits under the tab's own toolbar, whose Back and Forward walk its steps",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheTabSetsTheBoundsOnDumpsOpenedByPath": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.*": "n/a — AppKit's drawn view laid on the toolbar's button: the dot is a span inside the React button, drawn, placed and blinked by CSS (.agent-activity-badge), and gone when the service is not active"
       }
     },
     {

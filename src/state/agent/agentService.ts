@@ -1,7 +1,14 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
+import {
+  BACKGROUND_FILE_CHOICES,
+  DEFAULT_BACKGROUND_FILES,
+  defaultMemoryMiB,
+  memoryChoicesMiB,
+  snappedLimit,
+} from "@/core/agent/agentBackgroundLimits";
 import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
-import { type AgentCallRecord, AgentServer } from "@/core/agent/agentServer";
+import { type AgentCallRecord, AgentServer, isRunning } from "@/core/agent/agentServer";
 import { type AgentTool, AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
 import {
   type AgentToolEntry,
@@ -24,6 +31,8 @@ import { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import { AgentRefsTools } from "@/state/agent/agentRefsTools";
 import {
   loadAgentSettings,
+  rememberAgentBackgroundFiles,
+  rememberAgentBackgroundMemory,
   rememberAgentEditsAllowed,
   rememberAgentEnabled,
   rememberAgentLaunchesApp,
@@ -58,6 +67,13 @@ import { appVersionText } from "@/ui/shell/appVersion";
 /** How many calls the log keeps. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.logLimit */
 export const AGENT_LOG_LIMIT = 500;
 
+/**
+ * How long the service stays active after the last running call has ended, in milliseconds.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.activityHold
+ */
+export const AGENT_ACTIVITY_HOLD = 2000;
+
 /** What the Agent window and the status mark show. */
 export interface AgentServiceState {
   /** The switch. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isEnabled */
@@ -73,6 +89,15 @@ export interface AgentServiceState {
    * @upstream-differs kept with the service's other switches, where the page loads them
    */
   readonly launchesApp: boolean;
+  /**
+   * Whether an agent is at work: a call is running, or one ended less than
+   * {@link AGENT_ACTIVITY_HOLD} ago. A call often takes a few milliseconds, and a mark that showed
+   * only the running ones would never be seen; held a moment after each, a run of calls reads as one
+   * stretch of work.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isActive
+   */
+  readonly active: boolean;
   /** Whether the endpoint is open. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isRunning */
   readonly running: boolean;
   /**
@@ -97,9 +122,22 @@ export interface AgentServiceState {
   readonly toolStats: Readonly<Record<string, AgentToolStats>>;
   /** What a client is configured with, once the shell has said. */
   readonly relay: RelayCommand | undefined;
+  /** The bounds on the files an agent opened by path, as kept: nothing when none was chosen. */
+  readonly backgroundFilesKept: number | undefined;
+  readonly backgroundMemoryKept: number | undefined;
+  /**
+   * The machine's memory, which the memory bound offered is a share of, once the shell has said.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.physicalMemory
+   */
+  readonly physicalMemory: number | undefined;
 }
 
+/** What the memory bounds are a share of until the shell has said: a small machine's memory. */
+const ASSUMED_MEMORY = 4 * 2 ** 30;
+
 const INITIAL: AgentServiceState = {
+  active: false,
   enabled: false,
   editsAllowed: false,
   launchesApp: false,
@@ -110,6 +148,9 @@ const INITIAL: AgentServiceState = {
   log: [],
   toolStats: {},
   relay: undefined,
+  backgroundFilesKept: undefined,
+  backgroundMemoryKept: undefined,
+  physicalMemory: undefined,
 };
 
 /**
@@ -222,6 +263,7 @@ export class AgentService {
       ((await this.diffTools.locate(this.moduleTools.hostFor(place), [range]))[0] ?? []).map(
         placeJson
       );
+    this.applyBounds();
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -300,11 +342,19 @@ export class AgentService {
           const id = call.arguments.get(name);
           if (typeof id !== "string") continue;
           const place = this.desk.places().find((one) => one.id === id);
-          if (place !== undefined && !place.isOnScreen && place.pane !== undefined) {
+          if (place === undefined) await this.desk.reopen(id);
+          else if (!place.isOnScreen && place.pane !== undefined) {
             await this.desk.background.touch(place.pane);
           }
         }
-        return tool.run(call);
+        // The background files are brought back inside their bounds once the tool has answered: a
+        // file grows as it is asked about, and whatever the call opened or parsed is counted now.
+        // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.trimming
+        try {
+          return await tool.run(call);
+        } finally {
+          this.desk.background.trim();
+        }
       },
     };
   }
@@ -419,7 +469,10 @@ export class AgentService {
       enabled: settings.enabled,
       editsAllowed: settings.editsAllowed,
       launchesApp: settings.launchesApp,
+      backgroundFilesKept: settings.backgroundFiles,
+      backgroundMemoryKept: settings.backgroundMemoryMiB,
     }));
+    this.applyBounds();
     await this.apply();
     void this.loadRelay();
   }
@@ -435,6 +488,60 @@ export class AgentService {
   setEditsAllowed(allowed: boolean): void {
     rememberAgentEditsAllowed(allowed);
     this.store.update((state) => ({ ...state, editsAllowed: allowed }));
+  }
+
+  /**
+   * How many files an agent opened by path stay parsed at once.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFileLimit
+   */
+  get backgroundFileLimit(): number {
+    return snappedLimit(
+      this.store.getSnapshot().backgroundFilesKept,
+      BACKGROUND_FILE_CHOICES,
+      DEFAULT_BACKGROUND_FILES
+    );
+  }
+
+  set backgroundFileLimit(count: number) {
+    rememberAgentBackgroundFiles(count);
+    this.store.update((state) => ({ ...state, backgroundFilesKept: count }));
+    this.applyBounds();
+  }
+
+  /**
+   * The memory bounds this machine is offered, in MiB.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.memoryChoicesMiB
+   */
+  get memoryChoicesMiB(): number[] {
+    return memoryChoicesMiB(this.store.getSnapshot().physicalMemory ?? ASSUMED_MEMORY);
+  }
+
+  /**
+   * How many MiB those files may hold between them.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryLimitMiB
+   */
+  get backgroundMemoryLimitMiB(): number {
+    const physical = this.store.getSnapshot().physicalMemory ?? ASSUMED_MEMORY;
+    return snappedLimit(
+      this.store.getSnapshot().backgroundMemoryKept,
+      this.memoryChoicesMiB,
+      defaultMemoryMiB(physical)
+    );
+  }
+
+  set backgroundMemoryLimitMiB(mib: number) {
+    rememberAgentBackgroundMemory(mib);
+    this.store.update((state) => ({ ...state, backgroundMemoryKept: mib }));
+    this.applyBounds();
+  }
+
+  /** The bounds, as the settings now give them, on the files open in the background. */
+  private applyBounds(): void {
+    this.desk.background.fileLimit = this.backgroundFileLimit;
+    this.desk.background.memoryLimit = this.backgroundMemoryLimitMiB * 2 ** 20;
   }
 
   /** The configuration shown follows at once: it is what the choice is. @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged */
@@ -487,8 +594,11 @@ export class AgentService {
     this.connections.clear();
     this.clients.clear();
     void this.bridge?.setEnabled(false);
+    clearTimeout(this.activityEnd);
+    this.activityEnd = undefined;
     this.store.update((state) => ({
       ...state,
+      active: false,
       running: false,
       failure: undefined,
       endpoint: undefined,
@@ -575,6 +685,33 @@ export class AgentService {
       };
     });
     if (!running) for (const listener of this.callListeners) listener(record);
+    this.noteActivity();
+  }
+
+  /** A call into the log, as a connection would record it. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.recordForTesting */
+  recordForTesting(record: AgentCallRecord): void {
+    this.record(record);
+  }
+
+  /** When the service stops being active, unless another call comes first. */
+  private activityEnd: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * Active from now, and until {@link AGENT_ACTIVITY_HOLD} after the last running call has ended.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.noteActivity
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.activityEnd
+   */
+  private noteActivity(): void {
+    clearTimeout(this.activityEnd);
+    this.activityEnd = undefined;
+    if (!this.store.getSnapshot().active)
+      this.store.update((state) => ({ ...state, active: true }));
+    if (this.store.getSnapshot().log.some(isRunning)) return;
+    this.activityEnd = setTimeout(() => {
+      this.activityEnd = undefined;
+      this.store.update((state) => ({ ...state, active: false }));
+    }, AGENT_ACTIVITY_HOLD);
   }
 
   /** Asks the shell what a client is to be configured with. */
@@ -583,6 +720,7 @@ export class AgentService {
     if (info === undefined) return;
     this.store.update((state) => ({
       ...state,
+      physicalMemory: info.physicalMemory ?? state.physicalMemory,
       relay: {
         command: info.command,
         script: info.script,
@@ -590,6 +728,8 @@ export class AgentService {
         platform: info.platform,
       },
     }));
+    // The memory bound offered is a share of the machine's, now known.
+    this.applyBounds();
   }
 
   /** Shows or hides the Agent window. @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow */

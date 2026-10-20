@@ -1,7 +1,8 @@
+import { DEFAULT_BACKGROUND_FILES } from "@/core/agent/agentBackgroundLimits";
 import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
-import { closeFirmware } from "@/state/firmwareStore";
+import { closeFirmware, firmwareHeldBytes } from "@/state/firmwareStore";
 import { closeBackgroundPane, openBackgroundPane, type PartId } from "@/state/workspaceStore";
 
 /**
@@ -12,15 +13,16 @@ import { closeBackgroundPane, openBackgroundPane, type PartId } from "@/state/wo
  * screen, and nothing reads a file a second way. Read-only by use: nothing here writes, and the
  * tools that would refuse a document that is not on screen.
  *
- * Kept least recently used first, up to `limit`: a survey over fifty dumps must not end holding
- * fifty parsed images. A file changed on disk since it was opened is read again the next time it is
- * asked for, and keeps its id.
+ * Let go least recently used first, past either of two bounds the person sets in Settings ▸ Agent
+ * (`AgentService`): how many files, and how much memory they hold between them. A survey over fifty
+ * dumps must not end holding fifty parsed images. The file asked about last is kept whatever it
+ * holds. A file let go keeps its id (`AgentDesk`): named again, it is read again. A file changed on
+ * disk since it was opened is read again the next time it is asked for, and keeps its id.
  *
  * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments
- * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.limit
  * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.entries
  * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry
- * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.evict
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.clock
  * @upstream-differs the file is read through the shell's bridge into a Blob, and the pane is a part no dock lists
  */
 
@@ -28,7 +30,12 @@ import { closeBackgroundPane, openBackgroundPane, type PartId } from "@/state/wo
 const CHUNK = 8 << 20;
 
 export interface BackgroundEntry {
-  /** What the agent calls it: `d1`, `d2`… and stays when the file is read again. */
+  /**
+   * What the agent calls it: `d1`, `d2`… and stays when the file is read again, or let go and read
+   * again.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry.id
+   */
   readonly id: string;
   /** The pane that holds the document now — a new one after the file changed on disk. */
   pane: PartId;
@@ -36,12 +43,31 @@ export interface BackgroundEntry {
   /** The file's modification time when it was read, milliseconds. */
   modified: number;
   size: number;
+  /** When it was last asked about, on the documents' clock. */
   lastUsed: number;
 }
 
+/**
+ * The bytes `entry` holds in memory: the file, read whole, and what its compressed sections
+ * decompressed to. Its tree's nodes and the ME analysis are not counted; beside the buffers they
+ * are small.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry.heldBytes
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.residentByteCount
+ * @upstream-differs the whole file is held — the page reads it into a Blob — where upstream counts the chunks its cache holds
+ */
+export const heldBytesOf = (entry: BackgroundEntry): number =>
+  entry.size + firmwareHeldBytes(entry.pane);
+
 export class AgentBackgroundDocuments {
-  /** How many are kept parsed at once. @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.limit */
-  limit = 8;
+  private files = DEFAULT_BACKGROUND_FILES;
+  private memory = 1 << 30;
+  /**
+   * Told of each file let go to stay inside the bounds — not of one closed on purpose.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.onRelease
+   */
+  onRelease: ((entry: BackgroundEntry) => void) | undefined;
   private held: BackgroundEntry[] = [];
   private readonly bridge: () => AgentBridge | undefined;
   private readonly mint: () => string;
@@ -56,6 +82,43 @@ export class AgentBackgroundDocuments {
     return this.held;
   }
 
+  /**
+   * How many are kept parsed at once.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.fileLimit
+   */
+  get fileLimit(): number {
+    return this.files;
+  }
+
+  set fileLimit(count: number) {
+    this.files = count;
+    this.trim();
+  }
+
+  /**
+   * How many bytes they may hold between them (`heldBytesOf`).
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.memoryLimit
+   */
+  get memoryLimit(): number {
+    return this.memory;
+  }
+
+  set memoryLimit(bytes: number) {
+    this.memory = bytes;
+    this.trim();
+  }
+
+  /**
+   * What they hold between them.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.heldBytes
+   */
+  get heldBytes(): number {
+    return this.held.reduce((sum, one) => sum + heldBytesOf(one), 0);
+  }
+
   entryOf(pane: string): BackgroundEntry | undefined {
     return this.held.find((one) => one.pane === pane);
   }
@@ -66,7 +129,7 @@ export class AgentBackgroundDocuments {
    *
    * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.open
    */
-  async open(path: string): Promise<BackgroundEntry> {
+  async open(path: string, id?: string): Promise<BackgroundEntry> {
     const bridge = this.bridge();
     if (bridge === undefined) {
       throw new AgentToolError("This build cannot read files by path.");
@@ -105,7 +168,7 @@ export class AgentBackgroundDocuments {
       return known;
     }
     const entry: BackgroundEntry = {
-      id: this.mint(),
+      id: id ?? this.mint(),
       pane,
       path: stat.path,
       modified: stat.modified,
@@ -113,7 +176,7 @@ export class AgentBackgroundDocuments {
       lastUsed: this.tick(),
     };
     this.held.push(entry);
-    this.evict(entry);
+    this.trim();
     return entry;
   }
 
@@ -158,8 +221,20 @@ export class AgentBackgroundDocuments {
     return this.clock;
   }
 
-  private evict(kept: BackgroundEntry): void {
-    while (this.held.length > this.limit) {
+  /**
+   * Lets go of the least recently used until both bounds hold, keeping the one used last. Run after
+   * every call too: a file grows as it is asked about — a tree opened, a section decompressed.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.trim
+   */
+  trim(): void {
+    const kept = this.held.reduce<BackgroundEntry | undefined>(
+      (last, one) => (last === undefined || one.lastUsed > last.lastUsed ? one : last),
+      undefined
+    );
+    if (kept === undefined) return;
+    let held = this.heldBytes;
+    while (this.held.length > this.files || held > this.memory) {
       const oldest = this.held
         .filter((one) => one !== kept)
         .reduce<BackgroundEntry | undefined>(
@@ -167,7 +242,9 @@ export class AgentBackgroundDocuments {
           undefined
         );
       if (oldest === undefined) return;
+      held -= heldBytesOf(oldest);
       this.close(oldest.pane);
+      this.onRelease?.(oldest);
     }
   }
 }

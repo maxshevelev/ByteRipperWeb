@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentArguments } from "@/core/agent/agentArguments";
 import { argumentsText, detailFields } from "@/core/agent/agentLogText";
+import type { AgentCallRecord } from "@/core/agent/agentServer";
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
-import { AGENT_INSTRUCTIONS, AgentService } from "@/state/agent/agentService";
+import { AGENT_ACTIVITY_HOLD, AGENT_INSTRUCTIONS, AgentService } from "@/state/agent/agentService";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { closeLargeDetail, largeDetailStore, showLargeDetail } from "@/state/largeDetailStore";
 import { agentPanelIsUp, closePart, openInPane, workspaceStore } from "@/state/workspaceStore";
@@ -326,5 +327,48 @@ describe("the focus note", () => {
       own = error instanceof Error ? error.message : String(error);
     }
     expect(refused.text).toBe(own);
+  });
+});
+
+describe("the service's activity", () => {
+  // The service is active while a call runs, and for the hold after the last one ends: the
+  // toolbar's red dot blinks over that stretch.
+  // @upstream ByteRipperTests/AgentUITests.swift#AgentUITests.testTheServiceIsActiveWhileACallRunsAndAMomentAfter
+  it("is active while a call runs and a moment after", () => {
+    vi.useFakeTimers();
+    try {
+      const service = new AgentService(undefined);
+      expect(service.store.getSnapshot().active).toBe(false);
+      const running: AgentCallRecord = {
+        id: 1,
+        started: new Date(),
+        client: "test",
+        tool: "read",
+        arguments: {},
+        durationMilliseconds: 0,
+        finished: new Date(),
+        answerBytes: 0,
+        outcome: { kind: "running" },
+      };
+      service.recordForTesting(running);
+      expect(service.store.getSnapshot().active).toBe(true);
+      vi.advanceTimersByTime(AGENT_ACTIVITY_HOLD + 300);
+      expect(
+        service.store.getSnapshot().active,
+        "a running call keeps it active however long it takes"
+      ).toBe(true);
+
+      service.recordForTesting({
+        ...running,
+        durationMilliseconds: 12,
+        answerBytes: 10,
+        outcome: { kind: "answered" },
+      });
+      expect(service.store.getSnapshot().active, "still active just after the answer").toBe(true);
+      vi.advanceTimersByTime(AGENT_ACTIVITY_HOLD + 300);
+      expect(service.store.getSnapshot().active).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

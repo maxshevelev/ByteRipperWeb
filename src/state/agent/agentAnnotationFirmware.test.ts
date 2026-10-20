@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { type Json, member } from "@/core/agent/json";
 import { agentAnnotationStore, allAnnotations, drawnIn } from "@/state/agent/agentAnnotationStore";
+import { agentShell } from "@/state/agent/agentShell";
 import { closeFirmware, firmwareFor, firmwareNodeAt } from "@/state/firmwareStore";
 import { surfaceOf } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
 import { setUpFirmwareAgent } from "@/state/testing/firmwareAgent";
 import { compressedTestImage, LENOVO } from "@/state/testing/firmwareImages";
-import { sessionOn, toolController } from "@/state/toolController";
+import { activate, sessionOn, toolController } from "@/state/toolController";
 import { registerUefiPanelLink } from "@/state/uefiPanelLinks";
+import { bringPaneForward, setActivePane, workspaceStore } from "@/state/workspaceStore";
 import type { WireContentMatch } from "@/workers/protocol";
 
 /**
@@ -19,6 +21,8 @@ import type { WireContentMatch } from "@/workers/protocol";
  * @upstream-differs going to such a place opens UEFI Structure's panel link, which is the React
  * panel's: what is checked here is where the place is kept and where it is drawn
  */
+
+const UEFI_STRUCTURE = "dev.maxik.tool.uefi-structure";
 
 const agent = setUpFirmwareAgent();
 const { call, open } = agent;
@@ -152,6 +156,37 @@ describe("an annotation in decoded bytes", () => {
       "dev.maxik.tool.uefi-structure"
     );
     expect(went.map((one) => one.range)).toEqual([[0x10, 0x14]]);
+  });
+
+  // In a comparison whose other pane is the active one, going to a note on a file makes that
+  // file's pane active and takes UEFI Structure, open on the other file, to the note's file.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceInTheInactivePaneOfAComparisonActivatesItAndMovesUEFIStructure
+  it("in the inactive pane of a comparison activates it and moves UEFI Structure there", async () => {
+    open(compressedTestImage("SECRET-MODEL-GH51G"));
+    open(compressedTestImage("OTHER-MODEL-XY12Z"), "b", "other.bin");
+    setActivePane("a");
+    activate(UEFI_STRUCTURE, surfaceOf("a"));
+    expect(sessionOn(toolController.getSnapshot(), surfaceOf("a")).boundPane).toBe("a");
+    await answer("annotate", { document: "d2", offset: "0x28", length: 4, title: "Signature" });
+    const went: WireContentMatch[] = [];
+    agentShell.bringForward = bringPaneForward;
+    const gone = registerUefiPanelLink("b", {
+      goTo: async (match) => {
+        went.push(match);
+      },
+      open: async () => undefined,
+    });
+    try {
+      await agent.service.annotationTools.show("a1");
+    } finally {
+      gone();
+      agentShell.bringForward = undefined;
+    }
+    expect(workspaceStore.getSnapshot().activePane, "the note's pane is the active one").toBe("b");
+    const session = sessionOn(toolController.getSnapshot(), surfaceOf("b"));
+    expect(session.activeIdentifier).toBe(UEFI_STRUCTURE);
+    expect(session.boundPane, "UEFI Structure reads the note's file").toBe("b");
+    expect(went.map((one) => one.range)).toEqual([[0x28, 0x2c]]);
   });
 
   // A file whose tree is not read yet — just opened to show the place — is read first, and the

@@ -883,6 +883,7 @@
 "“%1$@” would move, and it is code that runs in place from flash: moving it needs a rebase this editor does not do." = "«%1$@» пришлось бы сдвинуть, а это код, который выполняется прямо из флеш-памяти: для переноса нужен rebase, которого этот редактор не делает.";
 "“%1$@” would move, and it is fixed at its address — the Volume Top File, a FIT target or a file marked fixed." = "«%1$@» пришлось бы сдвинуть, а он закреплён по своему адресу — это Volume Top File, цель записи FIT или файл с признаком fixed.";
 "“%1$@” would need more blocks than its block map can count." = "«%1$@» понадобилось бы больше блоков, чем может указать его карта блоков.";
+"The agent is at work" = "Агент работает";
 "Apple DMI" = "Apple DMI";
 "Configuration code" = "Код конфигурации";
 "Sales order number" = "Номер заказа (Sales Order Number)";
@@ -1289,6 +1290,10 @@
 "“%1$@” has been moved or deleted since the annotation was made." = "Файл «%1$@» перемещён или удалён после того, как была сделана заметка.";
 "The file is not there" = "Файл не найден";
 "Start ByteRipper when an agent connects" = "Запускать ByteRipper при подключении агента";
+"Dumps kept open:" = "Открытых дампов не более:";
+"Memory for them:" = "Памяти для них не более:";
+"How many dumps an agent opened by path stay read and parsed at once" = "Сколько дампов, открытых агентом по пути к файлу, одновременно хранится прочитанными и разобранными";
+"How much memory the dumps an agent opened by path may hold between them" = "Сколько памяти могут занимать вместе дампы, открытые агентом по пути к файлу";
 "On, the configuration below lets the client start ByteRipper when the agent needs it and ByteRipper is not open. Off, the agent reaches ByteRipper only while it is open, and quitting it keeps it closed. Copy the configuration into the client again after changing this." = "Если флажок установлен, настройка ниже позволяет программе агента запускать ByteRipper, когда он нужен агенту, а программа не открыта. Если снят, агент подключается к ByteRipper только пока тот открыт, а закрытый ByteRipper остаётся закрытым. После изменения флажка скопируйте настройку в программу агента заново.";
 "Log" = "Журнал";
 "Connected." = "Подключено.";
@@ -1338,6 +1343,7 @@
 "%1$@ library files in “%2$@” could not be read." = "Не удалось прочитать файлы библиотеки в «%2$@»: %1$@.";
 ". This visit may not write to the library folder — Allow Access… first" = ". В этот раз писать в папку библиотеки нельзя — сначала «Разрешить доступ…»";
 "Allow Access…" = "Разрешить доступ…";
+"An agent can open a dump by its path, without a pane. The dumps it opened last stay parsed, so another question about one of them is answered without reading it again. Past either limit, the dump not asked about for the longest time is closed; named again, it is read again. Counted are the files, read whole, and what their compressed sections decompressed to. At most a quarter of this computer's memory is offered." = "Агент может открыть дамп по пути к файлу, без панели. Дампы, открытые последними, остаются разобранными, поэтому следующий вопрос о любом из них не требует повторного чтения файла. При превышении любого из ограничений закрывается дамп, к которому дольше всего не обращались; когда агент снова к нему обращается, дамп читается заново. Учитываются файлы, прочитанные целиком, и распакованное содержимое их сжатых секций. Можно выбрать не более четверти памяти этого компьютера.";
 "ByteRipper pattern library" = "Библиотека шаблонов ByteRipper";
 "Cancel Import" = "Отменить импорт";
 "Carry on writing that library instead of keeping a second one" = "Продолжить писать в ту библиотеку, а не заводить вторую";
