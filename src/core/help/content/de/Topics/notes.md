@@ -1,7 +1,7 @@
-@source-sha 13ea9245b8d20a68316686fc1e0f680368b43247aa042c6049930a5ed07bc88e
+@source-sha 1e1410f0f31b2b28331cf4cce23b4bd4bf5fcf9aa38eb0e9e7b6f882d76a5363
 # Anmerkungen
 
-> Kurze Vermerke zu Stellen in einer Datei, angelegt von Hand oder von einem verbundenen Agenten. Eine Anmerkung wird über den Bytes gezeigt und in einem eigenen Bereich aufgeführt.
+> Kurze Vermerke zu Stellen in einer Datei, angelegt vom Benutzer oder von einem verbundenen Agenten. Eine Anmerkung wird über den Bytes gezeigt und in einem eigenen Bereich aufgeführt.
 
 Eine Anmerkung besteht aus einem Titel und einer Erläuterung zu einer Stelle in einer Datei: was die Bytes sind oder was dort gefunden wurde. Solange ihre Datei auf dem Bildschirm ist — in einem Bereich des Fensters oder in einem Teil, der die Adressen der Datei beibehält —, wird die Anmerkung über den Bytes mit einem gestrichelten Rahmen und einer leichten Tönung gezeigt. Verweilt der Zeiger auf diesen Bytes, erscheinen Titel und Erläuterung. Von Hand angelegte Anmerkungen sind grün, die des Agenten ([[topic:agent|Mit einem Agenten arbeiten]]) violett.
 

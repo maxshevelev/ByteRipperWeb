@@ -1,6 +1,6 @@
 # Annotations
 
-> Short notes on places in a file — made by the person at the bench or by a connected agent — drawn over the bytes and listed in a panel of their own.
+> Short notes on places in a file — made by the user or by a connected agent — drawn over the bytes and listed in a panel of their own.
 
 @covers window.notes
 @covers menu.offset.note
