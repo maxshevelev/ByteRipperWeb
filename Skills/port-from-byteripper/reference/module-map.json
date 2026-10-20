@@ -812,7 +812,8 @@
       "unported": {
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.documentID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.paneID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
-        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal"
+        "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
+        "ByteRipperApp/Navigation/NavigationHistory.swift#NavigationHistory.pushForward": "n/a — the window's own Back stops into the main window's history; the panel's steps are places of the tab's one history (NOTES_PLACE), so Back out of the panel is goBack"
       }
     },
     {
@@ -5752,7 +5753,6 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onShow": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.rows": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.scroll": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.shownTexts": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5762,9 +5762,7 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCollectionView*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationPlaceLine*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.collectionViewContentSize": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.gap": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.heightFor": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.inset": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.itemFrames": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.layoutAttributes*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.shouldInvalidateLayout": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5785,7 +5783,17 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)",
-        "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test"
+        "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.emptyIndex": "n/a — the collection view's hidden item; NotesPanel leaves the carried card's place empty by laying the others out without it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.*": "n/a — AppKit's drawn view: the New tag is a span on the card's top edge, its shape and colour CSS",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardMeasuredWhileTheCardsMoveIsAsTallAsEver": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPressWithCommandOrShiftOnlySelects": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRemovingACardClosesTheGapAnimated": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testSelectAllSelectsEveryCard": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShiftSelectsARunAndCommandOneCard": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnTheCardThatTookARemovedOnesPlaceRemovesIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — the panels do not follow the tool panels' zoom (GAPS, the Agent window's row): the browser's page zoom is the zoom",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — a window's toolbar; the panel sits under the tab's own toolbar, whose Back and Forward walk its steps"
       }
     },
     {
@@ -5812,11 +5820,9 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.instance": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isInView": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.newWindowForTab": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.refresh": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.shared": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidBecomeKey": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidDeminiaturize": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView*": "n/a — the panel goes with the last annotation, so it is never empty",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesSymbol*": "n/a — an SF Symbol name; the pill is labelled with the panel's name",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.draw": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.hitTest": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
@@ -5824,7 +5830,18 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.side": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.init": "n/a — AppKit; NoteFormDialog is a React form",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.noteView": "n/a — AppKit; NoteFormDialog is a React form",
-        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form"
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameBack": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isOpen": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateBack": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateForward": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.restore": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.syncAgentItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateToolbarItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.window*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is"
       }
     },
     {

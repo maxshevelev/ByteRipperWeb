@@ -2,7 +2,10 @@ import {
   type AnnotationRemoval,
   agentAnnotationStore,
   annotationRemoval,
+  holdNotesPanelWhile,
+  removalIds,
   restoreAnnotations,
+  syncAnnotationsPanel,
   takeFreshAnnotations,
 } from "@/state/agent/agentAnnotationStore";
 import { createStore } from "@/state/store";
@@ -88,7 +91,7 @@ agentAnnotationStore.subscribe(noteLookedAt);
  * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.recordRemoval
  */
 export function removeFromPanel(ids: ReadonlySet<string>): void {
-  const removal = annotationRemoval((one) => ids.has(one.id));
+  const removal = removing(() => annotationRemoval((one) => ids.has(one.id)));
   if (removal === undefined) return;
   notesPanelStore.update((state) => ({ ...state, undo: [...state.undo, removal], redo: [] }));
 }
@@ -103,7 +106,7 @@ export function undoPanelRemoval(): boolean {
   const removal = notesPanelStore.getSnapshot().undo.at(-1);
   if (removal === undefined) return false;
   restoreAnnotations(removal);
-  const ids = removal.removed.map((one) => one.annotation.id);
+  const ids = removalIds(removal);
   notesPanelStore.update((state) => ({
     ...state,
     undo: state.undo.slice(0, -1),
@@ -122,7 +125,7 @@ export function redoPanelRemoval(): boolean {
   const ids = notesPanelStore.getSnapshot().redo.at(-1);
   if (ids === undefined) return false;
   const wanted = new Set(ids);
-  const removal = annotationRemoval((one) => wanted.has(one.id));
+  const removal = removing(() => annotationRemoval((one) => wanted.has(one.id)));
   notesPanelStore.update((state) => ({
     ...state,
     redo: state.redo.slice(0, -1),
@@ -134,6 +137,23 @@ export function redoPanelRemoval(): boolean {
 /** Whether ⌘Z or ⇧⌘Z has a removal to take back or make again. */
 export const canUndoPanelRemoval = (): boolean => notesPanelStore.getSnapshot().undo.length > 0;
 export const canRedoPanelRemoval = (): boolean => notesPanelStore.getSnapshot().redo.length > 0;
+
+/** Whether a removal is being made in the panel, before it is an undo step. */
+let isRemoving = false;
+function removing<T>(remove: () => T): T {
+  isRemoving = true;
+  try {
+    return remove();
+  } finally {
+    isRemoving = false;
+  }
+}
+
+// The cards last removed here can be put back only from the panel, so the panel stays — empty,
+// when they were the last — while ⌘Z has a removal to put back, as upstream's window stays open.
+// @upstream-differs upstream's window is there with no annotation too; the pill goes otherwise
+holdNotesPanelWhile(() => isRemoving || canUndoPanelRemoval());
+notesPanelStore.subscribe(syncAnnotationsPanel);
 
 /**
  * Asks the panel to select the cards of `ids`, and nothing else, and scroll to the first.

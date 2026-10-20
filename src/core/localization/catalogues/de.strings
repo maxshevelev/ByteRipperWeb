@@ -1267,6 +1267,8 @@
 "Let agents edit open files" = "Agenten das Ändern geöffneter Dateien erlauben";
 "Add Annotation" = "Anmerkung hinzufügen";
 "Add Annotation…" = "Anmerkung hinzufügen…";
+"No Annotations" = "Keine Anmerkungen";
+"Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…" = "Hier stehen die Anmerkungen, die von Hand oder von einem verbundenen Agenten angelegt wurden. Bytes in einem Dump oder einen Knoten der UEFI-Struktur auswählen, mit der rechten Maustaste klicken und „Anmerkung hinzufügen…“ wählen.";
 "Annotations" = "Anmerkungen";
 "Could not add the annotation" = "Die Anmerkung konnte nicht hinzugefügt werden";
 "Dumps" = "Dumps";
@@ -1276,6 +1278,8 @@
 "Related Annotations: %1$@" = "Zugehörige Anmerkungen: %1$@";
 "Remove Annotation" = "Anmerkung entfernen";
 "Remove this annotation" = "Diese Anmerkung entfernen";
+"annotation tag|New" = "Neu";
+"Open Annotation “%1$@”" = "Anmerkung „%1$@“ öffnen";
 "Show in UEFI Structure" = "In UEFI-Struktur zeigen";
 "The annotation is drawn over the selected bytes and listed in the Annotations panel." = "Die Anmerkung wird um die ausgewählten Bytes gezeichnet und im Anmerkungsbereich aufgeführt.";
 "The file is not open" = "Die Datei ist nicht geöffnet";

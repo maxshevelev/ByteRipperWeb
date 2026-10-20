@@ -599,6 +599,22 @@ describe("the Annotations panel", () => {
     expect(allAnnotations()).toHaveLength(2);
   });
 
+  // The last cards removed in the panel leave it up, empty, so ⌘Z still has a panel to reach; a
+  // removal made elsewhere takes the pill with the last annotation.
+  it("stays, empty, after its last cards are removed, until they are put back", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    openNotesPanel();
+    removeFromPanel(new Set(["a1"]));
+    expect(allAnnotations()).toHaveLength(0);
+    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
+
+    expect(undoPanelRemoval()).toBe(true);
+    expect(allAnnotations()).toHaveLength(1);
+    await answer("remove_annotations", { ids: ["a1"] });
+    expect(workspaceStore.getSnapshot().notesPanel).toBeUndefined();
+  });
+
   // A note is marked New when the panel comes up, and while it is up; the marks go when it folds.
   // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteIsNewUntilTheWindowGoesOutOfView
   it("marks a note New until the panel goes out of view", async () => {

@@ -445,6 +445,7 @@ export function NotesPanel() {
 
   // While a card is carried, the pointer is followed everywhere, and a pointer held still near the
   // list's top or bottom edge goes on scrolling it.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.isCarrying
   const carrying = carry !== undefined && !carry.landing;
   // biome-ignore lint/correctness/useExhaustiveDependencies: the carry's handlers read its ref
   useEffect(() => {
@@ -541,7 +542,9 @@ export function NotesPanel() {
       >
         <HelpButton link={topicLink(TOPIC.notes)} shape="inline" />
       </DockPanelHeader>
+      {ordered.length === 0 && leaving.length === 0 ? <NotesEmpty /> : null}
       <div
+        hidden={ordered.length === 0 && leaving.length === 0}
         className="notes-cards"
         ref={list}
         role="listbox"
@@ -787,13 +790,35 @@ function NoteCard({
   );
 }
 
+/**
+ * What the panel shows with no annotation in it — after the last cards were removed here, while ⌘Z
+ * can put them back: what goes here, and how to make one.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView
+ */
+function NotesEmpty() {
+  return (
+    <div className="notes-empty">
+      <span className="notes-empty-icon">
+        <NotesGlyph size={48} />
+      </span>
+      <p className="notes-empty-title">{L("No Annotations")}</p>
+      <p className="notes-empty-message">
+        {L(
+          "Annotations made by hand or by a connected agent are listed here. Select bytes in a dump, or a node in UEFI Structure, right-click and choose Add Annotation…"
+        )}
+      </p>
+    </div>
+  );
+}
+
 /** Upstream's `note.text`: what the pill and the header wear. */
-export function NotesGlyph() {
+export function NotesGlyph({ size = 14 }: { readonly size?: number }) {
   return (
     <svg
       viewBox="0 0 16 16"
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       aria-hidden="true"
       fill="none"
       stroke="currentColor"

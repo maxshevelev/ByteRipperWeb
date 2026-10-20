@@ -284,7 +284,8 @@ export function updateAnnotation(id: string, title: string, note: string): void 
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.remove
  */
 export function removeAnnotations(doomed: (annotation: AgentAnnotation) => boolean): string[] {
-  return annotationRemoval(doomed)?.removed.map((one) => one.annotation.id) ?? [];
+  const removal = annotationRemoval(doomed);
+  return removal === undefined ? [] : removalIds(removal);
 }
 
 /**
@@ -315,6 +316,14 @@ export interface AnnotationRemoval {
    */
   readonly relations: ReadonlyMap<string, readonly string[]>;
 }
+
+/**
+ * The ids of the annotations a removal took, in the order they stood.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.ids
+ */
+export const removalIds = (removal: AnnotationRemoval): string[] =>
+  removal.removed.map((one) => one.annotation.id);
 
 /**
  * Removes the annotations `doomed` picks, as `removeAnnotations` does, and returns what puts them
@@ -528,22 +537,37 @@ export async function saveAnnotationsNow(): Promise<void> {
 
 agentAnnotationStore.subscribe(scheduleSave);
 
-// The Annotations panel is there while there is an annotation, and goes with the last one; while
-// it is up, the agent's new ones count as seen.
-// @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.notesChanged
+/**
+ * Whether the Annotations panel stays with no annotation in it — the panel's own say, which keeps it
+ * while ⌘Z has a removal made there to put back.
+ */
+let panelHeld: () => boolean = () => false;
+
+/** Lets the panel keep itself in the dock with no annotation in it while `held` says so. */
+export function holdNotesPanelWhile(held: () => boolean): void {
+  panelHeld = held;
+  syncAnnotationsPanel();
+}
+
+/**
+ * The Annotations panel is there while there is an annotation, or while the panel holds itself, and
+ * goes with the last one otherwise; while it is up, the agent's new ones count as seen.
+ *
+ * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.notesChanged
+ */
 let synced = false;
-function syncPanel(): void {
+export function syncAnnotationsPanel(): void {
   if (synced) return;
   synced = true;
   try {
-    syncNotesPanel(allAnnotations().length > 0);
+    syncNotesPanel(allAnnotations().length > 0 || panelHeld());
     if (notesPanelIsUp(workspaceStore.getSnapshot())) markAnnotationsSeen();
   } finally {
     synced = false;
   }
 }
-agentAnnotationStore.subscribe(syncPanel);
-workspaceStore.subscribe(syncPanel);
+agentAnnotationStore.subscribe(syncAnnotationsPanel);
+workspaceStore.subscribe(syncAnnotationsPanel);
 
 /**
  * Forgets every annotation, for a test that leaves none behind for the next.

@@ -837,7 +837,6 @@ export function AppShell() {
     // The files opened most recently, back for File ▸ Open Recent.
     void restoreRecentFiles();
     // The annotations, kept from one launch to the next.
-    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationDidFinishLaunching
     void keepAnnotations();
   }, []);
 

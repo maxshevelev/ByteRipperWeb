@@ -6454,6 +6454,35 @@ body[data-pulling-panel] * {
   outline: none;
 }
 
+/* The panel with no annotation in it: upstream's empty screen, centred, in the secondary colour. */
+.notes-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.notes-empty-icon {
+  margin-bottom: 6px;
+  opacity: 0.6;
+}
+
+.notes-empty-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.notes-empty-message {
+  margin: 0;
+  max-width: 360px;
+}
+
 /* The cards stand where the layout puts them (`notesLayout.ts`), each moved there by a transform,
    so a card moving aside for another, or up into a gap, slides rather than jumps. */
 .notes-cards-content {
