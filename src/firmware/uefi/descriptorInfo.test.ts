@@ -301,7 +301,7 @@ describe("the VSCC table", () => {
     expect(jedecCount("uefiTool")).toBe(185);
     expect(jedecCount("linux")).toBeGreaterThan(50);
     expect(jedecCount("flashrom")).toBeGreaterThan(100);
-    expect(JEDEC_COUNT).toBe(429);
+    expect(JEDEC_COUNT).toBe(430);
     expect(jedecName(0x1c7018)).toBe("EON EN25QH128");
     expect(jedecName(0xc22019)).toBe("Macronix MX25L256");
     expect(jedecName(0x000000)).toBeUndefined();

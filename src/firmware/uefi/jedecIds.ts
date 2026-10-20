@@ -345,6 +345,7 @@ const TABLE: Readonly<Record<number, JedecChip>> = {
   1847569: { name: "Eon EN25F10", sizeKB: 128, source: "flashrom" },
   1847570: { name: "Eon EN25F20", sizeKB: 256, source: "flashrom" },
   1847571: { name: "Eon EN25F40", sizeKB: 512, source: "flashrom" },
+  1851670: { name: "Eon EN25QE32A", sizeKB: 4096, source: "flashrom" },
   1863960: { name: "Eon EN25QX128A", sizeKB: 16384, source: "flashrom" },
   2036737: { name: "Atmel AT25EU0041A", sizeKB: 512, source: "flashrom" },
   2037249: { name: "Atmel AT25EU0161A", sizeKB: 2048, source: "flashrom" },

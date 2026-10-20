@@ -60,7 +60,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 ## Units
 
 - [x] **Y1 — help alone** (`1b54bbac`; the Russian `notes.md` rewrites go with Y7, the help body's ⌘C is the browser's own copy and upstream drops its workaround in `d368a3e8`)
-- [ ] **Y2 — the chip catalogue; nothing-for-the-web commits recorded**
+- [x] **Y2 — the chip catalogue; nothing-for-the-web commits recorded** (`283cb63c` regenerated from upstream's table; `eb231325` is upstream's generator, which the web's reads the result of; `412b8fb4` is Swift's concurrency warnings and `64e795c9` AppKit test measurements — nothing for the web)
 - [ ] **Y3 — fragments named by what was opened, the codec on the pill**
 - [ ] **Y4 — tool panels: one detail list, the large view kept open, ME Show in Tree**
 - [ ] **Y5 — vendor DMI: the badge, HP, Apple**
