@@ -1638,6 +1638,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegionForReveal
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showUEFIFocus
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealNode = useCallback(
@@ -1885,7 +1886,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * routed by which one is set — not by the id's shape, which a one-level ME
    * path ("0") and a UEFI node ("0") cannot tell apart.
    *
+   * An ME row is shown as a reveal shows it — selected, its detail up, the table moved to it —
+   * which upstream's `selectME`, following a selection the reader had already made, did not do.
+   *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.zoneSelected
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
    */
   const zonePicked = useCallback(
     (zoneId: string) => {

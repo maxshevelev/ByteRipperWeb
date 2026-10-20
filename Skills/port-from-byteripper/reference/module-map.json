@@ -3373,9 +3373,8 @@
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheChecksumsRowFillsInWhenItIsLookedAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testARevertDropsTheCachedAnalysisBeforeAnnouncingTheReload": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testALongValueWrapsInsideItsColumn": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnWidensForLongFieldNamesAndWrapsAtHalfTheList": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnFitsTheLongestNameAndStopsAtHalfTheList": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.zoom": "n/a — test scaffolding",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.detailNameLabels": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.detailContent": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.isOnScreen": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.textWidth": "n/a — test scaffolding",
@@ -4103,7 +4102,6 @@
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.waitForUEFIParse": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.waitForFITParse": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.zoom": "n/a — test scaffolding",
-        "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.fields": "n/a — test scaffolding",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFITreeFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFIHeaderFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
         "ByteRipperTests/ToolPanelZoomTests.swift#ToolPanelZoomTests.testTheUEFIDetailFollowsTheZoom": "n/a — no zoom of the app's own: the browser's page zoom (Ctrl/Cmd + / −) is the zoom (ANALYSIS.md)",
@@ -4522,7 +4520,8 @@
         "ByteRipperTests/SettingsWindowTests.swift#SettingsWindowTests.testTheViewTabsLabelsLineUp": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep",
         "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testASecondPanelLetGoOnATornOffTabIsComparedWithTheFirst": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
-        "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testOptionLettingAPanelGoOnATabsFreeHalfCopiesIt": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold"
+        "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testOptionLettingAPanelGoOnATabsFreeHalfCopiesIt": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {

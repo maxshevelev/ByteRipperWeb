@@ -3808,23 +3808,29 @@ button.uefi-title {
   font-weight: 600;
 }
 
+/* Every label one width, so the rows read as a column of pairs, and a value too
+   long for its column wraps inside it rather than running off the side. The
+   column is as wide as the longest name the list holds — never narrower than
+   the shared default, and never wider than half the list — so a long field
+   name (`systemHeaderCRCValid`) is not cut mid-word, and one that does not fit
+   half the list wraps there. Upstream's `ToolFieldList.nameWidth`; the rows are
+   a subgrid of the list, so they share the one column. */
 .tool-detail-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
+  gap: 3px 6px;
   margin: 0;
 }
 
-/* Every label one width, so the rows read as a column of pairs, and a value too
-   long for its column wraps inside it rather than running off the side. */
 .tool-detail-row {
   display: grid;
-  grid-template-columns: 9.5em minmax(0, 1fr);
-  column-gap: 6px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: baseline;
 }
 
 .tool-detail-row dt {
+  min-width: 9.5em;
   color: var(--text-muted);
   /* A name too long for its column continues on the next line. */
   overflow-wrap: anywhere;
@@ -3833,6 +3839,12 @@ button.uefi-title {
 .tool-detail-row dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* A row the engine has not answered yet — "Coming soon", "Loading…": a promise,
+   and drawn as one. */
+.tool-detail-row dd[data-promise] {
+  color: var(--text-faint);
 }
 
 .tool-detail-row dd[data-mono] {
@@ -4362,57 +4374,26 @@ button.uefi-title {
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface);
+  /* A block is one shared field list under its heading (`ToolFieldList`): the
+     rows the UEFI Structure's detail and this panel's own are drawn with, so a
+     band of them is selected and copied as it is there. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-/* One grid for every block, so the values line up from the table to the
-   messages. */
-.me-summary-grid {
-  display: grid;
-  grid-template-columns: minmax(8em, max-content) minmax(0, 1fr);
-  gap: 3px 16px;
-  align-items: baseline;
+.me-summary-block + .me-summary-block {
+  margin-top: 10px;
+}
+
+.me-summary-list:focus {
+  outline: none;
 }
 
 .me-summary-title {
-  grid-column: 1 / -1;
-  margin: 10px 0 2px;
+  margin: 0 0 2px;
   color: var(--text);
   font-size: inherit;
   font-weight: 600;
-}
-
-.me-summary-label {
-  color: var(--text-muted);
-}
-
-.me-summary-value {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-/* A row the engine does not decode yet: a promise, and drawn as one. */
-.me-summary-value[data-soon] {
-  color: var(--text-faint);
-}
-
-/* A status-toned value (File System State) is bold as well as coloured — the
-   weight makes the state read at a glance among the rows around it, which is
-   why it is a step heavier than a block heading. */
-.me-summary-value[data-emphasis] {
-  font-weight: 700;
-}
-
-.me-summary-value[data-tone="good"] {
-  color: var(--semantic-good);
-}
-
-.me-summary-value[data-tone="caution"] {
-  color: var(--semantic-caution);
-}
-
-.me-summary-value[data-tone="bad"] {
-  color: var(--semantic-bad);
 }
 
 .me-tree {

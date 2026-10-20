@@ -62,7 +62,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 - [x] **Y1 — help alone** (`1b54bbac`; the Russian `notes.md` rewrites go with Y7, the help body's ⌘C is the browser's own copy and upstream drops its workaround in `d368a3e8`)
 - [x] **Y2 — the chip catalogue; nothing-for-the-web commits recorded** (`283cb63c` regenerated from upstream's table; `eb231325` is upstream's generator, which the web's reads the result of; `412b8fb4` is Swift's concurrency warnings and `64e795c9` AppKit test measurements — nothing for the web)
 - [x] **Y3 — fragments named by what was opened, the codec on the pill** (`6df00ce8`, `ec31062c`, `8e6d1dec`, `1ddfb725`; the pill's ink on the badge is a CSS rule, the dot a CSS disc)
-- [ ] **Y4 — tool panels: one detail list, the large view kept open, ME Show in Tree**
+- [x] **Y4 — tool panels: one detail list, the large view kept open, ME Show in Tree** (`d20c8f1d`, `e3581623`, `90f101ae`, `ecbe9727`; the FIT detail and ME reveal already were the shared list and the moved table here; `e7d038e5` is the window's title, which a page has not got; `119b83a2`, `7302cf1f` are flow tests, `later`)
 - [ ] **Y5 — vendor DMI: the badge, HP, Apple**
 - [ ] **Y6 — the rebuild planner speaks the reader's language**
 - [ ] **Y7 — the Annotations panel and Open Annotation**

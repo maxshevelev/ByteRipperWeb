@@ -84,7 +84,7 @@ describe("the values a detail shows", () => {
 
   it("are text, over a body that selects nothing", () => {
     expect(rules.get("tool-detail")).toBe("text");
-    expect(rules.get("me-summary-value")).toBe("text");
+    expect(rules.get("me-summary")).toBe("text");
   });
 
   // UEFI Structure, FIT and the ME Analyzer all render this one component.
@@ -118,6 +118,11 @@ describe("the values a detail shows", () => {
         scrollRef={createRef()}
       />
     );
-    expect(selectability(html, rules).get("16.1.25.1865")).toBe("text");
+    const seen = selectability(html, rules);
+    expect(seen.get("16.1.25.1865")).toBe("text");
+    // A row is taken whole, its name with its value, as the detail's rows are.
+    // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderSummary
+    expect(seen.get("Version")).toBe("text");
+    expect(html).toContain('class="tool-detail-row"');
   });
 });

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
@@ -63,7 +63,7 @@ import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
 import { columnTemplate, type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
-import { DoneMark, ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { detailSelectionHandlers, FieldList, ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 
 /**
@@ -997,7 +997,16 @@ function uniqueKeys(texts: readonly string[]): string[] {
   });
 }
 
-/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showSummary */
+/**
+ * The Summary tab: one shared field list per block, under the block's heading — the rows the
+ * UEFI Structure's detail and this panel's own are drawn with. The list is what gives a reader
+ * the selection: a drag down the rows takes a band of them, Ctrl+A or ⌘A the block, and a copy
+ * has a tab between a name and its value, which a summary pasted into a report wants.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showSummary
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderSummary
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
+ */
 export function SummaryView({
   blocks,
   scrollRef,
@@ -1010,41 +1019,34 @@ export function SummaryView({
   // rows inside a block are. A title alone had React dropping one of the pair,
   // and saying so.
   const blockKeys = uniqueKeys(blocks.map((block) => block.title ?? ""));
+  const selecting = detailSelectionHandlers();
   return (
-    <div className="me-summary" ref={scrollRef}>
-      <div className="me-summary-grid">
-        {blocks.map((block, blockIndex) => {
-          const keys = uniqueKeys(block.rows.map((row) => `${row.label}\t${valueText(row)}`));
-          return (
-            <Fragment key={blockKeys[blockIndex]}>
-              {block.title === undefined ? null : (
-                <h3 className="me-summary-title">{block.title}</h3>
-              )}
-              {block.rows.map((row, index) => (
-                <Fragment key={keys[index]}>
-                  <span className="me-summary-label">{row.label}</span>
-                  <span
-                    className="me-summary-value"
-                    data-tone={row.tone === "standard" ? undefined : row.tone}
-                    data-emphasis={isEmphasized(row) ? "" : undefined}
-                    data-soon={
-                      row.value.kind === "comingSoon" || row.value.kind === "pending"
-                        ? ""
-                        : undefined
-                    }
-                  >
-                    {/* A passed check carries its tick here too: the row and
-                        the detail ask the same tone for the same string, so the
-                        two cannot come apart (`ToolValueTone.attributedValue`). */}
-                    {isEmphasized(row) && row.tone === "good" ? <DoneMark /> : null}
-                    {valueText(row)}
-                  </span>
-                </Fragment>
-              ))}
-            </Fragment>
-          );
-        })}
-      </div>
+    <div className="me-summary" ref={scrollRef} onCopy={selecting.onCopy}>
+      {blocks.map((block, blockIndex) =>
+        block.title === undefined && block.rows.length === 0 ? null : (
+          <section className="me-summary-block" key={blockKeys[blockIndex]}>
+            {block.title === undefined ? null : <h3 className="me-summary-title">{block.title}</h3>}
+            {block.rows.length === 0 ? null : (
+              // biome-ignore lint/a11y/noStaticElementInteractions: Ctrl+A is the list's, not a control's
+              <div
+                className="me-summary-list"
+                tabIndex={selecting.tabIndex}
+                onKeyDown={(event) => selecting.selectAll(event)}
+              >
+                <FieldList
+                  fields={block.rows.map((row) => ({
+                    label: row.label,
+                    value: valueText(row),
+                    tone: row.tone,
+                    // "Coming soon" and "Loading…" alike: grey, a row the engine will answer.
+                    isPromise: row.value.kind !== "value",
+                  }))}
+                />
+              </div>
+            )}
+          </section>
+        )
+      )}
     </div>
   );
 }

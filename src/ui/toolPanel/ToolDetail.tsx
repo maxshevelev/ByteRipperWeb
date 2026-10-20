@@ -12,6 +12,7 @@ import {
 } from "@/state/largeDetailStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
+import type { ToolValueTone } from "@/tools/toolValueTone";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
@@ -230,6 +231,71 @@ export function ToolDetail({
 }
 
 /**
+ * A detail's name/value rows: the one shape every panel draws a named value in — the UEFI
+ * Structure's detail under its tree, the FIT table's, the ME Analyzer's Summary tab and the
+ * detail under its own tree. One row shape means one selection: a drag across rows takes a band
+ * of them, a double click a word, a triple click a row, Ctrl+A or ⌘A the whole list, and a copy
+ * has a tab between a name and its value (`detailCopy.ts`).
+ *
+ * The name column is as wide as the longest name, never narrower than the shared default and
+ * never wider than half the list, where a longer name wraps (the stylesheet's
+ * `.tool-detail-fields`).
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.nameWidth
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldRow.nameColumnWidth
+ * @upstream-differs the browser lays the column out: a grid track that fits its longest name
+ * within half the list, which the rows share as a subgrid
+ */
+export function FieldList({
+  fields,
+  className,
+}: {
+  readonly fields: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly tone: ToolValueTone;
+    /** A row the engine has not answered yet — "Coming soon", "Loading…": drawn grey. */
+    readonly isPromise?: boolean | undefined;
+  }[];
+  readonly className?: string | undefined;
+}) {
+  return (
+    <dl
+      className={className === undefined ? "tool-detail-fields" : `tool-detail-fields ${className}`}
+    >
+      {/* A label is the row's identity — and its place, for the node that says one
+          twice: a DVAR entry's header has a Type of its own beside the common one. */}
+      {fields.map((one, at) => (
+        <div className="tool-detail-row" key={positional(at, one.label)}>
+          <dt>{one.label}</dt>
+          {/*
+            One rendering for a value that carries a status, wherever it
+            is drawn: bold, in the tone's colour, and led by the tick when
+            the status is a passed check. The ME Analyzer's Summary row
+            asks the same tone for the same string, so the two cannot come
+            apart (`ToolValueTone.attributedValue`).
+          */}
+          {one.isPromise === true ? (
+            <dd data-promise="">{one.value}</dd>
+          ) : (
+            <dd
+              // Digits of one width for a number, so an offset or a size
+              // reads against the dump; words stay in the body face.
+              data-mono={one.value.startsWith("0x") ? "" : undefined}
+              data-tone={one.tone === "standard" ? undefined : one.tone}
+            >
+              {one.tone === "good" ? <DoneMark /> : null}
+              {one.value}
+            </dd>
+          )}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
  * The text of the details is selected as any text is — a drag across rows, a word by a
  * double click, a row by a triple click — and Ctrl+A or ⌘A takes the whole list, the
  * fields and the tables together. Copying puts it on the clipboard with a tab between a
@@ -237,7 +303,7 @@ export function ToolDetail({
  *
  * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSelectableRows.swift#ToolSelectableRows
  */
-function detailSelectionHandlers() {
+export function detailSelectionHandlers() {
   // help: panel.detail-select
   // help: panel.uefi.table-copy
   return {
@@ -538,8 +604,9 @@ function LargeDetailCard({
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     // A click anywhere in the tool panel — a row, a node's triangle, a menu, the search,
     // the legend — or in another owner of a details pane (`data-detail-owner`, the Agent
-    // window's list) leaves it open; one beside both still closes it, and still does what it
-    // was aimed at.
+    // window's list) leaves it open; so does a press on a divider, beside the panel or anywhere
+    // else, which moves the divider while the card follows the room it leaves. One beside all
+    // of them still closes it, and still does what it was aimed at.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     const onPointer = (event: PointerEvent) => {
       const target = event.target;
@@ -548,7 +615,11 @@ function LargeDetailCard({
         return;
       }
       if (cardRef.current?.contains(target) === true) return;
-      if (target.closest(".tool-panel, [data-detail-owner], [role=menu]") !== null) return;
+      if (
+        target.closest(".tool-panel, [data-detail-owner], [role=menu], [role=separator]") !== null
+      ) {
+        return;
+      }
       onClose();
     };
     // The card does not keep the keyboard: a click in it selects text and leaves the
@@ -700,31 +771,7 @@ function DetailBody({
               )}
             </h3>
           )}
-          <dl className="tool-detail-fields">
-            {/* A label is the row's identity — and its place, for the node that says one
-                twice: a DVAR entry's header has a Type of its own beside the common one. */}
-            {detail.fields.map((one, at) => (
-              <div className="tool-detail-row" key={positional(at, one.label)}>
-                <dt>{one.label}</dt>
-                {/*
-                  One rendering for a value that carries a status, wherever it
-                  is drawn: bold, in the tone's colour, and led by the tick when
-                  the status is a passed check. The ME Analyzer's Summary row
-                  asks the same tone for the same string, so the two cannot come
-                  apart (`ToolValueTone.attributedValue`).
-                */}
-                <dd
-                  // Digits of one width for a number, so an offset or a size
-                  // reads against the dump; words stay in the body face.
-                  data-mono={one.value.startsWith("0x") ? "" : undefined}
-                  data-tone={one.tone === "standard" ? undefined : one.tone}
-                >
-                  {one.tone === "good" ? <DoneMark /> : null}
-                  {one.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <FieldList fields={detail.fields} />
           {detail.tables.map((table) => (
             <DetailTableView
               key={table.title}
