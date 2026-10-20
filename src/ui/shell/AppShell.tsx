@@ -11,6 +11,7 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { keepAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
@@ -833,6 +834,9 @@ export function AppShell() {
     void restoreFavorites();
     // The files opened most recently, back for File ▸ Open Recent.
     void restoreRecentFiles();
+    // The annotations, kept from one launch to the next.
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationDidFinishLaunching
+    void keepAnnotations();
   }, []);
 
   // The find bar always searches the pane the commands act on — the part in

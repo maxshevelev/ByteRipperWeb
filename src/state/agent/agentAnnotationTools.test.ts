@@ -4,11 +4,19 @@ import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { type DesktopFiles, installDesktopFilesForTesting } from "@/platform/desktop/desktopFiles";
+import { memoryKeyValueStore } from "@/platform/storage/keyValueStore";
 import {
   agentAnnotationStore,
   allAnnotations,
+  annotationRemoval,
+  arrangeAnnotations,
   discardAnnotationsForTesting,
   drawnIn,
+  keepAnnotations,
+  orderedAnnotations,
+  restoreAnnotations,
+  saveAnnotationsNow,
+  takeFreshAnnotations,
   updateAnnotation,
 } from "@/state/agent/agentAnnotationStore";
 import { AgentService } from "@/state/agent/agentService";
@@ -474,5 +482,80 @@ describe("the Annotations panel", () => {
     expect([edited?.title, edited?.note]).toEqual(["Board ID, checked", "Twice."]);
     expect(edited?.range).toEqual([0x30, 0x38]);
     expect(edited?.author).toBe("person");
+  });
+
+  // The cards' order is the store's own: a new card goes first, a card dragged stays where it was
+  // put. The agent's list stays oldest first.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardDraggedOntoAnotherTakesItsPlace
+  it("puts the newest card first, and a card arranged stays where it was put", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    await answer("annotate", { offset: 2, title: "B" });
+    await answer("annotate", { offset: 4, title: "C" });
+    expect(orderedAnnotations().map((one) => one.title)).toEqual(["C", "B", "A"]);
+    expect(allAnnotations().map((one) => one.title)).toEqual(["A", "B", "C"]);
+    arrangeAnnotations(["a1", "a3", "a2"]);
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a1", "a3", "a2"]);
+    await answer("annotate", { offset: 6, title: "D" });
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a4", "a1", "a3", "a2"]);
+  });
+
+  // Every new card is marked New: taken by the panel at once while it is up, otherwise when it
+  // comes up; taken, it is not new again.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteIsNewUntilTheWindowGoesOutOfView
+  it("keeps a new note fresh until the panel takes it", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    await service.annotationTools.addNote("B", "", "a", 2, 4);
+    expect([...takeFreshAnnotations()]).toEqual(["a1", "a2"]);
+    expect(takeFreshAnnotations().size).toBe(0);
+  });
+
+  // ⌘Z puts the cards last removed back where they stood, with the relations the others lost.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testUndoPutsRemovedCardsBackWhereTheyStood
+  it("puts removed cards back where they stood, relations and all", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    await answer("annotate", { offset: 2, title: "B", related_to: ["a1"] });
+    await answer("annotate", { offset: 4, title: "C" });
+    arrangeAnnotations(["a2", "a1", "a3"]);
+    const removal = annotationRemoval((one) => one.id === "a1");
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a3"]);
+    expect(allAnnotations().find((one) => one.id === "a2")?.relatedTo).toEqual([]);
+
+    if (removal === undefined) throw new Error("a1 should have been removed");
+    restoreAnnotations(removal);
+    expect(allAnnotations().map((one) => one.id)).toEqual(["a1", "a2", "a3"]);
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a1", "a3"]);
+    expect(allAnnotations().find((one) => one.id === "a2")?.relatedTo).toEqual(["a1"]);
+    // Put back already, it is left.
+    restoreAnnotations(removal);
+    expect(allAnnotations()).toHaveLength(3);
+  });
+
+  // Everything an annotation holds is kept, with the cards' order and the new and unseen sets, and
+  // read again at the next launch; the next id goes on from there.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheAnnotationsAreKeptForTheNextLaunch
+  it("is kept for the next launch", async () => {
+    const kept = memoryKeyValueStore();
+    await keepAnnotations(kept);
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0x28, length: 4, title: "Signature", note: "Magic." });
+    await service.annotationTools.addNote("Model", "By hand.", "a", 0x40, 0x48);
+    await answer("annotate", { offset: 0, title: "Pointer", related_to: ["a1"] });
+    arrangeAnnotations(["a1", "a3", "a2"]);
+    await saveAnnotationsNow();
+    const before = allAnnotations();
+    const state = agentAnnotationStore.getSnapshot();
+
+    // The next launch: nothing in memory, the store read again.
+    discardAnnotationsForTesting();
+    expect(allAnnotations()).toEqual([]);
+    await keepAnnotations(kept);
+    expect(allAnnotations()).toEqual(before);
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a1", "a3", "a2"]);
+    expect(agentAnnotationStore.getSnapshot().fresh).toEqual(state.fresh);
+    expect(agentAnnotationStore.getSnapshot().unseen).toEqual(state.unseen);
+    expect(agentAnnotationStore.getSnapshot().nextId).toBe(4);
   });
 });

@@ -26,6 +26,7 @@ import {
   allAnnotations,
   fileIdentityOf,
   removeAnnotations,
+  takeAnnotationId,
 } from "@/state/agent/agentAnnotationStore";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
@@ -83,7 +84,6 @@ export const MAX_NOTE = 600;
 export class AgentAnnotationTools {
   readonly desk: AgentDesk;
   private readonly dumpTools: AgentDumpTools;
-  private nextId = 1;
 
   constructor(desk: AgentDesk, dumpTools: AgentDumpTools) {
     this.desk = desk;
@@ -377,7 +377,7 @@ export class AgentAnnotationTools {
       }).then(siteFrom, () => undefined);
     }
     const annotation: AgentAnnotation = {
-      id: `a${this.nextId}`,
+      id: takeAnnotationId(),
       file,
       range,
       node,
@@ -388,7 +388,6 @@ export class AgentAnnotationTools {
       site,
       author,
     };
-    this.nextId += 1;
     addAnnotation(annotation, notesPanelIsUp(workspaceStore.getSnapshot()));
     if (args.bool("reveal", false)) await this.show(annotation.id);
     const described = this.describe(annotation);
