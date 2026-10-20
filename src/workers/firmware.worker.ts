@@ -392,7 +392,9 @@ function lenovoWireFields(
  * detail — on a copy the store marks deleted as well, which is where most HP boards keep
  * `HP_MUD`. Read here, where the bytes are: an entry is told for HP's by its bytes.
  *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.nodeText
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.baseName
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.row
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift#UEFIAppleDMIDetail.row
  * @upstream-differs the panel holds no bytes, so the worker reads the text
  */
 function vendorDMIWireFields(
