@@ -9,10 +9,12 @@ import {
   zoneBracket,
 } from "@/render/minimap/minimapClick";
 import type { MinimapLayout, Rect } from "@/render/minimap/minimapLayout";
+import type { CalloutMark, CalloutRect } from "@/state/hoverCalloutStore";
 
 /**
  * What hovering the map says: the segment strip's piece or cut, a zone's bracket,
- * a bookmark's mark — each named the way the list that holds it writes it.
+ * a bookmark's mark — each named the way the list that holds it writes it, with
+ * the glyph the hover callout wears for it.
  *
  * Ported from the hover half of `ByteRipperApp/Minimap/MinimapView.swift`. Pure
  * arithmetic over one map's layout and the heights its marks were painted at,
@@ -34,6 +36,8 @@ export interface StripPiece {
   readonly name: string;
   readonly top: number;
   readonly height: number;
+  /** The piece's own tint, as the strip paints it when the pointer is elsewhere. */
+  readonly tint: string;
 }
 
 /** A bookmark's mark where it is painted, and the bookmark's name. */
@@ -45,6 +49,7 @@ export interface NamedMark extends MapMark {
 export interface NamedBracket extends ZoneBracketBox {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.name */
   readonly name: string;
+  readonly focused?: boolean | undefined;
 }
 
 /** `0xSTART…0xLAST, size`: the extent the strip's and the gutter's answers share. */
@@ -62,9 +67,9 @@ function extent(start: number, end: number): string {
  * is the more precise fact — and a point over a piece names the piece: its label,
  * range, size and name, the shape the form's list writes (§19.4.4, §21.4).
  *
- * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripTooltipText
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripHoverText
  */
-export function segmentStripTooltipText(options: {
+export function segmentStripHoverText(options: {
   readonly strip: Rect | undefined;
   readonly cuts: readonly MapMark[];
   readonly pieces: readonly StripPiece[];
@@ -86,9 +91,9 @@ export function segmentStripTooltipText(options: {
  * name, its range and its size — the strip's own shape, because the two are the
  * same kind of legend (§19.4.5). A zone with no name is named by its range alone.
  *
- * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketTooltipText
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverText
  */
-export function zoneBracketTooltipText(
+export function zoneBracketHoverText(
   layout: MinimapLayout,
   brackets: readonly NamedBracket[],
   x: number,
@@ -103,7 +108,7 @@ export function zoneBracketTooltipText(
 /**
  * The bookmark whose mark is under the point, if any. The mark's own box is the
  * target, grown a little: a small arrow in a narrow margin is a small thing to
- * hit, and a tooltip that only answers on the pixel is one nobody sees.
+ * hit, and a callout that only answers on the pixel is one nobody sees.
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bookmark
  */
@@ -127,36 +132,106 @@ export function bookmarkAtMarkPoint(
 }
 
 /**
- * What hovering the map says: the segment strip's answer for a point on it, the
- * zone gutter's for a point on a bracket, else a bookmark's for a point on its
- * mark, else nothing. The two legends are asked before the marks: they are what
- * the reader reads, and theirs is the more specific answer where a mark's grown
- * box could reach one of them (§19.4.4, §19.4.5, §19.4.3).
+ * The glyph for a point on the segment strip, decided the way
+ * {@link segmentStripHoverText} decides its words: a cut in reach is the two
+ * pieces it separates, the one before it on top, as the strip draws them;
+ * otherwise the piece under the point, in its own tint (§19.4.4).
  *
- * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.view
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.segmentStripMark
  */
-export function minimapTooltip(options: {
+export function segmentStripMark(options: {
+  readonly strip: Rect | undefined;
+  readonly cuts: readonly MapMark[];
+  readonly pieces: readonly StripPiece[];
+  readonly x: number;
+  readonly y: number;
+}): CalloutMark | undefined {
+  const { strip, pieces, x, y } = options;
+  if (strip === undefined || x < strip.x || x > strip.x + strip.width) return undefined;
+  const cut = nearestCut(options.cuts, y);
+  if (cut !== undefined) {
+    const after = pieces.findIndex((one) => one.start === cut);
+    const before = pieces[after - 1];
+    const below = pieces[after];
+    if (after > 0 && before !== undefined && below !== undefined) {
+      return { kind: "cut", above: before.tint, below: below.tint };
+    }
+  }
+  const piece = pieces.find((one) => y >= one.top && y < one.top + one.height);
+  return piece === undefined ? undefined : { kind: "segment", color: piece.tint };
+}
+
+/** What the map says at a point, the glyph it wears, and the mark's box when a mark is named. */
+export interface MinimapHover {
+  readonly text: string;
+  readonly mark: CalloutMark;
+  /**
+   * The bookmark's mark box the callout stands beside; nothing for a legend, whose callout
+   * follows the pointer — a strip or a bracket is long, and the part named is the part under it.
+   */
+  readonly box: CalloutRect | undefined;
+}
+
+/**
+ * What hovering the map says, the glyph that says what kind of thing it is, and
+ * what the callout stands beside: the segment strip's answer for a point on it,
+ * the zone gutter's for a point on a bracket, else a bookmark's for a point on
+ * its mark, else nothing. The two legends are asked before the marks: they are
+ * what the reader reads, and theirs is the more specific answer where a mark's
+ * grown box could reach one of them (§19.4.4, §19.4.5, §19.4.3).
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.hoverCallout
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketMark
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.bookmarkMark
+ */
+export function minimapHover(options: {
   readonly layout: MinimapLayout;
   readonly cuts: readonly MapMark[];
   readonly pieces: readonly StripPiece[];
   readonly brackets: readonly NamedBracket[];
   readonly marks: readonly NamedMark[];
+  /** The colours the gutter draws a focused zone's bracket and every other one's in. */
+  readonly zoneColors: { readonly focused: string; readonly other: string };
   readonly x: number;
   readonly y: number;
-}): string {
+}): MinimapHover | undefined {
   const { layout, x, y } = options;
-  const strip = segmentStripTooltipText({
+  const legend = {
     strip: layout.segmentStripRect,
     cuts: options.cuts,
     pieces: options.pieces,
     x,
     y,
-  });
-  if (strip.length > 0) return strip;
-  const zone = zoneBracketTooltipText(layout, options.brackets, x, y);
-  if (zone.length > 0) return zone;
+  };
+  const strip = segmentStripHoverText(legend);
+  const stripMark = segmentStripMark(legend);
+  if (strip.length > 0 && stripMark !== undefined) {
+    return { text: strip, mark: stripMark, box: undefined };
+  }
+  const zone = zoneBracketHoverText(layout, options.brackets, x, y);
+  const bracket = zoneBracket(layout, options.brackets, x, y) as NamedBracket | undefined;
+  if (zone.length > 0 && bracket !== undefined) {
+    const color = bracket.focused === true ? options.zoneColors.focused : options.zoneColors.other;
+    return { text: zone, mark: { kind: "zone", color }, box: undefined };
+  }
   const mark = bookmarkAtMarkPoint(layout, options.marks, x, y);
-  if (mark === undefined) return "";
+  if (mark === undefined) return undefined;
+  const box = bookmarkMarkBox(layout, mark.y);
   const address = hexAddress(mark.offset);
-  return mark.name.length === 0 ? address : `${address}: ${mark.name}`;
+  return {
+    text: mark.name.length === 0 ? address : `${address}: ${mark.name}`,
+    mark: { kind: "bookmark" },
+    box:
+      box === undefined
+        ? undefined
+        : { x: box.x, y: box.top, width: box.width, height: box.height },
+  };
 }
+
+/**
+ * Just the words of {@link minimapHover}, "" where it has none.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.hoverText
+ */
+export const minimapHoverText = (options: Parameters<typeof minimapHover>[0]): string =>
+  minimapHover(options)?.text ?? "";

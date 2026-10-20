@@ -1409,23 +1409,40 @@ textarea,
 
 /* A named mark's name, while the pointer rests on it. Positioned against the
    scroller's viewport, so it stays put while the rows under it scroll. */
-.bookmark-tip {
-  position: absolute;
-  z-index: 5;
-  width: max-content;
-  max-width: 24rem;
-  margin: 0;
-  /* Two lines in a panel: the mark's name, then the address the same row has in
-     the file the mark belongs to (§20.7). */
-  white-space: pre-line;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--bookmark);
-  color: var(--bookmark-text);
-  font-size: 0.85em;
+.hover-callout {
+  /* Laid out out of sight first: its place is worked out from its size. */
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: calc(360px + 13px + 5px + 20px);
+  padding: 5px 10px;
+  border: 1px solid var(--callout-rim);
+  border-radius: 13px;
+  background: var(--callout-ground);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 16px;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.3);
   pointer-events: none;
-  transform: translateY(-0.15rem);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  user-select: none;
+}
+
+.hover-callout:not([data-placed]) {
+  visibility: hidden;
+}
+
+.hover-callout-glyph {
+  flex: none;
+  margin-top: 1.5px;
+}
+
+.hover-callout-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 /* The bookmark popover (§20.3): 300 wide, the stack inset 14 and 16, lines 8

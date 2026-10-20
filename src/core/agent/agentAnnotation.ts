@@ -215,12 +215,11 @@ export function annotationRelations(
 }
 
 /**
- * What the pointer resting on the bytes shows: the title, the note and the annotations this one is
- * about.
+ * What the callout over the bytes says: the title, the note and the annotations this one is about.
  *
- * @upstream ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.tooltip
+ * @upstream ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.hoverText
  */
-export const annotationTooltip = (
+export const annotationHoverText = (
   annotation: AgentAnnotation,
   titles: ReadonlyMap<string, string>
 ): string =>
@@ -251,19 +250,19 @@ export interface DrawnAnnotation {
 }
 
 /**
- * What the pointer over the byte at `offset` shows: the innermost annotation holding it, or "".
+ * What was said in the note on `[start, end)` — the outline the pointer is on — and whether the
+ * person said it, or nothing for none. Two notes on the same bytes draw one outline; the first made
+ * is the one that speaks.
  *
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkTooltip
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkHover
  */
-export function drawnTooltip(
+export function drawnHover(
   drawn: readonly DrawnAnnotation[],
-  offset: number,
+  span: { readonly start: number; readonly end: number },
   titles: ReadonlyMap<string, string>
-): string {
-  let found: DrawnAnnotation | undefined;
-  for (const one of drawn) {
-    if (offset < one.start || offset >= one.end) continue;
-    if (found === undefined || one.end - one.start < found.end - found.start) found = one;
-  }
-  return found === undefined ? "" : annotationTooltip(found.annotation, titles);
+): { readonly text: string; readonly byPerson: boolean } | undefined {
+  const note = drawn.find((one) => one.start === span.start && one.end === span.end);
+  if (note === undefined) return undefined;
+  const text = annotationHoverText(note.annotation, titles);
+  return text.length === 0 ? undefined : { text, byPerson: note.annotation.author === "person" };
 }

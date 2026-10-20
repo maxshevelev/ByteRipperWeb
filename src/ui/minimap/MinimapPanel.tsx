@@ -27,6 +27,12 @@ import {
   yOfOffset,
 } from "@/render/minimap/minimapGeometry";
 import {
+  minimapHover,
+  type NamedBracket,
+  type NamedMark,
+  type StripPiece,
+} from "@/render/minimap/minimapHover";
+import {
   type MapPlacement,
   MinimapLayout,
   SIDE_BY_SIDE_GUTTER_FRACTION,
@@ -38,15 +44,10 @@ import {
   MinimapRenderer,
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
-import {
-  minimapTooltip,
-  type NamedBracket,
-  type NamedMark,
-  type StripPiece,
-} from "@/render/minimap/minimapTooltip";
 import { overviewBandFloor } from "@/render/minimap/viewportMarker";
 import { bookmarksIn, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
+import { hideCallout, showCallout } from "@/state/hoverCalloutStore";
 import {
   DEFAULT_MINIMAP_WIDTH,
   MAX_MINIMAP_WIDTH,
@@ -88,6 +89,7 @@ import {
   observeHexColors,
   readSegmentTints,
   saturatedHighlight,
+  zoneHoverHighlight,
 } from "@/ui/theme/hexColors";
 import { readMinimapColors } from "@/ui/theme/minimapColors";
 
@@ -669,9 +671,17 @@ function MinimapCanvas({
   // The marks of the pane this map is about: a part's are its own, and the
   // workspace's would name rows of a file this map is not drawing.
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncFragmentMinimapBookmarks
-  const marks = bookmarksIn(useStore(bookmarksStore), pane);
+  const bookmarkState = useStore(bookmarksStore);
+  const marks = bookmarksIn(bookmarkState, pane);
   /** The piece the pointer is over, so the strip can say which it would act on. */
   const [hoveredPiece, setHoveredPiece] = useState<number | undefined>(undefined);
+  /**
+   * The zone whose bracket is under the pointer, which the gutter draws vivid and a point
+   * thicker.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.hoveredZoneBracket
+   */
+  const [hoveredBracket, setHoveredBracket] = useState<string | undefined>(undefined);
 
   /** The band as it is currently drawn, which is also the drag handle. */
   const band = viewportBand({
@@ -742,6 +752,7 @@ function MinimapCanvas({
         // same colour, just louder, so the hovered piece reads as "the one
         // under the cursor" without its identity changing (§19.4.4).
         tint: hoveredPiece === piece.index ? saturatedHighlight(tint, dark) : tint,
+        baseTint: tint,
       };
     });
   })();
@@ -792,6 +803,13 @@ function MinimapCanvas({
         height: Math.min(size.height, bottom) - Math.max(0, top),
         depth,
         focused: zones.focus === zone.id,
+        hoverColor:
+          hoveredBracket === zone.id && colors !== undefined
+            ? zoneHoverHighlight(
+                zones.focus === zone.id ? colors.zoneFocused : colors.zoneOther,
+                isDarkTheme()
+              )
+            : undefined,
       });
     }
     return brackets;
@@ -903,6 +921,9 @@ function MinimapCanvas({
    */
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
+      // A press is the start of a jump or a drag, and a right press of the strip's menu, which
+      // says what the piece is: a callout beside it would say it twice.
+      hideCallout(`minimap:${pane}`);
       if (event.button !== 0) return;
       const canvas = event.currentTarget;
       // Capture keeps a drag steering the map after the pointer leaves it,
@@ -1066,17 +1087,29 @@ function MinimapCanvas({
    * @upstream-differs leaving the canvas clears the hovered piece inline
    */
   /**
-   * What hovering the map says, as the canvas's own tooltip: a piece or a cut on
-   * the strip, a zone's bracket, a bookmark's mark (§19.4.3–§19.4.5).
+   * Who the hover callout is when this map put it up (`hoverCalloutStore`).
    *
-   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.refreshHoverTooltip
-   * @upstream-differs the canvas's `title`, worked out as the pointer moves, where upstream registers one tooltip rect and answers it from the pointer's position
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.hoverCallout
    */
-  const [tooltip, setTooltip] = useState("");
-  const tooltipAt = useCallback(
-    (event: { clientX: number; clientY: number }): string => {
+  const calloutOwner = `minimap:${pane}`;
+
+  /**
+   * Shows the callout for what is under the pointer — a piece or a cut on the strip, a zone's
+   * bracket, a bookmark's mark (§19.4.3–§19.4.5) — or hides it over anything with nothing to say.
+   * A mark's callout stands beside the mark, which is what it names; a legend's follows the
+   * pointer, because a strip or a bracket is long and the part being named is the part under the
+   * pointer.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateHoverCallout
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.pointerClearance
+   */
+  const updateHoverCallout = useCallback(
+    (event: { clientX: number; clientY: number }) => {
       const canvas = canvasRef.current;
-      if (canvas === null) return "";
+      if (canvas === null || colors === undefined) {
+        hideCallout(calloutOwner);
+        return;
+      }
       const box = canvas.getBoundingClientRect();
       const stripPieces: StripPiece[] = (segmentBands ?? []).flatMap((band, at) => {
         const piece = pieces[at];
@@ -1090,26 +1123,66 @@ function MinimapCanvas({
                 name: piece.name,
                 top: band.top,
                 height: band.height,
+                tint: band.baseTint,
               },
             ];
       });
-      return minimapTooltip({
+      const hover = minimapHover({
         layout,
         cuts,
         pieces: stripPieces,
         brackets: zoneBrackets ?? [],
         marks: markPoints ?? [],
+        zoneColors: { focused: colors.zoneFocused, other: colors.zoneOther },
         x: event.clientX - box.left,
         y: event.clientY - box.top,
       });
+      if (hover === undefined) {
+        hideCallout(calloutOwner);
+        return;
+      }
+      // The arrow cursor hangs below and to the right of its hot spot.
+      const clearance = 12;
+      const anchor =
+        hover.box === undefined
+          ? {
+              x: event.clientX - clearance,
+              y: event.clientY - clearance,
+              width: 2 * clearance,
+              height: 2 * clearance,
+            }
+          : { ...hover.box, x: hover.box.x + box.left, y: hover.box.y + box.top };
+      showCallout(calloutOwner, hover.text, hover.mark, anchor, box);
     },
-    [layout, cuts, pieces, segmentBands, zoneBrackets, markPoints]
+    [layout, cuts, pieces, segmentBands, zoneBrackets, markPoints, colors, calloutOwner]
   );
+
+  // Every event after which the callout would be naming the wrong thing, or a thing no longer under
+  // the pointer, takes it away: the marks changing, a scroll of the panes sliding the window the
+  // marks are drawn in, a switch of mode, a resize, the zones or the pieces changing, the map
+  // going away.
+  // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewWillMove
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each of these is a reason to take the callout away, not something the body reads
+  useEffect(() => {
+    hideCallout(calloutOwner);
+  }, [
+    calloutOwner,
+    bookmarkState,
+    viewport?.start,
+    viewport?.end,
+    mode,
+    size.width,
+    size.height,
+    zones,
+    pieces,
+  ]);
+  useEffect(() => () => hideCallout(calloutOwner), [calloutOwner]);
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       setHoveredPiece(pieceUnder(event)?.index);
-      setTooltip(tooltipAt(event));
+      setHoveredBracket(zoneUnder(event)?.id);
+      updateHoverCallout(event);
       const held = grab.current;
       if (held === undefined) return;
       const canvas = event.currentTarget;
@@ -1128,7 +1201,7 @@ function MinimapCanvas({
       });
       if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
     },
-    [mode, size.height, sizes, viewport, pane, pieceUnder, tooltipAt]
+    [mode, size.height, sizes, viewport, pane, pieceUnder, zoneUnder, updateHoverCallout]
   );
 
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.mouseUp */
@@ -1145,6 +1218,7 @@ function MinimapCanvas({
 
   const onWheel = useCallback(
     (event: React.WheelEvent<HTMLCanvasElement>) => {
+      hideCallout(`minimap:${pane}`);
       const target = wheelScrollTarget({ deltaY: event.deltaY, viewport, sizes });
       if (target !== undefined) scrollLink.scrollToOffset(pane, target, BYTES_PER_ROW);
     },
@@ -1164,14 +1238,14 @@ function MinimapCanvas({
         ref={canvasRef}
         className="minimap-canvas"
         aria-label={label}
-        title={tooltip.length === 0 ? undefined : tooltip}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onPointerLeave={() => {
           setHoveredPiece(undefined);
-          setTooltip("");
+          setHoveredBracket(undefined);
+          hideCallout(calloutOwner);
         }}
         onWheel={onWheel}
         onContextMenu={(event) => {

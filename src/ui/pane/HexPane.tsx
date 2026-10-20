@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { annotationTitles, drawnTooltip } from "@/core/agent/agentAnnotation";
+import { annotationTitles, drawnHover } from "@/core/agent/agentAnnotation";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
@@ -27,9 +27,11 @@ import {
   type HexGridColors,
   HexGridRenderer,
   type MatchLookup,
+  PEER_CONTOUR_PADDING,
 } from "@/render/hexGrid/hexGridRenderer";
 import { HexHeaderRenderer, headerHeight } from "@/render/hexGrid/hexHeaderRenderer";
 import { BYTES_PER_ROW, HexLayout, type WordSize } from "@/render/hexGrid/hexLayout";
+import { noteContourAt } from "@/render/hexGrid/noteContour";
 import { agentAnnotationStore, drawnIn } from "@/state/agent/agentAnnotationStore";
 import {
   type BookmarkEditSession,
@@ -40,13 +42,14 @@ import {
 } from "@/state/bookmarkEditStore";
 import {
   bookmarkAt,
+  bookmarkHoverText,
   bookmarksIn,
   bookmarksStore,
-  bookmarkTooltip,
   moveBookmark,
   pointerRow,
 } from "@/state/bookmarksStore";
 import { editStore } from "@/state/editStore";
+import { hideCallout, showCallout } from "@/state/hoverCalloutStore";
 import { toggleMinimap } from "@/state/minimapStore";
 // Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
 // for a selection, and the two must not be confused for each other.
@@ -527,25 +530,12 @@ export function HexPane({
    */
   const markDragPointerRowRef = useRef<number | undefined>(undefined);
   /**
-   * The named bookmark the pointer is resting on, and where to show its name.
+   * Who the hover callout is when this pane put it up (`hoverCalloutStore`): the events of this
+   * pane take down its own, never another view's.
    *
-   * A mark says *that* a row is marked; the name says what it was marked for,
-   * and there is nowhere in a 16-byte row to print it. So it is a tooltip — but
-   * the dump is a canvas, and a canvas has no elements to hang `title` on.
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.hoverCallout
    */
-  const [markTip, setMarkTip] = useState<{ name: string; top: number; left: number } | undefined>(
-    undefined
-  );
-  /**
-   * What an agent said about the byte under the pointer, as the dump's own tooltip: the browser's,
-   * drawn over the window, so a long note near the dump's edge is not cut off by it — as the
-   * minimap's tooltip is.
-   *
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkTooltipTag
-   * @upstream-differs the scroller's `title`, worked out as the pointer moves, where upstream
-   * registers one tooltip rect over the byte columns and answers it from the pointer's position
-   */
-  const [agentTip, setAgentTip] = useState("");
+  const calloutOwner = `hex:${paneId}`;
 
   /** Only what the chrome actually displays lives in React state. */
   const [caret, setCaret] = useState(0);
@@ -1065,13 +1055,10 @@ export function HexPane({
     const scroller = scrollerRef.current;
     // The echo of an offset this pane or the link set: already applied.
     if (scroller === null || !scroller.noteScroll()) return;
-    // A tip is placed in the element's own coordinates, which on a scaled track
-    // no longer move with the row it names.
-    if (scroller.scaled) setMarkTip(undefined);
-    // The byte under the pointer is another one now; the next move says what it is.
-    setAgentTip("");
+    // The row the callout stood beside has scrolled away from the pointer.
+    hideCallout(calloutOwner);
     scrolled();
-  }, [scrolled]);
+  }, [scrolled, calloutOwner]);
 
   /**
    * A wheel over a file taller than the browser lays out moves the content by
@@ -1088,13 +1075,12 @@ export function HexPane({
       if (scroller === null || layout === undefined) return;
       if (!scroller.wheel(event, layout.rowHeight)) return;
       event.preventDefault();
-      setMarkTip(undefined);
-      setAgentTip("");
+      hideCallout(calloutOwner);
       scrolled();
     };
     host.addEventListener("wheel", onWheel, { passive: false });
     return () => host.removeEventListener("wheel", onWheel);
-  }, [scrolled]);
+  }, [scrolled, calloutOwner]);
 
   /**
    * Brings an offset into view. `centre` selects how: a navigation command
@@ -1552,7 +1538,10 @@ export function HexPane({
       }))
     );
     scheduleDraw();
-  }, [agentMarks, scheduleDraw]);
+    // Notes are among what this repaints, and a callout may be saying one that has just changed or
+    // gone.
+    hideCallout(calloutOwner);
+  }, [agentMarks, scheduleDraw, calloutOwner]);
 
   // This pane's marks: the workspace's list, read at this pane's own offsets —
   // a file slot's are the list as it is, a panel's are the part's (§20.7).
@@ -1566,7 +1555,12 @@ export function HexPane({
   useEffect(() => {
     rendererRef.current?.setBookmarks(new Set(marks.map((mark) => mark.row)));
     scheduleDraw();
-  }, [marks, scheduleDraw]);
+    // A callout naming a mark may be naming one that has moved, been renamed or gone.
+    hideCallout(calloutOwner);
+  }, [marks, scheduleDraw, calloutOwner]);
+  // The pane leaving the window takes its callout with it: no leave event will come to do it.
+  // @upstream ByteRipperApp/Hex/HexView.swift#HexView.viewWillMove
+  useEffect(() => () => hideCallout(calloutOwner), [calloutOwner]);
 
   /**
    * The paper each row is printed on: one tint per piece (§21.3).
@@ -1610,6 +1604,9 @@ export function HexPane({
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseDown */
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      // A press may take hold of the mark the callout is beside, and a mark moved under the
+      // callout would leave it naming the wrong row.
+      hideCallout(calloutOwner);
       const layout = layoutRef.current;
       const point = contentPoint(event);
       if (layout === undefined || point === undefined) return;
@@ -1668,71 +1665,88 @@ export function HexPane({
         .then(syncTypingReadout);
       event.preventDefault();
     },
-    [contentPoint, doc, region, typing, syncTypingReadout, paneId]
+    [contentPoint, doc, region, typing, syncTypingReadout, paneId, calloutOwner]
   );
 
   /**
-   * Shows a named mark's name while the pointer rests on it.
+   * Shows the callout for what is under the pointer, or hides it over anything with nothing to
+   * say. On an address it is the row's bookmark, standing beside the mark — over the start of the
+   * row's bytes, never over the address itself (§20.3). On a note's outline it is that note,
+   * following the pointer along the line. Only on the outline: a note can cover a whole region, and
+   * a callout up over every byte inside it would keep covering the bytes being read.
    *
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkTooltipTag
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkTooltip
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.updateHoverCallout
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseMoved
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.pointerClearance
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkRect
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmarkHoverText
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexBookmark
-   * @upstream-differs a bookmark's name is a tip element placed beside its mark, not a tooltip rect
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkHover
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.mouseExited
    */
-  const trackMarkTip = useCallback(
+  const updateHoverCallout = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const layout = layoutRef.current;
       const host = scrollRef.current;
-      if (layout === undefined || host === null) return;
+      // A mark being dragged is a row further on with every step.
+      if (layout === undefined || host === null || markDragRef.current !== undefined) {
+        hideCallout(calloutOwner);
+        return;
+      }
       const bounds = host.getBoundingClientRect();
       const top = scrollerRef.current?.top ?? 0;
       const x = event.clientX - bounds.left + host.scrollLeft;
       const y = event.clientY - bounds.top + top;
-      // Past the offset column the tip is what an agent said about the byte under the pointer.
-      // @upstream ByteRipperApp/Hex/HexView.swift#HexView.view
-      if (x > layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
-        const hit = layout.hitTest(x, y, layout.rowCount(doc.size));
-        const column =
-          hit === undefined
-            ? undefined
-            : hit.column.kind === "offset"
-              ? undefined
-              : hit.column.column;
-        const said =
-          hit === undefined || column === undefined
-            ? ""
-            : drawnTooltip(
-                agentMarksRef.current,
-                layout.byteOffset(hit.row, column),
-                annotationTitlesRef.current
-              );
-        setMarkTip(undefined);
-        setAgentTip(hit === undefined ? "" : said);
+      // A named mark has the address. An address with nothing to say goes on to the notes: the
+      // Offset column runs right up to the first byte, and the outer half of a note's left edge
+      // lies in it — the same reach the right edge has over the gap before the decoded text.
+      if (x <= layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset) {
+        const row = Math.max(0, Math.floor(y / layout.rowHeight));
+        const text =
+          row * BYTES_PER_ROW < doc.size ? bookmarkHoverText(paneId, row * BYTES_PER_ROW) : "";
+        if (text.length > 0) {
+          const left = layout.leftPadding - 2;
+          const right = layout.leftPadding + layout.offsetColumnWidth + 2 + layout.rowHeight / 2;
+          showCallout(
+            calloutOwner,
+            text,
+            { kind: "bookmark" },
+            {
+              x: bounds.left + left - host.scrollLeft,
+              y: bounds.top + row * layout.rowHeight - top,
+              width: right - left,
+              height: layout.rowHeight,
+            },
+            bounds
+          );
+          return;
+        }
+      }
+      const outlined = noteContourAt({ x, y }, agentMarksRef.current, layout, PEER_CONTOUR_PADDING);
+      const note =
+        outlined === undefined
+          ? undefined
+          : drawnHover(agentMarksRef.current, outlined, annotationTitlesRef.current);
+      if (note === undefined) {
+        hideCallout(calloutOwner);
         return;
       }
-      setAgentTip("");
-      const row = Math.max(0, Math.floor(y / layout.rowHeight)) * BYTES_PER_ROW;
-      // Not the mark's name: in a panel the tip also carries the address the
-      // same row has in the file the mark belongs to, which is the one thing
-      // the panel's own Offset column cannot show (§20.7).
-      const tip = bookmarkTooltip(paneId, row);
-      if (tip.length === 0) {
-        setMarkTip(undefined);
-        return;
-      }
-      // In the scroller's own coordinates, so it travels with the row it names
-      // rather than hanging at a fixed height while the dump scrolls — which are
-      // the content's, less the difference a scaled track makes. And beside the
-      // mark rather than over it: the address it names is the one thing the tip
-      // must not hide.
-      setMarkTip({
-        name: tip,
-        top: (row / BYTES_PER_ROW) * layout.rowHeight - top + host.scrollTop,
-        left: layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset,
-      });
+      // The arrow cursor hangs below and to the right of its hot spot.
+      const clearance = 12;
+      showCallout(
+        calloutOwner,
+        note.text,
+        { kind: "annotation", color: note.byPerson ? "var(--zone-person)" : "var(--zone-agent)" },
+        {
+          x: event.clientX - clearance,
+          y: event.clientY - clearance,
+          width: 2 * clearance,
+          height: 2 * clearance,
+        },
+        bounds
+      );
     },
-    [paneId, doc]
+    [paneId, doc, calloutOwner]
   );
 
   /** The held pointer's place on screen, which the autoscroll steps read. */
@@ -1825,7 +1839,7 @@ export function HexPane({
    */
   const onPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      trackMarkTip(event);
+      updateHoverCallout(event);
       // A mark's drag engages the moment it starts (§20.6); a selection's waits
       // for the pointer to leave the dead zone, which is why a press that has
       // not engaged yet still has to be answered here rather than ignored.
@@ -1851,7 +1865,7 @@ export function HexPane({
         if (pointer === undefined || !dragTo(pointer.x, pointer.y)) stopAutoscroll();
       }, AUTOSCROLL_INTERVAL_MS);
     },
-    [trackMarkTip, contentPoint, dragTo, stopAutoscroll, doc]
+    [updateHoverCallout, contentPoint, dragTo, stopAutoscroll, doc]
   );
 
   /**
@@ -2208,18 +2222,9 @@ export function HexPane({
         onPaste={onPaste}
         onContextMenu={onContextMenu}
         onDoubleClick={onDoubleClick}
-        onPointerLeave={() => {
-          setMarkTip(undefined);
-          setAgentTip("");
-        }}
-        title={agentTip.length === 0 ? undefined : agentTip}
+        onPointerLeave={() => hideCallout(calloutOwner)}
       >
         <canvas ref={canvasRef} className="hex-canvas" />
-        {markTip === undefined ? null : (
-          <p className="bookmark-tip" style={{ top: markTip.top, left: markTip.left }}>
-            {markTip.name}
-          </p>
-        )}
         {/* Its height is PaneScroller's to set: the content's own when that
             fits, the browser's layout limit when it does not. */}
         <div ref={spacerRef} className="hex-spacer" style={{ width: `${contentWidth}px` }} />

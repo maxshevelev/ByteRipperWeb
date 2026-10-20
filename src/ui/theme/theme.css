@@ -39,6 +39,10 @@
      rather than as a second copy of its value, so a mark on another ground can
      say so and neither can drift from the other. */
   --knockout: var(--surface);
+  /* The hover callout: a tooltip's grey lifted toward white, and an edge firmer than a
+     separator, so the capsule holds its shape over bytes of any colour. */
+  --callout-ground: #f4f4f5;
+  --callout-rim: rgb(0 0 0 / 0.28);
 
   /* Hex grid: the bytes themselves */
   --byte-text: #1b1b1f;
@@ -148,6 +152,8 @@
     --accent-ink: #16121c;
     --focus-ring: #6aa9e9;
     --knockout: var(--surface);
+    --callout-ground: #3a3a3e;
+    --callout-rim: rgb(255 255 255 / 0.28);
 
     --byte-text: #ececee;
     /* Upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash. */
@@ -228,6 +234,8 @@
   --accent-ink: #16121c;
   --focus-ring: #6aa9e9;
   --knockout: var(--surface);
+  --callout-ground: #3a3a3e;
+  --callout-rim: rgb(255 255 255 / 0.28);
 
   --byte-text: #ececee;
   /* Upstream: the label at 40 % alpha, so a fill byte stays legible over a difference wash. */

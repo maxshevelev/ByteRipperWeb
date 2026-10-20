@@ -16,6 +16,7 @@ import { BYTES_PER_ROW, type HexLayout } from "@/render/hexGrid/hexLayout";
 import {
   type ContourPoint,
   contourRowSpan,
+  outlinesFolded,
   selectionContours,
   traceContour,
 } from "@/render/hexGrid/spanContour";
@@ -146,7 +147,7 @@ const BOOKMARK_TIP_ANGLE = Math.PI / 2;
 const BOOKMARK_OUTLINE_DASHES: number[] = [3, 2];
 
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourPadding */
-const PEER_CONTOUR_PADDING = 2;
+export const PEER_CONTOUR_PADDING = 2;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourRadius */
 const PEER_CONTOUR_RADIUS = 3;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.mirrorContourLineWidth */
@@ -165,7 +166,12 @@ const FIND_INDICATOR_LINE_WIDTH = 1;
 const ZONE_LINE_WIDTH = 2;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFocusedAlpha */
 const ZONE_ALPHA = 0.9;
-/** An agent's mark is dashed. @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkContours */
+/**
+ * A note is dashed: four pixels drawn, three left out.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkContours
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.noteDash
+ */
 const AGENT_MARK_DASH = [4, 3];
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFillAlpha */
 const ZONE_FILL_ALPHA = 0.1;
@@ -1545,11 +1551,33 @@ export class HexGridRenderer {
     const config = this.config;
     if (config === undefined) return;
     for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
-      this.fillContours(y, contours, config.colors.agentMark, ZONE_FILL_ALPHA);
+      this.fillContours(y, this.foldedToRow(contours, y), config.colors.agentMark, ZONE_FILL_ALPHA);
     }
     for (const { contours } of this.zonesAt(rowStart, this.personMarks)) {
-      this.fillContours(y, contours, config.colors.personMark, ZONE_FILL_ALPHA);
+      this.fillContours(
+        y,
+        this.foldedToRow(contours, y),
+        config.colors.personMark,
+        ZONE_FILL_ALPHA
+      );
     }
+  }
+
+  /**
+   * A note's outlines cut down to the band round the row at `y` (`outlinesFolded`), two rows of
+   * slack each side: the padding, the rounded corners and the line's own width all stay well
+   * inside it.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkShapes
+   */
+  private foldedToRow(contours: readonly (readonly ContourPoint[])[], y: number): ContourPoint[][] {
+    const rowHeight = this.config?.layout.rowHeight ?? 0;
+    const top = y + this.originY;
+    return outlinesFolded(
+      contours,
+      { top: top - 2 * rowHeight, bottom: top + this.rowBandHeight + 2 * rowHeight },
+      AGENT_MARK_DASH.reduce((sum, one) => sum + one, 0)
+    );
   }
 
   /**
@@ -1568,7 +1596,7 @@ export class HexGridRenderer {
       for (const { contours } of this.zonesAt(rowStart, marks)) {
         this.strokeContours(
           y,
-          contours,
+          this.foldedToRow(contours, y),
           colour,
           PEER_CONTOUR_LINE_WIDTH,
           ZONE_ALPHA,

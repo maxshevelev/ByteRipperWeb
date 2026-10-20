@@ -278,3 +278,24 @@ export function saturatedHighlight(color: string, isDark: boolean): string {
   const brightness = isDark ? Math.min(1, v + 0.35) : green ? Math.max(0, v - 0.12) : v;
   return fromHsb(h, saturation, brightness, parsed.alpha);
 }
+
+/**
+ * The colour a zone's bracket goes to under the pointer, and the colour the callout's bracket glyph
+ * wears (§19.4.5): the same hue, pushed to a vivid saturation — and, in dark theme, lifted as well,
+ * where a saturated colour that is not also brighter sinks into the paper. The zone colours are
+ * already mid-strength lines, not pastels, so this is a step of its own rather than
+ * {@link saturatedHighlight}'s.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zoneHoverHighlight
+ */
+export function zoneHoverHighlight(color: string, isDark: boolean): string {
+  const parsed = parseColor(color);
+  if (parsed === undefined) return color;
+  const { h, s, v } = toHsb(parsed);
+  return fromHsb(
+    h,
+    Math.min(1, s + 0.4),
+    isDark ? Math.min(1, v + 0.15) : Math.max(0, v - 0.05),
+    1
+  );
+}

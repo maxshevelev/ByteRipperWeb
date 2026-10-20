@@ -1345,7 +1345,9 @@
         "ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorShadow": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator",
         "ByteRipperApp/Hex/HexView.swift#String*": "n/a — padStart",
-        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end"
+        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end",
+        "ByteRipperApp/Hex/HexView.swift#HexView.updateTrackingAreas": "n/a — AppKit's tracking area: the scroller's own pointer events reach the handler",
+        "ByteRipperApp/Hex/HexView.swift#HexView.viewDidHide": "n/a — AppKit's view hiding: a pane that goes is unmounted, and its effect's cleanup takes the callout down"
       }
     },
     {
@@ -1381,7 +1383,8 @@
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isAccessibilityElement": "n/a — what a screen reader is told about the minimap was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.init": "n/a — a component",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.layout": "n/a — CSS lays the panel out",
-        "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.minimumMapHeight": "n/a — CSS lays the panel out"
+        "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.minimumMapHeight": "n/a — CSS lays the panel out",
+        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewDidHide": "n/a — AppKit's view hiding: a map that goes is unmounted, and its effect's cleanup takes the callout down"
       }
     },
     {
@@ -2276,6 +2279,8 @@
         "ByteRipperTests/BackgroundOperationTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkDragTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkMinimapTests.swift": "tests/e2e",
+        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e",
+        "ByteRipperTests/NoteOutlineTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkTests.swift": "tests/e2e",
         "ByteRipperTests/ByteSignificanceTests.swift": "tests/e2e",
         "ByteRipperTests/CaretPlacementTests.swift": "tests/e2e",
@@ -2511,7 +2516,6 @@
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAnAddressMarksItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testDoubleClickingAMarkedRowOpensItForEditing": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testOnlyTheOffsetColumnMarksOnDoubleClick": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkShowsItsNameAsATooltip": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testAccessibilityValueSaysWhetherTheCaretsRowIsMarkedAndWhatItIsCalled": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkTests.swift#BookmarkEditPopoverController": "n/a — test scaffolding",
         "ByteRipperTests/BookmarkTests.swift#BookmarkEditPopoverController.labelTexts": "n/a — test scaffolding",
@@ -4530,7 +4534,15 @@
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep",
         "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testASecondPanelLetGoOnATornOffTabIsComparedWithTheFirst": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
         "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testOptionLettingAPanelGoOnATabsFreeHalfCopiesIt": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkSaysItsNameOnHover": "later — an app flow test; the port has no component or end-to-end test for it yet. What the mark says is unit-tested (bookmarkHoverText), and the callout was looked at in a browser",
+        "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAMarkedAddressSaysItsNameAtOnce": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAnAgentsNoteWearsTheAgentsHue": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testNoCalloutWhileAMarkIsDragged": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testTheDashesStandStillWhateverIsRepainted": "later — reads the dump's pixels back, which the port has no canvas test for; the fold itself is tested (spanContour.test.ts)",
+        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note"
       }
     },
     {
@@ -4648,6 +4660,48 @@
       },
       "files": {
         "ByteRipperApp/Window/EmptyStateView.swift": ""
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Window/HoverCallout",
+      "web": [
+        "src/state/hoverCalloutStore.ts",
+        "src/ui/callout/calloutFrame.ts",
+        "src/ui/callout/HoverCallout.tsx"
+      ],
+      "status": "ported",
+      "note": "The capsule that names what the pointer reaches, at once (a924dbba): a bookmark's address in the dump, a note's outline, and on the minimap a mark, a piece or a cut of the segment strip and a zone's bracket. One callout for the page in a store (owner, text, glyph, anchor, side), drawn over the page by a portal, placed by calloutFrame from its measured size: beside the anchor on the side facing the middle of its view, turned when that side has no room, kept inside the window. The glyphs are inline SVG in the shape and colour of the thing named. A window blur takes it away; each view hides its own on its own events.",
+      "files": {
+        "ByteRipperApp/Window/HoverCallout.swift": ""
+      },
+      "unported": {
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.font": "n/a — the stylesheet's (.hover-callout, 13px), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maximumTextWidth": "n/a — the stylesheet's max-width on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.horizontalPadding": "n/a — the stylesheet's padding on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.verticalPadding": "n/a — the stylesheet's padding on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.glyphWidth": "n/a — the glyph's SVG width",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.glyphGap": "n/a — the stylesheet's gap on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.shadowMargin": "n/a — a CSS box-shadow needs no room of its own",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maximumCornerRadius": "n/a — the stylesheet's border-radius on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.wash": "n/a — the theme's --callout-ground token",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.rim": "n/a — the theme's --callout-rim token",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.textSize": "n/a — the browser lays the words out, and the capsule is measured after",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.attributes": "n/a — the stylesheet's font and colour",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maskImage": "n/a — a CSS border-radius",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.material": "n/a — AppKit's visual effect material; the ground is a theme token",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.content": "n/a — AppKit's subview; the element's children",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.observedWindow": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.resignKeyObserver": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.init": "n/a — AppKit's view set-up",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.hitTest": "n/a — pointer-events: none on .hover-callout",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.isAccessibilityElement": "n/a — aria-hidden on the capsule",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.text": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.mark": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.radius": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.isFlipped": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.hitTest": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.draw": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph"
       }
     },
     {

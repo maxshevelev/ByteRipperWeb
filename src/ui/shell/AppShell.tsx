@@ -115,6 +115,7 @@ import {
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
 import { TOOLS } from "@/tools/registry";
+import { HoverCallout } from "@/ui/callout/HoverCallout";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -2564,6 +2565,7 @@ export function AppShell() {
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
       <NoteFormDialog />
+      <HoverCallout />
       <UpdateDialogs />
       <AboutDialog />
       {/* A long update holds the window while it is worked out, as upstream's

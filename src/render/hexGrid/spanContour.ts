@@ -152,6 +152,57 @@ export function selectionContours(
 }
 
 /**
+ * Rectilinear outlines with the parts beyond `band` brought in toward it: every
+ * vertex above the band moves down, and every one below it moves up, by the same
+ * whole number of dash periods, so they still lie outside the band but no more
+ * than a period from it.
+ *
+ * What is drawn inside the band does not change, dashes included. The outline's
+ * edges are horizontal or vertical, so the only edges this shortens are the
+ * vertical ones crossing the band's edge, and each by a whole number of
+ * `period`s: the length of path before any point inside the band changes by
+ * whole periods, which leaves the dash phase there where it was. The edges
+ * beyond the band are moved, never drawn — they are outside the row being
+ * painted.
+ *
+ * A note of a few megabytes is an outline millions of pixels tall, and a canvas
+ * lays its dashes along the whole of it on every stroke — and, past some length,
+ * gives up and draws the line solid.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.outlinesFolded
+ */
+export function outlinesFolded(
+  loops: readonly (readonly ContourPoint[])[],
+  band: { readonly top: number; readonly bottom: number },
+  period: number
+): ContourPoint[][] {
+  if (period <= 0) return loops.map((loop) => [...loop]);
+  return loops.map((original) => {
+    let loop = [...original];
+    const above = loop.filter((point) => point.y < band.top).map((point) => point.y);
+    if (above.length > 0) {
+      // Whole periods, stopping short of the band: the moved vertices stay strictly above it.
+      const shift = (Math.ceil((band.top - Math.max(...above)) / period) - 1) * period;
+      if (shift > 0) {
+        loop = loop.map((point) =>
+          point.y < band.top ? { x: point.x, y: point.y + shift } : point
+        );
+      }
+    }
+    const below = loop.filter((point) => point.y > band.bottom).map((point) => point.y);
+    if (below.length > 0) {
+      const shift = (Math.ceil((Math.min(...below) - band.bottom) / period) - 1) * period;
+      if (shift > 0) {
+        loop = loop.map((point) =>
+          point.y > band.bottom ? { x: point.x, y: point.y - shift } : point
+        );
+      }
+    }
+    return loop;
+  });
+}
+
+/**
  * The rows a contour over `[start, end)` touches, half-open.
  *
  * One row wider at each end than the span itself. The contour's horizontal

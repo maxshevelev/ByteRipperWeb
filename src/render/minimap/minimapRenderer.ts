@@ -125,6 +125,14 @@ export interface SegmentBandStrip {
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket
  */
+/**
+ * A bracket's stem under the pointer: a point thicker than the rest, so the one being named stands
+ * out of a column of stems.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverLineWidth
+ */
+const ZONE_BRACKET_HOVER_LINE_WIDTH = 3;
+
 export interface ZoneBracket {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.range */
   readonly top: number;
@@ -137,6 +145,11 @@ export interface ZoneBracket {
   readonly depth: number;
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.isFocused */
   readonly focused?: boolean | undefined;
+  /**
+   * The vivid shade it is drawn in, a point thicker, while the pointer is on it
+   * (`zoneHoverHighlight`, resolved by the panel, which knows the theme); nothing otherwise.
+   */
+  readonly hoverColor?: string | undefined;
 }
 
 export interface MinimapColors {
@@ -389,13 +402,18 @@ export class MinimapRenderer {
       // it — which is what a nest of brackets looks like on paper.
       const arm = Math.max(1, gutter.x + gutter.width - x);
       const height = Math.max(ZONE_BRACKET_MIN_HEIGHT, bracket.height);
-      context.fillStyle =
-        bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther;
+      const colour = bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther;
+      // The one under the pointer keeps its hue but goes vivid and a point thicker: the same
+      // statement, just louder, which is how the segment strip says "this is the one you are
+      // pointing at" (§19.4.4).
+      // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverLineWidth
+      const line = bracket.hoverColor === undefined ? 1.5 : ZONE_BRACKET_HOVER_LINE_WIDTH;
+      context.fillStyle = bracket.hoverColor ?? colour;
       // The stem, and an arm at each end: an extent with ends the eye can find
       // is what tells one zone from the one it sits inside.
-      context.fillRect(x, bracket.top, 1.5, height);
-      context.fillRect(x, bracket.top, arm, 1.5);
-      context.fillRect(x, bracket.top + height - 1.5, arm, 1.5);
+      context.fillRect(x, bracket.top, line, height);
+      context.fillRect(x, bracket.top, arm, line);
+      context.fillRect(x, bracket.top + height - line, arm, line);
     }
   }
 

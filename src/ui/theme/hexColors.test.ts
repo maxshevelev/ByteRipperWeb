@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isDarkTheme, saturatedHighlight } from "@/ui/theme/hexColors";
+import { isDarkTheme, saturatedHighlight, zoneHoverHighlight } from "@/ui/theme/hexColors";
 
 /**
  * The hovered segment band's tint, and which theme is in force.
@@ -142,3 +142,39 @@ function resolve(color: string): string {
   const value = Number.parseInt(match[1] ?? "", 16);
   return `rgb(${(value >> 16) & 0xff}, ${(value >> 8) & 0xff}, ${value & 0xff})`;
 }
+
+describe("the zone bracket's hover shade", () => {
+  /** Hue and saturation of `#rrggbb` or `rgb(r, g, b)`. */
+  const hueAndSaturation = (color: string): { hue: number; saturation: number } => {
+    const channels = color.startsWith("#")
+      ? [1, 3, 5].map((at) => Number.parseInt(color.slice(at, at + 2), 16))
+      : (color.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+    const [r = 0, g = 0, b = 0] = channels.map((one) => one / 255);
+    const max = Math.max(r, g, b);
+    const span = max - Math.min(r, g, b);
+    let hue = 0;
+    if (span !== 0) {
+      if (max === r) hue = ((g - b) / span) % 6;
+      else if (max === g) hue = (b - r) / span + 2;
+      else hue = (r - g) / span + 4;
+      hue = (hue / 6 + 1) % 1;
+    }
+    return { hue, saturation: max === 0 ? 0 : span / max };
+  };
+
+  // Under the pointer a bracket keeps its hue and goes vivid — more than a tenth of opacity,
+  // which nobody could see — in either theme, and opaque.
+  // @upstream ByteRipperTests/MinimapZoneTests.swift#MinimapZoneTests.testTheHoverShadeKeepsTheHueAndIsMoreSaturated
+  it("keeps the hue and is more saturated", () => {
+    for (const dark of [false, true]) {
+      for (const colour of ["#59adc4", "#6ac4dc", "#dad554"]) {
+        const plain = hueAndSaturation(colour);
+        const shade = zoneHoverHighlight(colour, dark);
+        const vivid = hueAndSaturation(shade);
+        expect(Math.abs(vivid.hue - plain.hue), `${colour} ${dark}`).toBeLessThan(0.01);
+        expect(vivid.saturation, `${colour} ${dark}`).toBeGreaterThan(plain.saturation + 0.3);
+        expect(shade.startsWith("rgb("), "opaque").toBe(true);
+      }
+    }
+  });
+});

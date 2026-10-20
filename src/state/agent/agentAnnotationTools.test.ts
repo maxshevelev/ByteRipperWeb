@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { annotationTitles, drawnTooltip } from "@/core/agent/agentAnnotation";
+import { annotationTitles, drawnHover } from "@/core/agent/agentAnnotation";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
@@ -144,9 +144,9 @@ async function answer(name: string, args: { [key: string]: Json } = {}): Promise
 /** What pane `pane` draws, as half-open stretches of its own addresses. */
 const spans = (pane: PaneId = "a") => drawnIn(pane).map((one) => [one.start, one.end]);
 
-/** What the pointer resting on byte `offset` of pane `pane` shows. */
-const tooltip = (offset: number, pane: PaneId = "a") =>
-  drawnTooltip(drawnIn(pane), offset, annotationTitles(allAnnotations()));
+/** What the outline of `[start, end)` in pane `pane` says, when the pointer is on it. */
+const hover = (start: number, end: number, pane: PaneId = "a") =>
+  drawnHover(drawnIn(pane), { start, end }, annotationTitles(allAnnotations()))?.text;
 
 /** Lets the selection a reveal asks for land, as the pane would. */
 function selectOnReveal(): void {
@@ -226,7 +226,7 @@ describe("an annotation", () => {
       related_to: ["a1"],
     });
     expect(member(pointer, "related_to")).toEqual(["a1"]);
-    expect(tooltip(0x20)).toBe("Pointer\nRelated Annotations: a1 Table");
+    expect(hover(0x20, 0x24)).toBe("Pointer\nRelated Annotations: a1 Table");
 
     const unknown = await call("annotate", { offset: 0, title: "X", related_to: ["a9"] });
     expect(unknown.text).toBe("No annotation a9. Call `annotations` for the ones there are.");
@@ -266,16 +266,16 @@ describe("an annotation", () => {
 });
 
 describe("on screen", () => {
-  // The note is what the pointer resting on the bytes shows — the innermost annotation's, where
-  // two overlap.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheTooltipIsTheInnermostAnnotationsTitleAndNote
-  it("the tooltip is the innermost annotation's title and note", async () => {
+  // Each outline says its own note: the title and the note of the annotation it outlines, the
+  // inner one's on the inner outline.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testEachOutlineSaysItsOwnTitleAndNote
+  it("each outline says its own title and note", async () => {
     open(counting(0x1000));
     await answer("annotate", { offset: 0, length: 0x100, title: "Region" });
     await answer("annotate", { offset: 0x10, length: 4, title: "Signature", note: "Magic." });
-    expect(tooltip(0x11)).toBe("Signature\nMagic.");
-    expect(tooltip(0x80)).toBe("Region");
-    expect(tooltip(0x200)).toBe("");
+    expect(hover(0x10, 0x14)).toBe("Signature\nMagic.");
+    expect(hover(0, 0x100)).toBe("Region");
+    expect(hover(0x200, 0x210)).toBeUndefined();
   });
 
   // An annotation belongs to the file: another file in the pane does not show it, the list keeps
