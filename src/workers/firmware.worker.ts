@@ -104,7 +104,9 @@ import { type AgentTree, reachable, repairsOver } from "@/tools/uefi/agent/uefiA
 import { variableRows } from "@/tools/uefi/agent/uefiAgentVariables";
 import { variableRowOf as valueRowOf } from "@/tools/uefi/nvramValueText";
 import { acerDMIRowText } from "@/tools/uefi/uefiAcerDMIDetail";
+import { appleDMIRowText } from "@/tools/uefi/uefiAppleDMIDetail";
 import { type ContentSearchResult, runContentSearch } from "@/tools/uefi/uefiContentSearch";
+import { hpDMIRowText } from "@/tools/uefi/uefiHPDMIDetail";
 import {
   decodableBlockOf,
   encodingRole,
@@ -372,6 +374,27 @@ function lenovoWireFields(
 }
 
 /**
+ * HP's `HP_MUD` and Apple's SysF store say whose they are — the serial, the rest in the
+ * detail — on a copy the store marks deleted as well, which is where most HP boards keep
+ * `HP_MUD`. Read here, where the bytes are: an entry is told for HP's by its bytes.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.nodeText
+ * @upstream-differs the panel holds no bytes, so the worker reads the text
+ */
+function vendorDMIWireFields(
+  node: UEFINode,
+  store: UEFINode | undefined
+): { valueRow?: string; dmiArea?: "hp" | "apple" } {
+  if (node.kind !== "vssEntry" && node.kind !== "sysFStore") return {};
+  const reader = readerFor(node);
+  if (reader === undefined) return {};
+  const text =
+    node.kind === "vssEntry" ? hpDMIRowText(node, store, reader) : appleDMIRowText(node, reader);
+  if (text === undefined) return {};
+  return { valueRow: text, dmiArea: node.kind === "vssEntry" ? "hp" : "apple" };
+}
+
+/**
  * A node as it crosses the wire: the ranges flattened to pairs and the GUID to
  * its text, because what the panel does with either is show it.
  */
@@ -386,6 +409,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   ...(node.kind === "acerDMIStore" && readerFor(node) !== undefined
     ? { valueRow: acerDMIRowText(node, readerFor(node) as ImageReader) }
     : {}),
+  ...vendorDMIWireFields(node, store),
   ...lenovoWireFields(node, store),
   hiddenCopies: hiddenCopiesOf(node),
   isEmptySpace: isEmptySpace(node),
@@ -572,7 +596,7 @@ function readDvarSettings(): DellSetupCatalogue {
 
 /**
  * The stores of the board's identity in the image, over a copy of the tree with every
- * container in the file opened and no compressed section: neither store is ever inside one.
+ * container in the file opened and no compressed section: no store is ever inside one.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/TreeMaterialization.swift#TreeMaterialization.dmiStores
  */
@@ -581,7 +605,7 @@ function readDMIStores(): DMIStore[] {
   if (reader === undefined) return [];
   const copy = structuredClone(roots) as UEFINode[];
   materializeAll(copy, reader, DEFAULT_LIMITS, buffers, [], { opensCompressed: false });
-  dmiStores = allDMIStores(copy);
+  dmiStores = allDMIStores(copy, reader);
   return dmiStores;
 }
 

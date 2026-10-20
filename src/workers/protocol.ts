@@ -742,6 +742,15 @@ export interface WireNode {
    */
   readonly valueRow?: string | undefined;
   /**
+   * Whose identity the row holds, where it is one the parser reads off its bytes: HP's `HP_MUD`
+   * entry (`hp`), Apple's SysF store (`apple`). Its `valueRow` then says whose it is, and its
+   * `?` goes to that vendor's DMI page.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.term
+   * @upstream-differs the panel holds no bytes, so the worker tells the row for one
+   */
+  readonly dmiArea?: "hp" | "apple" | undefined;
+  /**
    * For a LENV block of Lenovo's DMI store: the badge it wears for how it is stored.
    *
    * @upstream-differs the panel holds no bytes, so the worker reads the block

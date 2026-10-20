@@ -41,6 +41,11 @@ export interface UEFINodeSort {
    * in their `?`: what a reader asks of it is why the volumes are there twice.
    */
   readonly topSwap?: "copy" | "original" | undefined;
+  /**
+   * Whose identity the row holds, told from its bytes: HP's `HP_MUD` entry is told from the
+   * other VSS entries only by them; so is Apple's SysF store that holds the serial.
+   */
+  readonly dmiArea?: "hp" | "apple" | undefined;
   /** What the parser called it: a padding row is told apart by the name it was given. */
   readonly name?: string | undefined;
   /**
@@ -55,6 +60,9 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
   // A node at the top of a Top Swap copy goes to the page about Top Swap: what a
   // reader asks of it is why the volumes are there twice.
   if (node.topSwap === "copy") return termId("top-swap");
+  // HP's `HP_MUD` entry goes to the page about HP's DMI, Apple's SysF store to Apple's.
+  if (node.dmiArea === "hp") return termId("hp-dmi");
+  if (node.dmiArea === "apple") return termId("apple-dmi");
   switch (node.kind) {
     case "capsule":
       return termId("capsule");

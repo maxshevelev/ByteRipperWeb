@@ -3124,13 +3124,28 @@ button.uefi-title {
   color: var(--text);
 }
 
-/* Show DMI Area: left of the search, the same quiet icon, and in the row only when the
-   image keeps the board's identity somewhere the tree reads. */
+.uefi-dmi-badge {
+  box-sizing: border-box;
+  height: 15px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 13px;
+}
+
+.uefi-dmi:active .uefi-dmi-badge {
+  background: var(--part-badge-fill);
+}
+
+/* Show DMI Area: left of the search, and in the row only when the image keeps the board's
+   identity somewhere the tree reads. Its face is the word in a rounded frame
+   (`.uefi-dmi-badge`), upstream's UEFIDMIBadgeButton: 10 px semibold, a 15 px frame. */
 .uefi-dmi {
   flex: none;
   display: grid;
   place-items: center;
-  width: 18px;
   height: 18px;
   padding: 0;
   border: 0;
@@ -3358,7 +3373,6 @@ button.uefi-title {
 }
 
 .uefi-reveal svg,
-.uefi-dmi-glyph,
 .uefi-search-toggle svg,
 .tool-detail-glyph {
   width: 13px;

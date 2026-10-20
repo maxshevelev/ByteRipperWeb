@@ -63,7 +63,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 - [x] **Y2 — the chip catalogue; nothing-for-the-web commits recorded** (`283cb63c` regenerated from upstream's table; `eb231325` is upstream's generator, which the web's reads the result of; `412b8fb4` is Swift's concurrency warnings and `64e795c9` AppKit test measurements — nothing for the web)
 - [x] **Y3 — fragments named by what was opened, the codec on the pill** (`6df00ce8`, `ec31062c`, `8e6d1dec`, `1ddfb725`; the pill's ink on the badge is a CSS rule, the dot a CSS disc)
 - [x] **Y4 — tool panels: one detail list, the large view kept open, ME Show in Tree** (`d20c8f1d`, `e3581623`, `90f101ae`, `ecbe9727`; the FIT detail and ME reveal already were the shared list and the moved table here; `e7d038e5` is the window's title, which a page has not got; `119b83a2`, `7302cf1f` are flow tests, `later`)
-- [ ] **Y5 — vendor DMI: the badge, HP, Apple**
+- [x] **Y5 — vendor DMI: the badge, HP, Apple** (`3c835594`, `18d6b4e0`, `8bba71b8`; the worker tells an HP_MUD entry or a SysF store for one and says so on the wire, `dmiArea`, since the panel holds no bytes)
 - [ ] **Y6 — the rebuild planner speaks the reader's language**
 - [ ] **Y7 — the Annotations panel and Open Annotation**
 - [ ] **Y8 — agent: the pane brought forward, survey paths, bounds, the activity dot**

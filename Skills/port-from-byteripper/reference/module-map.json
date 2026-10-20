@@ -505,7 +505,11 @@
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIStore.swift": "src/firmware/uefi/lenovoDmiStore.ts",
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIFirmwareReaders.swift": "src/firmware/uefi/lenovoDmiFirmwareReaders.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift": "src/firmware/uefi/lenovoDmiStore.test.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/TestFlashDeviceMap.swift": "src/firmware/testing/testFlashDeviceMap.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/TestFlashDeviceMap.swift": "src/firmware/testing/testFlashDeviceMap.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift": "src/firmware/uefi/hpDmiArea.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift": "src/firmware/uefi/hpDmiArea.test.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift": "src/firmware/uefi/appleDmiArea.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift": "src/firmware/uefi/appleDmiArea.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -975,7 +979,12 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIContentSearch.swift": "src/tools/uefi/uefiContentSearch.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIContentSearchTests.swift": "src/tools/uefi/uefiContentSearch.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentContentSearch.swift": "src/tools/uefi/agent/uefiAgentFind.ts",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift": "src/tools/uefi/UefiContentResults.tsx"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift": "src/tools/uefi/UefiContentResults.tsx",
+        "Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift": "src/tools/uefi/uefiHPDMIDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift": "src/tools/uefi/uefiAppleDMIDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift": "src/tools/uefi/uefiStructureTool.tsx"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",

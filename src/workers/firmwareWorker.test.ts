@@ -4,6 +4,7 @@ import { LenovoDMIFormat, smbiosKey } from "@/firmware/lenovoDmi/lenovoDmiFormat
 import { BootGuardImage, bootPolicyV1 } from "@/firmware/testing/testBootGuard";
 import * as Test from "@/firmware/testing/testImage";
 import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
+import { APPLE_SERIAL, appleImage, HP_SERIAL, hpImage } from "@/firmware/testing/testVendorDMI";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
@@ -445,6 +446,42 @@ describe("a lazy compressed section", () => {
  * Lenovo's DMI store, as the worker finds it for the panel's button and the details: the
  * stores wherever they lie, and which drivers name an entry's key.
  */
+describe("the vendors' identity in NVRAM", () => {
+  /** The rows down to the first node of `kind`, opening each branch on the way. */
+  function rowOf(roots: readonly WireNode[], kind: string): WireNode | undefined {
+    for (const node of roots) {
+      if (node.kind === kind) return node;
+      const below = rowOf(expand(node.id), kind);
+      if (below !== undefined) return below;
+    }
+    return undefined;
+  }
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheTreeFindsTheEntry
+  it("finds HP's HP_MUD entry, and the row says whose it is", () => {
+    const bytes = hpImage();
+    const roots = open(bytes);
+    const stores = ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores;
+    expect(stores.map((store) => store.kind)).toEqual(["vssEntry"]);
+    const store = rowOf(roots, "vss2Store");
+    const entry = (store === undefined ? [] : expand(store.id)).find(
+      (one) => one.header[0] === stores[0]?.range[0]
+    );
+    expect(entry?.dmiArea).toBe("hp");
+    expect(entry?.valueRow).toBe(`HP_MUD · ${HP_SERIAL}`);
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift#AppleDMIAreaTests.testTheDMIStoresSeeTheStore
+  it("finds Apple's SysF store, and the row says whose it is", () => {
+    const roots = open(appleImage());
+    const stores = ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores;
+    expect(stores.map((store) => store.kind)).toEqual(["sysFStore"]);
+    const store = rowOf(roots, "sysFStore");
+    expect(store?.dmiArea).toBe("apple");
+    expect(store?.valueRow).toBe(`Apple SysF store · ${APPLE_SERIAL}`);
+  });
+});
+
 describe("the board's identity stores", () => {
   const STORE = Uint8Array.from([
     ...testLog(STANDARD_LOG.slice(2), 0x77),

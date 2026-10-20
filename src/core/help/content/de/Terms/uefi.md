@@ -1,4 +1,4 @@
-@source-sha 63fbfb51ae3dca38d02aa08b3a92a9147931b115aa51189572f81075344d83c9
+@source-sha 46bf884325bac3381d1a7400a455df1cf9f8bc8ada615d810130763201b3ac70
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -462,7 +462,7 @@ Verlorene Felder sind nicht immer endgültig verloren. Einige Hersteller — dar
 
 Wo diese Felder im Abbild stehen, ist nicht standardisiert. Jeder Hersteller legt sie dorthin, wo er will, und die Aufteilung wandert von Generation zu Generation; im Allgemeinen läuft das Übertragen deshalb auf den Vergleich zweier Abbilder hinaus.
 
-Drei Aufteilungen sind die Ausnahmen, die das Programm lesen kann. Die Firmware Lenovo InsydeH2O hält diese Felder in einem eigenen, kodierten Speicher, den [[term:lenv|LENV]]-Blöcken ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS-Notebooks mit AMI-Firmware halten sie in einem [[term:gpnv|GPNV]]-Speicher. Acer hält sie in einem 8-KiB-Block im [[term:padding|Padding]] des BIOS-Regions, dem Bereich [[term:acer-dmi|Acer DMI]]. Jede Aufteilung wurde aus den Dumps der Notebooks dieses Herstellers erschlossen; keiner der drei hat sie veröffentlicht.
+Fünf Aufteilungen sind die Ausnahmen, die das Programm lesen kann. Die Firmware Lenovo InsydeH2O hält diese Felder in einem eigenen, kodierten Speicher, den [[term:lenv|LENV]]-Blöcken ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS-Notebooks mit AMI-Firmware halten sie in einem [[term:gpnv|GPNV]]-Speicher. Acer hält sie in einem 8-KiB-Block im [[term:padding|Padding]] des BIOS-Regions, dem Bereich [[term:acer-dmi|Acer DMI]]. HP hält sie in NVRAM-Variablen des Hauptspeichers [[term:vss|VSS2]], siehe [[term:hp-dmi|HP DMI]]. Apple hält sie im SysF-Speicher des NVRAM, siehe [[term:apple-dmi|Apple DMI]]. Jede Aufteilung wurde aus den Dumps der Maschinen dieses Herstellers erschlossen; keiner der fünf hat sie veröffentlicht.
 
 Im Baum von **Werkzeuge ▸ UEFI-Struktur** erscheint dieser Speicher als ein Knoten, **Lenovo DMI**, gleich wo er im Abbild liegt: anstelle der drei Regionen, die die Insyde-Flash-Device-Map als „Unknown" deklariert, oder innerhalb von Padding, wenn es keine Map gibt. Seine Beschreibung nennt den Block, den die Firmware liest, und führt dessen Einträge dekodiert auf, darunter Seriennummer und UUID; ein Klick auf einen Eintrag öffnet seinen Knoten. Unter dem Knoten liegen das Änderungsprotokoll und beide Blöcke, jeder Eintrag mit seinem Wert neben dem Namen.
 
@@ -470,6 +470,8 @@ Im Baum von **Werkzeuge ▸ UEFI-Struktur** erscheint dieser Speicher als ein Kn
 @see term:lenv
 @see term:gpnv
 @see term:acer-dmi
+@see term:hp-dmi
+@see term:apple-dmi
 @see topic:recipe-board-data
 
 @term acer-dmi
@@ -486,6 +488,49 @@ Acer hat den Aufbau nicht veröffentlicht; er wurde aus den Dumps der vorliegend
 
 @see term:dmi
 @see term:padding
+
+@term hp-dmi
+@name HP DMI
+@short Die NVRAM-Variablen, in denen die HP-Firmware die im Werk geschriebenen Angaben zur Maschine hält — Seriennummer, SKU, Modell, UUID, Build ID, Feature Byte. Genau diese Werte zeigt und schreibt das HP BIOS Configuration Utility (BCU).
+
+Einen eigenen Block für die Identität der Maschine hat HP nicht: Sie liegt in Variablen des Hauptspeichers [[term:vss|VSS2]] im [[term:nvram|NVRAM]]. Es sind dieselben Werte, die das HP BIOS Configuration Utility (BCU) und das BIOS-Setup anzeigen:
+
+- `HP_MUD` (GUID `20AB3EB1-3C8F-4A4C-B87E-372426066D97`, 430 Byte): Seriennummer, SKU, Produktfamilie, CT-Nummer, Produktname und UUID, jedes Feld ein UTF-16-Text fester Länge.
+- `BuildId` unter derselben GUID: die Build ID, zum Beispiel `24WWROBZ602#SABD#DABD`.
+- `FactoryConfig` unter derselben GUID: das Feature Byte, eine Folge zweistelliger Codes, die mit einem Punkt und einem zweistelligen Prüfteil endet, zum Beispiel `…rbs4.TR`. Es beschreibt die Ausstattung der Maschine, und die Service-Werkzeuge von HP setzen es korrekt voraus.
+- `HP_TAGS` (GUID `FB3B9ECE-4ABA-4933-B49D-B4D67D892351`): die Inventarnummer (Asset Tracking Number) im ersten Feld. Der Rest der Variablen war auf allen untersuchten Platinen leer und wird nicht gelesen; was er enthält, ist unbekannt.
+
+Unter derselben GUID liegt außerdem `FactoryConfigFlags`; ihre Bedeutung ist unbekannt.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] zeigt den Eintrag `HP_MUD` als Knoten **HP_MUD** mit der Seriennummer neben dem Namen, und das Abzeichen **DMI** führt zu ihm. Die Beschreibung führt die Felder in der Reihenfolge des BCU auf, danach die Werte der drei Variablen daneben. Weicht die Inventarnummer von der Seriennummer ab, vermerkt die Beschreibung das: HP trägt dort standardmäßig die Seriennummer ein, ein anderer Wert wurde also vom Besitzer gesetzt oder kam mit dem Speicher von einem anderen Gerät.
+
+Auf den meisten untersuchten HP-Platinen markiert der Speicher alle Kopien von `HP_MUD`, `BuildId` und `FactoryConfig` als gelöscht und hält keine gültige, obwohl die Kopien selbst vollständig sind. UEFITool zeigt einen solchen Eintrag als Invalid; ByteRipper liest ihn trotzdem, zeigt ihn als **HP_MUD** und vermerkt in der Beschreibung, dass die Kopie als gelöscht markiert ist. Woher die Firmware einer solchen Platine die Identität im Betrieb nimmt, zeigt der Dump nicht: Ob sie die markierte Kopie liest oder eine andere außerhalb des BIOS-Chips hält, ist unbekannt.
+
+HP hat die Aufteilung nicht veröffentlicht; sie wurde aus Dumps von HP EliteBooks der Jahre 2023–2025 mit AMD- und Intel-Prozessoren erschlossen. Ein `HP_MUD` anderer Größe ist eine noch nicht untersuchte Aufteilung, und das Programm liest es nicht. Um einer Platine ihre Identität zurückzugeben, schreiben die Service-Werkzeuge von HP diese Werte neu vom Aufkleber am Gehäuse.
+
+@see term:dmi
+@see term:vss
+
+@term apple-dmi
+@name Apple DMI
+@short Die Seriennummer, der Konfigurationscode und die Bestellnummer des Mac, die die Firmware von Apple im SysF-Speicher des NVRAM hält, und daneben die Seriennummer der Platine selbst.
+
+Die Firmware von Apple hält die Identität der Maschine nicht in einem eigenen Block, sondern im SysF-Speicher, dem `Fsys`-Speicher des [[term:nvram|NVRAM]]. Seine Variablen sind:
+
+- `ssn`: die Seriennummer des Systems, 12 Zeichen (beim untersuchten MacBook Pro von 2010 11), dieselbe, die auf dem Gehäuse steht, zum Beispiel `C02QMDJVG940`.
+- `hwc`: der Konfigurationscode, das Ende der Seriennummer — vier Zeichen, bei der 11-stelligen drei —, zum Beispiel `G940`. Mit ihm bestimmen Prüfdienste das Modell.
+- `son`: die Bestellnummer (Sales Order Number); in den untersuchten Dumps stand dort die Bestellnummer des Modells, zum Beispiel `MJVE2D/`. Was Apple genau darunter versteht, ist nicht veröffentlicht; das Programm zeigt den Wert so, wie der Speicher ihn hält.
+
+Die Seriennummer der Platine selbst, die MLB, ist keine Variable dieses Speichers. Sie steckt in den Namen der Kalibrierungsvariablen neben den dreien: Jede heißt nach der MLB und einem Suffix, zum Beispiel `C02542600KXG91TANMAC-1`, und das Programm liest die MLB aus den 17 Zeichen, die mindestens zwei solcher Namen gemeinsam haben. Gegen die MLB prüfen die Aktivierung der Maschine und die Prüfdienste von Apple.
+
+Das [[topic:tool-uefi|UEFI-Werkzeug]] zeigt den Speicher als Zeile **Apple SysF store**, die Seriennummer steht neben dem Namen; die Schaltfläche **DMI** führt dorthin. Die Details des Knotens nennen die vier Werte und danach, was ein Techniker wissen sollte, ehe er ihnen traut: Der Konfigurationscode bildet nicht das Ende der Seriennummer, wie es bei einem original Mac der Fall ist — so sieht eine Platzhalter-Seriennummer wie `123456789012` aus; die Seriennummer und die der Platine beginnen verschieden, obwohl beide mit dem Code des Werks beginnen; oder der Speicher markiert die Seriennummer als ungültig und hält keine gültige Kopie.
+
+In den untersuchten MacBook Pro von 2010 und 2011 enthält der Speicher die Seriennummer, den Code und die Bestellnummer (`MC371D/A`), aber keine Kalibrierungsvariablen; die Details zeigen dort deshalb keine MLB.
+
+Apple hat die Aufteilung nicht veröffentlicht; sie wurde aus vier Mac-Dumps erschlossen — einem MacBook Air, einem MacBook Pro 13 und zwei MacBook Pro 15 —, mehr wird nicht behauptet. Ein Speicher, der kein `Fsys`-Speicher ist, etwa der Diag-Speicher, wird nicht gelesen.
+
+@see term:dmi
+@see term:nvram
 
 @term lenv
 @name LENV-Block

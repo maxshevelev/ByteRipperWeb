@@ -461,7 +461,7 @@ Lost fields are not always lost for good. Some vendors — HP and Acer among the
 
 Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, so carrying them over is in general a job of comparing two images.
 
-Three layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. Each layout was read off the dumps of that vendor's laptops; none of the three has published it.
+Five layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. HP keeps them in NVRAM variables of the main [[term:vss|VSS2]] store, [[term:hp-dmi|HP DMI]]. Apple keeps them in the SysF store of the NVRAM, [[term:apple-dmi|Apple DMI]]. Each layout was read off the dumps of that vendor's machines; none of the five vendors has published it.
 
 **Tools ▸ UEFI Structure** shows that store as one row of the tree, **Lenovo DMI**, wherever in the image it lies: in place of the three regions the Insyde flash device map declares as "Unknown", or inside padding where there is no map. Its detail names the block the firmware reads and lists that block's entries decoded, the serial number and the UUID among them; a click on an entry opens its row. Under the row are the change log and both blocks, each entry with its value beside its name.
 
@@ -469,6 +469,8 @@ Three layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps 
 @see term:lenv
 @see term:gpnv
 @see term:acer-dmi
+@see term:hp-dmi
+@see term:apple-dmi
 @see topic:recipe-board-data
 
 @term acer-dmi
@@ -485,6 +487,49 @@ Acer has not published the layout; it was read off the dumps of the laptops at h
 
 @see term:dmi
 @see term:padding
+
+@term hp-dmi
+@name HP DMI
+@short The NVRAM variables in which HP's firmware keeps what the factory wrote of the machine — serial number, SKU, model, UUID, build ID, feature byte — and what HP BIOS Configuration Utility (BCU) reports and writes.
+
+HP's firmware keeps the machine's identity not in a block of its own but in variables of the main [[term:vss|VSS2]] store of the [[term:nvram|NVRAM]]. They are what HP BIOS Configuration Utility (BCU) and the BIOS setup show for the machine:
+
+- `HP_MUD` (GUID `20AB3EB1-3C8F-4A4C-B87E-372426066D97`, 430 bytes): the serial number, the SKU, the product family, the CT number, the product name and the UUID, each a UTF-16 text in a field of fixed length.
+- `BuildId` under the same GUID: the build ID, for example `24WWROBZ602#SABD#DABD`.
+- `FactoryConfig` under the same GUID: the feature byte, the string of two-character codes that ends in `.` and a two-character check, for example `…rbs4.TR`. It lists what the machine was built with, and HP's service utilities need it to be correct.
+- `HP_TAGS` (GUID `FB3B9ECE-4ABA-4933-B49D-B4D67D892351`): the asset tracking number, in its first field. The rest of the variable was blank on every board examined and is not read; what it holds is unknown.
+
+The same GUID also holds `FactoryConfigFlags`, whose meaning is unknown.
+
+The [[topic:tool-uefi|UEFI tool]] shows the `HP_MUD` entry as the row **HP_MUD**, with the serial number beside the name, and the **DMI** badge goes to it. The detail lists the fields in the order BCU uses, then the three variables beside it. Where the asset tracking number is not the serial number, the detail notes it: HP writes the serial number there by default, so another value was set by the owner or came with the store from another machine.
+
+On most of the HP boards examined, the store marks every copy of `HP_MUD`, `BuildId` and `FactoryConfig` as deleted and keeps no current one, while the copy itself is complete. UEFITool calls such an entry Invalid; ByteRipper reads it all the same, shows it as **HP_MUD** and says in the detail that the copy is marked deleted. Where the firmware of such a board takes the identity from at run time cannot be seen in the dump: whether it reads the marked copy or keeps another one outside the BIOS chip is unknown.
+
+HP has not published the layout; it was read off the dumps of HP EliteBooks of 2023–2025, with AMD and Intel processors. A `HP_MUD` of another size is a layout that has not been examined, and the app does not read it. To give a board its identity back, HP's service utilities write these values again from the sticker on the case.
+
+@see term:dmi
+@see term:vss
+
+@term apple-dmi
+@name Apple DMI
+@short The Mac's serial number, configuration code and sales order number, which Apple's firmware keeps in the SysF store of the NVRAM, and the board's own serial beside them.
+
+Apple's firmware keeps the machine's identity in the SysF store, the `Fsys` store of the [[term:nvram|NVRAM]], not in a block of its own. Its variables are:
+
+- `ssn`: the system serial number, 12 characters (11 on the MacBook Pro of 2010 examined), the number printed on the case, for example `C02QMDJVG940`.
+- `hwc`: the configuration code, the end of the serial number — four characters, three on the 11-character one — for example `G940`. It is what lookup services use to tell the model.
+- `son`: the sales order number, which on the dumps examined held the model's order number, for example `MJVE2D/`. What Apple means by it is not published, and the app shows it as the store holds it.
+
+The board's own serial, the MLB, is no variable of this store. It is part of the names of the calibration variables beside the three: each is named by the MLB and a suffix, for example `C02542600KXG91TANMAC-1`, and the app reads the MLB from the 17 characters that at least two such names share. The MLB is what the machine's activation and the Apple lookup tools check against the serial number.
+
+The [[topic:tool-uefi|UEFI tool]] shows the store as the row **Apple SysF store**, with the serial number beside the name, and the **DMI** badge goes to it. The detail lists the four values, then what a technician should know before trusting them: the configuration code is not the end of the serial number, as it is on a Mac's own, which is what a placeholder serial such as `123456789012` looks like; the serial and the board's serial do not begin alike, since both start with the code of the factory; or the store marks the serial invalid and keeps no current copy.
+
+On the MacBook Pro of 2010 and 2011 examined, the store holds the serial number, the code and the order number (`MC371D/A`) but no calibration variables, so the detail shows no MLB there.
+
+Apple has not published the layout; it was read off four Mac dumps — a MacBook Air, a MacBook Pro 13 and two MacBook Pro 15 — and no more than that is claimed. A store that is not a `Fsys` one, such as the Diag store, is not read.
+
+@see term:dmi
+@see term:nvram
 
 @term lenv
 @name LENV block
