@@ -62,6 +62,7 @@ import {
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
 import { languageStore } from "@/state/settingsStore";
+import { isTextEntry } from "@/state/textFocusStore";
 import {
   menuState,
   paneClosed,
@@ -254,11 +255,6 @@ function documentKey(document: object): number {
 function workspaceHasFile(): boolean {
   const { panes } = workspaceStore.getSnapshot();
   return panes.a !== undefined || panes.b !== undefined;
-}
-
-/** Whether typing here edits text of its own, which keeps its own undo. */
-function isTextEntry(element: HTMLElement): boolean {
-  return element.isContentEditable || element.closest("input, textarea, select") !== null;
 }
 
 /**

@@ -4896,7 +4896,6 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.presentExternalChange": "n/a — a browser cannot reveal, name the path of, or watch a file on disk",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.filePaneView": "n/a — window controller plumbing; the shell's components read the stores",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.selectAllBytes": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.pane": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.prefillOffset": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
@@ -5897,7 +5896,9 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateToolbarItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.window*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is"
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.window*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.init": "n/a — AppKit's view set-up: NotesEmpty is an element",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.draw": "n/a — AppKit's drawing: the panel's own ground"
       }
     },
     {

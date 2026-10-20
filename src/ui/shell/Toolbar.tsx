@@ -27,6 +27,7 @@ import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
+import { textFocusStore, undoInTextField } from "@/state/textFocusStore";
 import {
   frontSession,
   menuState,
@@ -195,6 +196,8 @@ export function Toolbar({
   // again, named by nothing but the verb.
   // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.removals
   const notesUp = notesPanelIsUp(state);
+  // A text field being typed in takes Undo and Redo for its own typing.
+  const typing = useStore(textFocusStore).field !== undefined;
   const undoable = notesUp
     ? canUndoPanelRemoval()
       ? { label: undefined }
@@ -350,17 +353,26 @@ export function Toolbar({
     // an item that comes and goes is one the eye has to search for.
     {
       // help: menu.edit.undo
-      label: undoable?.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
+      // Typing in a text field, the field's own typing is what it takes back.
+      label: typing || undoable?.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
       shortcut: "⌘Z",
-      disabled: undoable === undefined,
-      onSelect: () => (notesUp ? undoPanelRemoval() : void undoLast(front, false)),
+      disabled: !typing && undoable === undefined,
+      onSelect: () => {
+        if (undoInTextField(false)) return;
+        if (notesUp) undoPanelRemoval();
+        else void undoLast(front, false);
+      },
     },
     {
       // help: menu.edit.redo
-      label: redoable?.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
+      label: typing || redoable?.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
       shortcut: "⇧⌘Z",
-      disabled: redoable === undefined,
-      onSelect: () => (notesUp ? redoPanelRemoval() : void redoLast(front)),
+      disabled: !typing && redoable === undefined,
+      onSelect: () => {
+        if (undoInTextField(true)) return;
+        if (notesUp) redoPanelRemoval();
+        else void redoLast(front);
+      },
     },
     { kind: "separator" },
     {

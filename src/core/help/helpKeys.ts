@@ -29,6 +29,8 @@ export type HelpCommand =
   | "redo"
   | "selectAll"
   | "save"
+  | "copy"
+  | "cut"
   | "paste"
   | "find"
   | "goTo"
@@ -85,6 +87,8 @@ export const HELP_KEY_SPELLINGS: Readonly<Record<HelpCommand, KeySpelling>> = {
   redo: { apple: "⇧⌘Z", other: "Ctrl+Shift+Z" },
   selectAll: { apple: "⌘A", other: "Ctrl+A" },
   save: { apple: "⌘S", other: "Ctrl+S" },
+  copy: { apple: "⌘C", other: "Ctrl+C" },
+  cut: { apple: "⌘X", other: "Ctrl+X" },
   paste: { apple: "⌘V", other: "Ctrl+V" },
   find: { apple: "⌘F", other: "Ctrl+F" },
   goTo: { apple: "⌘L", other: "Ctrl+L" },

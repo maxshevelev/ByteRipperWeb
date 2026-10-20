@@ -265,7 +265,7 @@ export const undoHooks: {
  * Returns false when neither history has anything left, so the caller can leave
  * the key to whatever else wants it.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undoEdit
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.undo
  */
 export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
   const taken = await undoStep(pane, batch);
@@ -308,7 +308,7 @@ async function undoStep(pane: PaneId, batch: boolean): Promise<boolean> {
  * Puts back the last act an undo took out of `pane`, and centres the caret it
  * restores when that landed outside the viewport — see {@link undoHooks}.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.redoEdit
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.redo
  */
 export async function redoLast(pane: PaneId): Promise<boolean> {
   const taken = await redoStep(pane);

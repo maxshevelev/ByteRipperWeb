@@ -795,6 +795,8 @@ function NoteCard({
  * can put them back: what goes here, and how to make one.
  *
  * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.title
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.message
  */
 function NotesEmpty() {
   return (

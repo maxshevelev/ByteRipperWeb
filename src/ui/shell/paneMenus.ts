@@ -711,7 +711,7 @@ function fileStem(name: string): string {
 const COPY_LIMIT = 1024 * 1024;
 
 /**
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copySelection
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copy
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copyPaneSelection
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.copySelectionBytes
  */

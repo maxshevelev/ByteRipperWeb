@@ -48,3 +48,9 @@ The confirmations can be switched off in [[topic:settings|Settings ▸ Editing]]
 ## Undo
 
 Every edit is one undo step ([[key:undo]]), including the large ones: a join, a fill, a write made by a [[topic:tools-overview|tool panel]], a fragment written back into its parent. Undo is held per document — the dump in front is what [[key:undo]] takes back, so an edit made inside a [[topic:fragments|fragment panel]] is undone in the fragment and not in the image behind it.
+
+## In a text field
+
+While a text field has the focus — the find bar, a form, a dialog — the editing keys act on its text, as anywhere in [[edition:the browser||the system]]: [[key:selectAll]] selects the text of the field, [[key:copy]], [[key:cut]] and [[key:paste]] copy, cut and paste text, and [[key:undo]] undoes the typing. **Edit ▸ Undo** and **Edit ▸ Redo** chosen while typing in a field act on its typing too. They act on the bytes only while the dump has the focus.
+
+Bytes are not cut, since cutting would shorten the file: [[key:cut]] does nothing while the dump has the focus.

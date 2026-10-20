@@ -473,7 +473,7 @@ export async function refreshMinimap(surface: SurfaceId = frontSurface()): Promi
   // A comparison whose two files both need reading from disk, under an index that describes them,
   // reads each row both hold the same from one of them only, half and half (§19.9).
   // @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.isSettling
-  // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.comparisonIndexIsSettling
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.comparisonIndexIsSettling
   // @upstream-differs a picture asked for while the index is still being built reads every row
   // rather than waiting for it, which the index's landing does not ask again for here
   // A split still in flight is given up whole: a half read with holes for the other file to fill

@@ -1309,6 +1309,8 @@ export function HexPane({
           if (scroller !== null) scrollPaneTo(command.edge === "top" ? 0 : scroller.maxTop);
           break;
         case "selectAll":
+          // With the dump in focus, every byte; a text field answers ⌘A itself first.
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectAll
           // Through the controller, which anchors the selection at the file's
           // start and resets the editing state — so a following Shift+Left
           // shortens the selection from its end.

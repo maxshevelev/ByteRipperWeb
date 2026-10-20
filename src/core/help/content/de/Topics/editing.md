@@ -1,4 +1,4 @@
-@source-sha 34a7e1c09eef33c999f1452655e058b3d2ba96f62e0b139afdd1c27cab9d11e2
+@source-sha 6f55759e68e192e91e14d06bbb6b46ad540a580a0372e863b68fded45a92030f
 # Bytes bearbeiten
 
 > Tippen überschreibt die vorhandenen Bytes. Jeder Vorgang, der die Länge der Datei ändert, fragt vorher nach.
@@ -38,3 +38,9 @@ Die Rückfragen lassen sich in den [[topic:settings|Einstellungen ▸ Bearbeiten
 ## Widerrufen
 
 Jede Änderung ist ein Widerrufsschritt ([[key:undo]]), auch die großen: ein Zusammenfügen, ein Füllen, ein von einem [[topic:tools-overview|Werkzeug]] geschriebener Vorgang, ein in die Quelle zurückgeschriebenes Fragment. Widerrufen wird je Dokument geführt: [[key:undo]] widerruft in dem Dump, der vorn ist — eine Änderung in einer [[topic:fragments|Teilansicht]] wird also im Fragment widerrufen und nicht im Image darunter.
+
+## In einem Eingabefeld
+
+Solange ein Eingabefeld den Fokus hat — die Suchleiste, ein Formular, ein Dialog —, wirken die Bearbeitungstasten auf dessen Text, wie überall [[edition:im Browser||im System]]: [[key:selectAll]] wählt den Text des Feldes aus, [[key:copy]], [[key:cut]] und [[key:paste]] kopieren, schneiden aus und fügen Text ein, [[key:undo]] widerruft die Eingabe. **Bearbeiten ▸ Widerrufen** und **Bearbeiten ▸ Wiederholen**, während der Eingabe in einem Feld gewählt, wirken ebenfalls auf die Eingabe. Auf die Bytes wirken die Tasten nur, solange der Dump den Fokus hat.
+
+Bytes werden nicht ausgeschnitten, da dies die Datei verkürzen würde: Solange der Dump den Fokus hat, bewirkt [[key:cut]] nichts.
