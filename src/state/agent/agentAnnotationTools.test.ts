@@ -23,7 +23,21 @@ import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { forgetOpenedFilesForTesting } from "@/state/fileReopen";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
+import {
+  canNavigateBack,
+  forgetCaretOnScreen,
+  navigateBack,
+  navigateForward,
+  navigationHistory,
+  showNotesLeaving,
+} from "@/state/navigationStore";
+import {
+  forgetPanelRemovalsForTesting,
+  notesPanelStore,
+  redoPanelRemoval,
+  removeFromPanel,
+  undoPanelRemoval,
+} from "@/state/notesPanelStore";
 import { noticeStore } from "@/state/noticeStore";
 import {
   closePane,
@@ -36,6 +50,10 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
+import { dumpMenu, type PaneMenuActions } from "@/ui/shell/paneMenus";
+
+/** Nothing the offset menu's annotation items do calls the shell back. */
+const noActions = new Proxy({}, { get: () => () => undefined }) as PaneMenuActions;
 
 /**
  * An agent's annotations: made, listed, related and removed through the service; drawn by the
@@ -152,6 +170,7 @@ beforeEach(() => {
 
 afterEach(() => {
   discardAnnotationsForTesting();
+  forgetPanelRemovalsForTesting();
   service.desk.background.closeAll();
   while (leave.length > 0) leave.pop()?.();
   workspaceStore.update((state) => ({
@@ -557,5 +576,83 @@ describe("the Annotations panel", () => {
     expect(agentAnnotationStore.getSnapshot().fresh).toEqual(state.fresh);
     expect(agentAnnotationStore.getSnapshot().unseen).toEqual(state.unseen);
     expect(agentAnnotationStore.getSnapshot().nextId).toBe(4);
+  });
+
+  // A removal made in the panel is one step: ⌘Z puts the cards back, selected; ⇧⌘Z removes them
+  // again.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testUndoPutsRemovedCardsBackWhereTheyStood
+  it("takes a removal back with Undo, and makes it again with Redo", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    await answer("annotate", { offset: 2, title: "B" });
+    removeFromPanel(new Set(["a1"]));
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2"]);
+
+    expect(undoPanelRemoval()).toBe(true);
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a1"]);
+    expect(notesPanelStore.getSnapshot().select?.ids).toEqual(["a1"]);
+    expect(undoPanelRemoval()).toBe(false);
+
+    expect(redoPanelRemoval()).toBe(true);
+    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2"]);
+    expect(undoPanelRemoval()).toBe(true);
+    expect(allAnnotations()).toHaveLength(2);
+  });
+
+  // A note is marked New when the panel comes up, and while it is up; the marks go when it folds.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteIsNewUntilTheWindowGoesOutOfView
+  it("marks a note New until the panel goes out of view", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, title: "A" });
+    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
+    openNotesPanel();
+    expect([...notesPanelStore.getSnapshot().newIds]).toEqual(["a1"]);
+    await answer("annotate", { offset: 2, title: "B" });
+    expect([...notesPanelStore.getSnapshot().newIds]).toEqual(["a1", "a2"]);
+    foldParts();
+    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
+    openNotesPanel();
+    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
+  });
+
+  // A note made by hand brings the panel up as a step of the history: Back returns to the place it
+  // was made on, and Forward comes to the panel again.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteMadeShowsTheWindowAndBackReturnsToItsPlace
+  it("brings the panel up when a note is made, a step Back returns from", async () => {
+    open(counting(0x1000));
+    await paneState("a")?.typing.setSelection(0x30, 0x38);
+    expect(await service.annotationTools.addNote("Board ID", "", "a", 0x30, 0x38)).toBe(true);
+    showNotesLeaving("a");
+    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
+    expect(canNavigateBack()).toBe(true);
+
+    navigateBack();
+    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(false);
+    expect(selection()).toEqual([0x30, 0x38]);
+    navigateForward();
+    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
+  });
+
+  // A right-click on a byte inside annotations offers each of them, the innermost first; picking
+  // one brings the panel up with its card selected, a step Back returns from.
+  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheOffsetMenuOpensTheAnnotationsOnTheByte
+  it("is opened from the offset menu of a byte inside it, the innermost first", async () => {
+    open(counting(0x1000));
+    await answer("annotate", { offset: 0, length: 0x100, title: "Outer" });
+    await answer("annotate", { offset: 0x10, length: 0x10, title: "Inner" });
+    const offered = dumpMenu(workspaceStore.getSnapshot(), "a", 0x18, noActions)
+      .filter((entry) => entry !== undefined && "label" in entry)
+      .map((entry) => (entry as { label: string }).label)
+      .filter((label) => label.startsWith("Open Annotation"));
+    expect(offered).toEqual(["Open Annotation “Inner”", "Open Annotation “Outer”"]);
+
+    const item = dumpMenu(workspaceStore.getSnapshot(), "a", 0x18, noActions).find(
+      (entry) =>
+        entry !== undefined && "label" in entry && entry.label === "Open Annotation “Outer”"
+    ) as { onSelect: () => void };
+    item.onSelect();
+    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
+    expect(notesPanelStore.getSnapshot().select?.ids).toEqual(["a1"]);
+    expect(canNavigateBack()).toBe(true);
   });
 });

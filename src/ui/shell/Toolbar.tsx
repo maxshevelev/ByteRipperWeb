@@ -16,6 +16,12 @@ import {
   navigateForward,
   navigationStore,
 } from "@/state/navigationStore";
+import {
+  canRedoPanelRemoval,
+  canUndoPanelRemoval,
+  redoPanelRemoval,
+  undoPanelRemoval,
+} from "@/state/notesPanelStore";
 import type { OpenPanePlacement } from "@/state/openPlacement";
 import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
@@ -34,6 +40,7 @@ import { useStore } from "@/state/useStore";
 import {
   agentPanelIsUp,
   frontPane,
+  notesPanelIsUp,
   paneIn,
   type SlotId,
   setLayout,
@@ -184,8 +191,20 @@ export function Toolbar({
   const active = paneIn(state, front);
   // What ⌘Z would take back, asked rather than assumed: a cut is undoable too,
   // and it is the router that knows which of the two histories a press means.
-  const undoable = nextUndo(front);
-  const redoable = nextRedo(front);
+  // With the Annotations panel up, Undo and Redo are its: a removal of cards taken back or made
+  // again, named by nothing but the verb.
+  // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.removals
+  const notesUp = notesPanelIsUp(state);
+  const undoable = notesUp
+    ? canUndoPanelRemoval()
+      ? { label: undefined }
+      : undefined
+    : nextUndo(front);
+  const redoable = notesUp
+    ? canRedoPanelRemoval()
+      ? { label: undefined }
+      : undefined
+    : nextRedo(front);
   // The verb follows the pane, not only the browser: a file opened without a
   // handle is downloaded however capable the browser is.
   const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
@@ -334,14 +353,14 @@ export function Toolbar({
       label: undoable?.label === undefined ? L("Undo") : L("Undo %1$@", undoable.label),
       shortcut: "⌘Z",
       disabled: undoable === undefined,
-      onSelect: () => void undoLast(front, false),
+      onSelect: () => (notesUp ? undoPanelRemoval() : void undoLast(front, false)),
     },
     {
       // help: menu.edit.redo
       label: redoable?.label === undefined ? L("Redo") : L("Redo %1$@", redoable.label),
       shortcut: "⇧⌘Z",
       disabled: redoable === undefined,
-      onSelect: () => void redoLast(front),
+      onSelect: () => (notesUp ? redoPanelRemoval() : void redoLast(front)),
     },
     { kind: "separator" },
     {

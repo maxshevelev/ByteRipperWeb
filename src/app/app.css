@@ -6449,33 +6449,115 @@ body[data-pulling-panel] * {
 .notes-cards {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
   outline: none;
 }
 
-.notes-column {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* The cards stand where the layout puts them (`notesLayout.ts`), each moved there by a transform,
+   so a card moving aside for another, or up into a gap, slides rather than jumps. */
+.notes-cards-content {
+  position: relative;
 }
 
 .note-card {
   --note-hue: var(--zone-agent);
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 10px;
   border: 1.5px dashed var(--note-hue);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--note-hue) 9%, transparent);
+  /* Over the panel's own ground, so a card carried over another hides it. */
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--note-hue) 9%, transparent),
+      color-mix(in srgb, var(--note-hue) 9%, transparent)
+    ),
+    var(--surface);
   cursor: default;
+  transition: transform 250ms ease;
+  touch-action: none;
+}
+
+/* The carried card's place: kept, and drawn empty. */
+.note-card[data-motion="empty"] {
+  visibility: hidden;
+}
+
+/* The card being dragged follows the pointer above the others, lifted by a shadow; let go, it
+   settles into its place. */
+.note-card[data-motion="carried"],
+.note-card[data-motion="landing"] {
+  z-index: 2;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
+  pointer-events: none;
+}
+
+.note-card[data-motion="carried"] {
+  transition: none;
+}
+
+.notes-cards[data-carrying] {
+  cursor: grabbing;
+}
+
+/* A card removed fades out where it stood while the others move up; one put back fades in. */
+.note-card[data-motion="leaving"] {
+  animation: note-card-out 250ms ease forwards;
+  pointer-events: none;
+}
+
+.note-card[data-motion="arriving"] {
+  animation: note-card-in 250ms ease;
+}
+
+@keyframes note-card-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes note-card-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-card {
+    transition: none;
+  }
+
+  .note-card[data-motion="leaving"],
+  .note-card[data-motion="arriving"] {
+    animation: none;
+  }
+}
+
+/* New, on the top edge of a card the person has not yet turned away from: white on the card's hue,
+   half out of the card as the ✕ stands out of its corner, as an app just installed wears a mark
+   beside its name (`AnnotationNewTag`). */
+.note-card-new {
+  position: absolute;
+  top: -7.5px;
+  left: 10px;
+  box-sizing: border-box;
+  height: 15px;
+  padding: 0 6px;
+  border-radius: 7.5px;
+  background: var(--note-hue);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 15px;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 .note-card.is-person {
@@ -6484,7 +6566,12 @@ body[data-pulling-panel] * {
 
 .note-card.is-selected {
   border-style: solid;
-  background: color-mix(in srgb, var(--note-hue) 18%, transparent);
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--note-hue) 18%, transparent),
+      color-mix(in srgb, var(--note-hue) 18%, transparent)
+    ),
+    var(--surface);
 }
 
 /* The ✕ stands out of the card's corner, as the badge on an app being deleted does: a ring and a

@@ -103,9 +103,15 @@ export class AgentAnnotationTools {
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.addNote
    */
   // help: menu.offset.note
-  async addNote(title: string, note: string, pane: PaneId, start: number, end: number) {
+  async addNote(
+    title: string,
+    note: string,
+    pane: PaneId,
+    start: number,
+    end: number
+  ): Promise<boolean> {
     const place = this.desk.placeOf(pane);
-    if (place === undefined) return;
+    if (place === undefined) return false;
     await this.annotate(
       new AgentArguments({
         title,
@@ -116,6 +122,7 @@ export class AgentAnnotationTools {
       }),
       "person"
     );
+    return true;
   }
 
   /**
@@ -123,13 +130,14 @@ export class AgentAnnotationTools {
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.addNote
    */
-  async addNodeNote(title: string, note: string, pane: PaneId, id: string) {
+  async addNodeNote(title: string, note: string, pane: PaneId, id: string): Promise<boolean> {
     const place = this.desk.placeOf(pane);
-    if (place === undefined) return;
+    if (place === undefined) return false;
     await this.annotate(
       new AgentArguments({ title, note, document: place.id, node: id }),
       "person"
     );
+    return true;
   }
 
   // MARK: - annotate

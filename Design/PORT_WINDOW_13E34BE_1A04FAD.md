@@ -65,7 +65,7 @@ entry with the reason, a test the web has no level for a `later` entry.
 - [x] **Y4 — tool panels: one detail list, the large view kept open, ME Show in Tree** (`d20c8f1d`, `e3581623`, `90f101ae`, `ecbe9727`; the FIT detail and ME reveal already were the shared list and the moved table here; `e7d038e5` is the window's title, which a page has not got; `119b83a2`, `7302cf1f` are flow tests, `later`)
 - [x] **Y5 — vendor DMI: the badge, HP, Apple** (`3c835594`, `18d6b4e0`, `8bba71b8`; the worker tells an HP_MUD entry or a SysF store for one and says so on the wire, `dmiArea`, since the panel holds no bytes)
 - [x] **Y6 — the rebuild planner speaks the reader's language** (`672b93de`; LocalizedText takes nested sentences and joins, as upstream's, and crosses from the worker as plain data)
-- [ ] **Y7 — the Annotations panel and Open Annotation**
+- [ ] **Y7 — the Annotations panel and Open Annotation** — *in progress (2026-10-20)*: model, panel (order, New, drag, fades, ⌘A, ⌘Z), history steps and Open Annotation are in; left: `notes.md` in three languages at upstream's head (covers `menu.offset.open-note`, uses `[[key:selectAll]]`/`[[key:redo]]`), the `New` tag's string (`annotation tag|New`) and `Open Annotation “%1$@”` in the catalogues, anchors and map entries for the new upstream declarations, GAPS (2acfe960 zoom → the adapted Agent-window row), a look in the browser
 - [ ] **Y8 — agent: the pane brought forward, survey paths, bounds, the activity dot**
 - [ ] **Y9 — hover callouts and the note's outline**
 - [ ] **Y10 — minimap: shared binning, equal widths**

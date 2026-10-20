@@ -34,6 +34,7 @@ import {
   noteCaretIfOnScreen,
   recordJump,
 } from "@/state/navigationStore";
+import { redoPanelRemoval, undoPanelRemoval } from "@/state/notesPanelStore";
 import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
@@ -86,6 +87,7 @@ import {
   frontPane,
   isSlot,
   joinIntoPane,
+  notesPanelIsUp,
   openEmptyInPane,
   openInPane,
   type PaneId,
@@ -981,6 +983,14 @@ export function AppShell() {
           const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
           if (chord === "y" && !redo) return;
           event.preventDefault();
+          // With the Annotations panel up, Undo and Redo are its: a removal of cards taken back
+          // or made again.
+          // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowWillReturnUndoManager
+          if (notesPanelIsUp(workspaceStore.getSnapshot())) {
+            if (redo) redoPanelRemoval();
+            else undoPanelRemoval();
+            return;
+          }
           // Undo means the document in front: an edit made in a part is undone
           // in the part, not in the file it is lying over.
           const inFront = paneInFront();
