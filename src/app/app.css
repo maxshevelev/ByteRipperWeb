@@ -5553,19 +5553,37 @@ button.uefi-title {
   height: 11px;
 }
 
-/* A dot, not a word: the pill has room for a name and no more. */
+/* The codec the part's bytes went through — LZMA, XOR 77 — in the header's
+   capsule after the name. It keeps its word whole; the name gives way to it. In
+   the pill that is up it is drawn in the pill's ink, the capsule a wash of it,
+   where the muted grey on the faint fill does not read. */
+.fragment-pill-codec {
+  flex: none;
+}
+
+.fragment-pill[data-up] .fragment-pill-codec {
+  background: color-mix(in srgb, currentColor 25%, transparent);
+  color: inherit;
+}
+
+/* A dot, not a word: the pill has room for a name and a codec's word and no
+   more. A disc on the pill's centre line — a "•" sits where the font puts it,
+   below the middle of the line. */
 .fragment-pill-dot {
   flex: none;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--text-muted);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
 }
 
 .fragment-pill[data-up] .fragment-pill-glyph,
-.fragment-pill[data-up] .fragment-pill-dot,
 .fragment-pill[data-up] .close-button {
   color: inherit;
+}
+
+.fragment-pill[data-up] .fragment-pill-dot {
+  background: currentColor;
 }
 
 /* ============================================================================

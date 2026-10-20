@@ -4185,7 +4185,6 @@
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersItByName": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickOutsideEveryZoneOffersNothing": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testOverlappingZonesBecomeASubmenuInnermostFirst": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersOpeningItInAPanel": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testOpeningAZoneOffersEveryZoneUnderThePointer": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testTheMinimapGutterOffersTheSameTwoThings": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersSavingItByName": "later — an app flow test; the port has no component or end-to-end test for it yet",

@@ -143,25 +143,30 @@ describe("opening a zone", () => {
   });
 
   /**
-   * The name is the export's: the file's stem and the zone's own name, so a
-   * part and the file the same zone would have been saved to are called the
-   * same thing.
+   * Named after the zone it is, and nothing else: not the dump it came out of, which the
+   * panel's link names.
+   *
+   * @upstream ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersOpeningItInAPanel
    */
-  it("names the part after the file it came out of and the zone", async () => {
+  it("names the part after the zone alone", async () => {
     const { menu } = dumpWithZones([zone("r", "#2 Row", 4, 8)], 5);
 
     pick(menu, `Open Zone “#2 Row”`);
 
-    expect(paneState(await opened())?.name).toBe("1_#2 Row.bin");
+    expect(paneState(await opened())?.name).toBe("#2 Row");
   });
 
-  /** A nameless zone falls back to its range, as the saved file does. */
+  /**
+   * A nameless zone is named by where it is.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZone
+   */
   it("names a nameless zone by where it is", async () => {
     const { menu } = dumpWithZones([zone("r", "", 4, 8)], 5);
 
     pick(menu, `Open Zone “”`);
 
-    expect(paneState(await opened())?.name).toBe("1_00000004-00000008.bin");
+    expect(paneState(await opened())?.name).toBe("00000004-00000008");
   });
 
   /** The dump it came out of is untouched, and stays where it was. */

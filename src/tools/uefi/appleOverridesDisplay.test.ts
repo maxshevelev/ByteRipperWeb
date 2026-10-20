@@ -4,7 +4,7 @@ import { ImageReader } from "@/firmware/imageReader";
 import * as N from "@/firmware/testing/testNvram";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
-import { isBZip2Variable, unpackedPartName } from "@/tools/uefi/uefiPresenter";
+import { isBZip2Variable, partName } from "@/tools/uefi/uefiPresenter";
 
 /**
  * Apple's device overrides are text inside a bzip2 stream; the detail unpacks them into a row a
@@ -50,6 +50,9 @@ describe("a device overrides variable", () => {
     expect(isBZip2Variable(node)).toBe(true);
     expect(isBZip2Variable({ kind: "sysFEntry", name: "other" })).toBe(false);
     expect(isBZip2Variable({ kind: "section", name: "overrides" })).toBe(false);
-    expect(unpackedPartName(node, "mac.rom")).toBe("mac_overrides decompressed.txt");
+    // The panel is the variable's, then body: the pill's badge says bzip2.
+    expect(partName({ name: node.name, header: [node.header.start, node.header.end] }, true)).toBe(
+      "overrides body"
+    );
   });
 });

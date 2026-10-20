@@ -154,9 +154,8 @@ describe("the bookmark block in a part", () => {
     return openGivenPart({
       parent: "a",
       bytes: await slot.document.read(start, end - start),
-      name: "zone.bin",
+      name: "zone",
       source: [start, end],
-      partName: "zone",
       ...(kind === undefined ? {} : { back: new ElsewhereCodec() }),
     });
   }

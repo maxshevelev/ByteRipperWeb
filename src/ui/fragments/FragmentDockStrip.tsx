@@ -49,6 +49,15 @@ export interface DockItem {
    */
   readonly hasChanges: boolean;
   /**
+   * The codec's word for what the bytes went through, and its badge's sentence; nothing for the
+   * file's own bytes.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transform
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transformExplanation
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.transform
+   */
+  readonly transform?: { readonly text: string; readonly explanation?: string | undefined };
+  /**
    * What the pill holds: a part of a dump, the help book or the Agent window.
    * Decides the glyph and what the ✕ is called — the dock holds identity and
    * order and nothing else, so a book is not a document, and "Close chip.bin"
@@ -128,16 +137,30 @@ function FragmentPill({
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
+        {/* What the name used to say with `decompressed` or `(decoded)`, said once for every
+            kind of part. In the pill that is up it takes the pill's ink (`.fragment-pill-codec`).
+            @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.ink */}
+        {item.transform === undefined ? null : (
+          <span className="pane-codec-badge fragment-pill-codec" title={item.transform.explanation}>
+            {item.transform.text}
+          </span>
+        )}
         {item.unseen !== undefined && item.unseen > 0 ? (
           <span className="fragment-pill-unseen" title={L("Annotations not seen yet")}>
             {item.unseen}
           </span>
         ) : null}
-        {/* A dot, not a word: the pill has room for a name and no more. */}
+        {/* A dot, not a word: the pill has room for a name and a codec's word and no more. A
+            pill with no changes has no dot at all, so the ✕ sits right after the name.
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.color
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.diameter
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.draw
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.intrinsicContentSize
+            @upstream-differs a CSS disc (`.fragment-pill-dot`), five pixels across, in the pill's
+            ink when it is up */}
         {item.hasChanges ? (
-          <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")}>
-            •
-          </span>
+          <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")} />
         ) : null}
       </button>
       {/* The Annotations panel has no ✕: it is there while there is an annotation. */}

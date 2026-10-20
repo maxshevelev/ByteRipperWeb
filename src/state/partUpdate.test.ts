@@ -75,9 +75,8 @@ async function editedPart(codec: CopyPartCodec): Promise<PartId> {
   const part = await openGivenPart({
     parent: "a",
     bytes: await parent.read(0x10, 0x10),
-    name: "bios_zone.bin",
+    name: "zone",
     source: [0x10, 0x20],
-    partName: "zone",
     back: codec,
   });
   await paneState(part)?.document.overwrite(0, Uint8Array.of(0xaa, 0xbb));
@@ -112,7 +111,7 @@ describe("two updates of the same part asked at once", () => {
     expect(await parentBytes(0x10, 0x12)).toEqual([0xaa, 0xbb]);
     // One write, one undo step.
     expect(parent?.contentGeneration).toBe((generation ?? 0) + 1);
-    expect(parent?.undoHistory.undoLabel).toBe("Update from bios_zone.bin");
+    expect(parent?.undoHistory.undoLabel).toBe("Update from zone");
     await parent?.undo();
     expect(await parentBytes(0x10, 0x12)).toEqual([0x10, 0x11]);
     expect(parent?.undoHistory.undoLabel).toBe(stepBefore);

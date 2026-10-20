@@ -3,7 +3,7 @@ import {
   nodeOpen,
   nodeOpenTitle,
   nodeSaveTitle,
-  partName,
+  saveName,
   type ZonedNode,
 } from "@/tools/uefi/uefiPresenter";
 
@@ -108,7 +108,9 @@ describe("what opening one means", () => {
     expect(open?.space).toEqual([]);
     expect(open?.range).toEqual([0x100, 0x180]);
     expect(open?.suggestedName).toBe("MyDriver.bin");
-    expect(open === undefined ? undefined : partName(open.suggestedName, "bios.rom")).toBe(
+    // A panel is the node's name alone.
+    expect(open?.partName).toBe("MyDriver");
+    expect(open === undefined ? undefined : saveName(open.suggestedName, "bios.rom")).toBe(
       "bios_MyDriver.bin"
     );
   });

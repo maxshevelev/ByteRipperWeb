@@ -20,6 +20,7 @@ import {
   nodeOpenTitle,
   nodeSaveTitle,
   partName,
+  saveName,
   uefiZones,
   type ZonedNode,
 } from "@/tools/uefi/uefiPresenter";
@@ -157,7 +158,7 @@ describe("what a node has decompressed", () => {
     expect(body?.space).toEqual([0]);
     expect(body?.saveTitle).toBe("Save Decompressed Body as…");
     expect(body?.openTitle).toBe("Open Decompressed Body");
-    expect(body?.suggestedName).toBe("LZMA compressed section decompressed.bin");
+    expect(body?.suggestedName).toBe("LZMA compressed section decompressed body.bin");
     // The section itself keeps its plain name; only what it opens to is marked.
     expect(nodeOpen(wire(image.section), false, [wire(image.section)])?.suggestedName).toBe(
       "LZMA compressed section.bin"
@@ -184,16 +185,20 @@ describe("what a node has decompressed", () => {
     const asNode = nodeOpen(inner, false, [wire(image.section)]);
     expect(asNode?.range).toEqual([0, fileBody().length]);
     expect(asNode?.suggestedName).toBe("Inner decompressed.bin");
-    // Named after the dump it came out of, then what it is.
-    expect(asNode === undefined ? undefined : partName(asNode.suggestedName, "bios.rom")).toBe(
+    // A panel is the node's name alone; the pill's badge says decompressed.
+    expect(asNode?.partName).toBe("Inner");
+    // A body of a node with a header says so, in English; with no header the body is the node.
+    expect(nodeOpen(inner, true, [wire(image.section)])?.partName).toBe("Inner body");
+    expect(partName({ name: "Pad", header: [0, 0] }, true)).toBe("Pad");
+    // A saved file is named after the dump it came out of, then what it is.
+    expect(asNode === undefined ? undefined : saveName(asNode.suggestedName, "bios.rom")).toBe(
       "bios_Inner decompressed.bin"
     );
     expect(nodeOpen(inner, true, [wire(image.section)])?.suggestedName).toBe(
       "Inner decompressed body.bin"
     );
-    expect(body === undefined ? undefined : partName(body.suggestedName, "bios.rom")).toBe(
-      "bios_LZMA compressed section decompressed.bin"
-    );
+    // A saved file says decompressed; a panel's pill says it with the codec's badge; both say body.
+    expect(body?.partName).toBe("LZMA compressed section body");
   });
 
   it("is nothing for a node of the file, whose bytes the dump already exports", () => {

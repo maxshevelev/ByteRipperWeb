@@ -40,16 +40,16 @@ import {
 export async function openLinkedPart(options: {
   /** The pane the bytes came out of — a file slot, or another part. */
   readonly parent: PaneId;
-  /** What the panel and its pill are called. */
+  /**
+   * What the panel, its pill and its link call the part: what was opened — the node, the zone —
+   * and nothing else. Not the dump's name, which the link names, and not what was done to the
+   * bytes, which the codec's badge says.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
+   */
   readonly name: string;
   /** Where the bytes are in the parent: what the link points at. Half-open. */
   readonly source: readonly [number, number];
-  /**
-   * What the part is called in the parent, for the link's own sentence. The
-   * part's name without the parent's stem in front of it, when the caller has
-   * nothing better to say.
-   */
-  readonly partName?: string | undefined;
   /**
    * What a panel opened on the part should read its bytes as — the parent's
    * tree is what knows (`askFirmwareLayout`).
@@ -76,7 +76,7 @@ export async function openLinkedPart(options: {
   const slot = paneState(parent);
   if (slot === undefined) return undefined;
   const codec = options.codec ?? new CopyPartCodec();
-  const partName = options.partName ?? partNameOf(name, slot.name);
+  const partName = name;
   if (options.selecting !== undefined) {
     const open = Object.entries(workspaceStore.getSnapshot().parts).find(([, held]) => {
       const origin = held?.origin;
@@ -86,7 +86,7 @@ export async function openLinkedPart(options: {
         origin.sourceRange[0] === source[0] &&
         origin.sourceRange[1] === source[1] &&
         origin.codec.constructor === codec.constructor &&
-        held?.name === name
+        origin.partName === name
       );
     });
     if (open !== undefined) {
@@ -149,19 +149,4 @@ async function select(part: PartId, range: readonly [number, number]): Promise<v
     return;
   }
   await paneState(part)?.typing.setSelection(range[0], range[1]);
-}
-
-/**
- * What a part is a part *of*, for the link's own sentence: its name without the
- * dump's stem in front and the extension behind — `bios_LZMA section.bin` out
- * of `bios.rom` is "LZMA section".
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.partName
- */
-export function partNameOf(name: string, parentName: string): string {
-  const dot = name.lastIndexOf(".");
-  const part = dot <= 0 ? name : name.slice(0, dot);
-  const parentDot = parentName.lastIndexOf(".");
-  const stem = `${parentDot <= 0 ? parentName : parentName.slice(0, parentDot)}_`;
-  return part.startsWith(stem) && part.length > stem.length ? part.slice(stem.length) : part;
 }

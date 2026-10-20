@@ -393,7 +393,7 @@ function zoneItems(
     })),
     ...zones.map((zone) => ({
       label: L("Open Zone “%1$@”", zone.name),
-      onSelect: () => openZone(pane, slot, zone),
+      onSelect: () => openZone(pane, zone),
     })),
     ...zones.map((zone) => ({
       label: L("Save Zone “%1$@” as…", zone.name),
@@ -604,7 +604,7 @@ function selectionItems(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZoneInPanel
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
  */
-export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
+export function openZone(pane: PaneId, zone: Zone): void {
   void (async () => {
     // What the bytes *are*, where the parent's tree covers them — a zone that is
     // a volume or a file is read as one rather than scanned — and, when it is a
@@ -614,11 +614,10 @@ export function openZone(pane: PaneId, slot: PaneState, zone: Zone): void {
     const part = await askFirmwarePart(pane, { range: [zone.start, zone.end] });
     await openLinkedPart({
       parent: pane,
-      name: zoneFileName(slot.name, zone.name, zone.start, zone.end),
+      // Named as every fragment is: what was opened, not the dump it is in.
+      name:
+        zone.name.length === 0 ? `${hexAddress(zone.start)}-${hexAddress(zone.end)}` : zone.name,
       source: [zone.start, zone.end],
-      // The zone's own name is what it is called in the parent, which is
-      // better than anything read back off the file name.
-      partName: zone.name,
       layout: part.layout,
       codec:
         part.rebuild === undefined

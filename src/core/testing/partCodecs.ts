@@ -45,6 +45,10 @@ export class GivenBytesCodec implements PartCodec {
   get badge(): PartBadge | undefined {
     return this.back.badge;
   }
+
+  get transform(): string | undefined {
+    return this.back.transform;
+  }
 }
 
 /**
