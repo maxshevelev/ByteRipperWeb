@@ -194,6 +194,11 @@ export interface OverviewRequest {
   /** The longest open file: both maps bin over it so heights line up. */
   readonly extent: number;
   readonly rowCount: number;
+  /**
+   * One byte per row, 1 for a row the other file of a comparison reads for both (§19.9): its
+   * density is left empty here and copied in on the main thread.
+   */
+  readonly skip?: Uint8Array | undefined;
 }
 
 export type MinimapWorkerRequest = OverviewRequest | CancelRequest;

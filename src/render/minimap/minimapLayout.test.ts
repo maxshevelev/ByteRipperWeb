@@ -191,3 +191,77 @@ describe("the bookmark margin", () => {
     expect(one.bookmarkMargin?.x).toBe(0);
   });
 });
+
+/**
+ * § 19.4: in a comparison the two maps' byte areas are the same width, whatever the zone gutter
+ * and the segment strip take beside one of them, so a byte column is the same column on both maps.
+ *
+ * @upstream ByteRipperTests/MinimapEqualWidthTests.swift#MinimapEqualWidthTests
+ */
+describe("a comparison's two maps", () => {
+  // Zones on the first map, a partition (and so a strip) on the second.
+  const first = { width: 114, segmentStripVisible: false, zoneLaneCount: 2 };
+  const second = { width: 114, segmentStripVisible: true, zoneLaneCount: 0 };
+
+  // @upstream ByteRipperTests/MinimapEqualWidthTests.swift#MinimapEqualWidthTests.testSideBySideMapsAreTheSameWidthAndStillMeetAtTheGutter
+  it("are the same width side by side, and still meet at the gutter", () => {
+    const left = new MinimapLayout({
+      ...first,
+      placement: "left",
+      peer: { ...second, placement: "right" },
+    });
+    const right = new MinimapLayout({
+      ...second,
+      placement: "right",
+      peer: { ...first, placement: "left" },
+    });
+    expect(left.contentArea.width).toBeGreaterThan(0);
+    expect(left.contentArea.width, "the byte areas are the same width").toBeCloseTo(
+      right.contentArea.width
+    );
+    expect(left.contentArea.x + left.contentArea.width, "the left map meets the gutter").toBe(
+      left.width
+    );
+    expect(right.contentArea.x, "and so does the right one").toBe(0);
+    // The legends follow their content.
+    const gutter = left.zoneGutterRect;
+    expect(gutter).toBeDefined();
+    expect(left.contentArea.x - ((gutter?.x ?? 0) + (gutter?.width ?? 0))).toBe(ZONE_GUTTER_GAP);
+    const strip = right.segmentStripRect;
+    expect((strip?.x ?? 0) - (right.contentArea.x + right.contentArea.width)).toBe(
+      SEGMENT_STRIP_GAP
+    );
+  });
+
+  // @upstream ByteRipperTests/MinimapEqualWidthTests.swift#MinimapEqualWidthTests.testStackedMapsShareOneHorizontalSpan
+  it("share one horizontal span stacked", () => {
+    const top = new MinimapLayout({
+      ...first,
+      width: 240,
+      placement: "single",
+      peer: { ...second, width: 240, placement: "single" },
+    });
+    const bottom = new MinimapLayout({
+      ...second,
+      width: 240,
+      placement: "single",
+      peer: { ...first, width: 240, placement: "single" },
+    });
+    expect(top.contentArea.width).toBeGreaterThan(0);
+    expect(top.contentArea, "the columns line up").toEqual(bottom.contentArea);
+    expect(top.zoneGutterRect, "the gutter still fits").toBeDefined();
+    expect(bottom.segmentStripRect, "and so does the strip").toBeDefined();
+  });
+
+  // A single map has nothing to match and keeps all its width.
+  // @upstream ByteRipperTests/MinimapEqualWidthTests.swift#MinimapEqualWidthTests.testASingleMapKeepsItsOwnWidth
+  it("leave a single map its own width", () => {
+    const only = new MinimapLayout({
+      width: 240,
+      placement: "single",
+      segmentStripVisible: false,
+      zoneLaneCount: 0,
+    });
+    expect(only.contentArea.width).toBe(240 - 2 * CONTENT_PADDING);
+  });
+});

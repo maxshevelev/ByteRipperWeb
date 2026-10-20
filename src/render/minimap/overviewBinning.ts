@@ -15,6 +15,8 @@
  * {@link mulDiv}.
  */
 
+import type { DiffBlockIndex } from "@/core/diff/diffBlock";
+
 /**
  * The dump's row width, and the map's.
  *
@@ -141,9 +143,14 @@ export class OverviewBinning {
     const upper = Math.min(end, Math.min(this.startOfRow(rows.to), this.extent));
     if (lower >= upper) return;
 
-    const first = this.cells(lower, rows);
+    // The offset→row division is not the exact inverse of `startOfRow`: a row's first byte can
+    // come out in the row before. When `lower` was clipped to the first of `rows` that row is
+    // outside them, and refusing it dropped the whole range from every run of rows but the first.
+    const located = this.cells(lower, { from: 0, to: this.rowCount });
     const last = this.cells(upper - 1, rows);
-    if (first === undefined || last === undefined) return;
+    if (located === undefined || last === undefined) return;
+    const first =
+      located.row < rows.from ? { row: rows.from, firstColumn: 0, lastColumn: 0 } : located;
 
     const set = (row: number, from: number, to: number) => {
       const index = row - rows.from;
@@ -167,6 +174,49 @@ export class OverviewBinning {
       if (index >= 0 && index < bits.length) bits[index] = 0xffff;
     }
     set(last.row, 0, last.lastColumn);
+  }
+
+  /**
+   * The end of the bytes a row's picture is computed from, before clamping to the file: its
+   * slice, or the one byte its position falls in when the slice is thinner than a byte.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.readEnd
+   */
+  readEnd(row: number): number {
+    return Math.max(this.startOfRow(row + 1), this.startOfRow(row) + 1);
+  }
+
+  /**
+   * For each of `rows`, whether its picture is the same in both files of `index`: the bytes it is
+   * computed from lie inside both files and the index calls every one of them the same (§19.9).
+   *
+   * Such a row is computed once and its density copied to the other map; on a typical pair of
+   * dumps that is nearly every row. A row the shorter file's end falls in reads a shorter slice
+   * there, so it is not one of them. Errs towards "different": a row it is unsure of costs a read,
+   * a row wrongly called the same would draw the other file's bytes.
+   *
+   * @upstream ByteRipperApp/Minimap/OverviewBinning.swift#OverviewBinning.rowsWithSameBytes
+   */
+  rowsWithSameBytes(index: DiffBlockIndex, rows: RowRange): boolean[] {
+    const shorter = Math.min(index.leftSize, index.rightSize);
+    const same: boolean[] = [];
+    for (let row = rows.from; row < rows.to; row++) same.push(this.readEnd(row) <= shorter);
+    if (this.rowCount <= 0 || this.extent <= 0 || rows.from >= rows.to) return same;
+    const rowContaining = (offset: number) =>
+      Math.min(this.rowCount - 1, mulDiv(offset, this.rowCount, this.extent));
+    const last = rows.to - 1;
+    for (const block of index.blocksIn(this.startOfRow(rows.from), this.readEnd(last))) {
+      if (block.kind !== "different") continue;
+      // The rows whose bytes reach into the block. A row's end only grows with the row, so the
+      // first is found by walking back from the row the block starts in (thin rows can share that
+      // byte), and the last by walking on while a row still starts inside the block.
+      let first = Math.max(rows.from, rowContaining(block.start));
+      while (first > rows.from && this.readEnd(first - 1) > block.start) first -= 1;
+      let end = Math.min(last, rowContaining(block.end - 1));
+      while (end < last && this.startOfRow(end + 1) < block.end) end += 1;
+      for (let row = first; row <= end; row++) same[row - rows.from] = false;
+    }
+    return same;
   }
 
   /**

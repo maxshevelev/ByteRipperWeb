@@ -159,6 +159,11 @@ export interface MinimapLayoutOptions {
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneGutterLaneCount
    */
   readonly zoneLaneCount: number;
+  /**
+   * The other map of a comparison, as its own options leave it: the two maps' byte areas are
+   * evened to the narrower one. Nothing for a single map.
+   */
+  readonly peer?: Omit<MinimapLayoutOptions, "peer"> | undefined;
 }
 
 /**
@@ -176,12 +181,14 @@ export class MinimapLayout {
   readonly placement: MapPlacement;
   readonly segmentStripVisible: boolean;
   readonly zoneLaneCount: number;
+  private readonly peer: MinimapLayout | undefined;
 
   constructor(options: MinimapLayoutOptions) {
     this.width = Math.max(0, options.width);
     this.placement = options.placement;
     this.segmentStripVisible = options.segmentStripVisible;
     this.zoneLaneCount = Math.max(0, Math.min(options.zoneLaneCount, ZONE_MAX_LANES));
+    this.peer = options.peer === undefined ? undefined : new MinimapLayout(options.peer);
   }
 
   /**
@@ -218,9 +225,37 @@ export class MinimapLayout {
    * gutter plus two fixed pads — and it scales with the panel where a fixed pad
    * would not.
    *
+   * In a comparison the two maps' byte areas are the same width, whatever the zone gutters and
+   * the strips take beside them: a byte column is then the same column on both maps, so the eye
+   * compares like with like and a stretch both files hold the same draws as the same picture twice
+   * (§19.4). The narrower map sets the width. Side by side, the wider map gives up its outer side,
+   * so the dumps still meet at the panel's gutter; stacked, the maps share one horizontal span, so
+   * their columns line up. The gutter and the strip follow the content, as they always do.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.contentArea
    * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.contentAreaForTesting
+   * @upstream-differs each map has its canvas, so the other's area is built from its options
    */
   get contentArea(): Rect {
+    const own = this.ownContentArea;
+    const other = this.peer?.ownContentArea;
+    if (other === undefined) return own;
+    if (this.placement === "single") {
+      const x = Math.max(own.x, other.x);
+      const end = Math.min(own.x + own.width, other.x + other.width);
+      return { x, width: Math.max(0, end - x) };
+    }
+    const width = Math.min(own.width, other.width);
+    return { x: this.placement === "left" ? own.x + own.width - width : own.x, width };
+  }
+
+  /**
+   * A map's content area as its own margins leave it, before a comparison evens the two maps'
+   * widths (`contentArea`).
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ownContentArea
+   */
+  get ownContentArea(): Rect {
     const leftPad = this.placement === "right" ? 0 : CONTENT_PADDING;
     const rightPad = this.placement === "left" ? 0 : CONTENT_PADDING;
     const x = leftPad + this.zoneSpan;

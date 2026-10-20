@@ -11,6 +11,7 @@ import {
 import type { OverviewPicture } from "@/render/minimap/minimapRenderer";
 import { MINIMAP_COLUMNS } from "@/render/minimap/overviewBinning";
 import { buildOverviewRows, type OverviewSource } from "@/render/minimap/overviewBuild";
+import { copySharedRows, shareOverviewRows } from "@/render/minimap/overviewSharing";
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
@@ -232,6 +233,30 @@ const builtFor: Partial<Record<PaneId, string | undefined>> = {};
 const density: Partial<Record<PaneId, Uint8Array | undefined>> = {};
 
 /**
+ * A comparison's pair of passes that split the rows both files hold the same (§19.9): by surface,
+ * which file reads each shared row, the two panes, and each pane's half until both are in — a
+ * half alone is a picture with holes, so it is not shown.
+ *
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSummaries
+ */
+function dropSharing(surface: SurfaceId): void {
+  const pending = sharing.get(surface);
+  if (pending === undefined) return;
+  for (const pane of pending.panes) builtFor[pane] = undefined;
+  sharing.delete(surface);
+}
+
+const sharing = new Map<
+  SurfaceId,
+  {
+    readonly owners: readonly (0 | 1 | undefined)[];
+    readonly panes: readonly [PaneId, PaneId];
+    readonly jobs: Partial<Record<PaneId, JobId>>;
+    readonly halves: Partial<Record<PaneId, Uint8Array>>;
+  }
+>();
+
+/**
  * One worker per pane, unlike the comparison and the search.
  *
  * Those ask a single question about the workspace, so a new request there
@@ -264,9 +289,23 @@ function workerFor(pane: PaneId): Worker {
         }));
         break;
 
-      case "overviewDone":
-        density[pane] = response.density;
+      case "overviewDone": {
         currentJob[pane] = undefined;
+        const shared = sharing.get(surfaceOf(pane));
+        if (shared !== undefined && shared.jobs[pane] === response.id) {
+          shared.halves[pane] = response.density;
+          const [first, second] = shared.panes;
+          const a = shared.halves[first];
+          const b = shared.halves[second];
+          // The other half is still being read: this one waits for it.
+          if (a === undefined || b === undefined) break;
+          copySharedRows(shared.owners, [a, b]);
+          sharing.delete(surfaceOf(pane));
+          density[first] = a;
+          density[second] = b;
+        } else {
+          density[pane] = response.density;
+        }
         updateMap(surfaceOf(pane), (map) => ({
           ...map,
           status: anyBuilding(surfaceOf(pane)) ? "building" : "ready",
@@ -274,13 +313,16 @@ function workerFor(pane: PaneId): Worker {
         }));
         void refreshMasks(surfaceOf(pane));
         break;
+      }
 
       case "cancelled":
         currentJob[pane] = undefined;
+        dropSharing(surfaceOf(pane));
         break;
 
       case "error":
         currentJob[pane] = undefined;
+        dropSharing(surfaceOf(pane));
         builtFor[pane] = undefined;
         updateMap(surfaceOf(pane), (map) => ({
           ...map,
@@ -396,7 +438,7 @@ function fingerprint(pane: PaneId, extent: number, rowCount: number): string | u
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.setOverviewSummaries
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.rebuildOverview
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.scheduleOverviewRebuild
- * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSummary
+ * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSummaries
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.refreshMaps
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewSources
  * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.followIndexChange
@@ -428,6 +470,50 @@ export async function refreshMinimap(surface: SurfaceId = frontSurface()): Promi
     return;
   }
 
+  // A comparison whose two files both need reading from disk, under an index that describes them,
+  // reads each row both hold the same from one of them only, half and half (§19.9).
+  // @upstream ByteRipperApp/Window/ComparisonCoordinator.swift#ComparisonCoordinator.isSettling
+  // @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.comparisonIndexIsSettling
+  // @upstream-differs a picture asked for while the index is still being built reads every row
+  // rather than waiting for it, which the index's landing does not ask again for here
+  // A split still in flight is given up whole: a half read with holes for the other file to fill
+  // is no picture of its own, so both of its panes are read again.
+  dropSharing(surface);
+  const toRead = drawn.filter((pane) => {
+    const slot = paneState(pane);
+    return (
+      slot !== undefined &&
+      fingerprint(pane, extent, state.rowCount) !== builtFor[pane] &&
+      !slot.document.isDirty &&
+      slot.file.source instanceof Blob
+    );
+  });
+  const comparison = diffStore.getSnapshot();
+  const [first, second] = toRead;
+  const owners =
+    toRead.length === 2 &&
+    first !== undefined &&
+    second !== undefined &&
+    comparison.status === "ready" &&
+    comparison.index !== undefined
+      ? shareOverviewRows(
+          comparison.index,
+          [paneState(first)?.document.size ?? 0, paneState(second)?.document.size ?? 0],
+          extent,
+          state.rowCount
+        )
+      : undefined;
+  const shared =
+    owners === undefined || first === undefined || second === undefined
+      ? undefined
+      : {
+          owners,
+          panes: [first, second] as const,
+          jobs: {} as Partial<Record<PaneId, JobId>>,
+          halves: {} as Partial<Record<PaneId, Uint8Array>>,
+        };
+  if (shared !== undefined) sharing.set(surface, shared);
+
   for (const pane of drawn) {
     const slot = paneState(pane);
     if (slot === undefined) {
@@ -453,7 +539,15 @@ export async function refreshMinimap(surface: SurfaceId = frontSurface()): Promi
     if (running !== undefined) send(pane, { kind: "cancel", id: running });
     currentJob[pane] = id;
     updateMap(surface, (map) => ({ ...map, status: "building", progress: 0 }));
-    send(pane, { kind: "overview", id, file, extent, rowCount: state.rowCount });
+    const which = shared?.panes.indexOf(pane);
+    const skip =
+      shared === undefined || which === undefined || which < 0
+        ? undefined
+        : Uint8Array.from(shared.owners, (owner) =>
+            owner !== undefined && owner !== which ? 1 : 0
+          );
+    if (shared !== undefined) shared.jobs[pane] = id;
+    send(pane, { kind: "overview", id, file, extent, rowCount: state.rowCount, skip });
   }
 
   await refreshMasks(surface);

@@ -68,6 +68,13 @@ export interface OverviewOptions {
    * comparison changes — over a density the caller already has.
    */
   readonly density?: boolean;
+  /**
+   * The rows not to read: their density is left empty for the caller to fill from the other file
+   * of a comparison, which reads them (§19.9).
+   *
+   * @upstream ByteRipperApp/Minimap/SurfaceMinimapController.swift#SurfaceMinimapController.overviewRows
+   */
+  readonly skipping?: ((row: number) => boolean) | undefined;
 }
 
 /** Thrown when a build is abandoned because its inputs moved. */
@@ -133,6 +140,7 @@ export async function buildOverviewRows(
       options.onRows?.(row - reported);
       reported = row;
     }
+    if (options.skipping?.(row) === true) continue;
     const read = await readRow(row);
     if (read === undefined) continue;
 

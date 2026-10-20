@@ -35,6 +35,7 @@ import {
 import {
   type MapPlacement,
   MinimapLayout,
+  type MinimapLayoutOptions,
   SIDE_BY_SIDE_GUTTER_FRACTION,
   ZONE_MAX_LANES,
 } from "@/render/minimap/minimapLayout";
@@ -62,6 +63,7 @@ import {
 import { recordJump } from "@/state/navigationStore";
 import { baselineFor } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
+import { createStore } from "@/state/store";
 import { zoneSelected } from "@/state/toolController";
 import { useStore } from "@/state/useStore";
 import {
@@ -194,6 +196,7 @@ export function MinimapPanel({
              * map, which is what "single" means here.
              */
             placement={placementFor(stacked, open.length, index)}
+            peer={open.length === 2 ? open[1 - index] : undefined}
             onActivate={onActivate}
           />
         ))}
@@ -542,8 +545,17 @@ interface CanvasProps {
    * this map's bookmark marks and segment strip sit in.
    */
   readonly placement: MapPlacement;
+  /** The other map of a comparison, whose byte area this one's is evened with; none alone. */
+  readonly peer: PaneId | undefined;
   readonly onActivate: (pane: SlotId) => void;
 }
+
+/**
+ * Each map's layout as its own legends leave it, by pane: what the other map of a comparison reads
+ * to even the two maps' byte areas (`MinimapLayout.contentArea`). A map publishes its own and
+ * never depends on the other's for it, so the two cannot chase each other.
+ */
+const ownLayouts = createStore<Readonly<Record<string, Omit<MinimapLayoutOptions, "peer">>>>({});
 
 /**
  * The floor on the viewport band's height, in CSS pixels.
@@ -561,6 +573,7 @@ function MinimapCanvas({
   viewport,
   stacked,
   placement,
+  peer,
   onActivate,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -874,18 +887,41 @@ function MinimapCanvas({
    * numbers from the same inputs is what this whole change is undoing, so there
    * is one expression of it and both sides read it.
    */
+  const stripVisible = (segmentBands?.length ?? 0) > 1;
+  const laneCount =
+    zoneBrackets === undefined || zoneBrackets.length === 0
+      ? 0
+      : Math.min(Math.max(...zoneBrackets.map((one) => one.depth)) + 1, ZONE_MAX_LANES);
+  useEffect(() => {
+    ownLayouts.update((all) => ({
+      ...all,
+      [pane]: {
+        width: size.width,
+        placement,
+        segmentStripVisible: stripVisible,
+        zoneLaneCount: laneCount,
+      },
+    }));
+  }, [pane, size.width, placement, stripVisible, laneCount]);
+  useEffect(
+    () => () =>
+      ownLayouts.update((all) => {
+        const { [pane]: _gone, ...rest } = all;
+        return rest;
+      }),
+    [pane]
+  );
+  const peerLayout = useStore(ownLayouts)[peer ?? ""];
   const layout = useMemo(
     () =>
       new MinimapLayout({
         width: size.width,
         placement,
-        segmentStripVisible: (segmentBands?.length ?? 0) > 1,
-        zoneLaneCount:
-          zoneBrackets === undefined || zoneBrackets.length === 0
-            ? 0
-            : Math.min(Math.max(...zoneBrackets.map((one) => one.depth)) + 1, ZONE_MAX_LANES),
+        segmentStripVisible: stripVisible,
+        zoneLaneCount: laneCount,
+        peer: peer === undefined ? undefined : peerLayout,
       }),
-    [size.width, placement, segmentBands, zoneBrackets]
+    [size.width, placement, stripVisible, laneCount, peer, peerLayout]
   );
 
   const offsetFromEvent = useCallback(

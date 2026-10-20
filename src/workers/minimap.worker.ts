@@ -50,6 +50,7 @@ async function run(request: Extract<MinimapWorkerRequest, { kind: "overview" }>)
       { from: 0, to: request.rowCount },
       {
         shouldCancel: () => cancelledId === request.id,
+        skipping: request.skip === undefined ? undefined : (row) => request.skip?.[row] === 1,
         onRows: (rows) => {
           done += rows;
           const now = Date.now();
