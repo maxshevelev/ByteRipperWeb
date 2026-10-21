@@ -1,4 +1,4 @@
-@source-sha 352699c166d7c07687c41ed0bb489279074a2386881f5f843713ffce6b7148d7
+@source-sha 753e8f39f3962441d20b2dcc68cacec228c1066be41f41d23c0e6ed94f0374ee
 # Lenovo DMI
 
 > Der Speicher, in dem die Firmware Lenovo InsydeH2O die Identität eines Geräts ablegt – Seriennummer, UUID, Maschinentyp und Modell, Windows-Schlüssel –, so wie der Baum der UEFI-Struktur ihn liest.
@@ -37,7 +37,7 @@ Die beiden Blöcke können unterschiedliche Werte enthalten. Nach einem Schreibv
 
 **„…“ (dekodiert) öffnen** im Kontextmenü des Knotens eines Blocks – zum Beispiel „„LENV block 1“ (dekodiert) öffnen“ – öffnet den ganzen Block in einem [[topic:fragments|Fragment-Panel]], mit dekodierten Einträgen: Seriennummer und Maschinentyp stehen in der Hex-Ansicht als Text und lassen sich dort bearbeiten. Der Kopf bleibt so, wie er gespeichert ist; Schlüssel und Prüfsumme stehen an ihren eigenen Adressen. Im Menü des Knotens eines Eintrags heißt der Befehl ebenso – zum Beispiel „„Baseboard serial number“ (dekodiert) öffnen“: Er öffnet denselben Block, und das Panel zeigt diesen Eintrag: Sein Baum ist bis zum Knoten des Eintrags aufgeklappt und wählt ihn aus, und der Dump des Panels umrandet den Eintrag. Ein Doppelklick auf den Knoten des Blocks oder eines Eintrags wirkt ebenso.
 
-Die Befehle daneben, **„…“ (kodiert) öffnen** und **„…“ (kodiert) sichern unter…**, entnehmen die Bytes so, wie die Datei sie speichert, also mit dem Schlüssel kodiert. Ein Block, der im Klartext gespeichert ist, hat keine kodierte Form, die zu unterscheiden wäre: Sein Befehl **„…“ öffnen** öffnet ihn wie hier beschrieben, und der Befehl im Menü eines Eintrags heißt **„…“ in „…“ öffnen**.
+Die Befehle daneben, **„…“ (kodiert) öffnen** und **„…“ (kodiert) sichern unter…**, entnehmen die Bytes so, wie die Datei sie speichert, also mit dem Schlüssel kodiert. Ein Block, der im Klartext gespeichert ist, hat keine kodierte Form, die zu unterscheiden wäre: Sein Befehl **„…“ öffnen** öffnet ihn wie hier beschrieben, ein Eintrag darin – etwa in einem Fragment eines dekodiert geöffneten Blocks – besteht dagegen aus seinen eigenen Bytes und öffnet sich wie jeder andere Knoten.
 
 **In der Quelle aktualisieren** schreibt den Block als einen Widerrufsschritt in den Dump zurück, kodiert mit dem Schlüssel aus seinem Kopf und mit neu berechneter Prüfsumme. Länge und Generation des Blocks bleiben unverändert, und dem Protokoll wird nichts hinzugefügt. Geschrieben wird nur der geöffnete Block; um beide Kopien zu ändern, öffnen und aktualisieren Sie jede einzeln. Die Kopfzeile des Fragments trägt ein Abzeichen **XOR** mit dem Schlüssel, das daran erinnert, dass seine Bytes nicht die der Datei sind.
 

@@ -1398,8 +1398,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const openContent = useCallback(
     (node: WireNode) => {
       // A LENV block's bytes are encoded: what it holds is the block decoded, from the
-      // block's row and from any of its entries'.
-      if (node.decodableBlock !== undefined) {
+      // block's row and from any of its entries'. A block stored in the clear — one opened
+      // decoded among them — opens as its block too, but an entry in it is its own bytes, and
+      // opens as any other node.
+      const block = node.decodableBlock;
+      if (block !== undefined && (block.encoded || node.kind === "lenvBlock")) {
         void openDecodedBlock(node);
         return;
       }
@@ -2462,14 +2465,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     // that open the same bytes.
                     const opensDecoded =
                       lenv !== undefined && !encoded && node.kind === "lenvBlock";
+                    // A LENV block encoded, or an entry in one, opens the block decoded; in a
+                    // block stored in the clear there is nothing to decode, and the items below
+                    // are the whole of it.
                     const decodedTitle =
-                      lenv === undefined
-                        ? undefined
-                        : encoded
-                          ? L("Open Decoded “%1$@”", node.name)
-                          : node.kind === "lenvEntry"
-                            ? L("Open “%1$@” in “%2$@”", node.name, lenv.name)
-                            : undefined;
+                      lenv !== undefined && encoded
+                        ? L("Open Decoded “%1$@”", node.name)
+                        : undefined;
                     const openNodeTitle = nodeOpenTitle(node, false, encoded);
                     const openBodyTitle = nodeOpenTitle(node, true, encoded);
                     const openDecoded: MenuAction | undefined =
@@ -2499,7 +2501,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     // of the items that is (`openContent`).
                     // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.opensAsDoubleClick
                     const doubleClick =
-                      lenv !== undefined
+                      lenv !== undefined && (encoded || node.kind === "lenvBlock")
                         ? (openDecoded ?? (opensDecoded ? openWhole : undefined))
                         : contentOf(node) === "decompressedBody"
                           ? openTaken

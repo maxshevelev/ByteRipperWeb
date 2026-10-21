@@ -1089,7 +1089,6 @@
 "Save Encoded “%1$@” as…" = "„%1$@“ (kodiert) sichern unter…";
 "Save Encoded Body of “%1$@” as…" = "Rumpf von „%1$@“ (kodiert) sichern unter…";
 "Open Decoded “%1$@”" = "„%1$@“ (dekodiert) öffnen";
-"Open “%1$@” in “%2$@”" = "„%1$@“ in „%2$@“ öffnen";
 "LENV block %1$@ has no signature where it should start." = "LENV-Block %1$@ trägt an seinem Anfang keine Signatur.";
 "LENV block %1$@ is erased: every byte is FF. The firmware reads the other copy." = "LENV-Block %1$@ ist gelöscht: alle Bytes sind FF. Die Firmware liest die andere Kopie.";
 "LENV block %1$@ is stored decoded. Whether the firmware accepts that is not known." = "LENV-Block %1$@ ist dekodiert gespeichert. Ob die Firmware ihn so annimmt, ist nicht bekannt.";

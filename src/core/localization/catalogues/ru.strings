@@ -1089,7 +1089,6 @@
 "Save Encoded “%1$@” as…" = "Сохранить «%1$@» (закодировано) как…";
 "Save Encoded Body of “%1$@” as…" = "Сохранить тело «%1$@» (закодировано) как…";
 "Open Decoded “%1$@”" = "Открыть «%1$@» (декодировано)";
-"Open “%1$@” in “%2$@”" = "Открыть «%1$@» в «%2$@»";
 "LENV block %1$@ has no signature where it should start." = "У блока LENV %1$@ нет сигнатуры в начале.";
 "LENV block %1$@ is erased: every byte is FF. The firmware reads the other copy." = "Блок LENV %1$@ стёрт: все его байты равны FF. Прошивка читает другую копию.";
 "LENV block %1$@ is stored decoded. Whether the firmware accepts that is not known." = "Блок LENV %1$@ хранится декодированным. Примет ли его прошивка в таком виде, неизвестно.";
