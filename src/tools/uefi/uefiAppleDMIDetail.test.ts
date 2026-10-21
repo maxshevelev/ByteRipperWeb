@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { appleEntryText } from "@/firmware/uefi/appleDmiArea";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { APPLE_BOARD, appleImage, appleVariables } from "@/firmware/testing/testAppleDMI";
@@ -33,8 +34,13 @@ function parsed(bytes: Uint8Array) {
   return { image, reader, node, detail: buildNodeDetail(node, image, reader) };
 }
 
-const value = (detail: NodeDetail, label: string) =>
-  detail.fields.find((one) => one.label === label)?.value;
+/** A field of the detail, or a row of its Entries table, where the area's values are. */
+const value = (detail: NodeDetail, label: string) => {
+  const one = detail.fields.find((field) => field.label === label);
+  if (one !== undefined) return one.value;
+  const entries = detail.tables.find((table) => table.title === "Entries");
+  return entries?.rows.find((row) => row[0]?.text === label)?.[1]?.text;
+};
 const notes = (detail: NodeDetail) => detail.fields.filter((one) => one.label === "Note");
 
 describe("Apple's DMI in the detail", () => {
@@ -46,6 +52,25 @@ describe("Apple's DMI in the detail", () => {
     expect(value(detail, "Sales order number")).toBe("MJVE2D/");
     expect(value(detail, "MLB (board serial)")).toBe(APPLE_BOARD);
     expect(notes(detail)).toEqual([]);
+  });
+
+  /** @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift#UEFIAppleDMIDetailTests.testTheTableLeadsToTheVariables */
+  it("leads each value to the variable it is read from", () => {
+    const { node, detail, reader } = parsed(appleImage());
+    const entries = detail.tables.find((table) => table.title === "Entries");
+    const entry = (named: (name: string) => boolean) => {
+      const found = node.children.find((one) => named(one.name));
+      return found === undefined ? undefined : { kind: "node", path: found.id };
+    };
+    expect(entries?.rowTargets).toEqual([
+      entry((name) => name === "ssn"),
+      entry((name) => name === "hwc"),
+      entry((name) => name === "son"),
+      entry((name) => name.startsWith(APPLE_BOARD)),
+    ]);
+    expect(entries?.rowTargets?.every((one) => one !== undefined)).toBe(true);
+    const serial = node.children.find((one) => one.name === "ssn") as UEFINode;
+    expect(appleEntryText(serial, reader)).toBe("C02TEST00G94");
   });
 
   /** @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift#UEFIAppleDMIDetailTests.testAPlaceholderSerialIsNoted */

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import {
@@ -8,7 +9,7 @@ import {
   putText,
 } from "@/firmware/testing/testAcerDMI";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
-import type { UEFINode } from "@/firmware/uefi/uefiNode";
+import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import type { NodeDetail } from "@/tools/toolDetail";
 import { acerDMIRowText } from "@/tools/uefi/uefiAcerDMIDetail";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
@@ -37,8 +38,13 @@ function parsed(block: Uint8Array = acerBlock()) {
   return { image, reader, node, detail: buildNodeDetail(node, image, reader) };
 }
 
-const value = (detail: NodeDetail, label: string) =>
-  detail.fields.find((one) => one.label === label)?.value;
+/** A field of the detail, or a row of its Entries table, where the area's values are. */
+const value = (detail: NodeDetail, label: string) => {
+  const one = detail.fields.find((field) => field.label === label);
+  if (one !== undefined) return one.value;
+  const entries = detail.tables.find((table) => table.title === "Entries");
+  return entries?.rows.find((row) => row[0]?.text === label)?.[1]?.text;
+};
 const fieldsLabelled = (detail: NodeDetail, label: string) =>
   detail.fields.filter((one) => one.label === label);
 const problems = (detail: NodeDetail) => detail.fields.filter((one) => one.tone === "bad");
@@ -56,7 +62,33 @@ describe("Acer's DMI area in the detail", () => {
     expect(value(detail, "Asset tag")).toBeUndefined();
     expect(value(detail, "Manufacturing code")).toBeUndefined();
     expect(problems(detail)).toHaveLength(0);
-    expect(detail.tables).toEqual([]);
+    const entries = detail.tables.find((table) => table.title === "Entries");
+    expect(entries?.rows.map((row) => row[0]?.text)).toEqual([
+      "System serial",
+      "MB Serial",
+      "UUID",
+      "Model",
+      "Product name",
+    ]);
+    const { node } = parsed();
+    expect(entries?.rowTargets, "each value is a way to its row under the block's").toEqual(
+      node.children.map((one) => ({ kind: "node", path: one.id }))
+    );
+    expect(entries?.linkColumn).toBe(0);
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.testTheFieldsAreRowsUnderTheBlock
+  it("has the block's fields as rows of their own, each saying what it holds", () => {
+    const { image, reader, node } = parsed();
+    const rows = node.children;
+    expect(rows.map((one) => one.kind)).toEqual(Array(5).fill("dmiField"));
+    expect(nodeRange(rows[0] as UEFINode)).toEqual({
+      start: node.body.start,
+      end: node.body.start + 0x16,
+    });
+    expect(dmiFieldTextOf(rows[0] as UEFINode, reader)).toBe(ACER_SERIAL);
+    expect(dmiFieldTextOf(rows[2] as UEFINode, reader)).toBe("78563412-AB90-1788-89CD-EF0102030405");
+    expect(value(buildNodeDetail(rows[3] as UEFINode, image, reader), "Value")).toBe("TEST-1050");
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.testTheOptionalFieldsAreRowsWhereWritten

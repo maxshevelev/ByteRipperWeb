@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
+import { type DMIField, type DMIFieldEncoding, dmiFieldNode } from "@/firmware/uefi/dmiField";
 import type { Parser } from "@/firmware/uefi/parserState";
 import { madeUpName, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 
@@ -110,9 +111,16 @@ export const acerUUID = (area: AcerDMIArea): Uint8Array => area.stored.slice(0x7
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AcerDMIStore.swift#AcerDMIArea.uuidText
  */
-export function acerUUIDText(area: AcerDMIArea): string {
+export const acerUUIDText = (area: AcerDMIArea): string => acerUUIDTextOf(acerUUID(area));
+
+/**
+ * `uuid`'s sixteen bytes spelled as Acer's are read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/AcerDMIStore.swift#AcerDMIArea.uuidText
+ */
+export function acerUUIDTextOf(uuid: Uint8Array): string {
   const group = (from: number, count: number, reversed: boolean): string => {
-    const bytes = Array.from(area.stored.subarray(0x70 + from, 0x70 + from + count));
+    const bytes = Array.from(uuid.subarray(from, from + count));
     const ordered = reversed ? bytes.reverse() : bytes;
     return ordered.map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("");
   };
@@ -177,6 +185,41 @@ export function acerManufacturingCode(area: AcerDMIArea): string | undefined {
     if (end - offset >= 4) return asText(area.stored.subarray(offset, end));
   }
   return undefined;
+}
+
+/**
+ * The fields the block keeps, in the order the bench asks them, each where it lies in the file:
+ * the rows under the block's.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/AcerDMIStore.swift#AcerDMIArea.fields
+ */
+export function acerFields(area: AcerDMIArea): DMIField[] {
+  const field = (
+    name: string,
+    start: number,
+    end: number,
+    encoding: DMIFieldEncoding = "ascii"
+  ): DMIField => ({
+    name,
+    range: { start: area.offset + start, end: area.offset + end },
+    encoding,
+  });
+  const fields = [
+    field("System serial", 0x00, 0x16),
+    field("MB Serial", 0x50, 0x66),
+    field("UUID", 0x70, 0x80, "acerUUID"),
+    field("Model", 0x80, 0xa0),
+  ];
+  if (acerAssetTag(area) !== undefined) fields.push(field("Asset tag", 0xa0, 0xc0));
+  fields.push(field("Product name", 0xc0, 0xe0));
+  const code = acerManufacturingCode(area);
+  if (code !== undefined) {
+    const start = [0x690, 0x6a0].find((at) =>
+      [...code].every((unit, index) => area.stored[at + index] === unit.charCodeAt(0))
+    );
+    if (start !== undefined) fields.push(field("Manufacturing code", start, start + code.length));
+  }
+  return fields;
 }
 
 // MARK: - What reads wrong
@@ -383,16 +426,18 @@ export function readingAcerDMIStores(
     }
     if (node.isErased) return node;
     const body = node.body;
-    const found: number[] = [];
+    const found: AcerDMIArea[] = [];
     let at = Math.ceil(body.start / ACER_DMI_ALIGNMENT) * ACER_DMI_ALIGNMENT;
     while (at + ACER_DMI_SIZE <= body.end) {
-      if (acerDMIAreaAt(parser.reader, at) !== undefined) found.push(at);
+      const area = acerDMIAreaAt(parser.reader, at);
+      if (area !== undefined) found.push(area);
       at += ACER_DMI_ALIGNMENT;
     }
     if (found.length === 0) return node;
     const rows: UEFINode[] = [];
     let claimed = body.start;
-    for (const start of found) {
+    for (const area of found) {
+      const start = area.offset;
       rows.push(...parser.padding(claimed, start, emptyByte));
       const row = makeSpan({
         kind: "acerDMIStore",
@@ -400,6 +445,8 @@ export function readingAcerDMIStores(
         range: { start, end: start + ACER_DMI_SIZE },
       });
       row.isFixed = true;
+      // A row for each field written, under the block's.
+      row.children = acerFields(area).map((field) => dmiFieldNode(field, true));
       rows.push(row);
       claimed = start + ACER_DMI_SIZE;
     }

@@ -50,6 +50,38 @@ export interface AppleDMIArea {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.isDeleted
    */
   readonly isDeleted: boolean;
+  /**
+   * The entries of the store each value is read from — the copies that stand, and for the MLB the
+   * first variable named by it — where the store has them.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.serialEntry
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.configCodeEntry
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.orderNumberEntry
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.boardSerialEntry
+   */
+  readonly serialEntry?: ImageRange | undefined;
+  readonly configCodeEntry?: ImageRange | undefined;
+  readonly orderNumberEntry?: ImageRange | undefined;
+  readonly boardSerialEntry?: ImageRange | undefined;
+}
+
+/**
+ * The values, in the order a Mac's own tools list them, each with the entry it is read from. The
+ * names are English keys, put into words where they are shown.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.values
+ */
+export function appleValues(area: AppleDMIArea): {
+  readonly name: string;
+  readonly value?: string | undefined;
+  readonly entry?: ImageRange | undefined;
+}[] {
+  return [
+    { name: "Serial number", value: area.serialNumber, entry: area.serialEntry },
+    { name: "Configuration code", value: area.configCode, entry: area.configCodeEntry },
+    { name: "Sales order number", value: area.orderNumber, entry: area.orderNumberEntry },
+    { name: "MLB (board serial)", value: area.boardSerial, entry: area.boardSerialEntry },
+  ];
 }
 
 /** Apple's names and numbers. */
@@ -67,6 +99,17 @@ export const APPLE_DMI = {
    */
   boardSerialLength: 17,
 } as const;
+
+/**
+ * The variables of the store that hold a value of the area.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.identityNames
+ */
+export const APPLE_IDENTITY_NAMES: ReadonlySet<string> = new Set([
+  APPLE_DMI.serialName,
+  APPLE_DMI.configCodeName,
+  APPLE_DMI.orderNumberName,
+]);
 
 /**
  * Something about Apple's identity a technician should know before trusting it: the store
@@ -137,6 +180,8 @@ interface Variable {
   readonly isValid: boolean;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.Variable.data */
   readonly data: ImageRange;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.Variable.entry */
+  readonly entry: ImageRange;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.variables */
@@ -150,7 +195,12 @@ function variables(store: UEFINode, reader: ImageReader): Variable[] {
     if (nameBytes === undefined) continue;
     const end = nameBytes.indexOf(0);
     const name = decodeUtf8(end < 0 ? nameBytes : nameBytes.subarray(0, end));
-    found.push({ name, isValid: (flags & NVRAM.sysfInvalidFlag) === 0, data: entry.body });
+    found.push({
+      name,
+      isValid: (flags & NVRAM.sysfInvalidFlag) === 0,
+      data: entry.body,
+      entry: nodeRange(entry),
+    });
   }
   return found;
 }
@@ -173,7 +223,20 @@ function standing(name: string, all: readonly Variable[]): Variable | undefined 
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.text
  */
 function text(variable: Variable | undefined, reader: ImageReader): string | undefined {
-  const bytes = variable === undefined ? undefined : reader.bytes(variable.data);
+  return variable === undefined ? undefined : textIn(variable.data, reader);
+}
+
+/**
+ * The text a SysF entry holds, the same way: what its row says beside its name.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.text
+ */
+export function appleEntryText(entry: UEFINode, reader: ImageReader): string | undefined {
+  return entry.kind === "sysFEntry" ? textIn(entry.body, reader) : undefined;
+}
+
+function textIn(data: ImageRange, reader: ImageReader): string | undefined {
+  const bytes = reader.bytes(data);
   if (bytes === undefined) return undefined;
   const end = bytes.indexOf(0);
   const run = end < 0 ? bytes : bytes.subarray(0, end);
@@ -219,9 +282,15 @@ export function readAppleDMIArea(store: UEFINode, reader: ImageReader): AppleDMI
   const all = variables(store, reader);
   const serial = standing(APPLE_DMI.serialName, all);
   const serialNumber = text(serial, reader);
-  const configCode = text(standing(APPLE_DMI.configCodeName, all), reader);
-  const orderNumber = text(standing(APPLE_DMI.orderNumberName, all), reader);
+  const code = standing(APPLE_DMI.configCodeName, all);
+  const order = standing(APPLE_DMI.orderNumberName, all);
+  const configCode = text(code, reader);
+  const orderNumber = text(order, reader);
   const boardSerial = appleBoardSerial(all.map((variable) => variable.name));
+  const board =
+    boardSerial === undefined
+      ? undefined
+      : all.find((variable) => variable.name.startsWith(boardSerial));
   if (
     serialNumber === undefined &&
     configCode === undefined &&
@@ -237,5 +306,9 @@ export function readAppleDMIArea(store: UEFINode, reader: ImageReader): AppleDMI
     ...(orderNumber === undefined ? {} : { orderNumber }),
     ...(boardSerial === undefined ? {} : { boardSerial }),
     isDeleted: serial === undefined ? false : !serial.isValid,
+    ...(serial === undefined ? {} : { serialEntry: serial.entry }),
+    ...(code === undefined ? {} : { configCodeEntry: code.entry }),
+    ...(order === undefined ? {} : { orderNumberEntry: order.entry }),
+    ...(board === undefined ? {} : { boardSerialEntry: board.entry }),
   };
 }

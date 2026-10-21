@@ -21,6 +21,7 @@ import {
   readDescriptorInfo,
 } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
+import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidFromText, guidText } from "@/firmware/uefi/efiGuid";
 import { fileTypeName, marksHeaderInvalid } from "@/firmware/uefi/fileParser";
@@ -879,6 +880,8 @@ function buildDetailRows(
           return [cell(record.name), cell(hex(record.header.start)), cell(contents)];
         }),
         rowTargets: current.map((record) => ({ kind: "node", path: record.id })),
+        // GPNV links by name, as the other areas link by their entry.
+        linkColumn: 0,
       });
     }
   }
@@ -1574,6 +1577,13 @@ function headerFields(
     // not from one row's bytes.
     case "acerDMIStore":
       break;
+
+    // A field of an identity area: its value, read from its own bytes as the area writes it.
+    case "dmiField": {
+      const text = dmiFieldTextOf(node, reader);
+      if (text !== undefined) fields.push(field(L("Value"), text.length === 0 ? "—" : text));
+      break;
+    }
 
     // Its header is the table; the platform and the count are what the blocks say of
     // themselves. The table itself is read in `buildDetailRows`' caller.

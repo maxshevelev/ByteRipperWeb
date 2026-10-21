@@ -4,11 +4,13 @@ import {
   type AppleDMIArea,
   appleFindings,
   appleFindingText,
+  appleValues,
   readAppleDMIArea,
 } from "@/firmware/uefi/appleDmiArea";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { displayName, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
+import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import { dmiEntriesTable, dmiFindings } from "@/tools/uefi/uefiDMIEntries";
 
 /**
  * What the details say of Apple's identity (`appleDmiArea.ts`), on the SysF store it is read
@@ -42,18 +44,15 @@ export function appleDMIDetail(
 ): { fields: DetailField[]; tables: DetailTable[] } {
   const area = appleDMIAreaOf(node, reader);
   if (area === undefined) return { fields: [], tables: [] };
-  const shown = (text: string | undefined) =>
-    text === undefined || text.length === 0 ? "—" : text;
-  const fields: DetailField[] = [
-    field(L("Serial number"), shown(area.serialNumber)),
-    field(L("Configuration code"), shown(area.configCode)),
-    field(L("Sales order number"), shown(area.orderNumber)),
-    field(L("MLB (board serial)"), shown(area.boardSerial)),
-  ];
-  for (const finding of appleFindings(area)) {
-    fields.push(field(L("Note"), appleFindingText(finding)));
-  }
-  return { fields, tables: [] };
+  const fields = dmiFindings(
+    appleFindings(area).map((finding) => ({ text: appleFindingText(finding), isProblem: false }))
+  );
+  const rows = appleValues(area).map((one) => ({
+    name: L(one.name),
+    value: one.value,
+    source: one.entry,
+  }));
+  return { fields, tables: [dmiEntriesTable(rows, node.children)] };
 }
 
 /**

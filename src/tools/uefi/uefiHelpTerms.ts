@@ -116,6 +116,10 @@ export function uefiHelpTerm(node: UEFINodeSort): HelpTermId | undefined {
       return termId("dmi");
     case "acerDMIStore":
       return termId("acer-dmi");
+    // A field of Acer's area or of HP's `HP_MUD`: what the bench reads these areas for is the
+    // page about DMI.
+    case "dmiField":
+      return termId("dmi");
     case "lenvBlock":
     case "lenvEntry":
       return termId("lenv");

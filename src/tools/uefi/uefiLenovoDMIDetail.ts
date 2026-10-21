@@ -86,7 +86,11 @@ export function lenovoDMIDetail(
     case "lenovoDMIStore":
       return found.area === undefined ? { fields: [], tables: [] } : summary(found.area, node);
     case "ldbgLog":
-      return { fields: found.area === undefined ? [] : logFields(found.area.log), tables: [] };
+      if (found.area === undefined) return { fields: [], tables: [] };
+      return {
+        fields: logFields(found.area.log),
+        tables: logTable(found.area.log, node.children),
+      };
     case "ldbgEntry": {
       const entry = found.area?.log.entries.find((one) => one.offset === range.start);
       return { fields: entry === undefined ? [] : logEntryFields(entry), tables: [] };
@@ -291,9 +295,41 @@ function logFields(log: LDBGLog): DetailField[] {
   return fields;
 }
 
+/**
+ * The log's records, one to a line in the order they were written, each a way to its row: `rows`
+ * are the log's children, found by where each record starts. None for a log with none.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFILenovoDMIDetail.swift#UEFILenovoDMIDetail.logTable
+ */
+function logTable(log: LDBGLog, rows: readonly UEFINode[]): DetailTable[] {
+  if (log.entries.length === 0) return [];
+  return [
+    {
+      title: L("Log records"),
+      symbol: "clock.arrow.circlepath",
+      columns: [L("Time"), L("Operation"), L("Entry"), L("Size")],
+      rows: log.entries.map((entry) => [
+        cell(timeText(entry)),
+        cell(operationName(entry)),
+        cell(entryName(entry.key)),
+        cell(L("%1$@ bytes", entry.size)),
+      ]),
+      rowTargets: log.entries.map((entry) => {
+        const row = rows.find((one) => one.header.start === entry.offset);
+        return row === undefined ? undefined : { kind: "node", path: row.id };
+      }),
+      linkColumn: 0,
+    },
+  ];
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFILenovoDMIDetail.swift#UEFILenovoDMIDetail.timeText */
+const timeText = (entry: LDBGEntry): string =>
+  entry.timestampText ?? L("Not a date: %1$@", valueHex(entry.timestampBytes));
+
 function logEntryFields(entry: LDBGEntry): DetailField[] {
   return [
-    field(L("Time"), entry.timestampText ?? L("Not a date: %1$@", valueHex(entry.timestampBytes))),
+    field(L("Time"), timeText(entry)),
     field(L("Operation"), operationName(entry)),
     field(L("Entry"), entryName(entry.key)),
     field(L("Namespace"), namespaceText(entry.key)),

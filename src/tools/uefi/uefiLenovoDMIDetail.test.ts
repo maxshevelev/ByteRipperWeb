@@ -95,6 +95,19 @@ describe("Lenovo's DMI store in the detail", () => {
     expect(value("Entry", write)).toBe("Baseboard serial number");
   });
 
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift#UEFILenovoDMIDetailTests.testTheLogListsItsRecordsAsLinks
+  it("lists the log's records, each a link to its row", () => {
+    const p = parsed();
+    const detail = detailOf(nodeOf(p.image, "ldbgLog"), p);
+    const table = detail.tables.find((one) => one.title === "Log records");
+    expect(table?.columns).toEqual(["Time", "Operation", "Entry", "Size"]);
+    expect(table?.rows.map((row) => row.map((cell) => cell.text))).toEqual([
+      ["2022-06-29 20:30:25", "Set", "Baseboard serial number", "8 bytes"],
+    ]);
+    expect(table?.rowTargets).toEqual([{ kind: "node", path: nodeOf(p.image, "ldbgEntry").id }]);
+    expect(table?.linkColumn).toBe(0);
+  });
+
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift#UEFILenovoDMIDetailTests.testABlocksRowSaysWhetherItIsEncoded
   it("says on a block's row whether it is encoded", () => {
     const p = parsed();

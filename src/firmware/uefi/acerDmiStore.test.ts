@@ -74,7 +74,11 @@ describe("Acer's DMI area in the tree", () => {
     expect(nodeRange(store)).toEqual({ start: 0x8000, end: 0xa000 });
     expect(store.name).toBe("Acer DMI");
     expect(store.isFixed).toBe(true);
-    expect(store.children).toEqual([]);
+    expect(
+      store.children.map((child) => child.name),
+      "a row for each field written"
+    ).toEqual(["System serial", "MB Serial", "UUID", "Model", "Product name"]);
+    expect(store.children.every((child) => child.kind === "dmiField" && child.isFixed)).toBe(true);
     const outer = (parsed.roots[0] as UEFINode).children.find(
       (node) => nodeRange(node).start <= 0x8000 && 0x8000 < nodeRange(node).end
     ) as UEFINode;

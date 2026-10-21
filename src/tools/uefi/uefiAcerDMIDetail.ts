@@ -1,26 +1,22 @@
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import {
-  acerAssetTag,
   acerDMIAreaAt,
+  acerFields,
   acerFindingIsProblem,
   acerFindings,
   acerFindingText,
-  acerManufacturingCode,
-  acerModel,
-  acerMotherboardSerial,
-  acerProductName,
   acerSystemSerial,
-  acerUUIDText,
 } from "@/firmware/uefi/acerDmiStore";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { displayName, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
+import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import { dmiEntriesTable, dmiEntryRows, dmiFindings } from "@/tools/uefi/uefiDMIEntries";
 
 /**
- * What the details say of Acer's DMI area (`acerDmiStore.ts`): the identity fields — the
- * system serial, the motherboard serial, the UUID, the model, product name — read off the
- * 8 KiB block, then what the integrity checks found in them.
+ * What the details say of Acer's DMI area (`acerDmiStore.ts`): what the integrity checks found
+ * in the 8 KiB block, then its fields — the system serial, the motherboard serial, the UUID, the
+ * model, the product name — each a way to its row under the block's.
  *
  * A row keeps only its place, so the block is read again from the file on each selection:
  * 8 KiB, read in microseconds.
@@ -36,9 +32,8 @@ import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
 export const readsAcerDMI = (kind: string): boolean => kind === "acerDMIStore";
 
 /**
- * The block's identity fields, in the order the bench asks them, then what the integrity
- * checks found in them — a problem where a factory block would not read that way, a note
- * where only the copy went stale.
+ * What the integrity checks found — a problem where a factory block would not read that way, a
+ * note where only the copy went stale — then the fields, in the order the bench asks them.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAcerDMIDetail.swift#UEFIAcerDMIDetail.build
  */
@@ -49,22 +44,16 @@ export function acerDMIDetail(
   if (!isFileSpace(node.space) || !readsAcerDMI(node.kind)) return { fields: [], tables: [] };
   const area = acerDMIAreaAt(reader, node.body.start);
   if (area === undefined) return { fields: [], tables: [] };
-  const fields: DetailField[] = [
-    field(L("System serial"), acerSystemSerial(area)),
-    field(L("MB Serial"), acerMotherboardSerial(area)),
-    field(L("UUID"), acerUUIDText(area)),
-    field(L("Model"), acerModel(area) || "—"),
-  ];
-  const asset = acerAssetTag(area);
-  if (asset !== undefined) fields.push(field(L("Asset tag"), asset));
-  fields.push(field(L("Product name"), acerProductName(area) || "—"));
-  const code = acerManufacturingCode(area);
-  if (code !== undefined) fields.push(field(L("Manufacturing code"), code));
-  for (const finding of acerFindings(area)) {
-    const problem = acerFindingIsProblem(finding);
-    fields.push(field(problem ? L("Problem") : L("Note"), acerFindingText(finding), problem));
-  }
-  return { fields, tables: [] };
+  const fields = dmiFindings(
+    acerFindings(area).map((finding) => ({
+      text: acerFindingText(finding),
+      isProblem: acerFindingIsProblem(finding),
+    }))
+  );
+  return {
+    fields,
+    tables: [dmiEntriesTable(dmiEntryRows(acerFields(area), reader), node.children)],
+  };
 }
 
 /**

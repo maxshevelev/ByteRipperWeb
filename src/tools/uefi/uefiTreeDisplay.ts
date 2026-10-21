@@ -1,4 +1,5 @@
 import { L, localized } from "@/core/localization/localization";
+import { APPLE_IDENTITY_NAMES } from "@/firmware/uefi/appleDmiArea";
 import {
   type DellSetupCatalogue,
   type DellSetupSetting,
@@ -169,8 +170,10 @@ export function isEmptySpace(node: UEFINode): boolean {
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.showsValue
  */
-export function showsValue(node: { readonly kind: string }): boolean {
+export function showsValue(node: { readonly kind: string; readonly name?: string }): boolean {
   return (
+    node.kind === "dmiField" ||
+    (node.kind === "sysFEntry" && APPLE_IDENTITY_NAMES.has(node.name ?? "")) ||
     node.kind === "dvarEntry" ||
     node.kind === "vssEntry" ||
     node.kind === "nvarEntry" ||
@@ -440,6 +443,11 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   ) {
     return node.valueRow;
   }
+  // A field of an identity area, and one of Apple's identity variables, say what they hold
+  // beside their name, as Lenovo's entries do.
+  if ((node.kind === "dmiField" || node.kind === "sysFEntry") && node.valueRow !== undefined) {
+    return node.valueRow;
+  }
   if (node.guid === undefined) {
     return node.name.length === 0 ? kindLabel(node.kind) : displayName(node);
   }
@@ -553,6 +561,7 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   lenvBlock: L("LENV block"),
   lenvEntry: L("LENV entry"),
   acerDMIStore: L("Acer DMI"),
+  dmiField: L("DMI field"),
   amdEFS: L("Embedded Firmware Structure"),
   amdDirectory: L("AMD firmware directory"),
   amdFirmwareEntry: L("AMD firmware entry"),

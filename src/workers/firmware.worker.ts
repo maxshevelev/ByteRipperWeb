@@ -17,6 +17,7 @@ import {
 } from "@/firmware/me/decompress/huffman";
 import { analyzeMeRegion, checksums } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
+import { APPLE_IDENTITY_NAMES, appleEntryText } from "@/firmware/uefi/appleDmiArea";
 import {
   type ChecksumRepair,
   repairsForAMDDirectory,
@@ -28,6 +29,7 @@ import {
 import { DecompressedBuffers } from "@/firmware/uefi/decompressedBuffers";
 import { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
 import { diagnosticMessage, severityOf, type UEFIDiagnostic } from "@/firmware/uefi/diagnostic";
+import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { allDMIStores, type DMIStore } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
@@ -70,6 +72,7 @@ import {
 } from "@/firmware/uefi/treeMaterialization";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import {
+  displayName,
   isNodeCompressed,
   nodeFileRange,
   nodeIdText,
@@ -396,6 +399,23 @@ function hpDMIWireFields(
 }
 
 /**
+ * A field of an identity area, and one of Apple's identity variables, say what they hold beside
+ * their name, as Lenovo's entries do.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.baseName
+ * @upstream-differs the panel holds no bytes, so the worker reads the value
+ */
+function dmiValueWireFields(node: UEFINode): { valueRow?: string } {
+  const isAppleIdentity = node.kind === "sysFEntry" && APPLE_IDENTITY_NAMES.has(node.name);
+  if (node.kind !== "dmiField" && !isAppleIdentity) return {};
+  const reader = readerFor(node);
+  if (reader === undefined) return {};
+  const text = isAppleIdentity ? appleEntryText(node, reader) : dmiFieldTextOf(node, reader);
+  if (text === undefined) return {};
+  return { valueRow: L("%1$@ = %2$@", displayName(node), text.length === 0 ? "—" : text) };
+}
+
+/**
  * Apple's SysF store says whose the Mac is: the serial, the rest in the detail. Read here, where
  * the bytes are, and marked so the panel's `?` opens Apple's entry.
  *
@@ -441,6 +461,7 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
     : {}),
   ...hpDMIWireFields(node, store),
   ...appleDMIWireFields(node),
+  ...dmiValueWireFields(node),
   ...(node.kind === "gpnvRecord"
     ? { valueRow: gpnvRowText(node.name, readerFor(node)?.bytes(node.body)) }
     : {}),

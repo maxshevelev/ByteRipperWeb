@@ -1,6 +1,7 @@
 import type { ImageRange } from "@/firmware/imageReader";
 import { alignUp, crc32 } from "@/firmware/uefi/checksums";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
+import { readingHPDMIFields } from "@/firmware/uefi/hpDmiArea";
 import {
   microcodeRange,
   parseMicrocode,
@@ -397,14 +398,19 @@ export function parseVssStore(
         ? "Apple NSS store"
         : "VSS store";
 
-  return makeNode({
-    kind: "vssStore",
-    name,
-    header: { start: offset, end: headerEnd },
-    body: { start: headerEnd, end: storeEnd },
-    isFixed: true,
-    children: vssVariables(parser, headerEnd, storeEnd, emptyByte),
-  });
+  // HP's `HP_MUD` reads out as a row per field under its entry.
+  // @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#Parser.readingHPDMIFields
+  return readingHPDMIFields(
+    makeNode({
+      kind: "vssStore",
+      name,
+      header: { start: offset, end: headerEnd },
+      body: { start: headerEnd, end: storeEnd },
+      isFixed: true,
+      children: vssVariables(parser, headerEnd, storeEnd, emptyByte),
+    }),
+    parser.reader
+  );
 }
 
 /**
@@ -569,14 +575,17 @@ export function parseVss2Store(
   const storeEnd = offset + size;
   const headerEnd = offset + NVRAM.vss2StoreHeaderSize;
 
-  return makeNode({
-    kind: "vss2Store",
-    name: "VSS2 store",
-    header: { start: offset, end: headerEnd },
-    body: { start: headerEnd, end: storeEnd },
-    isFixed: true,
-    children: vss2Variables(parser, headerEnd, storeEnd, emptyByte),
-  });
+  return readingHPDMIFields(
+    makeNode({
+      kind: "vss2Store",
+      name: "VSS2 store",
+      header: { start: offset, end: headerEnd },
+      body: { start: headerEnd, end: storeEnd },
+      isFixed: true,
+      children: vss2Variables(parser, headerEnd, storeEnd, emptyByte),
+    }),
+    parser.reader
+  );
 }
 
 /**

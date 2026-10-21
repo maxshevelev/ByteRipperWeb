@@ -559,5 +559,17 @@ describe("HP's DMI area", () => {
     const store = rows.find((one) => one.kind === "sysFStore");
     expect(store?.isAppleDMIArea).toBe(true);
     expect(store?.valueRow).toBe(`Apple SysF store · ${APPLE_SERIAL}`);
+    // Apple's identity variables say what they hold beside their name.
+    // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift#UEFIAppleDMIDetailTests.testTheTableLeadsToTheVariables
+    expect(rows.find((one) => one.name === "ssn")?.valueRow).toBe(`ssn = ${APPLE_SERIAL}`);
+  });
+
+  // A field of HP_MUD is a row that says what it holds.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.testTheFieldsAreRowsAndTheTableLeadsToThem
+  it("names a field of HP_MUD by its value", () => {
+    const rows = everything(open(hpImage(hpVariables())));
+    const fields = rows.filter((one) => one.kind === "dmiField");
+    expect(fields).toHaveLength(6);
+    expect(fields[0]?.valueRow).toBe(`Serial number = ${HP_SERIAL}`);
   });
 });

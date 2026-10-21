@@ -43,8 +43,13 @@ function parsed(mudState = 0x3f) {
   return { image, reader, node };
 }
 
-const value = (detail: NodeDetail, label: string) =>
-  detail.fields.find((one) => one.label === label)?.value;
+/** A field of the detail, or a row of its Entries table, where the area's values are. */
+const value = (detail: NodeDetail, label: string) => {
+  const one = detail.fields.find((field) => field.label === label);
+  if (one !== undefined) return one.value;
+  const entries = detail.tables.find((table) => table.title === "Entries");
+  return entries?.rows.find((row) => row[0]?.text === label)?.[1]?.text;
+};
 
 describe("HP's DMI in the detail", () => {
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.testTheEntrySaysWhoTheMachineIs
@@ -61,9 +66,8 @@ describe("HP's DMI in the detail", () => {
     expect(value(detail, "Feature byte")).toBe("476J6S6b.TR");
     expect(value(detail, "Asset tracking number")).toBe(HP_SERIAL);
     expect(value(detail, "Note")).toBeUndefined();
-    const labels = detail.fields.map((one) => one.label);
-    const first = labels.lastIndexOf("Serial number");
-    expect(labels.slice(first, first + 9)).toEqual([
+    const entries = detail.tables.find((table) => table.title === "Entries");
+    expect(entries?.rows.map((row) => row[0]?.text)).toEqual([
       "Serial number",
       "SKU",
       "Product family",
@@ -74,6 +78,36 @@ describe("HP's DMI in the detail", () => {
       "Feature byte",
       "Asset tracking number",
     ]);
+  });
+
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.testTheFieldsAreRowsAndTheTableLeadsToThem
+  it("has the fields of HP_MUD as rows under its entry, which the table leads to", () => {
+    const { image, reader, node } = parsed();
+    const fields = node.children;
+    expect(fields.map((one) => one.kind)).toEqual(Array(6).fill("dmiField"));
+    expect(fields.map((one) => one.name)).toEqual([
+      "Serial number",
+      "SKU",
+      "Product family",
+      "CT number",
+      "Product name",
+      "UUID",
+    ]);
+    const detail = buildNodeDetail(node, image, reader);
+    const entries = detail.tables.find((table) => table.title === "Entries");
+    const store = hpDMIStoreOf(node, image);
+    const entry = (name: string) => {
+      const found = store?.children.find((one) => displayName(one) === name);
+      return found === undefined ? undefined : { kind: "node", path: found.id };
+    };
+    expect(entries?.rowTargets).toEqual([
+      ...fields.map((one) => ({ kind: "node", path: one.id })),
+      entry("BuildId"),
+      entry("FactoryConfig"),
+      entry("HP_TAGS"),
+    ]);
+    expect(entries?.rowTargets?.every((one) => one !== undefined)).toBe(true);
+    expect(entries?.linkColumn).toBe(0);
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.testADeletedCopyIsReadAndNoted

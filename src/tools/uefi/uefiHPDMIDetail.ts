@@ -6,19 +6,21 @@ import {
   HP_FACTORY_GUID,
   HP_MUD_NAME,
   type HPDMIArea,
-  hpCTNumber,
+  hpFields,
   hpFindings,
   hpFindingText,
-  hpProductFamily,
-  hpProductName,
   hpSerialNumber,
-  hpSKU,
-  hpUUIDText,
   readHPDMIArea,
 } from "@/firmware/uefi/hpDmiArea";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
+import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import {
+  type DMIEntryRow,
+  dmiEntriesTable,
+  dmiEntryRows,
+  dmiFindings,
+} from "@/tools/uefi/uefiDMIEntries";
 
 /**
  * What the details say of HP's identity (`hpDmiArea.ts`), on the `HP_MUD` entry it is read
@@ -90,23 +92,19 @@ export function hpDMIDetail(
   image: UEFIImage,
   reader: ImageReader
 ): { fields: DetailField[]; tables: DetailTable[] } {
-  const area = hpDMIAreaIn(node, image, reader);
-  if (area === undefined) return { fields: [], tables: [] };
-  const shown = (text: string | undefined): string =>
-    text === undefined || text.length === 0 ? "—" : text;
-  const fields: DetailField[] = [
-    field(L("Serial number"), shown(hpSerialNumber(area))),
-    field(L("SKU"), shown(hpSKU(area))),
-    field(L("Product family"), shown(hpProductFamily(area))),
-    field(L("CT number"), shown(hpCTNumber(area))),
-    field(L("Product name"), shown(hpProductName(area))),
-    field(L("UUID"), hpUUIDText(area)),
-    field(L("Build ID"), shown(area.buildID)),
-    field(L("Feature byte"), shown(area.featureByte)),
-    field(L("Asset tracking number"), shown(area.assetTag)),
+  const store = hpDMIStoreOf(node, image);
+  const area = hpDMIAreaOf(node, store, reader);
+  if (store === undefined || area === undefined) return { fields: [], tables: [] };
+  const fields = dmiFindings(
+    hpFindings(area).map((finding) => ({ text: hpFindingText(finding), isProblem: false }))
+  );
+  const rows: DMIEntryRow[] = [
+    ...dmiEntryRows(hpFields(area), reader),
+    { name: L("Build ID"), value: area.buildID, source: area.buildIDEntry },
+    { name: L("Feature byte"), value: area.featureByte, source: area.featureByteEntry },
+    { name: L("Asset tracking number"), value: area.assetTag, source: area.assetTagEntry },
   ];
-  for (const finding of hpFindings(area)) fields.push(field(L("Note"), hpFindingText(finding)));
-  return { fields, tables: [] };
+  return { fields, tables: [dmiEntriesTable(rows, [...node.children, ...store.children])] };
 }
 
 /**

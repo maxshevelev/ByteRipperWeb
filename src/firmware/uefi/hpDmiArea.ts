@@ -1,5 +1,6 @@
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
+import { type DMIField, type DMIFieldEncoding, dmiFieldNode } from "@/firmware/uefi/dmiField";
 import { type EFIGUID, guid, guidEquals, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import {
@@ -55,6 +56,12 @@ export interface HPDMIArea {
    */
   readonly mud: Uint8Array;
   /**
+   * Where the value lies in the file.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.data
+   */
+  readonly data: ImageRange;
+  /**
    * The store marks the entry deleted, and holds no current copy.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.isDeleted
@@ -66,6 +73,39 @@ export interface HPDMIArea {
   readonly featureByte?: string | undefined;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.assetTag */
   readonly assetTag?: string | undefined;
+  /**
+   * The entries of the variables beside `HP_MUD` the last three are read from — the copies that
+   * stand — where the store has them.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.buildIDEntry
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.featureByteEntry
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.assetTagEntry
+   */
+  readonly buildIDEntry?: ImageRange | undefined;
+  readonly featureByteEntry?: ImageRange | undefined;
+  readonly assetTagEntry?: ImageRange | undefined;
+}
+
+/**
+ * The fields of `HP_MUD`, in the order BCU lists them, each where it lies in the file: the rows
+ * under the entry's.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.fields
+ */
+export function hpFields(area: HPDMIArea): DMIField[] {
+  const field = (name: string, [start, end]: Field, encoding: DMIFieldEncoding = "utf16") => ({
+    name,
+    range: { start: area.data.start + start, end: area.data.start + end },
+    encoding,
+  });
+  return [
+    field("Serial number", SERIAL_FIELD),
+    field("SKU", SKU_FIELD),
+    field("Product family", FAMILY_FIELD),
+    field("CT number", CT_NUMBER_FIELD),
+    field("Product name", PRODUCT_NAME_FIELD),
+    field("UUID", UUID_FIELD, "smbiosUUID"),
+  ];
 }
 
 /**
@@ -282,13 +322,21 @@ export function readHPDMIArea(store: UEFINode, reader: ImageReader): HPDMIArea |
     const text = hpText(window);
     return text === undefined || text.length === 0 ? undefined : text;
   };
+  const entryOf = (name: string, owner: EFIGUID): ImageRange | undefined => {
+    const copy = standing(name, owner, all);
+    return copy === undefined ? undefined : nodeRange(copy.entry);
+  };
   return {
     entry: nodeRange(mud.entry),
     mud: value,
+    data: mud.variable.data,
     isDeleted: !isValidVssVariable(mud.variable),
     buildID: textOf("BuildId", HP_FACTORY_GUID),
     featureByte: textOf("FactoryConfig", HP_FACTORY_GUID),
     assetTag: textOf("HP_TAGS", HP_SETTINGS_GUID, [0, 0xa2]),
+    buildIDEntry: entryOf("BuildId", HP_FACTORY_GUID),
+    featureByteEntry: entryOf("FactoryConfig", HP_FACTORY_GUID),
+    assetTagEntry: entryOf("HP_TAGS", HP_SETTINGS_GUID),
   };
 }
 
@@ -303,4 +351,39 @@ export function isHPDMIAreaEntry(entry: UEFINode, store: UEFINode, reader: Image
   const area = readHPDMIArea(store, reader);
   const range = nodeRange(entry);
   return area !== undefined && area.entry.start === range.start && area.entry.end === range.end;
+}
+
+/**
+ * `store` with the fields of its `HP_MUD` read out as rows under the entry the area is read from.
+ * A store with no entry under HP's factory GUID is passed over without reading its names.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#Parser.readingHPDMIFields
+ */
+export function readingHPDMIFields(store: UEFINode, reader: ImageReader): UEFINode {
+  if (
+    !store.children.some(
+      (child) =>
+        child.kind === "vssEntry" &&
+        child.guid !== undefined &&
+        guidEquals(child.guid, HP_FACTORY_GUID)
+    )
+  ) {
+    return store;
+  }
+  const area = readHPDMIArea(store, reader);
+  if (area === undefined) return store;
+  const index = store.children.findIndex((child) => {
+    const range = nodeRange(child);
+    return (
+      child.kind === "vssEntry" && range.start === area.entry.start && range.end === area.entry.end
+    );
+  });
+  const entry = store.children[index];
+  if (entry === undefined) return store;
+  const children = [...store.children];
+  children[index] = {
+    ...entry,
+    children: hpFields(area).map((field) => dmiFieldNode(field, entry.isFixed)),
+  };
+  return { ...store, children };
 }
