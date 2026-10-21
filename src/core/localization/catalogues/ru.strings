@@ -852,6 +852,7 @@
 "Segments" = "Сегменты";
 "menu|Segments" = "Сегменты";
 "Segments…" = "Сегменты…";
+"Select All" = "Выделить всё";
 "Select a byte range by absolute offsets. End is the block's last byte." = "Задайте диапазон байтов абсолютными адресами. «Конец» — последний байт блока.";
 "Select a node to see what it is." = "Выберите узел, чтобы увидеть, что это.";
 "Select a row to see what it is." = "Выберите строку, чтобы увидеть, что это.";

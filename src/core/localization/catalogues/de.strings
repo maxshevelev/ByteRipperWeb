@@ -852,6 +852,7 @@
 "Segments" = "Segmente";
 "menu|Segments" = "Segmente";
 "Segments…" = "Segmente…";
+"Select All" = "Alles auswählen";
 "Select a byte range by absolute offsets. End is the block's last byte." = "Wählen Sie einen Byte-Bereich über absolute Offsets. „Ende“ ist das letzte Byte des Blocks.";
 "Select a node to see what it is." = "Wählen Sie einen Knoten, um zu sehen, was er ist.";
 "Select a row to see what it is." = "Wählen Sie eine Zeile, um zu sehen, was sie ist.";

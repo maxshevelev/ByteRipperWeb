@@ -1,4 +1,4 @@
-@source-sha 895996b4771f78f7f0e3bafc1c4f3effb10fccfab2a5ea0f52b9b2b2392a9f05
+@source-sha 8add21a221ce42d6e62c01b0601a5d640a06bdc23ee9fb56bc8cf444b5426cf9
 # Bytes bearbeiten
 
 > Tippen überschreibt die vorhandenen Bytes. Jeder Vorgang, der die Länge der Datei ändert, fragt vorher nach.
@@ -41,6 +41,6 @@ Jede Änderung ist ein Widerrufsschritt ([[key:undo]]), auch die großen: ein Zu
 
 ## In einem Eingabefeld
 
-Solange ein Eingabefeld den Fokus hat — die Suchleiste, ein Formular, ein Dialog —, wirken die Bearbeitungstasten auf dessen Text, wie überall [[edition:im Browser||im System]]: [[key:selectAll]] wählt den Text des Feldes aus, [[key:copy]], [[key:cut]] und [[key:paste]] kopieren, schneiden aus und fügen Text ein, [[key:undo]] widerruft die Eingabe. **Bearbeiten ▸ Widerrufen** und **Bearbeiten ▸ Wiederholen**, während der Eingabe in einem Feld gewählt, wirken ebenfalls auf die Eingabe. Auf die Bytes wirken die Tasten nur, solange der Dump den Fokus hat.
+Solange ein Eingabefeld den Fokus hat — die Suchleiste, ein Formular, ein Dialog —, wirken die Bearbeitungstasten auf dessen Text, wie überall [[edition:im Browser||im System]]: [[key:selectAll]] wählt den Text des Feldes aus, [[key:copy]], [[key:cut]] und [[key:paste]] kopieren, schneiden aus und fügen Text ein, [[key:undo]] widerruft die Eingabe. **Bearbeiten ▸ Alles auswählen**, **Bearbeiten ▸ Widerrufen** und **Bearbeiten ▸ Wiederholen**, während der Eingabe in einem Feld gewählt, wirken ebenfalls auf dessen Text. Auf die Bytes wirken die Tasten nur, solange der Dump den Fokus hat.
 
 Bytes werden nicht ausgeschnitten, da dies die Datei verkürzen würde: Solange der Dump den Fokus hat, bewirkt [[key:cut]] nichts.

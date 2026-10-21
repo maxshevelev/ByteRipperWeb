@@ -7,7 +7,9 @@ import { showAbout } from "@/state/aboutStore";
 import {
   canRedoRemoval,
   canUndoRemoval,
+  orderedAnnotations,
   redoRemoval,
+  selectAnnotations,
   undoRemoval,
 } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
@@ -27,7 +29,7 @@ import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
-import { textFocusStore, undoInTextField } from "@/state/textFocusStore";
+import { selectAllInTextField, textFocusStore, undoInTextField } from "@/state/textFocusStore";
 import {
   frontSession,
   menuState,
@@ -413,6 +415,24 @@ export function Toolbar({
         if (undoInTextField(true)) return;
         if (notesUp) redoRemoval();
         else void redoLast(front);
+      },
+    },
+    {
+      // A text field being typed in selects its own text, the Annotations panel every card, and
+      // only a dump with the focus every byte. In the desktop shell the menu answers the key, so
+      // it decides there what the browser's field would have decided by itself.
+      // help: menu.edit.select-all
+      // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.selectAll
+      // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.selectAll
+      label: L("Select All"),
+      shortcut: "⌘A",
+      shellKey: true,
+      disabled: !typing && !notesUp && active === undefined,
+      onSelect: () => {
+        if (selectAllInTextField()) return;
+        if (notesUp) selectAnnotations(orderedAnnotations().map((one) => one.id));
+        else void active?.typing.selectAll();
       },
     },
     { kind: "separator" },

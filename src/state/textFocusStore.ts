@@ -46,6 +46,23 @@ export function undoInTextField(redo: boolean): boolean {
   return true;
 }
 
+/**
+ * Edit ▸ Select All while a text field is being typed in: the field's own text, not every byte.
+ * False when no field is, and the command is the dump's or the panel's.
+ *
+ * @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
+ * @upstream-differs the field is selected by the page, where upstream's menu sends the standard
+ * selectAll: to the first responder
+ */
+export function selectAllInTextField(): boolean {
+  const field = editedTextField();
+  if (field === undefined) return false;
+  field.focus();
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.select();
+  else document.execCommand("selectAll");
+  return true;
+}
+
 if (typeof document !== "undefined") {
   document.addEventListener(
     "focusin",
