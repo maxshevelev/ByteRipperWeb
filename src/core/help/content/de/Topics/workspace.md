@@ -1,4 +1,4 @@
-@source-sha a4b822b452151a6e4dc4733a6a9784f847c67e0aeafb35c57e94d47fcf7e11ac
+@source-sha edcda77791d9eb61eae79f7f0bb70d8034d67aeb90e53c80b861246b2188957e
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -16,7 +16,8 @@ Ein Arbeitsbereich gehört zu einem [[edition:Browser-Tab||Fenster]]. [[edition:
 - Die [[topic:bookmarks|Lesezeichen]], die ohnehin mit dem Arbeitsbereich aufbewahrt werden.
 - Die [[topic:segments|Segmente]]: Schnitte, Namen und die Verknüpfungen von Segmenten mit den Dateien, aus denen sie zusammengefügt wurden; eine Verknüpfung, deren Datei sich nicht wieder erreichen lässt, kehrt als Segment ohne Verknüpfung zurück.
 - Die [[topic:minimap|Minimap]] und die Suchleiste mit ihrem Muster.
-- **Nie gesicherte Dokumente** — eine neue Datei, eine Zusammenführung, ein Duplikat, auch eines, das einen Namen erhalten hat — mit ihren Bytes und weiterhin ungesichert. Sie werden beim Arbeitsbereich aufbewahrt, solange die Seite geöffnet ist, sodass auch ein abgestürzter Tab sie nicht verliert, und beim Verlassen der Seite wird nicht nach ihnen gefragt.
+- Die [[topic:fragments|Fragment-Bereiche]] samt dem, der vorn lag. Ein Teil wird nicht als Bytes gespeichert, sondern erneut aus seiner Datei entnommen; er zeigt daher deren aktuellen Inhalt und lässt sich weiterhin zurückschreiben.
+- **Nie gesicherte Dokumente** — eine neue Datei, eine Zusammenführung, ein Duplikat, auch eines, das einen Namen erhalten hat — mit ihren Bytes und weiterhin ungesichert, sowie Teile mit Änderungen, die noch nicht in ihre Datei zurückgeschrieben sind, samt diesen Änderungen. Sie werden beim Arbeitsbereich aufbewahrt, solange die Seite geöffnet ist, sodass auch ein abgestürzter Tab sie nicht verliert, und beim Verlassen der Seite wird nicht nach ihnen gefragt.
 - **Ungesicherte Änderungen an Dateien**, die rot wie zuvor und weiterhin ungesichert zurückkehren. Aufbewahrt werden nur die geänderten Bytes, keine Kopie der Datei. Die Änderungen werden nur dann wieder über die Datei gelegt, wenn es dieselbe Datei ist, an der sie gemacht wurden (siehe unten). Beim Verlassen der Seite wird nur nach einer Änderung der letzten Augenblicke gefragt, die der Arbeitsbereich noch nicht aufschreiben konnte.
 
 ## Was nicht wiederhergestellt wird

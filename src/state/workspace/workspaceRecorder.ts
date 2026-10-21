@@ -1,6 +1,8 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import {
+  type DocumentSource,
   type FileStamp,
+  type FragmentState,
   type PaneState,
   type SegmentationState,
   type SurfaceState,
@@ -12,11 +14,20 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { mapOn, minimapStore } from "@/state/minimapStore";
-import { PANE_IDS, type SlotId, type SurfaceId, WORKSPACE_SURFACE } from "@/state/paneId";
+import {
+  PANE_IDS,
+  type PaneId,
+  partPane,
+  type SlotId,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
+} from "@/state/paneId";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
+import { partCodecState } from "@/state/workspace/partCodecState";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   readWorkspaceRecord,
@@ -75,15 +86,19 @@ export function keepWaitingWorkspace(on: boolean): void {
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.snapshot
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTab
  */
-export function snapshotWorkspace(): {
+export async function snapshotWorkspace(): Promise<{
   readonly workspace: Workspace;
   readonly handles: Record<string, FileSystemFileHandle>;
   readonly keeps: readonly KeptWrite[];
-} {
+}> {
   const handles: Record<string, FileSystemFileHandle> = {};
   const keeps: KeptWrite[] = [];
   const panes = PANE_IDS.map((slot) => paneSnapshot(slot, handles, keeps));
   const state = workspaceStore.getSnapshot();
+  const { fragments, expandedFragment } = await fragmentsSnapshot(
+    new Set(PANE_IDS.filter((_, index) => panes[index] !== undefined)),
+    keeps
+  );
   const search = searchStore.getSnapshot();
   const tab: TabState = {
     panes,
@@ -92,9 +107,91 @@ export function snapshotWorkspace(): {
       ...surfaceSnapshot(WORKSPACE_SURFACE),
       ...(search.open ? { findPattern: { text: search.query, encoding: search.encoding } } : {}),
     },
-    fragments: [],
+    fragments,
+    ...(expandedFragment === undefined ? {} : { expandedFragment }),
   };
   return { workspace: { version: WORKSPACE_VERSION, tab }, handles, keeps };
+}
+
+/**
+ * The panels over the tab, in the dock's order — a parent before the parts taken out of it, a
+ * part being opened after the pane it came from. A part whose parent is written down is written as
+ * where it came from, and taken out again at restore; one with no parent, a parent not written
+ * down or a codec this cannot write, as untitled bytes: it comes back without its way home. A part
+ * with changes its parent has not got keeps them, laid over what the parent gives at restore.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTab
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.partOrigin
+ */
+async function fragmentsSnapshot(
+  written: Set<PaneId>,
+  keeps: KeptWrite[]
+): Promise<{ fragments: FragmentState[]; expandedFragment: number | undefined }> {
+  const state = workspaceStore.getSnapshot();
+  const fragments: FragmentState[] = [];
+  let expandedFragment: number | undefined;
+  for (const panel of state.dock.panels) {
+    if (panel === state.helpPanel || panel === state.agentPanel || panel === state.notesPanel) {
+      continue;
+    }
+    const pane = partPane(panel);
+    const part = paneState(pane);
+    if (part === undefined) continue;
+    const { document } = part;
+    const key = keptKey(document);
+    const version = contentVersion(document);
+    const bytes = async () => new Blob([(await document.storage.read(0, document.size)).slice()]);
+    const origin = part.origin;
+    const codec = origin === undefined ? undefined : partCodecState(origin.codec);
+    const changed = origin === undefined ? true : await origin.hasChanges(document);
+    let source: DocumentSource;
+    if (origin !== undefined && codec !== undefined && written.has(origin.parent)) {
+      if (changed) keeps.push({ key, version, value: bytes });
+      source = {
+        kind: "part",
+        part: {
+          parent: origin.parent,
+          sourceStart: origin.sourceRange[0],
+          sourceEnd: origin.sourceRange[1],
+          name: origin.partName,
+          layout: JSON.stringify(origin.layout),
+          codec: JSON.stringify(codec),
+          size: document.size,
+          ...(changed
+            ? { edits: { id: key, name: part.name, size: document.size, dirty: true } }
+            : {}),
+        },
+      };
+    } else {
+      keeps.push({ key, version, value: bytes });
+      source = {
+        kind: "untitled",
+        untitled: { id: key, name: part.name, size: document.size, dirty: document.isDirty },
+      };
+    }
+    if (state.dock.expanded === panel) expandedFragment = fragments.length;
+    written.add(pane);
+    fragments.push({
+      pane: { id: pane, document: source, ...positionOf(pane) },
+      surface: surfaceSnapshot(surfaceOf(pane)),
+    });
+  }
+  return { fragments, expandedFragment };
+}
+
+/** Where the reader was in a pane: the selection, the typing mode and the first row on screen. */
+function positionOf(
+  pane: PaneId
+): Pick<PaneState, "selectionStart" | "selectionEnd" | "inputRegion" | "insertMode" | "topOffset"> {
+  const held = paneState(pane);
+  const start = held?.document.selection.start ?? 0;
+  return {
+    selectionStart: start,
+    selectionEnd: held?.document.selection.end ?? start,
+    inputRegion: held?.typing.inputRegion ?? "hex",
+    insertMode: held?.typing.isInsertMode ?? false,
+    topOffset: scrollLink.visibleRange(pane, BYTES_PER_ROW)?.start ?? start,
+  };
 }
 
 /**
@@ -227,7 +324,7 @@ function paneSnapshot(
  */
 export async function recordWorkspace(leaving = false): Promise<void> {
   if (paused || !settingsStore.getSnapshot().restoresWorkspace) return;
-  const { workspace, handles, keeps } = snapshotWorkspace();
+  const { workspace, handles, keeps } = await snapshotWorkspace();
   if (keepsWaiting) {
     if (workspaceIsEmpty(workspace)) return;
     // A file opened by hand: the workspace that was waiting is given up for this one.

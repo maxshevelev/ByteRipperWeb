@@ -18,7 +18,8 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 - The [[topic:bookmarks|bookmarks]], which are kept with the workspace in any case.
 - The [[topic:segments|segments]]: cuts, names, and the links of segments to the files they were joined from — a link whose file cannot be reached again comes back as a segment with no link.
 - The [[topic:minimap|minimap]] and the Find bar with its pattern.
-- **Documents never saved** — New File, a join, a duplicate, including one that has been given a name — with their bytes, still unsaved. They are kept beside the workspace while the page is open, so that a crash of the tab does not lose them either, and leaving the page does not ask about them.
+- The [[topic:fragments|fragment panels]], with the panel that was in front. A part is not stored as bytes: it is extracted from its file again, so it shows what the file holds now and can still be written back into it.
+- **Documents never saved** — New File, a join, a duplicate, including one that has been given a name — with their bytes, still unsaved, and parts with changes not yet put back into their file, with those changes. They are kept beside the workspace while the page is open, so that a crash of the tab does not lose them either, and leaving the page does not ask about them.
 - **Unsaved changes to files**, which come back red as they were, still unsaved. Only the changed bytes are kept, not a copy of the file. The changes are laid over the file again only when it is the file they were made on (see below). Leaving the page asks only about a change made in the last moments, before the workspace could write it down.
 
 ## What is not restored

@@ -14,16 +14,27 @@ import {
   WORKSPACE_VERSION,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
+import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
-import { PANE_IDS, type SlotId, WORKSPACE_SURFACE } from "@/state/paneId";
+import { openLinkedPart } from "@/state/openLinkedPart";
+import {
+  PANE_IDS,
+  type PaneId,
+  type PartId,
+  type SlotId,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
+} from "@/state/paneId";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
 import { restorePartition } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
+import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   keepWaitingWorkspace,
@@ -34,9 +45,12 @@ import type { WorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import { readKeptBytes } from "@/state/workspace/workspaceRecords";
 import {
   applyKeptEdits,
+  foldParts,
   openInPane,
   openKeptUntitledInPane,
+  openPart,
   paneState,
+  raisePart,
   reportAlert,
   setActivePane,
 } from "@/state/workspaceStore";
@@ -253,11 +267,115 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
       opened.map((one) => applyPane(one.slot, one.saved, one.unchanged, linkFiles))
     );
     if (opened.length > 0) applySurface(tab.surface);
+    await restoreFragments(record, opened, issues);
     reportRestoreIssues(issues);
   } finally {
     pauseWorkspaceRecorder(false);
   }
 }
+
+/**
+ * The panels, parents first: a part taken out of its parent again — decoded from it as it is now,
+ * so it can still be written back — with the changes it held laid over it; a part whose parent did
+ * not come back, or changed, comes back with its changes as bytes with no way home, or is reported
+ * when it had none; bytes with no parent come back as they were. Then the panel that was in front.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRestorer.swift#WorkspaceRestorer.openParts
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspacePart
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceOrphan
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceLooseFragment
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.finishWorkspaceFragment
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.settleWorkspaceFragments
+ */
+async function restoreFragments(
+  record: WorkspaceRecord,
+  opened: readonly { slot: SlotId; saved: PaneState; unchanged: boolean }[],
+  issues: RestoreIssue[]
+): Promise<void> {
+  const { tab } = record.workspace;
+  if (tab.fragments.length === 0) return;
+  const id = workspaceId();
+  // By the id each pane had when written down, the pane it is now, and whether it is still the
+  // document it was.
+  const panes = new Map<string, { pane: PaneId; unchanged: boolean }>();
+  for (const one of opened) {
+    if (one.saved.id !== undefined)
+      panes.set(one.saved.id, { pane: one.slot, unchanged: one.unchanged });
+  }
+  let expanded: PartId | undefined;
+  for (const [index, fragment] of tab.fragments.entries()) {
+    const source = fragment.pane.document;
+    let part: PartId | undefined;
+    if (source.kind === "part") {
+      const origin = source.part;
+      const parent = panes.get(origin.parent);
+      const codec = parsed<PartCodecState>(origin.codec);
+      const layout = parsed<UEFIRootLayout>(origin.layout);
+      if (parent?.unchanged && codec !== undefined) {
+        part = await openLinkedPart({
+          parent: parent.pane,
+          name: origin.name,
+          source: [origin.sourceStart, origin.sourceEnd],
+          codec: codecOf(codec, parent.pane),
+          ...(layout === undefined ? {} : { layout }),
+        });
+        const edits = origin.edits;
+        if (part !== undefined && edits !== undefined) {
+          const bytes = await readKeptBytes<Blob>(id, edits.id);
+          if (bytes !== undefined) layOver(part, bytes);
+        }
+      }
+      if (part === undefined) {
+        // No way home: its own changes come back as bytes of their own, or nothing does.
+        const bytes =
+          origin.edits === undefined ? undefined : await readKeptBytes<Blob>(id, origin.edits.id);
+        if (bytes !== undefined) {
+          part = openPart(new Uint8Array(await bytes.arrayBuffer()), origin.name);
+        } else {
+          issues.push({ kind: "missing", name: origin.name });
+        }
+      }
+    } else if (source.kind === "untitled") {
+      const bytes = await readKeptBytes<Blob>(id, source.untitled.id);
+      if (bytes !== undefined) {
+        part = openPart(
+          new Uint8Array(await bytes.arrayBuffer()),
+          source.untitled.name ?? L("Untitled")
+        );
+        if (source.untitled.dirty) paneState(part)?.document.undoHistory.clearKeepingDirty();
+      }
+    }
+    if (part === undefined) continue;
+    if (fragment.pane.id !== undefined)
+      panes.set(fragment.pane.id, { pane: part, unchanged: true });
+    if (index === tab.expandedFragment) expanded = part;
+    await applyPane(part, fragment.pane, true, new Map());
+    if (fragment.surface.minimapVisible) applyMinimap(surfaceOf(part), fragment.surface);
+  }
+  if (expanded !== undefined) raisePart(expanded);
+  else foldParts();
+}
+
+/** A part's changes, kept as its whole content, laid over what its parent gives. */
+function layOver(part: PartId, bytes: Blob): void {
+  void bytes.arrayBuffer().then((buffer) => {
+    const added = new Uint8Array(buffer);
+    applyKeptEdits(part, {
+      baseSize: 0,
+      runs: added.length === 0 ? [] : [{ kind: "added", start: 0, end: added.length }],
+      added,
+    });
+  });
+}
+
+const parsed = <T>(text: string | undefined): T | undefined => {
+  if (text === undefined) return undefined;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * The caret, the selection, the typing mode and the first row on screen — the last once the pane
@@ -267,7 +385,7 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.scroll
  */
 async function applyPane(
-  slot: SlotId,
+  slot: PaneId,
   saved: PaneState,
   unchanged: boolean,
   linkFiles: ReadonlyMap<string, OpenedFile>
@@ -279,17 +397,29 @@ async function applyPane(
   if (segments !== undefined && segmentationApplies(segments, pane.document.size, unchanged)) {
     restoreSegments(slot, segments, linkFiles);
   }
-  await pane.typing.setSelection(restore.selection.start, restore.selection.end);
-  await pane.typing.setInputRegion(restore.inputRegion);
+  // Queued behind whatever the pane's typing is doing as it mounts, and never waited on for long:
+  // a restore that hung on one would keep the recorder paused for good.
+  await settledWithin(pane.typing.setSelection(restore.selection.start, restore.selection.end));
+  void pane.typing.setInputRegion(restore.inputRegion);
   if (pane.typing.isInsertMode !== restore.insertMode) {
-    await pane.typing.setInsertMode(restore.insertMode);
+    void pane.typing.setInsertMode(restore.insertMode);
   }
-  // Laid out on a frame to come: the pane's scroller registers with the link as it mounts.
+  // Laid out on a frame to come: the pane's scroller registers with the link as it mounts. A tab
+  // reloaded behind another draws no frames, so a frame is never waited on for long either.
   for (let frame = 0; frame < 30; frame++) {
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await settledWithin(new Promise((resolve) => requestAnimationFrame(resolve)), 50);
     if (scrollLink.visibleRange(slot, BYTES_PER_ROW) !== undefined) break;
   }
   scrollLink.scrollToOffset(slot, restore.topOffset, BYTES_PER_ROW);
+}
+
+/** The minimap of `surface` as it was. */
+function applyMinimap(surface: SurfaceId, state: SurfaceState): void {
+  if (!state.minimapVisible) return;
+  setMinimapVisible(surface, true);
+  if (state.minimapMode === "detail" || state.minimapMode === "overview") {
+    setMinimapMode(surface, state.minimapMode);
+  }
 }
 
 /** What names a file of the workspace, to reach it once however many pieces link to it. */
@@ -307,7 +437,7 @@ const stampKey = (stamp: FileStamp): string =>
  * @upstream ByteRipperApp/Workspace/PaneViewModel+Workspace.swift#PaneViewModel.restoreSegments
  */
 function restoreSegments(
-  slot: SlotId,
+  slot: PaneId,
   state: SegmentationState,
   linkFiles: ReadonlyMap<string, OpenedFile>
 ): void {
@@ -335,12 +465,7 @@ function restoreSegments(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reopenFindBar
  */
 function applySurface(state: SurfaceState): void {
-  if (state.minimapVisible) {
-    setMinimapVisible(WORKSPACE_SURFACE, true);
-    if (state.minimapMode === "detail" || state.minimapMode === "overview") {
-      setMinimapMode(WORKSPACE_SURFACE, state.minimapMode);
-    }
-  }
+  applyMinimap(WORKSPACE_SURFACE, state);
   const find = state.findPattern;
   if (find !== undefined) {
     openSearch();
@@ -350,6 +475,10 @@ function applySurface(state: SurfaceState): void {
     }
   }
 }
+
+/** `work`, or a wait of a second (or of `milliseconds`), whichever ends first. */
+const settledWithin = (work: Promise<unknown>, milliseconds = 1000): Promise<unknown> =>
+  Promise.race([work, new Promise((resolve) => setTimeout(resolve, milliseconds))]);
 
 /**
  * One warning for everything the restore could not bring back as it was, once everything is open.

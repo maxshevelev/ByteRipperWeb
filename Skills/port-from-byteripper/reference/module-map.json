@@ -4678,10 +4678,11 @@
         "src/state/workspace/workspaceIdentity.ts",
         "src/state/workspace/workspaceRecorder.ts",
         "src/state/workspace/workspaceRestorer.ts",
-        "src/state/workspace/workspaceRecords.ts"
+        "src/state/workspace/workspaceRecords.ts",
+        "src/state/workspace/partCodecState.ts"
       ],
       "status": "in-progress",
-      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
+      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
     },
     {
       "swift": "ByteRipperApp/Window/HoverCallout",

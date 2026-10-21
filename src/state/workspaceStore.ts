@@ -235,7 +235,7 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalFullInvalidation
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onFullInvalidation
  */
-function signalFullInvalidation(pane: SlotId): void {
+function signalFullInvalidation(pane: PaneId): void {
   editingHooks.onContentChange?.(pane, []);
 }
 
@@ -1078,7 +1078,7 @@ export function openKeptUntitledInPane(
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptEdits
  */
-export function applyKeptEdits(pane: SlotId, edits: OverlayEdits): void {
+export function applyKeptEdits(pane: PaneId, edits: OverlayEdits): void {
   const slot = paneState(pane);
   if (slot === undefined) return;
   (slot.document.storage as EditOverlayStorage).applyEdits(edits);
