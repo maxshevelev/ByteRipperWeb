@@ -398,5 +398,18 @@ export type RestoreIssue =
   | { readonly kind: "missing"; readonly name: string }
   /** It opened, but changed since: its position was kept, its segments and tool state were not. */
   | { readonly kind: "changed"; readonly name: string }
-  /** The browser gave no way back to it — Firefox, Safari, a refused permission. */
-  | { readonly kind: "unreachable"; readonly name: string };
+  /** The browser gave no way back to it — Firefox, Safari, a file opened without its handle. */
+  | { readonly kind: "unreachable"; readonly name: string }
+  /**
+   * Its handle is there, but the browser was not allowed to read it: the person refused, or the
+   * browser keeps a refusal for it.
+   *
+   * @web-only a browser's permission on a file handle
+   */
+  | { readonly kind: "notAllowed"; readonly name: string }
+  /**
+   * Reached, but reading it failed for a reason of its own — a disk gone, a share unreachable.
+   *
+   * @web-only the reason the browser gave
+   */
+  | { readonly kind: "unreadable"; readonly name: string; readonly reason: string };

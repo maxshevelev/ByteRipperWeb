@@ -1635,6 +1635,8 @@
 "DMI" = "DMI";
 "DMI field" = "DMI-Feld";
 "HP DMI" = "HP DMI";
+"Not opened — the browser was not allowed to read them:" = "Nicht geöffnet — der Browser durfte sie nicht lesen:";
+"Not opened — they could not be read:" = "Nicht geöffnet — sie ließen sich nicht lesen:";
 "Serial number" = "Seriennummer";
 "SKU" = "SKU";
 "Product family" = "Produktfamilie";

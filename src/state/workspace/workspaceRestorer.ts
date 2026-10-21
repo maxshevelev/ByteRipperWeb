@@ -128,19 +128,28 @@ async function reach(
     if (permissions.queryPermission !== undefined) {
       state = await permissions.queryPermission({ mode: "read" }).catch(() => "prompt");
       if (state !== "granted" && asking && permissions.requestPermission !== undefined) {
-        state = await permissions.requestPermission({ mode: "read" }).catch(() => "denied");
-      }
-    }
-    if (state === "granted") {
-      try {
-        return { kind: "opened", file: openedFileFrom(await handle.getFile(), handle) };
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "NotFoundError") {
-          return { kind: "issue", issue: { kind: "missing", name: stamp.name } };
+        try {
+          state = await permissions.requestPermission({ mode: "read" });
+        } catch {
+          // The browser would not ask now — the click it needs has passed: the workspace keeps
+          // waiting, and the next click asks again.
+          return { kind: "asks" };
         }
       }
-    } else if (state === "prompt" && !asking) {
-      return { kind: "asks" };
+    }
+    // Not granted yet — or refused before, as a cancelled question about writing was: a click on
+    // the empty window asks again, about reading only, rather than the file being given up.
+    if (state !== "granted" && !asking) return { kind: "asks" };
+    if (state !== "granted")
+      return { kind: "issue", issue: { kind: "notAllowed", name: stamp.name } };
+    try {
+      return { kind: "opened", file: openedFileFrom(await handle.getFile(), handle) };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        return { kind: "issue", issue: { kind: "missing", name: stamp.name } };
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      return { kind: "issue", issue: { kind: "unreadable", name: stamp.name, reason } };
     }
   }
   const files = desktopFiles();
@@ -272,10 +281,16 @@ async function folderAccess(
   if (permissions.queryPermission === undefined) return "granted";
   let state = await permissions.queryPermission({ mode: "readwrite" }).catch(() => "prompt");
   if (state !== "granted" && asking && permissions.requestPermission !== undefined) {
-    state = await permissions.requestPermission({ mode: "readwrite" }).catch(() => "denied");
+    try {
+      state = await permissions.requestPermission({ mode: "readwrite" });
+    } catch {
+      // The click the question needs has passed: the next one asks again.
+      return "asks";
+    }
   }
   if (state === "granted") return "granted";
-  return state === "prompt" && !asking ? "asks" : "denied";
+  // Not granted yet, or refused before: a click on the empty window asks again.
+  return asking ? "denied" : "asks";
 }
 
 /**
@@ -293,13 +308,16 @@ export async function restoreFrom(
     const { tab } = record.workspace;
     const reachOne = (stamp: FileStamp) =>
       reach(stamp, stamp.handle === undefined ? undefined : record.handles[stamp.handle], asking);
-    const reached = await Promise.all(
-      tab.panes.map((pane) =>
+    // One file at a time: a browser asks about one file at a time, and a second question put while
+    // the first is open is refused.
+    const reached: (Reached | undefined)[] = [];
+    for (const pane of tab.panes) {
+      reached.push(
         pane === undefined || pane.document.kind !== "file"
-          ? Promise.resolve(undefined)
-          : reachOne(pane.document.file)
-      )
-    );
+          ? undefined
+          : await reachOne(pane.document.file)
+      );
+    }
     // The files the segments were joined from, each once, by what names it.
     const linkStamps = new Map<string, FileStamp>();
     for (const pane of tab.panes) {
@@ -667,6 +685,16 @@ export function reportRestoreIssues(issues: readonly RestoreIssue[]): void {
   if (unreachable !== "") {
     sections.push(`${L("Not opened — this browser keeps no way back to them:")}\n${unreachable}`);
   }
+  const notAllowed = list("notAllowed");
+  if (notAllowed !== "") {
+    sections.push(`${L("Not opened — the browser was not allowed to read them:")}\n${notAllowed}`);
+  }
+  const unreadable = issues
+    .filter((one) => one.kind === "unreadable")
+    .map((one) => `• ${one.name} (${one.kind === "unreadable" ? one.reason : ""})`)
+    .join("\n");
+  if (unreadable !== "")
+    sections.push(`${L("Not opened — they could not be read:")}\n${unreadable}`);
   const changed = list("changed");
   if (changed !== "") {
     sections.push(
