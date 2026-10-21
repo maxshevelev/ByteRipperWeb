@@ -663,6 +663,7 @@ export function setActivePane(pane: SlotId): void {
 /**
  * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.currentFraction
  * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.onFractionChanged
+ * @upstream ByteRipperApp/Window/ComparisonView.swift#ComparisonView.setFraction
  */
 export function setSplitFraction(splitFraction: number): void {
   workspaceStore.update((state) => ({ ...state, splitFraction }));

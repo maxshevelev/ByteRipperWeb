@@ -1,4 +1,4 @@
-@source-sha be9fa0c4a0944c53c275e4ad95e7b9cb6fd0572cfac76e2102320c50fdf9eca6
+@source-sha bb6e93e14ee0a8121e2d4843f871e9989b7e8c1a928116d38d0d7bf8c3d073de
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -11,7 +11,7 @@ Ein Arbeitsbereich gehört zu einem [[edition:Browser-Tab||Fenster]]. [[edition:
 
 ## Was wiederhergestellt wird
 
-- Datei A und Datei B sowie der aktive Bereich.
+- Datei A und Datei B, der aktive Bereich und die Lage der Trennlinie zwischen ihnen.
 - In jedem Bereich die Adresse oben auf dem Bildschirm, Cursor und Auswahl, die Hex- oder Textspalte und der Einfügemodus.
 - Die [[topic:bookmarks|Lesezeichen]], die ohnehin mit dem Arbeitsbereich aufbewahrt werden.
 - Die [[topic:segments|Segmente]]: Schnitte, Namen und die Verknüpfungen von Segmenten mit den Dateien, aus denen sie zusammengefügt wurden; eine Verknüpfung, deren Datei sich nicht wieder erreichen lässt, kehrt als Segment ohne Verknüpfung zurück.

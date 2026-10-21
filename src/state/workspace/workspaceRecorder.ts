@@ -112,10 +112,12 @@ export async function snapshotWorkspace(): Promise<{
     new Set(PANE_IDS.filter((_, index) => panes[index] !== undefined)),
     keeps
   );
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFindPattern
   const search = searchStore.getSnapshot();
   const tab: TabState = {
     panes,
     activePane: state.activePane === "b" ? 1 : 0,
+    ...(panes.every((one) => one !== undefined) ? { dividerFraction: state.splitFraction } : {}),
     surface: {
       ...surfaceSnapshot(WORKSPACE_SURFACE),
       ...(search.open ? { findPattern: { text: search.query, encoding: search.encoding } } : {}),

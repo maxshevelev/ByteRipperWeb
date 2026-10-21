@@ -975,6 +975,7 @@ export function Toolbar({
             onClick={() => agentService.toggleWindow()}
           >
             <AgentGlyph connected={agent.connections > 0} />
+            {/* @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.agentBadge */}
             {agent.active ? <AgentActivityBadge /> : null}
           </IconButton>
         );

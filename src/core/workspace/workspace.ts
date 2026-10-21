@@ -53,6 +53,12 @@ export interface TabState {
   readonly panes: readonly (PaneState | undefined)[];
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#TabState.activePane */
   readonly activePane: number;
+  /**
+   * The share of the split File A takes in a comparison (0–1); absent outside one.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#TabState.dividerFraction
+   */
+  readonly dividerFraction?: number | undefined;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#TabState.surface */
   readonly surface: SurfaceState;
   /**

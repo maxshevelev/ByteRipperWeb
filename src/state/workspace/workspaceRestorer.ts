@@ -68,6 +68,7 @@ import {
   raisePart,
   reportAlert,
   setActivePane,
+  setSplitFraction,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { toolById } from "@/tools/registry";
@@ -367,6 +368,10 @@ export async function restoreFrom(
     }
     const active = PANE_IDS[tab.activePane];
     if (active !== undefined && paneState(active) !== undefined) setActivePane(active);
+    // The divider where it was, in a comparison that came back as one.
+    if (tab.dividerFraction !== undefined && opened.length === 2) {
+      setSplitFraction(Math.min(1, Math.max(0, tab.dividerFraction)));
+    }
     const linkFiles = new Map<string, OpenedFile>();
     for (const [key, one] of links) if (one.kind === "opened") linkFiles.set(key, one.file);
     await Promise.all(

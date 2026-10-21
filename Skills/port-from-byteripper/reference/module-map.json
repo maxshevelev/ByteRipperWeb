@@ -326,7 +326,13 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTakingTheCopyReadsNoBytes": "n/a — the snapshot is written once, which reads the content: there is no clonefile(2) to share the base's blocks (`contentSnapshot`, @upstream-differs)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotClonesTheFileRatherThanCopyingIt": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.init": "n/a — a TypeScript object literal",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion) rather than naming the undo history's state",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.epoch": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.serial": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.version": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — UndoHistory.Version is not ported: the workspace counts content changes"
       }
     },
     {
@@ -1795,7 +1801,8 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationGeneration": "n/a — the pane subscribes to the annotation store",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationSource": "n/a — the pane imports the annotation store",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationTitles": "n/a — the pane imports `annotationTitles`",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationsChanged": "n/a — the pane subscribes to the annotation store"
+        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationsChanged": "n/a — the pane subscribes to the annotation store",
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.headerHeight": "n/a — the stylesheet's height of the pane header; nothing here zooms a window to fit its content"
       }
     },
     {
@@ -4549,7 +4556,10 @@
         "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testTheDashesStandStillWhateverIsRepainted": "later — reads the dump's pixels back, which the port has no canvas test for; the fold itself is tested (spanContour.test.ts)",
         "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note",
-        "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheComparisonSectionIsInTheGeneralTab": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheComparisonSectionIsInTheGeneralTab": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testATabKeepsItsBookmarksOpen": "n/a — the app's window tabs; one workspace per browser tab",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testClosingTheLastFileClosesTheTabWhenOthersAreOpen": "n/a — the app's window tabs; one workspace per browser tab",
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testTheLastTabStays": "n/a — the app's window tabs; one workspace per browser tab"
       }
     },
     {
@@ -4675,7 +4685,7 @@
         "src/core/workspace/workspace.ts",
         "src/platform/files/projectFolder.ts"
       ],
-      "status": "in-progress",
+      "status": "ported",
       "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts).",
       "unported": {
         "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel"
@@ -4692,7 +4702,7 @@
         "src/state/workspace/projectRecords.ts",
         "src/state/workspace/projects.ts"
       ],
-      "status": "in-progress",
+      "status": "ported",
       "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
     },
     {
@@ -5002,7 +5012,9 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.onEmptyStateHeightChange": "n/a — the browser owns the window's size; nothing is sized to fit the landing screen",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.hasOtherTabs": "n/a — one workspace per browser tab; the app has no sibling tabs for an emptied one to close into",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

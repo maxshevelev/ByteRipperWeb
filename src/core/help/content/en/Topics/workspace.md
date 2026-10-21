@@ -13,7 +13,7 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 
 ## What is restored
 
-- File A and File B, and the active pane.
+- File A and File B, the active pane, and the position of the divider between them.
 - In each pane, the address at the top of the screen, the caret and the selection, the hex or text column, and insert mode.
 - The [[topic:bookmarks|bookmarks]], which are kept with the workspace in any case.
 - The [[topic:segments|segments]]: cuts, names, and the links of segments to the files they were joined from — a link whose file cannot be reached again comes back as a segment with no link.
