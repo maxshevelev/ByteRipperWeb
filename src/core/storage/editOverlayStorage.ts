@@ -7,7 +7,7 @@ import type {
 } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
-import { type OffsetRange, PieceTable } from "@/core/storage/pieceTable";
+import { type OffsetRange, type Piece, PieceTable } from "@/core/storage/pieceTable";
 import type { ScratchStore } from "@/core/storage/scratchStore";
 
 /**
@@ -97,6 +97,13 @@ export class EditOverlayStorage implements EditableByteStorage {
   private addedLength = 0;
 
   private lengthChanged = false;
+  /**
+   * The base is a private copy of the content — a materialisation wrote one — rather than the
+   * file: kept edits are then the whole content, there being no file to write runs over.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.baseIsPrivate
+   */
+  private baseIsPrivate = false;
   /**
    * The lowest offset any insert or delete has moved bytes from, if one has.
    * Everything at or after it sits at a different offset than it did in the
@@ -321,6 +328,98 @@ export class EditOverlayStorage implements EditableByteStorage {
   }
 
   /**
+   * The unsaved changes as runs over the file — stretches of the file's own bytes, and the bytes
+   * editing added — about the size of the changes: what a workspace keeps of a file it does not
+   * copy. Over a private base, the whole content.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.exportEdits
+   */
+  async exportEdits(): Promise<OverlayEdits> {
+    if (this.baseIsPrivate) {
+      const bytes = await this.read(0, this.table.size);
+      return {
+        baseSize: 0,
+        runs: bytes.length === 0 ? [] : [{ kind: "added", start: 0, end: bytes.length }],
+        added: bytes,
+      };
+    }
+    const runs: OverlayRun[] = [];
+    const kept: Uint8Array[] = [];
+    let length = 0;
+    for (const piece of this.table.allPieces) {
+      if (piece.source === "base") {
+        runs.push({ kind: "base", start: piece.start, end: piece.start + piece.length });
+      } else {
+        kept.push(this.added.slice(piece.start, piece.start + piece.length));
+        runs.push({ kind: "added", start: length, end: length + piece.length });
+        length += piece.length;
+      }
+    }
+    const added = new Uint8Array(length);
+    let at = 0;
+    for (const bytes of kept) {
+      added.set(bytes, at);
+      at += bytes.length;
+    }
+    return { baseSize: this.base.size, runs, added };
+  }
+
+  /**
+   * Lays kept changes over the file again: the content is what it was when they were kept, and
+   * every change since the file is a change again. Throws when they do not fit the file — it
+   * changed since.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.applyEdits
+   */
+  applyEdits(edits: OverlayEdits): void {
+    const baseSize = this.base.size;
+    const isWhole = edits.baseSize === 0 && edits.runs.every((run) => run.kind === "added");
+    if (!isWhole && edits.baseSize !== baseSize) {
+      throw new RangeError("The kept changes were made on another file.");
+    }
+    const pieces: Piece[] = [];
+    for (const run of edits.runs) {
+      const limit = run.kind === "base" ? baseSize : edits.added.length;
+      if (run.end > limit || run.start > run.end) {
+        throw new RangeError("The kept changes do not fit the file.");
+      }
+      pieces.push({ source: run.kind, start: run.start, length: run.end - run.start });
+    }
+    this.table = PieceTable.of(pieces);
+    this.added = edits.added.slice();
+    this.addedLength = this.added.length;
+    this.retainedChangedRanges = [];
+    // Where the content stops being the base at its own offsets: the first base run read from
+    // elsewhere, or the first added run not followed by the base where it left off.
+    let shift: number | undefined;
+    let position = 0;
+    const all = this.table.allPieces;
+    for (const [index, piece] of all.entries()) {
+      if (piece.source === "base" && piece.start !== position) {
+        shift = position;
+        break;
+      }
+      if (piece.source === "added") {
+        const next = all.slice(index + 1).find((one) => one.source === "base");
+        const resumes =
+          next === undefined
+            ? position + piece.length >= baseSize
+            : next.start === position + piece.length;
+        if (!resumes) {
+          shift = position;
+          break;
+        }
+      }
+      position += piece.length;
+    }
+    if (shift === undefined && this.table.size !== baseSize) {
+      shift = Math.min(this.table.size, baseSize);
+    }
+    this.shiftedFrom = shift;
+    this.lengthChanged = shift !== undefined;
+  }
+
+  /**
    * Starts again over a base that already holds the current content — what a
    * successful save leaves behind.
    *
@@ -418,6 +517,7 @@ export class EditOverlayStorage implements EditableByteStorage {
     // one with the same budget. Sharing would serve the old file's chunks for
     // the new file's offsets.
     this.base = new FileBackedStorage(source, this.cache.forSameBudget());
+    this.baseIsPrivate = true;
     this.added = new Uint8Array(0);
     this.addedLength = 0;
     this.table = new PieceTable(this.base.size);
@@ -449,4 +549,35 @@ function mergeRanges(ranges: readonly OffsetRange[]): OffsetRange[] {
     }
   }
   return out;
+}
+
+/**
+ * One run of kept changes: the file's own bytes over a range, or a range of the bytes editing
+ * added.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.Run
+ */
+export interface OverlayRun {
+  readonly kind: "base" | "added";
+  readonly start: number;
+  readonly end: number;
+}
+
+/**
+ * Unsaved changes as runs over a file: what a workspace keeps of a file it does not copy.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits
+ */
+export interface OverlayEdits {
+  /**
+   * The size of the file the runs were written against; zero when the runs are the whole content
+   * and need no file.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.baseSize
+   */
+  readonly baseSize: number;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.runs */
+  readonly runs: readonly OverlayRun[];
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.added */
+  readonly added: Uint8Array;
 }

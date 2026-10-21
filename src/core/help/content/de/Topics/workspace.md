@@ -1,4 +1,4 @@
-@source-sha 4c3e958ab8d51dc37856d5c8b8f2a9e6724ed53c9f834652a28f2c173b347194
+@source-sha a4b822b452151a6e4dc4733a6a9784f847c67e0aeafb35c57e94d47fcf7e11ac
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -16,6 +16,8 @@ Ein Arbeitsbereich gehört zu einem [[edition:Browser-Tab||Fenster]]. [[edition:
 - Die [[topic:bookmarks|Lesezeichen]], die ohnehin mit dem Arbeitsbereich aufbewahrt werden.
 - Die [[topic:segments|Segmente]]: Schnitte, Namen und die Verknüpfungen von Segmenten mit den Dateien, aus denen sie zusammengefügt wurden; eine Verknüpfung, deren Datei sich nicht wieder erreichen lässt, kehrt als Segment ohne Verknüpfung zurück.
 - Die [[topic:minimap|Minimap]] und die Suchleiste mit ihrem Muster.
+- **Nie gesicherte Dokumente** — eine neue Datei, eine Zusammenführung, ein Duplikat, auch eines, das einen Namen erhalten hat — mit ihren Bytes und weiterhin ungesichert. Sie werden beim Arbeitsbereich aufbewahrt, solange die Seite geöffnet ist, sodass auch ein abgestürzter Tab sie nicht verliert, und beim Verlassen der Seite wird nicht nach ihnen gefragt.
+- **Ungesicherte Änderungen an Dateien**, die rot wie zuvor und weiterhin ungesichert zurückkehren. Aufbewahrt werden nur die geänderten Bytes, keine Kopie der Datei. Die Änderungen werden nur dann wieder über die Datei gelegt, wenn es dieselbe Datei ist, an der sie gemacht wurden (siehe unten). Beim Verlassen der Seite wird nur nach einer Änderung der letzten Augenblicke gefragt, die der Arbeitsbereich noch nicht aufschreiben konnte.
 
 ## Was nicht wiederhergestellt wird
 
@@ -38,6 +40,6 @@ Der Arbeitsbereich wird [[edition:in diesem Browser, auf diesem Rechner||in dies
 Jede Datei wird mit ihrer Größe und ihrem Änderungsdatum zum Zeitpunkt des Schreibens verglichen.
 
 - Eine Datei, die nicht mehr da ist, wird nicht geöffnet.
-- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre Segmente werden nicht wiederhergestellt: Sie wurden an anderen Bytes angelegt und zeigten an falsche Stellen.
+- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre ungesicherten Änderungen und ihre Segmente werden nicht wiederhergestellt: Sie wurden an anderen Bytes angelegt und zeigten an falsche Stellen.
 
 Tritt einer dieser Fälle ein oder ließ sich eine Datei nicht erreichen, nennt eine einzige Meldung nach der Wiederherstellung die betroffenen Dateien.

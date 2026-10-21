@@ -1,3 +1,4 @@
+import type { BinaryDocument } from "@/core/document/binaryDocument";
 import {
   type FileStamp,
   type PaneState,
@@ -19,10 +20,13 @@ import { settingsStore } from "@/state/settingsStore";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   readWorkspaceRecord,
+  removeAllKeptBytes,
   removeAllWorkspaceRecords,
+  removeKeptBytesExcept,
+  writeKeptBytes,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
-import { paneState, workspaceStore } from "@/state/workspaceStore";
+import { exportKeptEdits, paneState, workspaceStore } from "@/state/workspaceStore";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -74,9 +78,11 @@ export function keepWaitingWorkspace(on: boolean): void {
 export function snapshotWorkspace(): {
   readonly workspace: Workspace;
   readonly handles: Record<string, FileSystemFileHandle>;
+  readonly keeps: readonly KeptWrite[];
 } {
   const handles: Record<string, FileSystemFileHandle> = {};
-  const panes = PANE_IDS.map((slot) => paneSnapshot(slot, handles));
+  const keeps: KeptWrite[] = [];
+  const panes = PANE_IDS.map((slot) => paneSnapshot(slot, handles, keeps));
   const state = workspaceStore.getSnapshot();
   const search = searchStore.getSnapshot();
   const tab: TabState = {
@@ -88,7 +94,7 @@ export function snapshotWorkspace(): {
     },
     fragments: [],
   };
-  return { workspace: { version: WORKSPACE_VERSION, tab }, handles };
+  return { workspace: { version: WORKSPACE_VERSION, tab }, handles, keeps };
 }
 
 /**
@@ -171,16 +177,39 @@ function segmentsSnapshot(
  */
 function paneSnapshot(
   slot: SlotId,
-  handles: Record<string, FileSystemFileHandle>
+  handles: Record<string, FileSystemFileHandle>,
+  keeps: KeptWrite[]
 ): PaneState | undefined {
   const pane = paneState(slot);
-  if (pane === undefined || pane.untitled) return undefined;
+  if (pane === undefined) return undefined;
   const { file, document, typing } = pane;
   const { start, end } = document.selection;
   const segments = segmentsSnapshot(slot, handles);
+  const key = keptKey(document);
+  const version = contentVersion(document);
+  // A document never saved: its bytes, kept beside the workspace, rewritten only when its content
+  // moved since the last write.
+  // @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.stamp
+  // @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.editsStamp
+  if (pane.untitled) {
+    keeps.push({
+      key,
+      version,
+      value: async () => new Blob([(await document.storage.read(0, document.size)).slice()]),
+    });
+  } else if (document.isDirty) {
+    // A file's unsaved changes: runs over the file, about the size of the changes.
+    keeps.push({ key, version, value: () => exportKeptEdits(slot) });
+  }
   return {
     id: slot,
-    document: { kind: "file", file: stampOf(file, slot, handles) },
+    document: pane.untitled
+      ? {
+          kind: "untitled",
+          untitled: { id: key, name: pane.name, size: document.size, dirty: document.isDirty },
+        }
+      : { kind: "file", file: stampOf(file, slot, handles) },
+    ...(!pane.untitled && document.isDirty ? { edits: key } : {}),
     ...(segments === undefined ? {} : { segments }),
     selectionStart: start,
     selectionEnd: end,
@@ -198,16 +227,71 @@ function paneSnapshot(
  */
 export async function recordWorkspace(leaving = false): Promise<void> {
   if (paused || !settingsStore.getSnapshot().restoresWorkspace) return;
-  const { workspace, handles } = snapshotWorkspace();
+  const { workspace, handles, keeps } = snapshotWorkspace();
   if (keepsWaiting) {
     if (workspaceIsEmpty(workspace)) return;
     // A file opened by hand: the workspace that was waiting is given up for this one.
     keepsWaiting = false;
   }
+  const id = workspaceId();
+  // The bytes first, then the record that names them: a record never points at bytes not there.
+  const due = keeps.filter((one) => keptVersions.get(one.key) !== one.version);
+  for (const one of due) {
+    const value = await one.value();
+    if (value === undefined) continue;
+    await writeKeptBytes(id, one.key, value);
+    keptVersions.set(one.key, one.version);
+  }
   const text = JSON.stringify(workspace);
-  if (text === lastWritten && !leaving) return;
+  if (text === lastWritten && !leaving && due.length === 0) return;
   lastWritten = text;
-  await writeWorkspaceRecord(workspaceId(), { workspace, leftAt: Date.now(), handles });
+  await writeWorkspaceRecord(id, { workspace, leftAt: Date.now(), handles });
+  // A document closed takes its copy with it.
+  await removeKeptBytesExcept(id, new Set(keeps.map((one) => one.key)));
+}
+
+/** Bytes to keep beside the workspace: under which key, for which content, made how. */
+interface KeptWrite {
+  readonly key: string;
+  readonly version: number;
+  readonly value: () => Promise<unknown>;
+}
+
+/** The key each document's bytes are kept under, made once per document. */
+const keptKeys = new WeakMap<BinaryDocument, string>();
+/** By key, the content version last written. */
+const keptVersions = new Map<string, number>();
+/** By document, how often its content has changed: what says its bytes need writing again. */
+const versions = new WeakMap<BinaryDocument, { count: number }>();
+
+function keptKey(document: BinaryDocument): string {
+  let key = keptKeys.get(document);
+  if (key === undefined) {
+    key = `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    keptKeys.set(document, key);
+  }
+  return key;
+}
+
+/**
+ * How often the document's content has changed since this page first looked at it.
+ *
+ * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.Entry.written
+ * @upstream-differs counted from the document's content changes, where upstream reads its undo
+ * history's version; a restored document is written again under a key of its own, where upstream
+ * adopts the one it was kept by
+ */
+function contentVersion(document: BinaryDocument): number {
+  let counter = versions.get(document);
+  if (counter === undefined) {
+    const made = { count: 1 };
+    counter = made;
+    versions.set(document, made);
+    document.onContentChanged(() => {
+      made.count += 1;
+    });
+  }
+  return counter.count;
 }
 
 /**
@@ -233,8 +317,11 @@ export function startWorkspaceRecorder(): () => void {
     if (now === restores) return;
     restores = now;
     lastWritten = undefined;
-    if (!now) void removeAllWorkspaceRecords();
-    else void recordWorkspace(true);
+    if (!now) {
+      void removeAllWorkspaceRecords();
+      void removeAllKeptBytes();
+      keptVersions.clear();
+    } else void recordWorkspace(true);
   });
   return () => {
     clearInterval(timer);
@@ -246,3 +333,16 @@ export function startWorkspaceRecorder(): () => void {
 
 /** What this tab's record holds now, for the restore. */
 export const readOwnWorkspace = () => readWorkspaceRecord(workspaceId());
+
+/**
+ * Whether the workspace holds `document` as it is now — its bytes or its changes written down at
+ * their current content — so leaving the page need not ask about it: it comes back, still unsaved.
+ * An edit made since the last write is not held, and is asked about.
+ *
+ * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.holdsCurrentBytes
+ */
+export function workspaceHolds(document: BinaryDocument): boolean {
+  if (paused || keepsWaiting || !settingsStore.getSnapshot().restoresWorkspace) return false;
+  const key = keptKeys.get(document);
+  return key !== undefined && keptVersions.get(key) === versions.get(document)?.count;
+}

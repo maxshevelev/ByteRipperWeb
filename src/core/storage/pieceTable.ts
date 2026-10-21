@@ -80,6 +80,23 @@ export class PieceTable {
     this.rebuildStarts();
   }
 
+  /**
+   * A table holding `pieces` as they are: what kept edits are laid back over a file with.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.init
+   */
+  static of(pieces: readonly Piece[]): PieceTable {
+    const table = new PieceTable(0);
+    table.pieces = pieces.filter((piece) => piece.length > 0);
+    table.rebuildStarts();
+    return table;
+  }
+
+  /** The pieces in logical order. */
+  get allPieces(): readonly Piece[] {
+    return this.pieces;
+  }
+
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/PieceTable.swift#PieceTable.size */
   get size(): number {
     return this.starts[this.starts.length - 1] ?? 0;

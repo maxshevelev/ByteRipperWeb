@@ -18,6 +18,8 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 - The [[topic:bookmarks|bookmarks]], which are kept with the workspace in any case.
 - The [[topic:segments|segments]]: cuts, names, and the links of segments to the files they were joined from — a link whose file cannot be reached again comes back as a segment with no link.
 - The [[topic:minimap|minimap]] and the Find bar with its pattern.
+- **Documents never saved** — New File, a join, a duplicate, including one that has been given a name — with their bytes, still unsaved. They are kept beside the workspace while the page is open, so that a crash of the tab does not lose them either, and leaving the page does not ask about them.
+- **Unsaved changes to files**, which come back red as they were, still unsaved. Only the changed bytes are kept, not a copy of the file. The changes are laid over the file again only when it is the file they were made on (see below). Leaving the page asks only about a change made in the last moments, before the workspace could write it down.
 
 ## What is not restored
 
@@ -40,6 +42,6 @@ The workspace is stored [[edition:in this browser, on this machine||in this inst
 Each file is compared with its size and modification date at the time the workspace was written.
 
 - A file that is no longer there is not opened.
-- A file that has changed is opened. If it became shorter, the caret and the screen move to its last address. Its segments are not restored: they were made on other bytes and would point to wrong places.
+- A file that has changed is opened. If it became shorter, the caret and the screen move to its last address. Its unsaved changes and its segments are not restored: they were made on other bytes and would point to wrong places.
 
 When either happens, or a file could not be reached, one message after the restore lists the files concerned.

@@ -1,3 +1,4 @@
+import { workspaceHolds } from "@/state/workspace/workspaceRecorder";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 
 /**
@@ -49,7 +50,16 @@ export function unsavedPanes(): UnsavedPane[] {
  */
 export function watchForUnsavedWork(): () => void {
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
-    if (unsavedPanes().length === 0) return;
+    // With the workspace kept, what it holds as it is now comes back unsaved, so leaving does not
+    // ask about it (`Design/WORKSPACE.md`); only what it could not write down yet is asked about.
+    const { panes, parts } = workspaceStore.getSnapshot();
+    const lost = unsavedPanes().filter((one) => {
+      const document = (
+        one.pane in panes ? panes[one.pane as "a" | "b"] : parts[one.pane as keyof typeof parts]
+      )?.document;
+      return document === undefined || !workspaceHolds(document);
+    });
+    if (lost.length === 0) return;
     event.preventDefault();
     // Assigning returnValue is the older spelling, still required by some
     // browsers for the prompt to appear at all.

@@ -1,6 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
+import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type FileStamp,
   type PaneState,
@@ -23,13 +24,22 @@ import { sourceIDForFile } from "@/state/segmentSources";
 import { restorePartition } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
+import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   keepWaitingWorkspace,
   pauseWorkspaceRecorder,
   readOwnWorkspace,
 } from "@/state/workspace/workspaceRecorder";
 import type { WorkspaceRecord } from "@/state/workspace/workspaceRecords";
-import { openInPane, paneState, reportAlert, setActivePane } from "@/state/workspaceStore";
+import { readKeptBytes } from "@/state/workspace/workspaceRecords";
+import {
+  applyKeptEdits,
+  openInPane,
+  openKeptUntitledInPane,
+  paneState,
+  reportAlert,
+  setActivePane,
+} from "@/state/workspaceStore";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -194,23 +204,47 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
 
     const issues: RestoreIssue[] = [];
     const opened: { slot: SlotId; saved: PaneState; unchanged: boolean }[] = [];
-    reached.forEach((one, index) => {
-      const saved = tab.panes[index];
+    const id = workspaceId();
+    for (const [index, saved] of tab.panes.entries()) {
       const slot = PANE_IDS[index];
-      if (one === undefined || saved === undefined || slot === undefined) return;
+      if (saved === undefined || slot === undefined) continue;
+      // A document never saved: its bytes, from beside the workspace, still unsaved.
+      // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
+      if (saved.document.kind === "untitled") {
+        const stamp = saved.document.untitled;
+        const bytes = await readKeptBytes<Blob>(id, stamp.id);
+        if (bytes === undefined) {
+          issues.push({ kind: "missing", name: stamp.name ?? L("Untitled") });
+          continue;
+        }
+        openKeptUntitledInPane(slot, bytes, stamp.name ?? L("Untitled"), stamp.dirty);
+        opened.push({ slot, saved, unchanged: true });
+        continue;
+      }
+      const one = reached[index];
+      if (one === undefined) continue;
       if (one.kind === "issue") {
         issues.push(one.issue);
-        return;
+        continue;
       }
-      if (one.kind !== "opened" || saved.document.kind !== "file") return;
+      if (one.kind !== "opened" || saved.document.kind !== "file") continue;
       openInPane(slot, one.file);
       const unchanged = stampIsUnchanged(saved.document.file, {
         size: one.file.size,
         modified: one.file.lastModified,
       });
       if (!unchanged) issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
+      // Its unsaved changes, laid over it only when it is the file they were made on.
+      if (unchanged && saved.edits !== undefined) {
+        const edits = await readKeptBytes<OverlayEdits>(id, saved.edits);
+        try {
+          if (edits !== undefined) applyKeptEdits(slot, edits);
+        } catch {
+          issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
+        }
+      }
       opened.push({ slot, saved, unchanged });
-    });
+    }
     const active = PANE_IDS[tab.activePane];
     if (active !== undefined && paneState(active) !== undefined) setActivePane(active);
     const linkFiles = new Map<string, OpenedFile>();

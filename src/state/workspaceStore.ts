@@ -7,6 +7,7 @@ import { L } from "@/core/localization/localization";
 import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
+import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
@@ -1028,6 +1029,77 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
   // A new document replaces the storage wholesale, exactly as an open does:
   // the pane's file is gone from under whatever was reading it.
   signalFullInvalidation(pane);
+}
+
+/**
+ * Opens a document never saved again from the bytes the workspace kept of it, under the name it
+ * showed: still untitled, and still asking to be saved when it held work nobody saved.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openBytes
+ */
+export function openKeptUntitledInPane(
+  pane: SlotId,
+  bytes: Blob,
+  name: string,
+  dirty: boolean
+): void {
+  const { document, typing } = makeDocument(
+    new EditOverlayStorage(new FileBackedStorage(bytes, new ChunkCache())),
+    pane
+  );
+  // Work nobody saved, with no history to undo it by: what a join leaves a document in.
+  if (dirty) document.undoHistory.clearKeepingDirty();
+  workspaceStore.update((state) => ({
+    ...state,
+    panes: {
+      ...state.panes,
+      [pane]: {
+        name,
+        file: { name, size: bytes.size, lastModified: Date.now(), source: bytes },
+        document,
+        typing,
+        saved: undefined,
+        untitled: true,
+        writable: false,
+      },
+    },
+  }));
+  forgetJoins(pane);
+  resetSegments(pane, document.size);
+  clearSources(pane);
+  signalFullInvalidation(pane);
+}
+
+/**
+ * Lays the unsaved changes the workspace kept for a file over it, as they were when the page was
+ * left: the bytes read changed again, red against the file, and closing asks. Throws when they do
+ * not fit the file — it changed since.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptEdits
+ */
+export function applyKeptEdits(pane: SlotId, edits: OverlayEdits): void {
+  const slot = paneState(pane);
+  if (slot === undefined) return;
+  (slot.document.storage as EditOverlayStorage).applyEdits(edits);
+  // Changes nobody saved, with no history to undo them by: the state a join leaves a document in,
+  // and what makes a close ask.
+  slot.document.undoHistory.clearKeepingDirty();
+  resetSegments(pane, slot.document.size);
+  signalFullInvalidation(pane);
+}
+
+/**
+ * The unsaved changes of a file a pane holds, as the workspace keeps them; nothing for an untitled
+ * document, a clean file, or a storage that cannot say.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.exportKeptEdits
+ */
+export async function exportKeptEdits(pane: SlotId): Promise<OverlayEdits | undefined> {
+  const slot = paneState(pane);
+  if (slot === undefined || slot.untitled || !slot.document.isDirty) return undefined;
+  const storage = slot.document.storage;
+  return storage instanceof EditOverlayStorage ? storage.exportEdits() : undefined;
 }
 
 /**

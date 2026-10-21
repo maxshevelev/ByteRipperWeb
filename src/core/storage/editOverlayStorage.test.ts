@@ -297,3 +297,51 @@ describe("against a plain array", () => {
     }
   });
 });
+
+/**
+ * A file's unsaved changes written down as runs and laid over the same file again read back as the
+ * same content, marked changed where it was.
+ *
+ * @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OverlayEditsTests.swift#OverlayEditsTests
+ */
+describe("kept edits", () => {
+  const original = Uint8Array.from({ length: 256 }, (_, index) => index);
+  const all = (storage: EditOverlayStorage) => storage.read(0, storage.size);
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OverlayEditsTests.swift#OverlayEditsTests.testOverwritesComeBackInPlace
+  it("bring overwrites back in place", async () => {
+    const edited = overlayOver(original);
+    await edited.overwrite(0x10, Uint8Array.of(0xaa, 0xbb));
+    const edits = await edited.exportEdits();
+    expect(edits.added.length, "only the changed bytes are kept").toBe(2);
+
+    const restored = overlayOver(original);
+    restored.applyEdits(edits);
+    expect(await all(restored)).toEqual(await all(edited));
+    expect(restored.isDirty).toBe(true);
+    expect(restored.canPatchInPlace, "nothing shifted").toBe(true);
+    expect(rangeStrings(restored)).toEqual(["16-18"]);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OverlayEditsTests.swift#OverlayEditsTests.testInsertsAndDeletesComeBackShifted
+  it("bring inserts and deletes back shifted", async () => {
+    const edited = overlayOver(original);
+    await edited.insert(0x20, Uint8Array.of(1, 2, 3));
+    await edited.delete(0x80, 0x90);
+    const edits = await edited.exportEdits();
+
+    const restored = overlayOver(original);
+    restored.applyEdits(edits);
+    expect(await all(restored)).toEqual(await all(edited));
+    expect(restored.canPatchInPlace).toBe(false);
+    expect(rangeStrings(restored)).toEqual([`${0x20}-${restored.size}`]);
+  });
+
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OverlayEditsTests.swift#OverlayEditsTests.testEditsOfAnotherSizedFileAreRefused
+  it("are refused by a file of another size", async () => {
+    const edited = overlayOver(original);
+    await edited.overwrite(0, Uint8Array.of(0xff));
+    const edits = await edited.exportEdits();
+    expect(() => overlayOver([1, 2, 3]).applyEdits(edits)).toThrow();
+  });
+});
