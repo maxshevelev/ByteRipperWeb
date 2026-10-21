@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "13e34bedb74eb82ba269d860a8dae406a32b5366",
-  "baselineNote": "Set 0.9.2, and say in the README what it is (2026-10-13)"
+  "baseCommit": "d3759bd65eac2635f89993dfc9b2e4323bf553dc",
+  "baselineNote": "A fragment panel reads as lying over the panes (2026-10-21)"
 }
