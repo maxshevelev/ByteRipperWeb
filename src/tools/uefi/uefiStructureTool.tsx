@@ -2828,6 +2828,7 @@ export const uefiStructureTool: ToolModule = {
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.init
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.draw
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.title
  * @upstream-differs a CSS border and padding (`.uefi-dmi-badge`) where AppKit measures and
  * strokes the frame itself
  */

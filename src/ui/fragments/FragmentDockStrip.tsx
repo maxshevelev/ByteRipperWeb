@@ -2,6 +2,7 @@ import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
+import { PartBadge } from "@/ui/parts/PartBadge";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
@@ -144,14 +145,17 @@ function FragmentPill({
         <span className="fragment-pill-name">{item.title}</span>
         {/* The badge keeps its word whole; the name gives way to it. In the pill
             that is up it is drawn in the pill's ink.
-            @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.ink
+            @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.ink
             @upstream-differs the pill's stylesheet inks it, where upstream hands the badge a colour;
             the capsule is washed away from the ink rather than with it, which keeps the word legible
             in every theme */}
         {item.transform === undefined ? null : (
-          <span className="fragment-pill-badge" title={item.transformExplanation}>
-            {item.transform}
-          </span>
+          <PartBadge
+            text={item.transform}
+            isTransform
+            title={item.transformExplanation}
+            className="fragment-pill-badge"
+          />
         )}
         {item.unseen !== undefined && item.unseen > 0 ? (
           <span className="fragment-pill-unseen" title={L("Annotations not seen yet")}>

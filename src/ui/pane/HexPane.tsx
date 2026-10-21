@@ -102,6 +102,7 @@ import { PaneHeaderHostContext } from "@/ui/pane/paneHeaderHost";
 import { PaneScroller } from "@/ui/pane/paneScroller";
 import { RenameField } from "@/ui/pane/RenameField";
 import { remeasuredTop, scrollLink } from "@/ui/pane/scrollLink";
+import { PartBadge } from "@/ui/parts/PartBadge";
 import { SearchResults } from "@/ui/search/SearchResults";
 import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/hexColors";
 
@@ -192,6 +193,8 @@ export interface HexPaneProps {
          * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.codecBadge
          */
         readonly badge?: { readonly text: string; readonly explanation: string } | undefined;
+        /** Whether the codec is a conversion, which the badge marks with ⇄. */
+        readonly transforms?: boolean | undefined;
       }
     | undefined;
   /** The comparison, when there are two files. */
@@ -2029,14 +2032,14 @@ export function HexPane({
            * The codec's word in a capsule, its sentence under the pointer.
            *
            * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateCodecBadge
-           * @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView
-           * @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.text
            * @upstream-differs a styled span the theme's tokens colour, where
            * upstream draws its capsule so the fill follows the appearance
            */
-          <span className="pane-codec-badge" title={link.badge.explanation}>
-            {link.badge.text}
-          </span>
+          <PartBadge
+            text={link.badge.text}
+            isTransform={link.transforms}
+            title={link.badge.explanation}
+          />
         )}
         {link === undefined ? null : (
           /*

@@ -982,16 +982,26 @@ textarea,
    way, as the Modified button does: it is short, and it says what the bytes are.
    Upstream's PartBadgeView: 10 pt medium, the secondary label on the quaternary
    fill. */
-.pane-codec-badge {
+/* A codec's word in a capsule (PartBadge): the word in the text's colour, ⇄ before a conversion. */
+.part-badge {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--part-badge-fill);
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 10px;
   font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
+}
+
+.part-badge-glyph {
+  width: 8px;
+  height: 8px;
+  flex: none;
 }
 
 /* The header's Modified: a small bordered button, the one thing in the header to
@@ -5638,14 +5648,6 @@ button.uefi-title {
    whole; the name gives way. */
 .fragment-pill-badge {
   flex: none;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--part-badge-fill);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.3;
-  white-space: nowrap;
 }
 
 /* In the pill that is up, where the grey on the grey capsule does not read: the

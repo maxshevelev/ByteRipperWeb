@@ -34,6 +34,12 @@ export interface PartLink {
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateCodecBadge
    */
   readonly badge: PartBadge | undefined;
+  /**
+   * Whether the codec is a conversion the bytes went through, which its badge marks with ⇄.
+   *
+   * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.updateCodecBadge
+   */
+  readonly transforms: boolean;
 }
 
 export function usePartLink(pane: PaneId): PartLink | undefined {
@@ -61,6 +67,7 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
         state,
         update,
         badge: origin.codec.badge,
+        transforms: origin.codec.transform !== undefined,
       });
     })();
     return () => {

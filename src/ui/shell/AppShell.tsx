@@ -222,6 +222,7 @@ function PartDump({
               updateOffered: link.update.enabled,
               onUpdate: onUpdateInParent,
               badge: link.badge,
+              transforms: link.transforms,
             }
       }
       onHeaderMenu={(event) =>

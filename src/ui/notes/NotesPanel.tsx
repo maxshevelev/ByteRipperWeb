@@ -43,6 +43,7 @@ import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { detectKeyboardPlatform, shortcutKey } from "@/ui/pane/hexKeys";
+import { PartBadge } from "@/ui/parts/PartBadge";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 import { prefersReducedMotion } from "@/ui/toolPanel/cardMotion";
 
@@ -803,9 +804,7 @@ function NoteCard({
         <p className="note-card-place">
           {(annotation.decoded?.codecs ?? []).map((codec, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the codecs' order is the chain's
-            <span key={index} className="pane-codec-badge">
-              {codec}
-            </span>
+            <PartBadge key={index} text={codec} isTransform />
           ))}
           {annotation.site !== undefined ? (
             <button

@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useRef } from "react";
 import { L } from "@/core/localization/localization";
+import { PartBadge } from "@/ui/parts/PartBadge";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 
 /**
@@ -295,9 +296,7 @@ export function UefiContentResults({
                   <span className="content-result-node">
                     {row.codecs.map((codec, at) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: the codecs' order is the chain's
-                      <span key={at} className="pane-codec-badge">
-                        {codec}
-                      </span>
+                      <PartBadge key={at} text={codec} isTransform />
                     ))}
                     <span className="content-result-name">{row.node}</span>
                   </span>

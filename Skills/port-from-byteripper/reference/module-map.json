@@ -1078,7 +1078,6 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.layout": "n/a — not a field of the web's `NodeOpen`: what a panel opened on the bytes should read them as is asked of the worker when the part opens (`askFirmwareLayout`), since the tree it is asked of lives there",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.clickDMIButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.isDMIButtonShownForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFICodecBadge*": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.applyFont": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.init": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIContentResultsView.menuNeedsUpdate": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
@@ -1094,7 +1093,8 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.install": "n/a — AppKit view wiring; the bar renders ToolPatternQueryControls from ToolContext.patternQuery",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.query": "n/a — AppKit view wiring; the bar renders ToolPatternQueryControls from ToolContext.patternQuery",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIBadgedCell.*": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onContentSearchDone": "n/a — a callback for an AppKit test; the hook's state says when the search is done"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onContentSearchDone": "n/a — a callback for an AppKit test; the hook's state says when the search is done",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiButtonTitleForTesting": "n/a — a test seam; dmiButtonTitle is tested itself"
       }
     },
     {
@@ -1670,7 +1670,7 @@
           "src/core/text/statusLine.ts",
           "src/ui/pane/HexPane.tsx"
         ],
-        "ByteRipperApp/Pane/PartBadgeView.swift": "src/ui/pane/HexPane.tsx"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift": "src/ui/parts/PartBadge.tsx"
       },
       "unported": {
         "ByteRipperApp/Pane/PaneHeaderView.swift#PaneHeaderView.onDoubleClick": "n/a — AppKit layout; CSS lays the panes out",
@@ -1823,12 +1823,11 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onSegmentSourceChanged": "n/a — a page holds the bytes it picked in memory, so a source cannot change behind its back; nothing to watch",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentSources": "n/a — the web keeps one registry per pane at module level (`segmentSources`), not as a `PaneViewModel` member",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.isHeaderHoisted": "n/a — whether the pane has handed its bar over is whether `PaneHeaderHostContext` is provided",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.label": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.inset": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.init": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.intrinsicContentSize": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
-        "ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.label": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.inset": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.intrinsicContentSize": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.accessibilityValue": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.draw": "n/a — AppKit drawing; the badge is a span the theme's tokens colour",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.firstVisibleOffset": "n/a — scrollLink.visibleRange(pane, rowBytes).start",
         "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.visibleOffsets": "n/a — what is on screen is the scroll link's (`scrollLink.visibleRange`)",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.agentAnnotations": "n/a — the pane reads `drawnIn` off the annotation store",
@@ -1836,7 +1835,8 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationSource": "n/a — the pane imports the annotation store",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationTitles": "n/a — the pane imports `annotationTitles`",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.annotationsChanged": "n/a — the pane subscribes to the annotation store",
-        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.headerHeight": "n/a — the stylesheet's height of the pane header; nothing here zooms a window to fit its content"
+        "ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.headerHeight": "n/a — the stylesheet's height of the pane header; nothing here zooms a window to fit its content",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/PartBadgeView.swift#PartBadgeView.font": "n/a — the stylesheet's font on .part-badge, one size wherever the badge stands"
       }
     },
     {
