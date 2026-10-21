@@ -7,7 +7,7 @@ import {
   type PartUpdate,
 } from "@/core/parts/partCodec";
 import type { RebuildCaution, RebuildTarget } from "@/firmware/uefi/uefiRebuild";
-import { askFirmwareRebuild, readSpaceBytes } from "@/state/firmwareStore";
+import { askFirmwareRebuild, firmwareReady, readSpaceBytes } from "@/state/firmwareStore";
 import type { PaneId } from "@/state/workspaceStore";
 
 /**
@@ -121,11 +121,16 @@ export class UEFIPartCodec implements PartCodec {
       const [start, end] = range === undefined ? parent.source : [range.start, range.end];
       return parent.content.read(start, end - start);
     }
-    const bytes = await readSpaceBytes(
-      this.pane,
-      this.target.space,
-      range === undefined ? undefined : [range.start, range.end]
-    );
+    // The parent's tree is what reads the section: one not read yet — a workspace opening its
+    // parts at launch — is read first.
+    const ready = await firmwareReady(this.pane);
+    const bytes = !ready
+      ? undefined
+      : await readSpaceBytes(
+          this.pane,
+          this.target.space,
+          range === undefined ? undefined : [range.start, range.end]
+        );
     if (bytes === undefined) {
       throw new PartRefusal(
         LocalizedText.of("Those bytes could not be read."),

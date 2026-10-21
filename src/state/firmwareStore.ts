@@ -564,6 +564,36 @@ export function ensurePaneFirmware(pane: PaneId): Promise<void> {
   return started;
 }
 
+/**
+ * The pane's tree, parsed and ready to be asked — read first when nothing has read it. False when
+ * the image does not parse, or the pane has no content.
+ *
+ * What a part decoded from a compressed section of this pane needs before its bytes can be read:
+ * a workspace brought back at launch opens its parts before any panel has asked for the tree.
+ *
+ * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.decode
+ * @upstream-differs the tree is the worker's, which the page waits on; upstream reads it at once
+ */
+export async function firmwareReady(pane: PaneId): Promise<boolean> {
+  await ensurePaneFirmware(pane);
+  const settled = (): boolean | undefined => {
+    const status = firmwareFor(pane)?.status;
+    if (status === "ready") return true;
+    if (status === "parsing") return undefined;
+    return false;
+  };
+  const now = settled();
+  if (now !== undefined) return now;
+  return new Promise((resolve) => {
+    const stop = firmwareStore.subscribe(() => {
+      const answer = settled();
+      if (answer === undefined) return;
+      stop();
+      resolve(answer);
+    });
+  });
+}
+
 /** The parse `ensurePaneFirmware` started for a pane, while it waits for the content. */
 const treesOnTheirWay: Partial<Record<PaneId, Promise<void>>> = {};
 
