@@ -21,8 +21,35 @@ A ByteRipper clone the script can read. It looks in this order:
 2. `$BYTERIPPER_REPO`
 3. `../ByteRipper` beside this repository
 
-The clone must contain the baseline commit recorded in `PORT_STATE.json`, so
-`git fetch` it first if it is stale.
+The clone must contain the baseline commit recorded in `PORT_STATE.json`.
+
+## Before a run: both repositories level with `origin/main`
+
+A report is only as true as the two checkouts it compares. Before running it,
+bring both up to date with their `origin/main`, and stop if either cannot be:
+
+```bash
+git fetch origin && git pull --ff-only origin main
+git -C ../ByteRipper fetch origin && git -C ../ByteRipper pull --ff-only origin main
+```
+
+(`$BYTERIPPER_REPO` in place of `../ByteRipper` where the clone is elsewhere.)
+Then check that each is on `main` with nothing ahead, behind or uncommitted —
+`git status -sb` reads `## main...origin/main` and nothing under it. Each
+checkout fails in its own way:
+
+- **This repository behind:** the port lands on stale code, and a baseline
+  someone else already moved gets moved again.
+- **Upstream behind:** commits are missed, and the baseline is set short of what
+  is really there.
+- **Upstream on another branch, or with local commits:** the report covers work
+  that is not upstream's yet.
+
+A pull that will not fast-forward, a branch other than `main`, or local changes
+in either checkout are the user's to settle: say which, and do not port until it
+is settled. Upstream can also move while a port is under way. The anchor check
+prints the head it read; if that is not the head the report started from,
+report the new commits too, and set the baseline to the head you actually ported.
 
 ## Running it
 
