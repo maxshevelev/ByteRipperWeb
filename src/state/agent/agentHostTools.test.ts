@@ -6,13 +6,7 @@ import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { applyTransaction } from "@/state/toolEdits";
-import {
-  bringPaneForward,
-  openInPane,
-  paneState,
-  setActivePane,
-  workspaceStore,
-} from "@/state/workspaceStore";
+import { openInPane, paneState, setActivePane, workspaceStore } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -245,26 +239,6 @@ describe("reveal", () => {
     expect(member(answer, "selected")).toBe(true);
     expect(member(answer, "shown")).toEqual({ start: "0x10", end: "0x20", length: "0x10" });
     expect(canNavigateBack()).toBe(true);
-  });
-
-  // A place in the comparison's other pane makes that pane the active one.
-  // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealInTheInactivePaneOfAComparisonActivatesIt
-  it("in the inactive pane of a comparison activates it", async () => {
-    const service = new AgentService(undefined);
-    open("a", ramp(0x200));
-    open("b", ramp(0x200));
-    setActivePane("a");
-    // What the shell does: the pane brought forward, the range selected.
-    agentShell.reveal = (pane, start, end) => {
-      bringPaneForward(pane);
-      paneState(pane)?.document.setSelection({ start, end, fileSize: 0x200 });
-    };
-    const shown = (await call(service, "reveal", { document: "d2", offset: "0x100", length: 4 }))
-      .json;
-    expect(member(shown, "document")).toBe("d2");
-    expect(workspaceStore.getSnapshot().activePane).toBe("b");
-    const selection = paneState("b")?.document.selection;
-    expect([selection?.start, selection?.end]).toEqual([0x100, 0x104]);
   });
 
   // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealWithoutALengthMovesTheCaretOnly

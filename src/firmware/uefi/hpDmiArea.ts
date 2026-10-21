@@ -31,8 +31,8 @@ import {
  * The variable names are HP's own: a driver of the firmware lists `HP_MUD`, `BuildId`,
  * `FactoryConfig` and `FactoryConfigFlags` under the one GUID. The layout of `HP_MUD` is read
  * off the dumps of HP EliteBooks of 2023–2025 (AMD and Intel), not a published one, and the
- * help says so. The rest of `HP_TAGS` — 324 bytes, of which the asset tracking number takes the
- * first field — was blank in every dump, and is not read.
+ * help says so. The rest of `HP_TAGS` — 324 bytes, of which the asset tracking number takes
+ * the first field — was blank in every dump, and is not read.
  *
  * On three of the four boards the store marks every copy of `HP_MUD` deleted and keeps no
  * current one, yet the copy is whole: the area is read from the last copy where there is no
@@ -49,7 +49,7 @@ export interface HPDMIArea {
    */
   readonly entry: ImageRange;
   /**
-   * Its value, `HP_DMI.mudSize` bytes.
+   * Its value, `HP_MUD_SIZE` bytes.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.mud
    */
@@ -68,62 +68,63 @@ export interface HPDMIArea {
   readonly assetTag?: string | undefined;
 }
 
-/** HP's names and numbers. */
-export const HP_DMI = {
-  /**
-   * The GUID HP's factory variables are written under.
-   *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.factoryGuid
-   */
-  factoryGuid: guid("20AB3EB1-3C8F-4A4C-B87E-372426066D97"),
-  /**
-   * The GUID HP's Setup settings are written under, `HP_TAGS` among them.
-   *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.settingsGuid
-   */
-  settingsGuid: guid("FB3B9ECE-4ABA-4933-B49D-B4D67D892351"),
-  /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.mudName */
-  mudName: "HP_MUD",
-  /**
-   * The size of `HP_MUD` on every board read from; another size is a layout nobody has read.
-   *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.mudSize
-   */
-  mudSize: 0x1ae,
-} as const;
+/**
+ * The GUID HP's factory variables are written under.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.factoryGuid
+ */
+export const HP_FACTORY_GUID: EFIGUID = guid("20AB3EB1-3C8F-4A4C-B87E-372426066D97");
 
 /**
- * Where each text of `HP_MUD` sits, the field it is NUL-padded to: `[start, end)`.
+ * The GUID HP's Setup settings are written under, `HP_TAGS` among them.
  *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.serialField
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.skuField
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.familyField
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.ctNumberField
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.productNameField
- * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.uuidField
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.settingsGuid
  */
-const FIELDS = {
-  serial: [0x000, 0x042],
-  sku: [0x042, 0x0a4],
-  family: [0x0a4, 0x106],
-  ctNumber: [0x106, 0x124],
-  productName: [0x124, 0x19e],
-  uuid: [0x19e, 0x1ae],
-} as const;
+export const HP_SETTINGS_GUID: EFIGUID = guid("FB3B9ECE-4ABA-4933-B49D-B4D67D892351");
 
-const fieldText = (area: HPDMIArea, field: readonly [number, number]): string =>
-  hpText(area.mud.subarray(field[0], field[1])) ?? "";
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.mudName */
+export const HP_MUD_NAME = "HP_MUD";
+
+/**
+ * The size of `HP_MUD` on every board read from; another size is a layout nobody has read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.mudSize
+ */
+export const HP_MUD_SIZE = 0x1ae;
+
+// MARK: - The fields
+
+/** Where each text of `HP_MUD` sits, the field it is NUL-padded to: [start, end). */
+type Field = readonly [number, number];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.serialField */
+const SERIAL_FIELD: Field = [0x000, 0x042];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.skuField */
+const SKU_FIELD: Field = [0x042, 0x0a4];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.familyField */
+const FAMILY_FIELD: Field = [0x0a4, 0x106];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.ctNumberField */
+const CT_NUMBER_FIELD: Field = [0x106, 0x124];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.productNameField */
+const PRODUCT_NAME_FIELD: Field = [0x124, 0x19e];
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.uuidField */
+const UUID_FIELD: Field = [0x19e, 0x1ae];
+
+const fieldOf = (mud: Uint8Array, [start, end]: Field): Uint8Array => mud.subarray(start, end);
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.serialNumber */
-export const hpSerialNumber = (area: HPDMIArea): string => fieldText(area, FIELDS.serial);
+export const hpSerialNumber = (area: HPDMIArea): string =>
+  hpText(fieldOf(area.mud, SERIAL_FIELD)) ?? "";
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.sku */
-export const hpSKU = (area: HPDMIArea): string => fieldText(area, FIELDS.sku);
+export const hpSKU = (area: HPDMIArea): string => hpText(fieldOf(area.mud, SKU_FIELD)) ?? "";
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.productFamily */
-export const hpProductFamily = (area: HPDMIArea): string => fieldText(area, FIELDS.family);
+export const hpProductFamily = (area: HPDMIArea): string =>
+  hpText(fieldOf(area.mud, FAMILY_FIELD)) ?? "";
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.ctNumber */
-export const hpCTNumber = (area: HPDMIArea): string => fieldText(area, FIELDS.ctNumber);
+export const hpCTNumber = (area: HPDMIArea): string =>
+  hpText(fieldOf(area.mud, CT_NUMBER_FIELD)) ?? "";
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.productName */
-export const hpProductName = (area: HPDMIArea): string => fieldText(area, FIELDS.productName);
+export const hpProductName = (area: HPDMIArea): string =>
+  hpText(fieldOf(area.mud, PRODUCT_NAME_FIELD)) ?? "";
 
 /**
  * The UUID, spelled the way the bench spells it: the first three groups read back the way
@@ -132,11 +133,11 @@ export const hpProductName = (area: HPDMIArea): string => fieldText(area, FIELDS
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.uuidText
  */
 export const hpUUIDText = (area: HPDMIArea): string =>
-  guidText(guidFromBytes(area.mud.subarray(FIELDS.uuid[0], FIELDS.uuid[1])));
+  guidText(guidFromBytes(fieldOf(area.mud, UUID_FIELD)));
 
 /**
  * Something about HP's identity a technician should know before trusting it: the store marks
- * the copy deleted and keeps no current one; the asset tracking number is not the serial
+ * the copy deleted and keeps no current one, or the asset tracking number is not the serial
  * number, which HP writes there by default.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIFinding
@@ -171,6 +172,8 @@ export function hpFindingText(finding: HPDMIFinding): string {
   }
 }
 
+// MARK: - Reading
+
 /**
  * The UTF-16 text a field holds, to its first NUL; nothing where a unit is not printable
  * ASCII — no field read from has held anything else.
@@ -195,11 +198,11 @@ export function hpText(bytes: Uint8Array): string | undefined {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.isMUD
  */
 export function isHPMUD(mud: Uint8Array): boolean {
-  if (mud.length !== HP_DMI.mudSize) return false;
-  const serial = hpText(mud.subarray(FIELDS.serial[0], FIELDS.serial[1]));
+  if (mud.length !== HP_MUD_SIZE) return false;
+  const serial = hpText(fieldOf(mud, SERIAL_FIELD));
   if (serial === undefined || serial.length === 0) return false;
-  return [FIELDS.sku, FIELDS.family, FIELDS.ctNumber, FIELDS.productName].every(
-    (field) => hpText(mud.subarray(field[0], field[1])) !== undefined
+  return [SKU_FIELD, FAMILY_FIELD, CT_NUMBER_FIELD, PRODUCT_NAME_FIELD].every(
+    (field) => hpText(fieldOf(mud, field)) !== undefined
   );
 }
 
@@ -218,19 +221,23 @@ interface Copy {
   readonly name: string;
 }
 
+const isVssStore = (node: UEFINode): boolean =>
+  node.kind === "vssStore" || node.kind === "vss2Store";
+
 /**
  * Every VSS entry of `store` read as a variable, in store order.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.copies
  */
 function copies(store: UEFINode, reader: ImageReader): Copy[] {
-  if (store.kind !== "vssStore" && store.kind !== "vss2Store") return [];
+  if (!isVssStore(store)) return [];
   const found: Copy[] = [];
   for (const entry of store.children) {
     if (entry.kind !== "vssEntry") continue;
     const variable = readVssEntry(entry, store.kind === "vss2Store", reader);
-    const name = variable === undefined ? undefined : decodedVssName(variable, reader);
-    if (variable === undefined || name === undefined) continue;
+    if (variable === undefined) continue;
+    const name = decodedVssName(variable, reader);
+    if (name === undefined) continue;
     found.push({ entry, variable, name });
   }
   return found;
@@ -259,16 +266,14 @@ function standing(name: string, owner: EFIGUID, all: readonly Copy[]): Copy | un
  */
 export function readHPDMIArea(store: UEFINode, reader: ImageReader): HPDMIArea | undefined {
   const all = copies(store, reader);
-  const mud = standing(HP_DMI.mudName, HP_DMI.factoryGuid, all);
-  const value = mud === undefined ? undefined : reader.bytes(mud.variable.data);
-  if (mud === undefined || value === undefined || !isHPMUD(value)) return undefined;
-  const textOf = (
-    name: string,
-    owner: EFIGUID,
-    field?: readonly [number, number]
-  ): string | undefined => {
+  const mud = standing(HP_MUD_NAME, HP_FACTORY_GUID, all);
+  if (mud === undefined) return undefined;
+  const value = reader.bytes(mud.variable.data);
+  if (value === undefined || !isHPMUD(value)) return undefined;
+  const textOf = (name: string, owner: EFIGUID, field?: Field): string | undefined => {
     const copy = standing(name, owner, all);
-    const bytes = copy === undefined ? undefined : reader.bytes(copy.variable.data);
+    if (copy === undefined) return undefined;
+    const bytes = reader.bytes(copy.variable.data);
     if (bytes === undefined) return undefined;
     const window =
       field === undefined
@@ -277,16 +282,13 @@ export function readHPDMIArea(store: UEFINode, reader: ImageReader): HPDMIArea |
     const text = hpText(window);
     return text === undefined || text.length === 0 ? undefined : text;
   };
-  const buildID = textOf("BuildId", HP_DMI.factoryGuid);
-  const featureByte = textOf("FactoryConfig", HP_DMI.factoryGuid);
-  const assetTag = textOf("HP_TAGS", HP_DMI.settingsGuid, [0, 0xa2]);
   return {
     entry: nodeRange(mud.entry),
     mud: value,
     isDeleted: !isValidVssVariable(mud.variable),
-    ...(buildID === undefined ? {} : { buildID }),
-    ...(featureByte === undefined ? {} : { featureByte }),
-    ...(assetTag === undefined ? {} : { assetTag }),
+    buildID: textOf("BuildId", HP_FACTORY_GUID),
+    featureByte: textOf("FactoryConfig", HP_FACTORY_GUID),
+    assetTag: textOf("HP_TAGS", HP_SETTINGS_GUID, [0, 0xa2]),
   };
 }
 
@@ -297,7 +299,7 @@ export function readHPDMIArea(store: UEFINode, reader: ImageReader): HPDMIArea |
  */
 export function isHPDMIAreaEntry(entry: UEFINode, store: UEFINode, reader: ImageReader): boolean {
   if (entry.kind !== "vssEntry" || entry.guid === undefined) return false;
-  if (!guidEquals(entry.guid, HP_DMI.factoryGuid)) return false;
+  if (!guidEquals(entry.guid, HP_FACTORY_GUID)) return false;
   const area = readHPDMIArea(store, reader);
   const range = nodeRange(entry);
   return area !== undefined && area.entry.start === range.start && area.entry.end === range.end;

@@ -11,14 +11,20 @@ import {
   useLargeDetailOf,
 } from "@/state/largeDetailStore";
 import { workspaceStore } from "@/state/workspaceStore";
-import type { DetailSymbol, DetailTable, DetailTableTarget, NodeDetail } from "@/tools/toolDetail";
-import type { ToolValueTone } from "@/tools/toolValueTone";
+import type {
+  DetailField,
+  DetailSymbol,
+  DetailTable,
+  DetailTableTarget,
+  NodeDetail,
+} from "@/tools/toolDetail";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { HelpTermPopover } from "@/ui/help/HelpTermPopover";
 import { TintedSymbol } from "@/ui/theme/TintedSymbol";
 import { type Box, playCardMotion } from "@/ui/toolPanel/cardMotion";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { detailCopyText } from "@/ui/toolPanel/detailCopy";
+import { pressLeavesLargeDetailOpen } from "@/ui/toolPanel/largeDetailClick";
 import { largeDetailFrame, largeDetailTop } from "@/ui/toolPanel/largeDetailFrame";
 import {
   initialPictureBackground,
@@ -57,6 +63,7 @@ export function ToolDetail({
   onFocusTable,
   after,
   largeWhenEmpty = false,
+  names,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -109,6 +116,12 @@ export function ToolDetail({
    * @upstream-differs upstream's pane opens the card only on a row (`showQuickLook` wants details)
    */
   readonly largeWhenEmpty?: boolean;
+  /**
+   * How wide the name column is: the shared one, or the longest name's.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.nameWidth
+   */
+  readonly names?: NameColumn | undefined;
 }) {
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
   const hasRows = detail.fields.length > 0;
@@ -179,7 +192,7 @@ export function ToolDetail({
     []
   );
 
-  const bodyProps = { detail, placeholder, helpTerm, subject, after };
+  const bodyProps = { detail, placeholder, helpTerm, subject, after, names };
   const selecting = detailSelectionHandlers();
   return (
     // Space in the details opens the large view, and hands the focus to the table, so
@@ -227,71 +240,6 @@ export function ToolDetail({
           )
         : null}
     </div>
-  );
-}
-
-/**
- * A detail's name/value rows: the one shape every panel draws a named value in — the UEFI
- * Structure's detail under its tree, the FIT table's, the ME Analyzer's Summary tab and the
- * detail under its own tree. One row shape means one selection: a drag across rows takes a band
- * of them, a double click a word, a triple click a row, Ctrl+A or ⌘A the whole list, and a copy
- * has a tab between a name and its value (`detailCopy.ts`).
- *
- * The name column is as wide as the longest name, never narrower than the shared default and
- * never wider than half the list, where a longer name wraps (the stylesheet's
- * `.tool-detail-fields`).
- *
- * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList
- * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.nameWidth
- * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldRow.nameColumnWidth
- * @upstream-differs the browser lays the column out: a grid track that fits its longest name
- * within half the list, which the rows share as a subgrid
- */
-export function FieldList({
-  fields,
-  className,
-}: {
-  readonly fields: readonly {
-    readonly label: string;
-    readonly value: string;
-    readonly tone: ToolValueTone;
-    /** A row the engine has not answered yet — "Coming soon", "Loading…": drawn grey. */
-    readonly isPromise?: boolean | undefined;
-  }[];
-  readonly className?: string | undefined;
-}) {
-  return (
-    <dl
-      className={className === undefined ? "tool-detail-fields" : `tool-detail-fields ${className}`}
-    >
-      {/* A label is the row's identity — and its place, for the node that says one
-          twice: a DVAR entry's header has a Type of its own beside the common one. */}
-      {fields.map((one, at) => (
-        <div className="tool-detail-row" key={positional(at, one.label)}>
-          <dt>{one.label}</dt>
-          {/*
-            One rendering for a value that carries a status, wherever it
-            is drawn: bold, in the tone's colour, and led by the tick when
-            the status is a passed check. The ME Analyzer's Summary row
-            asks the same tone for the same string, so the two cannot come
-            apart (`ToolValueTone.attributedValue`).
-          */}
-          {one.isPromise === true ? (
-            <dd data-promise="">{one.value}</dd>
-          ) : (
-            <dd
-              // Digits of one width for a number, so an offset or a size
-              // reads against the dump; words stay in the body face.
-              data-mono={one.value.startsWith("0x") ? "" : undefined}
-              data-tone={one.tone === "standard" ? undefined : one.tone}
-            >
-              {one.tone === "good" ? <DoneMark /> : null}
-              {one.value}
-            </dd>
-          )}
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -424,6 +372,7 @@ function LargeDetailCard({
   helpTerm,
   subject,
   after,
+  names,
   hasRows,
   onSelectNode,
   onOutlineRange,
@@ -437,6 +386,7 @@ function LargeDetailCard({
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
   readonly after: ReactNode;
+  readonly names: NameColumn | undefined;
   readonly hasRows: boolean;
   /** The reader closed it: it is folding back into the pane, and is no longer theirs. */
   readonly closing: boolean;
@@ -603,10 +553,9 @@ function LargeDetailCard({
     // Anywhere outside the card: closed, and the click carries on to what it was for.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     // A click anywhere in the tool panel — a row, a node's triangle, a menu, the search,
-    // the legend — or in another owner of a details pane (`data-detail-owner`, the Agent
-    // window's list) leaves it open; so does a press on a divider, beside the panel or anywhere
-    // else, which moves the divider while the card follows the room it leaves. One beside all
-    // of them still closes it, and still does what it was aimed at.
+    // the legend — in another owner of a details pane (`data-detail-owner`, the Agent
+    // window's list), or a press on a divider leaves it open (`largeDetailClick.ts`); one
+    // beside them still closes it, and still does what it was aimed at.
     // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift#ToolDetailPane.handleClickWhileShown
     const onPointer = (event: PointerEvent) => {
       const target = event.target;
@@ -615,11 +564,7 @@ function LargeDetailCard({
         return;
       }
       if (cardRef.current?.contains(target) === true) return;
-      if (
-        target.closest(".tool-panel, [data-detail-owner], [role=menu], [role=separator]") !== null
-      ) {
-        return;
-      }
+      if (pressLeavesLargeDetailOpen(target)) return;
       onClose();
     };
     // The card does not keep the keyboard: a click in it selects text and leaves the
@@ -698,6 +643,7 @@ function LargeDetailCard({
         helpTerm={helpTerm}
         subject={subject}
         after={after}
+        names={names}
         onSelectNode={onSelectNode}
         onOutlineRange={onOutlineRange}
       />
@@ -716,6 +662,7 @@ function DetailBody({
   helpTerm,
   subject,
   after,
+  names,
   onSelectNode,
   onOutlineRange,
 }: {
@@ -724,6 +671,7 @@ function DetailBody({
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
   readonly after?: ReactNode;
+  readonly names: NameColumn | undefined;
   readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
@@ -771,7 +719,7 @@ function DetailBody({
               )}
             </h3>
           )}
-          <FieldList fields={detail.fields} />
+          <DetailFields fields={detail.fields} names={names} />
           {detail.tables.map((table) => (
             <DetailTableView
               key={table.title}
@@ -788,6 +736,101 @@ function DetailBody({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * How wide a list's name column is.
+ *
+ * - `default` — the list's column: the shared one the UEFI Structure's detail draws
+ *   with, or one a list names (`DetailFields.nameWidth`): a name longer than it wraps.
+ * - `longest` — as wide as the longest name in the list, and never narrower than
+ *   the shared column (`ToolFieldList.nameWidth`): the ME Analyzer's and the
+ *   FIT's details, whose names run long (`systemHeaderCRCValid`, a microcode
+ *   header's, a translated one).
+ *
+ * Either way the column is one width for every row, so the values line up, and
+ * never more than half the list, where a name that still does not fit wraps
+ * rather than crowding the value out.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.nameWidth
+ * @upstream-differs the browser measures the names: the column is the stylesheet's
+ * (`.tool-detail-fields`, a grid whose rows share its columns), where upstream lays
+ * each name out with its own text engine and hands the list the widest
+ */
+export type NameColumn = "default" | "longest";
+
+/** A field of the list: a detail's own, or a row of another list drawn the same way. */
+export interface ListedField extends DetailField {
+  /**
+   * A value nobody has answered yet — "Coming soon", "Loading…": drawn grey.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
+   */
+  readonly muted?: boolean | undefined;
+}
+
+/**
+ * A detail's name/value rows: the one list every panel draws a named value with — the
+ * UEFI Structure's detail, the ME Analyzer's Summary and the detail under its tree, the
+ * FIT's detail and the Agent window's. One row shape means one selection and one copy:
+ * a drag across rows takes a band of them, and a copy puts a name, a tab and its value
+ * on a line per row (`detailCopy.ts`).
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.init
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldRow
+ * @upstream-differs a `<dl>` whose rows the browser lays out, selects and wraps; upstream
+ * draws one view per row and fits it itself
+ */
+export function DetailFields({
+  fields,
+  names = "default",
+  nameWidth,
+}: {
+  readonly fields: readonly ListedField[];
+  readonly names?: NameColumn | undefined;
+  /**
+   * The name column, as a length the stylesheet takes, where a list wants one of its own
+   * rather than the shared one — the ME Analyzer's Summary, whose labels run long.
+   */
+  readonly nameWidth?: string | undefined;
+}) {
+  return (
+    <dl
+      className="tool-detail-fields"
+      data-names={names === "longest" ? "longest" : undefined}
+      style={
+        nameWidth === undefined
+          ? undefined
+          : ({ "--tool-detail-name": nameWidth } as React.CSSProperties)
+      }
+    >
+      {/* A label is the row's identity — and its place, for the node that says one
+          twice: a DVAR entry's header has a Type of its own beside the common one. */}
+      {fields.map((one, at) => (
+        <div className="tool-detail-row" key={positional(at, one.label)}>
+          <dt>{one.label}</dt>
+          {/*
+            One rendering for a value that carries a status, wherever it
+            is drawn: bold, in the tone's colour, and led by the tick when
+            the status is a passed check. The ME Analyzer's Summary row
+            asks the same tone for the same string, so the two cannot come
+            apart (`ToolValueTone.attributedValue`).
+          */}
+          <dd
+            // Digits of one width for a number, so an offset or a size
+            // reads against the dump; words stay in the body face.
+            data-mono={one.value.startsWith("0x") ? "" : undefined}
+            data-tone={one.tone === "standard" || one.muted === true ? undefined : one.tone}
+            data-soon={one.muted === true ? "" : undefined}
+          >
+            {one.tone === "good" && one.muted !== true ? <DoneMark /> : null}
+            {one.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

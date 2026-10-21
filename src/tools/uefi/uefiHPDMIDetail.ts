@@ -3,7 +3,8 @@ import type { ImageReader } from "@/firmware/imageReader";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { guidEquals } from "@/firmware/uefi/efiGuid";
 import {
-  HP_DMI,
+  HP_FACTORY_GUID,
+  HP_MUD_NAME,
   type HPDMIArea,
   hpCTNumber,
   hpFindings,
@@ -31,41 +32,53 @@ import { type DetailField, type DetailTable, field } from "@/tools/toolDetail";
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail
  */
 
+const isVssStore = (node: UEFINode): boolean =>
+  node.kind === "vssStore" || node.kind === "vss2Store";
+
 /**
  * The store `node` is an entry of, when it is a VSS one.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.store
  */
-export function hpStoreOf(node: UEFINode, image: UEFIImage): UEFINode | undefined {
+export function hpDMIStoreOf(node: UEFINode, image: UEFIImage): UEFINode | undefined {
   if (node.kind !== "vssEntry" || !isFileSpace(node.space) || node.id.length === 0) {
     return undefined;
   }
   const store = image.node(node.id.slice(0, -1));
-  return store?.kind === "vssStore" || store?.kind === "vss2Store" ? store : undefined;
+  return store !== undefined && isVssStore(store) ? store : undefined;
 }
 
 /**
- * The area `node` is the `HP_MUD` entry of — with the store already in hand, as a tree row has
- * its parent; nothing for any other node.
+ * The area `node` is the `HP_MUD` entry of, with its store in hand — a tree row has its
+ * parent; nothing for any other node.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.area
  */
 export function hpDMIAreaOf(
   node: UEFINode,
   store: UEFINode | undefined,
-  reader: ImageReader
+  reader: ImageReader,
+  read: (store: UEFINode, reader: ImageReader) => HPDMIArea | undefined = readHPDMIArea
 ): HPDMIArea | undefined {
   if (node.kind !== "vssEntry" || node.guid === undefined) return undefined;
-  if (!guidEquals(node.guid, HP_DMI.factoryGuid)) return undefined;
-  if (store === undefined || (store.kind !== "vssStore" && store.kind !== "vss2Store")) {
-    return undefined;
-  }
-  const area = readHPDMIArea(store, reader);
+  if (!guidEquals(node.guid, HP_FACTORY_GUID)) return undefined;
+  if (store === undefined || !isVssStore(store)) return undefined;
+  const area = read(store, reader);
+  if (area === undefined) return undefined;
   const range = nodeRange(node);
-  return area !== undefined && area.entry.start === range.start && area.entry.end === range.end
-    ? area
-    : undefined;
+  return area.entry.start === range.start && area.entry.end === range.end ? area : undefined;
 }
+
+/**
+ * The same, with the store looked up in `image`.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.area
+ */
+export const hpDMIAreaIn = (
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): HPDMIArea | undefined => hpDMIAreaOf(node, hpDMIStoreOf(node, image), reader);
 
 /**
  * The fields, in the order BCU lists them, then the notes.
@@ -77,9 +90,9 @@ export function hpDMIDetail(
   image: UEFIImage,
   reader: ImageReader
 ): { fields: DetailField[]; tables: DetailTable[] } {
-  const area = hpDMIAreaOf(node, hpStoreOf(node, image), reader);
+  const area = hpDMIAreaIn(node, image, reader);
   if (area === undefined) return { fields: [], tables: [] };
-  const shown = (text: string | undefined) =>
+  const shown = (text: string | undefined): string =>
     text === undefined || text.length === 0 ? "—" : text;
   const fields: DetailField[] = [
     field(L("Serial number"), shown(hpSerialNumber(area))),
@@ -101,13 +114,15 @@ export function hpDMIDetail(
  * store marks deleted too, which UEFITool would call Invalid; the rest is in the detail.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.row
- * @upstream-differs the panel holds no bytes, so the worker reads the text
+ * @upstream-differs the panel holds no bytes, so the worker reads the text and hands it over
+ * as the wire node's `valueRow`, with `isHPDMIArea` set
  */
 export function hpDMIRowText(
   node: UEFINode,
   store: UEFINode | undefined,
-  reader: ImageReader
+  reader: ImageReader,
+  read?: (store: UEFINode, reader: ImageReader) => HPDMIArea | undefined
 ): string | undefined {
-  const area = hpDMIAreaOf(node, store, reader);
-  return area === undefined ? undefined : L("%1$@ · %2$@", HP_DMI.mudName, hpSerialNumber(area));
+  const area = hpDMIAreaOf(node, store, reader, read);
+  return area === undefined ? undefined : L("%1$@ · %2$@", HP_MUD_NAME, hpSerialNumber(area));
 }

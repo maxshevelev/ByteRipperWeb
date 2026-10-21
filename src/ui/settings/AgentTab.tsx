@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { BACKGROUND_FILE_CHOICES } from "@/core/agent/agentBackgroundLimits";
 import {
   AGENT_CLIENTS,
   type AgentClient,
@@ -10,10 +9,11 @@ import {
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
-import { friendlySize } from "@/core/text/byteSize";
+import { AGENT_BACKGROUND_LIMITS } from "@/state/agent/agentBackgroundDocuments";
 import { agentService } from "@/state/agent/agentService";
 import { useStore } from "@/state/useStore";
 import { HelpButton } from "@/ui/help/HelpButton";
+import { memoryTitle } from "@/ui/settings/settingsText";
 
 /**
  * The Agent tab of the Settings window: the switch that opens the agent endpoint, what it does,
@@ -33,15 +33,10 @@ import { HelpButton } from "@/ui/help/HelpButton";
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.filesChanged
  * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryChanged
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.filesPopup
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryPopup
  * @upstream-differs a React tab over the service's store
  */
-/**
- * "256 MB", "1 GB": in the units the machine's own memory is told in.
- *
- * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryTitle
- */
-export const memoryTitle = (mib: number): string => friendlySize(mib * 2 ** 20);
-
 // help: settings.agent
 export function AgentTab() {
   const state = useStore(agentService.store);
@@ -121,40 +116,32 @@ export function AgentTab() {
       </p>
 
       {/* help: settings.agent.background */}
-      <div className="settings-agent-limits">
-        <label htmlFor="settings-agent-files" className="settings-label">
-          {L("Dumps kept open:")}
-        </label>
+      <div className="settings-grid settings-agent-limits">
+        <label htmlFor="settings-agent-files">{L("Dumps kept open:")}</label>
         <select
           id="settings-agent-files"
           className="settings-select"
-          value={agentService.backgroundFileLimit}
+          value={state.backgroundFileLimit}
           disabled={!agentService.isAvailable}
           title={L("How many dumps an agent opened by path stay read and parsed at once")}
-          onChange={(event) => {
-            agentService.backgroundFileLimit = Number(event.target.value);
-          }}
+          onChange={(event) => agentService.setBackgroundFileLimit(Number(event.target.value))}
         >
-          {BACKGROUND_FILE_CHOICES.map((count) => (
+          {AGENT_BACKGROUND_LIMITS.fileChoices.map((count) => (
             <option key={count} value={count}>
               {count}
             </option>
           ))}
         </select>
-        <label htmlFor="settings-agent-memory" className="settings-label">
-          {L("Memory for them:")}
-        </label>
+        <label htmlFor="settings-agent-memory">{L("Memory for them:")}</label>
         <select
           id="settings-agent-memory"
           className="settings-select"
-          value={agentService.backgroundMemoryLimitMiB}
+          value={state.backgroundMemoryLimitMiB}
           disabled={!agentService.isAvailable}
           title={L("How much memory the dumps an agent opened by path may hold between them")}
-          onChange={(event) => {
-            agentService.backgroundMemoryLimitMiB = Number(event.target.value);
-          }}
+          onChange={(event) => agentService.setBackgroundMemoryLimitMiB(Number(event.target.value))}
         >
-          {agentService.memoryChoicesMiB.map((mib) => (
+          {agentService.memoryChoicesMiB().map((mib) => (
             <option key={mib} value={mib}>
               {memoryTitle(mib)}
             </option>
@@ -163,7 +150,7 @@ export function AgentTab() {
       </div>
       <p className="settings-caption">
         {L(
-          "An agent can open a dump by its path, without a pane. The dumps it opened last stay parsed, so another question about one of them is answered without reading it again. Past either limit, the dump not asked about for the longest time is closed; named again, it is read again. Counted are the files, read whole, and what their compressed sections decompressed to. At most a quarter of this computer's memory is offered."
+          "An agent can open a dump by its path, without a window. The dumps it opened last stay parsed, so another question about one of them is answered without reading it again. Past either limit, the dump not asked about for the longest time is closed; named again, it is read again. Counted are the bytes read from the files and what their compressed sections decompressed to. At most a quarter of this computer's memory is offered."
         )}
       </p>
 

@@ -125,14 +125,6 @@ export interface SegmentBandStrip {
  *
  * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket
  */
-/**
- * A bracket's stem under the pointer: a point thicker than the rest, so the one being named stands
- * out of a column of stems.
- *
- * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverLineWidth
- */
-const ZONE_BRACKET_HOVER_LINE_WIDTH = 3;
-
 export interface ZoneBracket {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.range */
   readonly top: number;
@@ -146,11 +138,24 @@ export interface ZoneBracket {
   /** @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.ZoneBracket.isFocused */
   readonly focused?: boolean | undefined;
   /**
-   * The vivid shade it is drawn in, a point thicker, while the pointer is on it
-   * (`zoneHoverHighlight`, resolved by the panel, which knows the theme); nothing otherwise.
+   * Set on the bracket under the pointer: the vivid shade of its colour it is
+   * drawn in, a pixel thicker (`zoneHoverHighlight`). The panel resolves it,
+   * since that is where the hover and the theme are known.
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.hoveredZoneBracket
    */
   readonly hoverColor?: string | undefined;
 }
+
+/** A bracket's stem and arms. @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketLineWidth */
+const ZONE_BRACKET_LINE_WIDTH = 1.5;
+/**
+ * Under the pointer: a pixel thicker, so the bracket being named stands out of a
+ * column of stems.
+ *
+ * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverLineWidth
+ */
+const ZONE_BRACKET_HOVER_LINE_WIDTH = 2.5;
 
 export interface MinimapColors {
   readonly background: string;
@@ -386,7 +391,11 @@ export class MinimapRenderer {
    * eye reads. The one in focus takes the louder colour, which is how the panel
    * says which zone it is looking at.
    *
-   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketLineWidth
+   * The bracket under the pointer keeps its hue but goes vivid and a pixel
+   * thicker: the same statement, just louder, which is how the segment strip
+   * says "this is the one you are pointing at" (§19.4.4).
+   *
+   * @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.drawZoneBrackets
    */
   private drawZones(brackets: readonly ZoneBracket[]): void {
     const gutter = this.layout.zoneGutterRect;
@@ -402,13 +411,11 @@ export class MinimapRenderer {
       // it — which is what a nest of brackets looks like on paper.
       const arm = Math.max(1, gutter.x + gutter.width - x);
       const height = Math.max(ZONE_BRACKET_MIN_HEIGHT, bracket.height);
-      const colour = bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther;
-      // The one under the pointer keeps its hue but goes vivid and a point thicker: the same
-      // statement, just louder, which is how the segment strip says "this is the one you are
-      // pointing at" (§19.4.4).
-      // @upstream ByteRipperApp/Minimap/MinimapView.swift#MinimapView.zoneBracketHoverLineWidth
-      const line = bracket.hoverColor === undefined ? 1.5 : ZONE_BRACKET_HOVER_LINE_WIDTH;
-      context.fillStyle = bracket.hoverColor ?? colour;
+      context.fillStyle =
+        bracket.hoverColor ??
+        (bracket.focused === true ? this.colors.zoneFocused : this.colors.zoneOther);
+      const line =
+        bracket.hoverColor === undefined ? ZONE_BRACKET_LINE_WIDTH : ZONE_BRACKET_HOVER_LINE_WIDTH;
       // The stem, and an arm at each end: an extent with ends the eye can find
       // is what tells one zone from the one it sits inside.
       context.fillRect(x, bracket.top, line, height);

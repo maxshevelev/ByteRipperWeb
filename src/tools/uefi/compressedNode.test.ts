@@ -187,8 +187,9 @@ describe("what a node has decompressed", () => {
     expect(asNode?.suggestedName).toBe("Inner decompressed.bin");
     // A panel is the node's name alone; the pill's badge says decompressed.
     expect(asNode?.partName).toBe("Inner");
-    // A body of a node with a header says so, in English; with no header the body is the node.
+    // A body of a node with a header says so, in English.
     expect(nodeOpen(inner, true, [wire(image.section)])?.partName).toBe("Inner body");
+    // With no header the body is the node.
     expect(partName({ name: "Pad", header: [0, 0] }, true)).toBe("Pad");
     // A saved file is named after the dump it came out of, then what it is.
     expect(asNode === undefined ? undefined : saveName(asNode.suggestedName, "bios.rom")).toBe(
@@ -197,7 +198,8 @@ describe("what a node has decompressed", () => {
     expect(nodeOpen(inner, true, [wire(image.section)])?.suggestedName).toBe(
       "Inner decompressed body.bin"
     );
-    // A saved file says decompressed; a panel's pill says it with the codec's badge; both say body.
+    // A saved file says decompressed; a panel's pill says it with the codec's badge; both
+    // say body.
     expect(body?.partName).toBe("LZMA compressed section body");
   });
 

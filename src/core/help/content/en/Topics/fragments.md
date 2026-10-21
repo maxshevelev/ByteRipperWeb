@@ -12,9 +12,9 @@ A part of an image supplied by a [[topic:tools-overview|tool panel]] — a regio
 
 The parent remains visible above it. Folded down, the fragment becomes a pill in the dock along the bottom edge of the workspace. One dock serves the workspace: it holds the parts extracted from both open images, and the help book, which uses the same dock.
 
-Only one panel is up at a time. Raising another folds the one that was up, which is why opening the help puts a fragment away rather than covering it.
-
 A fragment is named after what was opened — the node or the zone — and nothing else: neither the name of the dump nor what was done to the bytes is added. The body of a node that has a header is named after the node followed by *body*, in English in every language, as in the name of a saved file. Saved for the first time, a fragment is offered under its name with the extension *.bin*. Where the bytes went through a codec, the pill carries the codec's name after the fragment's name — **LZMA**, **XOR** with its key, **bzip2** — and the pointer over it gives the same sentence as the badge in the panel's header (see below). A fragment opened out of such a fragment — a node of a decompressed section, say — carries the same codec name, since its bytes are no more the file's own than those of the fragment it came from. A pill without the codec name holds the file's own bytes.
+
+Only one panel is up at a time. Raising another folds the one that was up, which is why opening the help puts a fragment away rather than covering it.
 
 ## What a fragment supports
 

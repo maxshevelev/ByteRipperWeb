@@ -62,6 +62,7 @@ export class ElsewhereCodec implements PartCodec {
   readonly decodesImmediately = true;
   readonly keepsOffsets = false;
   readonly badge = undefined;
+  readonly transform = undefined;
 
   decode(parent: PartParent): Promise<Uint8Array> {
     return sourceBytes(parent);

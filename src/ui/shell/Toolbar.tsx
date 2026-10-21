@@ -4,6 +4,12 @@ import { L } from "@/core/localization/localization";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { showAbout } from "@/state/aboutStore";
+import {
+  canRedoRemoval,
+  canUndoRemoval,
+  redoRemoval,
+  undoRemoval,
+} from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { bookmarkAt, bookmarksStore, marksFor } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
@@ -16,12 +22,6 @@ import {
   navigateForward,
   navigationStore,
 } from "@/state/navigationStore";
-import {
-  canRedoPanelRemoval,
-  canUndoPanelRemoval,
-  redoPanelRemoval,
-  undoPanelRemoval,
-} from "@/state/notesPanelStore";
 import type { OpenPanePlacement } from "@/state/openPlacement";
 import { recentFilesStore } from "@/state/recentFilesStore";
 import { closeSearch, searchStore } from "@/state/searchStore";
@@ -208,12 +208,12 @@ export function Toolbar({
   // A text field being typed in takes Undo and Redo for its own typing.
   const typing = useStore(textFocusStore).field !== undefined;
   const undoable = notesUp
-    ? canUndoPanelRemoval()
+    ? canUndoRemoval()
       ? { label: undefined }
       : undefined
     : nextUndo(front);
   const redoable = notesUp
-    ? canRedoPanelRemoval()
+    ? canRedoRemoval()
       ? { label: undefined }
       : undefined
     : nextRedo(front);
@@ -400,7 +400,7 @@ export function Toolbar({
       disabled: !typing && undoable === undefined,
       onSelect: () => {
         if (undoInTextField(false)) return;
-        if (notesUp) undoPanelRemoval();
+        if (notesUp) undoRemoval();
         else void undoLast(front, false);
       },
     },
@@ -411,7 +411,7 @@ export function Toolbar({
       disabled: !typing && redoable === undefined,
       onSelect: () => {
         if (undoInTextField(true)) return;
-        if (notesUp) redoPanelRemoval();
+        if (notesUp) redoRemoval();
         else void redoLast(front);
       },
     },
@@ -1015,7 +1015,7 @@ export function Toolbar({
           second. */}
       {nativeMenuBar ? null : (
         <SectionMenu
-          label="☰"
+          label={<span className="commands-glyph">☰</span>}
           ariaLabel={L("Commands")}
           title={L("Commands")}
           sections={sectionsOf(entries)}

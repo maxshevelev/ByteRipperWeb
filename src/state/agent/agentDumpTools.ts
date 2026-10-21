@@ -1,6 +1,7 @@
 import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import {
+  baseName,
   dumpFiles,
   isAbsolutePath,
   MAX_SURVEY_FILES,
@@ -340,7 +341,7 @@ export class AgentDumpTools {
     const failed: Json[] = [];
     for (const [index, file] of files.entries()) {
       throwIfCancelled(call.signal);
-      const name = names[index] ?? file;
+      const name = names[index] ?? baseName(file);
       call.progress(index, files.length, name);
       try {
         const stat = await this.stat(file);
@@ -379,10 +380,10 @@ export class AgentDumpTools {
     };
   }
 
-  /** The files to survey, and the folder asked about — none for `paths`. */
+  /** The files to survey, and the folder asked about — nothing for `paths`. */
   private async surveyFiles(
     args: AgentArguments
-  ): Promise<{ files: string[]; folder: string | undefined }> {
+  ): Promise<{ readonly files: string[]; readonly folder: string | undefined }> {
     const paths = args.strings("paths");
     let found: string[];
     let asked: string | undefined;
@@ -391,7 +392,6 @@ export class AgentDumpTools {
     } else {
       const folder = args.optionalString("folder");
       if (folder === undefined) throw new AgentToolError("Give a `folder` or a list of `paths`.");
-      asked = this.filePath(folder);
       const bridge = this.requireBridge();
       const recursive = args.bool("recursive", false);
       let listing: { files: readonly string[]; truncated: boolean };
@@ -405,6 +405,11 @@ export class AgentDumpTools {
         throw new AgentToolError(`Could not read ${folder}: ${reasonOf(error)}`);
       }
       found = dumpFiles(listing.files);
+      // The shell lists under the folder as it reads it: `~/` comes back expanded, and the names
+      // are paths from that.
+      asked = folder.startsWith("~")
+        ? (await this.stat(folder).catch(() => undefined))?.path
+        : this.filePath(folder);
     }
     if (found.length > MAX_SURVEY_FILES) {
       throw new AgentToolError(

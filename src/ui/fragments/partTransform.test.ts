@@ -4,10 +4,12 @@ import { CopyPartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { openGivenPart } from "@/state/testing/givenParts";
 import { closePart, openEmptyInPane, paneState, workspaceStore } from "@/state/workspaceStore";
-import { transformOf } from "@/ui/fragments/FragmentPanels";
+import { partTransform } from "@/ui/fragments/partTransform";
 
 /**
- * What a pill says about the bytes its part holds: the codec they went through, after the name.
+ * What a pill says the part's bytes went through. Upstream reads the pills off
+ * the strip; here the item the strip is given is worked out from the
+ * workspace, so that is what is read.
  *
  * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests
  */
@@ -27,22 +29,22 @@ async function fileInA(): Promise<void> {
   await paneState("a")?.document.insert(0, new Uint8Array(0x400));
 }
 
-const unpacked = (transform: string) =>
+const readOnly = (bytes: Uint8Array, reason: string, transform: string): ReadOnlyPartCodec =>
   new ReadOnlyPartCodec(
-    new Uint8Array(0x40),
+    bytes,
     LocalizedText.verbatim("No"),
-    LocalizedText.verbatim("Nothing packs it again."),
+    LocalizedText.verbatim(reason),
     transform
   );
 
-describe("the codec on a pill", () => {
+describe("a pill's codec", () => {
   /**
-   * A part whose bytes went through a codec wears the codec's word on its pill, after the name —
-   * which no longer says it; one that is the file's own bytes wears none.
+   * A part whose bytes went through a codec wears the codec's word on its pill, after the
+   * name — which no longer says it; one that is the file's own bytes wears none.
    *
    * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testAPillWearsTheCodecItsBytesWentThrough
    */
-  it("is the codec the bytes went through, and nothing for the file's own", async () => {
+  it("is the codec its bytes went through, and nothing for the file's own", async () => {
     await fileInA();
     const copy = await openGivenPart({
       parent: "a",
@@ -50,34 +52,39 @@ describe("the codec on a pill", () => {
       name: "part",
       source: [0x100, 0x120],
     });
-    const codec = unpacked("bzip2");
+    const bytes = new TextEncoder().encode("text");
+    const codec = readOnly(bytes, "Nothing packs it again.", "bzip2");
     const overrides = await openGivenPart({
       parent: "a",
-      bytes: new Uint8Array(4),
+      bytes,
       name: "Overrides",
       source: [0x200, 0x220],
       back: codec,
     });
+    const state = workspaceStore.getSnapshot();
 
-    expect(transformOf(copy)).toBeUndefined();
-    expect(transformOf(overrides)).toEqual({ text: "bzip2", explanation: codec.badge.explanation });
+    expect(partTransform(state, copy)).toBeUndefined();
+    expect(partTransform(state, overrides)).toEqual({
+      text: "bzip2",
+      explanation: codec.badge.explanation,
+    });
   });
 
   /**
-   * A node opened out of a decompressed part holds decompressed bytes as much as the part does:
-   * its pill wears the part's codec, though its own only copies, and the pointer says where the
-   * codec was.
+   * A node opened out of a decompressed part holds decompressed bytes as much as the part
+   * does: its pill wears the part's codec, though its own only copies, and the pointer says
+   * where the codec was.
    *
    * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testAPartOfADecompressedPartWearsItsCodec
    */
-  it("is the nearest decompressed part's for a part taken out of it", async () => {
+  it("is the decompressed part's for a part taken out of it", async () => {
     await fileInA();
     const section = await openGivenPart({
       parent: "a",
       bytes: new Uint8Array(0x40).fill(0x11),
       name: "Section",
       source: [0x200, 0x220],
-      back: unpacked("LZMA"),
+      back: readOnly(new Uint8Array(0x40).fill(0x11), "A test body.", "LZMA"),
     });
     const driver = await openGivenPart({
       parent: section,
@@ -86,9 +93,11 @@ describe("the codec on a pill", () => {
       source: [0x10, 0x20],
       back: new CopyPartCodec(),
     });
+    const state = workspaceStore.getSnapshot();
 
-    expect(transformOf(section)?.text).toBe("LZMA");
-    expect(transformOf(driver)).toEqual({
+    expect(partTransform(state, section)?.text).toBe("LZMA");
+    // The node is as decompressed as the body it came out of.
+    expect(partTransform(state, driver)).toEqual({
       text: "LZMA",
       explanation:
         "Part of “Section”, whose bytes were converted with LZMA when taken out of the file.",

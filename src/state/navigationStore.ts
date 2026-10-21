@@ -88,8 +88,8 @@ export interface NavigationPlace {
    */
   readonly isToolStep?: boolean | undefined;
   /**
-   * The Annotations panel: a step out of the dump into it — a note made, a card's Open Annotation
-   * — or out of it to a card's place, is one Back and Forward take too.
+   * The Annotations panel: a step out of the tab into it — a note made, an annotation opened from
+   * the offset menu — is one Back and Forward take too.
    *
    * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.isNotes
    */
@@ -97,11 +97,11 @@ export interface NavigationPlace {
 }
 
 /**
- * The Annotations panel as a place in the tab's history.
+ * The Annotations panel as a place in the history.
  *
  * @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.notes
- * @upstream-differs the panel is in the tab's own dock, so the one history walks into it and out of
- * it, where upstream's window keeps Back and Forward of its own beside the tab's
+ * @upstream-differs one history holds it, where upstream's window keeps stacks of its own beside
+ * the tab's: the panel is raised over the same panes, so a walk of one stack reaches it
  */
 export const NOTES_PLACE: NavigationPlace = { spots: [], top: 0, isNotes: true };
 
@@ -202,19 +202,6 @@ export const isReachable = (place: NavigationPlace): boolean =>
     : place.spots.length > 0 &&
       place.spots.every((spot) => paneState(spot.pane)?.document === spot.document);
 
-/**
- * Whether the Annotations panel that is up was come to by a step of the history — a note made, an
- * Open Annotation, Back or Forward — and so has a place to go back or on to. One raised by its
- * pill was not, and its Back and Forward have nothing to do.
- *
- * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.backStops
- * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.forwardStops
- */
-let notesByStep = false;
-workspaceStore.subscribe(() => {
-  if (notesByStep && !notesPanelIsUp(workspaceStore.getSnapshot())) notesByStep = false;
-});
-
 /** The first byte on screen while the caret last was, per pane; absent while it is off screen. */
 const topWithCaretOnScreen = new Map<PaneId, number>();
 
@@ -253,6 +240,33 @@ export function recordJump(
 }
 
 /**
+ * A card of the Annotations panel is about to take the reader to its place: Back goes to the panel
+ * again.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.recordStepFromNotes
+ */
+export function recordStepFromNotes(): void {
+  if (walking) return;
+  navigationHistory.record({ ...NOTES_PLACE, isToolStep: false });
+  arrivedByToolStep = false;
+  changed();
+}
+
+/**
+ * The Annotations panel shown after a step out of `pane` — a note made on it: the place left is
+ * where Back returns to.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showNotesWindow
+ */
+export function showNotesLeaving(pane: PaneId): void {
+  if (notesPanelIsUp(workspaceStore.getSnapshot())) return;
+  recordJump(pane);
+  openNotesPanel();
+  arrivedByToolStep = false;
+  changed();
+}
+
+/**
  * A tool is about to choose a row on the reader's behalf — a click on a row, a search match, a
  * Go To from a row: the place it leaves is a step of the tool's table, taken before the choice
  * changes (`ToolHost.noteNavigationStep`).
@@ -275,32 +289,34 @@ const frontPaneId = (): PaneId => paneInFront();
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canNavigateBack
  */
 export function canNavigateBack(): boolean {
-  const place = currentPlace();
-  if (place === undefined) return false;
-  return navigationHistory.canGoBack(place, isReachable);
-}
-
-/**
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canNavigateForward
- * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateBack
- * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateForward
- */
-export function canNavigateForward(): boolean {
-  const place = currentPlace();
-  if (place === undefined) return false;
-  return navigationHistory.canGoForward(place, isReachable);
-}
-
-/**
- * Where the reader stands, with how it was come to: the Annotations panel while it is up — and
- * nowhere the history knows when it was raised by its pill — otherwise the pane in front.
- */
-const currentPlace = (): NavigationPlace | undefined => {
-  if (notesPanelIsUp(workspaceStore.getSnapshot())) return notesByStep ? NOTES_PLACE : undefined;
   const pane = frontPaneId();
-  if (paneState(pane) === undefined) return undefined;
-  return { ...navigationPlaceOf(pane), isToolStep: arrivedByToolStep };
-};
+  return (
+    (paneState(pane) !== undefined || notesAreUp()) &&
+    navigationHistory.canGoBack(placeNow(pane), isReachable)
+  );
+}
+
+/** Whether the Annotations panel is the place the reader stands on. */
+const notesAreUp = (): boolean => notesPanelIsUp(workspaceStore.getSnapshot());
+
+/** Where the reader stands: the Annotations panel while it is up, else `pane`'s place. */
+const placeNow = (pane: PaneId): NavigationPlace =>
+  notesAreUp() ? NOTES_PLACE : navigationPlaceOf(pane);
+
+/** @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.canNavigateForward */
+export function canNavigateForward(): boolean {
+  const pane = frontPaneId();
+  return (
+    (paneState(pane) !== undefined || notesAreUp()) &&
+    navigationHistory.canGoForward(placeNow(pane), isReachable)
+  );
+}
+
+/** Where the reader stands, with how it was come to. */
+const currentPlace = (): NavigationPlace => ({
+  ...placeNow(frontPaneId()),
+  isToolStep: arrivedByToolStep,
+});
 
 /**
  * View ▸ Back: the place the last jump left.
@@ -308,9 +324,7 @@ const currentPlace = (): NavigationPlace | undefined => {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateBack
  */
 export function navigateBack(): void {
-  const current = currentPlace();
-  if (current === undefined) return;
-  const place = navigationHistory.goBack(current, isReachable);
+  const place = navigationHistory.goBack(currentPlace(), isReachable);
   if (place !== undefined) go(place);
 }
 
@@ -320,42 +334,8 @@ export function navigateBack(): void {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.navigateForward
  */
 export function navigateForward(): void {
-  const current = currentPlace();
-  if (current === undefined) return;
-  const place = navigationHistory.goForward(current, isReachable);
+  const place = navigationHistory.goForward(currentPlace(), isReachable);
   if (place !== undefined) go(place);
-}
-
-/**
- * The Annotations panel brought up after a step out of the dump — a note made on `pane`, an Open
- * Annotation on its bytes: the place left is where Back returns to.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showNotesWindow
- * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameForward
- */
-export function showNotesLeaving(pane: PaneId): void {
-  if (paneState(pane) !== undefined && !notesPanelIsUp(workspaceStore.getSnapshot())) {
-    recordJump(pane);
-  }
-  walking = true;
-  try {
-    openNotesPanel();
-  } finally {
-    walking = false;
-  }
-  notesByStep = true;
-  changed();
-}
-
-/**
- * A card of the Annotations panel took the tab to its place: Back goes to the panel again.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.recordStepFromNotes
- */
-export function recordStepFromNotes(): void {
-  if (workspaceStore.getSnapshot().notesPanel === undefined) return;
-  navigationHistory.record(NOTES_PLACE);
-  changed();
 }
 
 /**
@@ -367,14 +347,13 @@ export function recordStepFromNotes(): void {
  */
 function go(place: NavigationPlace): void {
   if (place.isNotes === true) {
-    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.arriveFromNotes
     walking = true;
     try {
       openNotesPanel();
+      arrivedByToolStep = false;
     } finally {
       walking = false;
     }
-    notesByStep = true;
     changed();
     return;
   }

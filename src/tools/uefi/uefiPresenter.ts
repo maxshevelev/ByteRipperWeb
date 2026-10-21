@@ -37,7 +37,7 @@ import type { ZoneMap } from "@/tools/zone";
 export interface ZonedNode {
   readonly id: readonly number[];
   readonly name: string;
-  /** A made-up name, put into words in the language in force (`displayName`). */
+  /** The made-up name put into words, where the caller has it: what a panel is called. */
   readonly nameText?: NameText | undefined;
   /**
    * What the node is, where the caller has it — a wire node does. It decides
@@ -94,8 +94,8 @@ export interface DecompressedBody {
    */
   readonly layout: UEFIRootLayout;
   /**
-   * What a saved file is called: on disk nothing but the name tells the body from the section
-   * it came out of.
+   * What a saved file is called: on disk nothing but the name tells the body
+   * from the section it came out of.
    *
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.DecompressedBody.suggestedName
    */
@@ -207,10 +207,10 @@ export function decompressedBody(node: CompressedSectionNode): DecompressedBody 
   }
   // A saved file that came *out* of a section says so in its name. Without it the section
   // saved as a node and the same section's decompressed body land under one name —
-  // `LZMA Section.bin` twice — and the two hold entirely different bytes. A node with no name
-  // is already called `decompressed`, so it says it once. A panel says it with the codec's
-  // badge on its pill, and its name is the section's. Both say `body` after the section's name
-  // where it has a header.
+  // `LZMA Section.bin` twice — and the two hold entirely different bytes. A node with no
+  // name is already called `decompressed`, so it says it once. A panel says it with the
+  // codec's badge on its pill, and its name is the section's. Both say `body` after the
+  // section's name where it has a header.
   const base = Array.from(node.name.length === 0 ? "decompressed" : node.name)
     .map((character) => ("/:".includes(character) ? "_" : character))
     .join("");
@@ -288,6 +288,7 @@ export function contentOf(node: CompressedSectionNode & ZonedNode): NodeContent 
  * file's, and a file's name is not translated.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.partName
+ * @upstream-differs the language in force, as `displayName` has it, where upstream takes one
  */
 export function partName(
   node: Pick<ZonedNode, "name" | "nameText" | "header">,
@@ -298,9 +299,13 @@ export function partName(
   return body && hasHeader(node) ? `${name} body` : name;
 }
 
+/** Whether `node` has a header, so that its body is less than the node. */
+const hasHeader = (node: { readonly header: readonly [number, number] }): boolean =>
+  node.header[1] > node.header[0];
+
 /**
- * A saved file's name: the dump it came out of, then what it is — `bios_Inner
- * decompressed.bin` — so files saved from two dumps do not land under one name.
+ * A saved file's name: the dump it came out of, then what it is —
+ * `bios_Inner decompressed.bin` — so files saved from two dumps do not land under one name.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.NodeOpen.saveName
  */
@@ -309,10 +314,6 @@ export function saveName(suggestedName: string, fileName: string): string {
   const stem = dot <= 0 ? fileName : fileName.slice(0, dot);
   return stem.length === 0 ? suggestedName : `${stem}_${suggestedName}`;
 }
-
-/** Whether a node has a header of its own, which makes its body less than the node. */
-const hasHeader = (node: { readonly header: readonly [number, number] }): boolean =>
-  node.header[1] > node.header[0];
 
 /**
  * A file name made out of a node's own name: the characters a path is built
@@ -460,8 +461,8 @@ export function nodeOpen(
   // the same name in the file do not land as one file. A panel says so with the codec's badge
   // on its pill. `body` as a panel's name says it: only where there is a header the body is
   // less than the node.
-  const suffix =
-    (space.length === 0 ? "" : " decompressed") + (body && hasHeader(node) ? " body" : "");
+  const decompressed = space.length === 0 ? "" : " decompressed";
+  const suffix = body && hasHeader(node) ? " body" : "";
   // A whole node of the file is a structure the image can be laid out again
   // around; a body, or a slice of a buffer, is bytes going back where they
   // were, through the section they came out of.
@@ -474,7 +475,7 @@ export function nodeOpen(
     source,
     ...(rebuild === undefined ? {} : { rebuild }),
     // A picture or a sound saves as what it is, so the file opens in a viewer or a player.
-    suggestedName: `${fileNameOf(node.name, "node")}${suffix}.${extensionOf(node)}`,
+    suggestedName: `${fileNameOf(node.name, "node")}${decompressed}${suffix}.${extensionOf(node)}`,
     partName: partName(node, body),
     menuTitle: title,
   };

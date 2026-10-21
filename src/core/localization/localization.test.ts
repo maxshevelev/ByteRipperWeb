@@ -151,6 +151,28 @@ describe("words asked for in a language", () => {
     expect(LocalizedText.verbatim("as is").textIn("de")).toBe("as is");
     expect(L("Drop files here")).toBe("Перетащите файлы сюда");
   });
+
+  /**
+   * A sentence inside a sentence, and sentences joined, are put into words in the language the
+   * whole is — and stay so after a worker's message has carried them as plain data.
+   */
+  it("puts a sentence within one, and a join, into the same language, across a message", () => {
+    installCatalogue({
+      language: "ru",
+      entries: {
+        "before %1$@": "до %1$@",
+        "the end of the file": "конца файла",
+        Done: "Готово",
+      },
+    });
+    const nested = LocalizedText.of("before %1$@", LocalizedText.of("the end of the file"));
+    const joined = LocalizedText.joined([nested, LocalizedText.of("Done")], " ");
+    const carried = LocalizedText.from(JSON.parse(JSON.stringify(joined)));
+
+    expect(carried.textIn("en")).toBe("before the end of the file Done");
+    expect(carried.textIn("ru")).toBe("до конца файла Готово");
+    expect(nested.args).toEqual(["the end of the file"]);
+  });
 });
 
 describe("the placeholders a sentence is poured into", () => {

@@ -508,12 +508,16 @@
         "Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift": "src/firmware/uefi/dmiStore.ts",
         "Packages/UEFIImage/Sources/UEFIImage/AcerDMIStore.swift": "src/firmware/uefi/acerDmiStore.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift": "src/firmware/uefi/acerDmiStore.test.ts",
+        "Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift": "src/firmware/uefi/hpDmiArea.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift": [
+          "src/firmware/uefi/hpDmiArea.test.ts",
+          "src/firmware/testing/testHPDMI.ts",
+          "src/workers/firmwareWorker.test.ts"
+        ],
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIStore.swift": "src/firmware/uefi/lenovoDmiStore.ts",
         "Packages/UEFIImage/Sources/UEFIImage/LenovoDMIFirmwareReaders.swift": "src/firmware/uefi/lenovoDmiFirmwareReaders.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift": "src/firmware/uefi/lenovoDmiStore.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/TestFlashDeviceMap.swift": "src/firmware/testing/testFlashDeviceMap.ts",
-        "Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift": "src/firmware/uefi/hpDmiArea.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift": "src/firmware/uefi/hpDmiArea.test.ts",
         "Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift": "src/firmware/uefi/appleDmiArea.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift": "src/firmware/uefi/appleDmiArea.test.ts"
       },
@@ -530,6 +534,16 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.image": "n/a — test scaffolding",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.imageWithUnusedMap": "n/a — test scaffolding",
         "Packages/UEFIImage/Tests/UEFIImageTests/AcerDMIStoreTests.swift#AcerDMIStoreTests.stores": "n/a — test scaffolding",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.serial": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.uuid": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.utf16": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.mud": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.text": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.variable": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.variables": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.image": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.store": "n/a — test scaffolding (testHPDMI.ts)",
+        "Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.area": "n/a — test scaffolding (testHPDMI.ts)",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.serial": "n/a — test scaffolding",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.motherboardSerial": "n/a — test scaffolding",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift#UEFIAcerDMIDetailTests.uuid": "n/a — test scaffolding",
@@ -819,7 +833,7 @@
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.documentID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.paneID": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
         "ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.init": "n/a — the web's spot holds the pane's id and the document itself, and is an object literal",
-        "ByteRipperApp/Navigation/NavigationHistory.swift#NavigationHistory.pushForward": "n/a — the window's own Back stops into the main window's history; the panel's steps are places of the tab's one history (NOTES_PLACE), so Back out of the panel is goBack"
+        "ByteRipperApp/Navigation/NavigationHistory.swift#NavigationHistory.pushForward": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it"
       }
     },
     {
@@ -973,6 +987,9 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFILenovoDMIDetailTests.swift": "src/tools/uefi/uefiLenovoDMIDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAcerDMIDetail.swift": "src/tools/uefi/uefiAcerDMIDetail.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAcerDMIDetailTests.swift": "src/tools/uefi/uefiAcerDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift": "src/tools/uefi/uefiHPDMIDetail.ts",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift": "src/tools/uefi/uefiHPDMIDetail.test.ts",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift": "src/tools/uefi/uefiStructureTool.tsx",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift": "src/tools/uefi/agent/uefiAgentQueries.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift": "src/tools/uefi/agent/uefiAgentNodeData.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift": "src/tools/uefi/agent/uefiAgentVariables.ts",
@@ -986,14 +1003,24 @@
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIContentSearchTests.swift": "src/tools/uefi/uefiContentSearch.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentContentSearch.swift": "src/tools/uefi/agent/uefiAgentFind.ts",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift": "src/tools/uefi/UefiContentResults.tsx",
-        "Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift": "src/tools/uefi/uefiHPDMIDetail.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts",
         "Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift": "src/tools/uefi/uefiAppleDMIDetail.ts",
-        "Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift": "src/tools/uefi/uefiStructureTool.tsx"
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts"
       },
       "unported": {
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.Bytes*": "n/a — a plain record here (`NodeBytes`)",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.serial": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.utf16": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.mud": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.le32": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.variable": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.image": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.parsed": "n/a — test scaffolding",
+        "Modules/UEFITool/Tests/UEFIToolTests/UEFIHPDMIDetailTests.swift#UEFIHPDMIDetailTests.value": "n/a — test scaffolding",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.font": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.inset": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.badgeHeight": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.attributedWord": "n/a — the badge's face is CSS (`.uefi-dmi-badge` in app.css)",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.intrinsicContentSize": "n/a — the button is as wide as its badge by layout",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.all": "n/a — the module's list is `uefiAgentQueries`",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.isCompressedSection": "n/a — a check on the node's own fields, inline",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.all": "n/a — the module's list is `uefiAgentQueries`",
@@ -1191,7 +1218,7 @@
         "src/tools/me/agent"
       ],
       "status": "in-progress",
-      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The summary's values are selectable as upstream makes them (`value.isSelectable` on each), and its labels are not, which is also upstream's arrangement: there the name column is a plain label with the flag left off. Nothing checks it (G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
+      "note": "The panel follows MEAToolViewController: the Summary / Full Tree tabs, Copy Summary (HTML and tab-separated text) and Copy Screenshot (a PNG, saved as a file where the browser has no clipboard for pictures) beside them on Summary only, the waiting / No ME firmware / failed placeholders, the tree with its offset · size column and grey empty sections over the shared ToolDetail behind a divider at a third, the notice line with Reading ME…, Try Again and MEA.dat's wait and failure, one focused zone per selected row, and tab, open rows and focus kept per pane. MEASummary, MEACurator (with MEAValueText's dump) and MEAZones are ported over the full FirmwareAnalysis: every summary row answered from its fact (SKU, the chipset-init cell, Production Ready, OEM Configuration, FWUpdate Support, File System State with its tone and, with the tone, the weight a toned value is drawn in (`isEmphasized`, meaSummary.ts — upstream's rule in the view, stated once here because the panel and the picture taken of it are two renderings of the same rows; the copy is the exception, see ANALYSIS.md), the firmware's own size, Patsburg Support and the ME 7 blacklists), the independent PMC/PCHC/PHY tables, and the MFS (files, configurations, home tree, chipset initialisation, integrity), MFS Backup, EFS Volume, OEM Configuration, $MME Directory, GSC Info, OROM Images and RBE/PM Metadata groups. Three of the tree's row groups are named from `FileTable.dat` rather than from the analysis, because the flash says nothing about them: an FTBL-mode MFS volume's low-level files (`MFSFileNames`), an EFS volume's files (`EFSFileNames`), and the files of an ID-keyed (0xC) Configuration stream, whether the FITC partition's payload or a newer volume's own 6/7 records (`ConfigRecordPaths`). Each group's own row says which table the names came from and whether either half of it was assumed, and the Configuration records the FITC payload locates also carry the byte range they point at — `payloadOffset` plus the record's own offset. The Summary's blocks and the detail under the tree are the shared detail list (`DetailFields`, upstream's `ToolFieldList` since d20c8f1d): a drag selects across rows, names and values alike, Ctrl+A or ⌘A takes a block, and a copy is a name, a tab and its value per line; the Summary's name column is upstream's 200 points at its design size of 11 and the detail's the longest name's, both capped at half the list, where a name wraps (detailSelection.test.tsx, G46). Two upstream text slips are not copied: the RBE rows read \"R1 #0\" rather than \"RR1 #0\", and the plural of \"entry\" is \"entries\". Checksums are computed in the firmware worker on selection, with the ported digests, since crypto.subtle is not there on a plain-HTTP origin. The tree dresses its rows with the shared row marks and carries the panel's legend (ROW_MARKS.md; MEATreeMarks.swift, meaTreeMarks.ts): this tree does decompress pm and rbe, so `decompressed` and its rail are real here (G1 is a UEFI gap), and no row is tinted, since no protected range is placed (G3).",
       "files": {
         "MEASummary.swift": "src/tools/me/meaSummary.ts",
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
@@ -1221,6 +1248,11 @@
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.endBusy": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.say": "n/a — the busy, notice and retry lines are rendered from state",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showRetry": "n/a — the busy, notice and retry lines are rendered from state",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testANewDatabaseMakesThePanelReadAgain": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testASummaryCopyIsConfirmedOverTheWindowWithItsButtonsGlyph": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnotherFileShowsTheWaitNotTheLastFilesAnalysis": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testNothingIsConfirmedWhileThereIsNoSummaryToCopy": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheDetailDrawsStatusValuesLikeTheOtherPanels": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
@@ -1337,6 +1369,9 @@
         "ByteRipperApp/Hex/HexView.swift#HexView.accessibilityLabel": "n/a — what a screen reader is told about the dump was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Hex/HexView.swift#HexView.accessibilityValue": "n/a — what a screen reader is told about the dump was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Hex/HexView.swift#HexView.isFlipped": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Hex/HexView.swift#HexView.updateTrackingAreas": "n/a — AppKit view plumbing: the scroller's pointer events arrive without a tracking area",
+        "ByteRipperApp/Hex/HexView.swift#HexView.viewWillMove": "n/a — a pane that goes away unmounts its callout with it; there is no window for it to move out of",
+        "ByteRipperApp/Hex/HexView.swift#HexView.viewDidHide": "n/a — a pane that goes away unmounts its callout with it",
         "ByteRipperApp/Hex/HexView.swift#HexView.acceptsFirstResponder": "n/a — AppKit view plumbing",
         "ByteRipperApp/Hex/HexView.swift#HexView.becomeFirstResponder": "n/a — focus is the grid element's own",
         "ByteRipperApp/Hex/HexView.swift#HexView.resignFirstResponder": "n/a — focus is the grid element's own",
@@ -1351,9 +1386,7 @@
         "ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorShadow": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator",
         "ByteRipperApp/Hex/HexView.swift#String*": "n/a — padStart",
-        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end",
-        "ByteRipperApp/Hex/HexView.swift#HexView.updateTrackingAreas": "n/a — AppKit's tracking area: the scroller's own pointer events reach the handler",
-        "ByteRipperApp/Hex/HexView.swift#HexView.viewDidHide": "n/a — AppKit's view hiding: a pane that goes is unmounted, and its effect's cleanup takes the callout down"
+        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end"
       }
     },
     {
@@ -1384,13 +1417,14 @@
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.standInDraws": "n/a — a test seam over AppKit's repaint",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isFlipped": "n/a — AppKit view plumbing",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.updateTrackingAreas": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewWillMove": "n/a — a map that is put away unmounts its callout with it; there is no window for it to move out of",
+        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewDidHide": "n/a — a map that is put away unmounts its callout with it",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.geometrySettleDelay": "n/a — the old picture is stretched by CSS; there is no settle timer",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.accessibility*": "n/a — what a screen reader is told about the minimap was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.isAccessibilityElement": "n/a — what a screen reader is told about the minimap was dropped by the owner (2026-10-07; GAPS §2.1, G23): a workshop tool read by eye; the canvas keeps a fixed aria-label",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.init": "n/a — a component",
         "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.layout": "n/a — CSS lays the panel out",
-        "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.minimumMapHeight": "n/a — CSS lays the panel out",
-        "ByteRipperApp/Minimap/MinimapView.swift#MinimapView.viewDidHide": "n/a — AppKit's view hiding: a map that goes is unmounted, and its effect's cleanup takes the callout down"
+        "ByteRipperApp/Minimap/MinimapPanelView.swift#MinimapPanelView.minimumMapHeight": "n/a — CSS lays the panel out"
       }
     },
     {
@@ -2293,8 +2327,6 @@
         "ByteRipperTests/BackgroundOperationTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkDragTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkMinimapTests.swift": "tests/e2e",
-        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e",
-        "ByteRipperTests/NoteOutlineTests.swift": "tests/e2e",
         "ByteRipperTests/BookmarkTests.swift": "tests/e2e",
         "ByteRipperTests/ByteSignificanceTests.swift": "tests/e2e",
         "ByteRipperTests/CaretPlacementTests.swift": "tests/e2e",
@@ -2347,6 +2379,7 @@
         "ByteRipperTests/MainWindowMenuTests.swift": "tests/e2e",
         "ByteRipperTests/MinimapTests.swift": "tests/e2e",
         "ByteRipperTests/MinimapZoneTests.swift": "tests/e2e",
+        "ByteRipperTests/NoteOutlineTests.swift": "src/render/hexGrid/spanContour.test.ts",
         "ByteRipperTests/MouseSelectionTests.swift": "tests/e2e",
         "ByteRipperTests/MultiWindowTests.swift": "tests/e2e",
         "ByteRipperTests/NamePatternSheetTests.swift": "tests/e2e",
@@ -2413,7 +2446,8 @@
         "ByteRipperTests/NavigationHistoryTests.swift": [
           "src/core/navigation/navigationHistory.test.ts",
           "src/state/navigationStore.test.ts"
-        ]
+        ],
+        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -2476,6 +2510,8 @@
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testAMarkedRowIsMarkedInTheMargin": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testRemovingTheBookmarkRemovesTheMark": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheOverviewMarksTheRowToo": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testNoMarkPastAShorterFilesEnd": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testBothMarkersAreEquilateralTrianglesAndTheBookmarkIsSmaller": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testBothMarkersApexOnTheSameLine": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -3399,7 +3435,6 @@
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheChecksumsRowFillsInWhenItIsLookedAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testARevertDropsTheCachedAnalysisBeforeAnnouncingTheReload": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testALongValueWrapsInsideItsColumn": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnFitsTheLongestNameAndStopsAtHalfTheList": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.zoom": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.detailContent": "n/a — test scaffolding",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.isOnScreen": "n/a — test scaffolding",
@@ -4483,6 +4518,7 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingIntoAnUnopenedMERegionOpensItAndPicksTheRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAMappableMENodePublishesItsRange": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testSelectingAnInfoLeafMENodePublishesNoZone": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/SegmentLinkTests.swift#SegmentLinkCommandTests": "later — an app flow test (the strip menu's revert and the length question are the platform layer's); its two source-changed-prompt tests are n/a — a page holds its bytes in memory, so no source changes behind its back",
         "ByteRipperTests/SegmentLinkTests.swift#SegmentSourceWriteGuardTests": "later — an app flow test; the guard's state is unit-tested in `segmentSources.test.ts`, but the save panel's re-show loop is the platform layer's",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFITestImage.dvarImage": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -4547,15 +4583,7 @@
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheWindowOpensTallAndKeepsItsFrame": "n/a — the Agent window is a panel of the fragment dock; it has no frame to keep",
         "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testASecondPanelLetGoOnATornOffTabIsComparedWithTheFirst": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
         "ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testOptionLettingAPanelGoOnATabsFreeHalfCopiesIt": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testClickingAnMEZoneInTheDumpKeepsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testTheMarkSaysItsNameOnHover": "later — an app flow test; the port has no component or end-to-end test for it yet. What the mark says is unit-tested (bookmarkHoverText), and the callout was looked at in a browser",
-        "ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAMarkedAddressSaysItsNameAtOnce": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAnAgentsNoteWearsTheAgentsHue": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testNoCalloutWhileAMarkIsDragged": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testTheDashesStandStillWhateverIsRepainted": "later — reads the dump's pixels back, which the port has no canvas test for; the fold itself is tested (spanContour.test.ts)",
-        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note",
         "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheComparisonSectionIsInTheGeneralTab": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testATabKeepsItsBookmarksOpen": "n/a — the app's window tabs; one workspace per browser tab",
         "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testClosingTheLastFileClosesTheTabWhenOthersAreOpen": "n/a — the app's window tabs; one workspace per browser tab",
@@ -4680,74 +4708,6 @@
       }
     },
     {
-      "swift": "Packages/Workspace",
-      "web": [
-        "src/core/workspace/workspace.ts",
-        "src/platform/files/projectFolder.ts"
-      ],
-      "status": "ported",
-      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts).",
-      "unported": {
-        "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel"
-      }
-    },
-    {
-      "swift": "ByteRipperApp/Workspace",
-      "web": [
-        "src/state/workspace/workspaceIdentity.ts",
-        "src/state/workspace/workspaceRecorder.ts",
-        "src/state/workspace/workspaceRestorer.ts",
-        "src/state/workspace/workspaceRecords.ts",
-        "src/state/workspace/partCodecState.ts",
-        "src/state/workspace/projectRecords.ts",
-        "src/state/workspace/projects.ts"
-      ],
-      "status": "ported",
-      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
-    },
-    {
-      "swift": "ByteRipperApp/Window/HoverCallout",
-      "web": [
-        "src/state/hoverCalloutStore.ts",
-        "src/ui/callout/calloutFrame.ts",
-        "src/ui/callout/HoverCallout.tsx"
-      ],
-      "status": "ported",
-      "note": "The capsule that names what the pointer reaches, at once (a924dbba): a bookmark's address in the dump, a note's outline, and on the minimap a mark, a piece or a cut of the segment strip and a zone's bracket. One callout for the page in a store (owner, text, glyph, anchor, side), drawn over the page by a portal, placed by calloutFrame from its measured size: beside the anchor on the side facing the middle of its view, turned when that side has no room, kept inside the window. The glyphs are inline SVG in the shape and colour of the thing named. A window blur takes it away; each view hides its own on its own events.",
-      "files": {
-        "ByteRipperApp/Window/HoverCallout.swift": ""
-      },
-      "unported": {
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.font": "n/a — the stylesheet's (.hover-callout, 13px), which the anchor check does not read",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maximumTextWidth": "n/a — the stylesheet's max-width on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.horizontalPadding": "n/a — the stylesheet's padding on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.verticalPadding": "n/a — the stylesheet's padding on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.glyphWidth": "n/a — the glyph's SVG width",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.glyphGap": "n/a — the stylesheet's gap on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.shadowMargin": "n/a — a CSS box-shadow needs no room of its own",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maximumCornerRadius": "n/a — the stylesheet's border-radius on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.wash": "n/a — the theme's --callout-ground token",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.rim": "n/a — the theme's --callout-rim token",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.textSize": "n/a — the browser lays the words out, and the capsule is measured after",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.attributes": "n/a — the stylesheet's font and colour",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maskImage": "n/a — a CSS border-radius",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.material": "n/a — AppKit's visual effect material; the ground is a theme token",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.content": "n/a — AppKit's subview; the element's children",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.observedWindow": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.resignKeyObserver": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.init": "n/a — AppKit's view set-up",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.hitTest": "n/a — pointer-events: none on .hover-callout",
-        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.isAccessibilityElement": "n/a — aria-hidden on the capsule",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.text": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.mark": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.radius": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.isFlipped": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.hitTest": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
-        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.draw": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph"
-      }
-    },
-    {
       "swift": "ByteRipperApp/Window/TransientNoticeView",
       "web": [
         "src/state/noticeStore.ts",
@@ -4767,6 +4727,45 @@
       },
       "files": {
         "ByteRipperApp/Window/TransientNoticeView.swift": ""
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Window/HoverCallout",
+      "web": [
+        "src/ui/callout/hoverCalloutGeometry.ts",
+        "src/ui/callout/HoverCallout.tsx"
+      ],
+      "status": "ported",
+      "note": "The capsule that names what the pointer is on — a bookmark's mark in the dump or on the minimap, a segment piece or a cut, a zone's bracket, a note's outline — the moment the pointer reaches it, in place of the browser's `title` tooltip, whose wait is as fixed as the system tooltip's upstream. The placement is pure and tested (hoverCalloutGeometry.ts: capsuleFrame, opensRight, aroundPointer); the component is a fixed element in a portal over the page, measured and placed before the frame is painted, with the glyph as inline SVG. It is a transient overlay, not a panel of the fragment dock: no pill, no focus, no clicks. Its users are HexPane (hexPointer.ts: hexHover, noteContour) and MinimapPanel (minimapHover.ts), each hiding it on the events after which it would be wrong.",
+      "files": {
+        "ByteRipperApp/Window/HoverCallout.swift": [
+          "src/ui/callout/hoverCalloutGeometry.ts",
+          "src/ui/callout/HoverCallout.tsx"
+        ],
+        "ByteRipperTests/HoverCalloutTests.swift": [
+          "src/ui/callout/hoverCalloutGeometry.test.ts",
+          "src/ui/pane/hexPointer.test.ts"
+        ]
+      },
+      "unported": {
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.attributes": "n/a — the text's font and wrapping are the stylesheet's (.hover-callout-text in src/app/app.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.textSize": "n/a — the browser lays the words out and the component measures the capsule it made",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.shadowMargin": "n/a — a CSS box-shadow is drawn outside the box without room being made for it",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.wash": "n/a — the lifted grey is a theme token (--callout-fill in src/ui/theme/theme.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.rim": "n/a — the edge is a theme token (--callout-rim in src/ui/theme/theme.css), which the anchor check does not read",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.isShowing": "n/a — a test seam: whether the element is in the page",
+        "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test (G24): the events that take the callout away are HexPane's — the pointer leaving, a scroll, a press, an edit, the bookmarks or notes changing, the window losing the focus — and the port has no component test to drive them; what it says and where is hexPointer.test.ts",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.maskImage": "n/a — a CSS border-radius",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.material": "n/a — AppKit's visual effect material; the ground is a theme token",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.content": "n/a — AppKit's subview; the element's children",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.observedWindow": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
+        "ByteRipperApp/Window/HoverCallout.swift#HoverCallout.resignKeyObserver": "n/a — AppKit's key-window observation; observeKey's blur listener has no state",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.text": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.mark": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.radius": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.isFlipped": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.hitTest": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph",
+        "ByteRipperApp/Window/HoverCallout.swift#CalloutContentView.draw": "n/a — AppKit's drawing view: the capsule is an element, its glyph CalloutGlyph"
       }
     },
     {
@@ -5013,6 +5012,7 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.goToForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.arriveFromNotes": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.hasOtherTabs": "n/a — one workspace per browser tab; the app has no sibling tabs for an emptied one to close into",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it"
       },
@@ -5315,9 +5315,13 @@
         ],
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailPane.swift": [
           "src/state/largeDetailStore.ts",
-          "src/ui/toolPanel/ToolDetail.tsx"
+          "src/ui/toolPanel/ToolDetail.tsx",
+          "src/ui/toolPanel/largeDetailClick.ts"
         ],
-        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": "src/state/largeDetailStore.test.ts",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailPaneTests.swift": [
+          "src/state/largeDetailStore.test.ts",
+          "src/ui/toolPanel/largeDetailClick.test.ts"
+        ],
         "ToolModuleKit/SearchWrapSigns.swift": "src/state/noticeStore.ts",
         "Packages/ToolModuleKit/Tests/ToolModuleKitTests/SeamTests.swift": "src/tools/seam.test.ts",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolAgent.swift": "src/tools/toolAgent.ts"
@@ -5451,8 +5455,7 @@
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.entries": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Catalogue.language": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/Localization/Sources/Localization/Localization.swift#Localization.preferredLanguages": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/Localization/Sources/Localization/Localization.swift#Localization.pieces": "n/a — no web caller joins sentences still to be put into words"
+        "Packages/Localization/Sources/Localization/Localization.swift#Localization.resolvedLanguage": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
       }
     },
     {
@@ -5749,9 +5752,17 @@
           "src/state/agent/agentAnnotationStore.ts",
           "src/tools/uefi/agent/uefiAgentAnnotations.ts"
         ],
-        "AgentActivityBadge.swift": "src/ui/shell/Toolbar.tsx",
-        "AgentAnnotationCards.swift": "src/ui/notes/NotesPanel.tsx",
-        "ByteRipperTests/AgentAnnotationTests.swift": "src/state/agent/agentAnnotationTools.test.ts"
+        "AgentAnnotationCards.swift": [
+          "src/ui/notes/NotesPanel.tsx",
+          "src/core/agent/annotationOrder.ts"
+        ],
+        "ByteRipperTests/AgentAnnotationTests.swift": [
+          "src/state/agent/agentAnnotationTools.test.ts",
+          "src/state/agent/agentAnnotationOrder.test.ts",
+          "src/core/agent/annotationOrder.test.ts",
+          "src/ui/shell/openAnnotationMenu.test.ts"
+        ],
+        "AgentActivityBadge.swift": "src/ui/shell/Toolbar.tsx"
       },
       "unported": {
         "ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.init": "n/a — one workspace per browser tab (D11): there is no controller of a tab to name",
@@ -5856,7 +5867,7 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onShow": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.rows": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.scroll": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.shownTexts": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.zoomChanged": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCardItem*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5864,7 +5875,9 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationCollectionView*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationPlaceLine*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.collectionViewContentSize": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.gap": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.heightFor": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.inset": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.itemFrames": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.layoutAttributes*": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.shouldInvalidateLayout": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5880,23 +5893,32 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsCardsHoldAllOfTheirText": "n/a — AppKit layout of a card; the React cards size to their text in CSS",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFillTheShortestColumnAndDeleteRemoves": "later — a component test of NotesPanel: the columns, Delete, the node named as UEFI Structure names it",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnACardRemovesIt": "later — a component test of NotesPanel",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnTheCardThatTookARemovedOnesPlaceRemovesIt": "n/a — NSCollectionView keeps a removed card's view hidden for reuse, and its ✕ took the click; NotesPanel keys each card by its annotation, so a removed card is unmounted and nothing hidden is left to answer",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheNotesWindowListsAnnotationsWithTheirRelationsAndStandsEmptyWithout": "later — a component test of NotesPanel; the relation in the tooltip is in agentAnnotationTools.test, and the panel is never empty (it goes with the last annotation)",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowSpeaksTheAppsLanguageAndTheAgentEnglish": "later — with X8, the language named at the call",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceFromABackgroundDumpOpensItsPanelTheFirstTime": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingANodeInAFileNotOpenOpensUEFIStructureAtIt": "later — an app flow test: showing goes through UEFI Structure's panel link, which the React panel registers",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShowingAPlaceInTheDumpFoldsAFragmentPanel": "later — an app flow test: the fold is the shell's reveal (AppShell)",
         "ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testASurveyOfTheDMIAreaSetsTheKnownLayoutsApart": "later — a survey reads files by path through the shell, and the firmware worker harness (`firmwareAgent`) has no disk; uefi_dmi itself is in agentUefiDMI.test",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationMasonryLayout.emptyIndex": "n/a — the collection view's hidden item; NotesPanel leaves the carried card's place empty by laying the others out without it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.isCarrying": "n/a — a test's window onto the carry; the web's carry is the panel's state, and its arithmetic (`carryTarget`, `movedTo`, `stillSettled`) is tested on its own",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.draw": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.hitTest": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.hue": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.init": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.intrinsicContentSize": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.text": "n/a — AppKit drawing of the New tag; `.note-card-new` in app.css draws it",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardCarriedBelowTheShorterColumnGoesLast": "n/a — the drop's last place is `carried(ids, id, undefined)`, tested in annotationOrder.test.ts; the column's drop target is the panel's, which has no runner (G24)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardMeasuredWhileTheCardsMoveIsAsTallAsEver": "n/a — AppKit's animated update and frame arithmetic; a card's height is the CSS box's",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPlaceInTheInactivePaneOfAComparisonActivatesItAndMovesUEFIStructure": "n/a — `bringForward` in AppShell makes the pane active and `show` selects the pane UEFI Structure is bound to, but the effect is the shell's, which no test mounts (G24)",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPressWithCommandOrShiftOnlySelects": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRemovingACardClosesTheGapAnimated": "n/a — the animation; the removal itself is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testSelectAllSelectsEveryCard": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShiftSelectsARunAndCommandOneCard": "n/a — a flow test of the React panel, which the project has no runner for (G24); the state it drives is tested in agentAnnotationOrder.test.ts",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — React draws the cards at the page's zoom whenever it changes",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — the panel has a header with its own help button, no toolbar and no tab; the window's toolbar keeps Back and Forward in view over it",
+        "ByteRipperTests/AgentDiffToolsTests.swift#AgentDiffToolsTests.testRevealDiffInTheInactivePaneActivatesItAndGoesFromItsCaret": "n/a — `bringForward` in AppShell makes the pane active, but the effect is the shell's, which no test mounts (G24)",
+        "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealInTheInactivePaneOfAComparisonActivatesIt": "n/a — `bringForward` in AppShell makes the pane active, but the effect is the shell's, which no test mounts (G24)",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.*": "n/a — AppKit's drawn view: the New tag is a span on the card's top edge, its shape and colour CSS",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardMeasuredWhileTheCardsMoveIsAsTallAsEver": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAPressWithCommandOrShiftOnlySelects": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRemovingACardClosesTheGapAnimated": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testSelectAllSelectsEveryCard": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testShiftSelectsARunAndCommandOneCard": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCrossOnTheCardThatTookARemovedOnesPlaceRemovesIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — the panels do not follow the tool panels' zoom (GAPS, the Agent window's row): the browser's page zoom is the zoom",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — a window's toolbar; the panel sits under the tab's own toolbar, whose Back and Forward walk its steps",
-        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheTabSetsTheBoundsOnDumpsOpenedByPath": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.*": "n/a — AppKit's drawn view laid on the toolbar's button: the dot is a span inside the React button, drawn, placed and blinked by CSS (.agent-activity-badge), and gone when the service is not active",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWorkspaceKeepsTheNotesWindowAndItsSelection": "n/a — the workspace is recorded into IndexedDB and restored into the dock, which is checked in the browser rather than by a unit test"
       }
@@ -5925,10 +5947,10 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.instance": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isInView": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.newWindowForTab": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.refresh": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.shared": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidBecomeKey": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidDeminiaturize": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesSymbol*": "n/a — an SF Symbol name; the pill is labelled with the panel's name",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.draw": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.hitTest": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesCountBadge.intrinsicContentSize": "n/a — AppKit drawing; the pill's badge is CSS (`.fragment-pill-unseen`)",
@@ -5936,18 +5958,33 @@
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.init": "n/a — AppKit; NoteFormDialog is a React form",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.noteView": "n/a — AppKit; NoteFormDialog is a React form",
         "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteForm.titleField": "n/a — AppKit; NoteFormDialog is a React form",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop.controller": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop.place": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.backStops": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.forwardStops": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameBack": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameForward": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateBack": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.canNavigateForward": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateBack": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateForward": "n/a — the toolbar's Back and Forward, which stay in view over the raised panel, and the Back and Forward keys walk the one history (`navigateBack`, `navigateForward`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.syncAgentItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbarAllowedItemIdentifiers": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbarDefaultItemIdentifiers": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateToolbarItem": "n/a — the window's toolbar and its menu validation; the panel's header carries the help button, the Agent button and Back and Forward are the window toolbar's own",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidMiniaturize": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowDidResignKey": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowWillClose": "n/a — window delegate callbacks; the panel being folded is what takes it out of view (`syncPanel`)",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.id": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.init": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object",
+        "ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.pane": "n/a — the menu item's closure carries the annotation, where upstream's item carries a target object",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.Stop*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.cameBack": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isOpen": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateBack": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateForward": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.syncAgentItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateToolbarItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.window*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.init": "n/a — AppKit's view set-up: NotesEmpty is an element",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesEmptyView.draw": "n/a — AppKit's drawing: the panel's own ground"
+        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.window*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is"
       }
     },
     {
@@ -5963,6 +6000,32 @@
         "main.swift": "desktop/relay.cjs"
       },
       "unported": {}
+    },
+    {
+      "swift": "Packages/Workspace",
+      "web": [
+        "src/core/workspace/workspace.ts",
+        "src/platform/files/projectFolder.ts"
+      ],
+      "status": "ported",
+      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts).",
+      "unported": {
+        "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Workspace",
+      "web": [
+        "src/state/workspace/workspaceIdentity.ts",
+        "src/state/workspace/workspaceRecorder.ts",
+        "src/state/workspace/workspaceRestorer.ts",
+        "src/state/workspace/workspaceRecords.ts",
+        "src/state/workspace/partCodecState.ts",
+        "src/state/workspace/projectRecords.ts",
+        "src/state/workspace/projects.ts"
+      ],
+      "status": "ported",
+      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
     }
   ]
 }

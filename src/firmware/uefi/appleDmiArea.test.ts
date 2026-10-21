@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
-import { sysfVariable } from "@/firmware/testing/testNvram";
 import {
   APPLE_BOARD,
   APPLE_SERIAL,
   appleImage,
   appleVariable,
   appleVariables,
-} from "@/firmware/testing/testVendorDMI";
+} from "@/firmware/testing/testAppleDMI";
+import { sysfVariable } from "@/firmware/testing/testNvram";
 import { type AppleDMIArea, appleFindings, readAppleDMIArea } from "@/firmware/uefi/appleDmiArea";
 import { allDMIStores } from "@/firmware/uefi/dmiStore";
 import { NVRAM } from "@/firmware/uefi/nvramParser";

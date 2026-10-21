@@ -123,6 +123,8 @@ describe("what opening one means", () => {
 
     expect(open?.range).toEqual([0x118, 0x180]);
     expect(open?.suggestedName).toBe("MyDriver body.bin");
+    // The node's name, then body, in a panel as on disk.
+    expect(open?.partName).toBe("MyDriver body");
   });
 
   /**

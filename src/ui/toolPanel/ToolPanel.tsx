@@ -212,14 +212,12 @@ export function ToolPanel({
         title: name,
         note: "",
         done: (title, note) => {
-          agentService.annotationTools
-            .addNodeNote(title, note, boundPane, nodeId)
-            // The note is seen made, as one on bytes is.
-            // @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.addNoteToSelection
-            .then((made) => {
+          // Seen made, as on the bytes: the panel comes up, a step Back returns from to the tree's row.
+          agentService.annotationTools.addNodeNote(title, note, boundPane, nodeId).then(
+            (made) => {
               if (made) showNotesLeaving(boundPane);
-            })
-            .catch(() =>
+            },
+            () =>
               // What refuses a node is worded for an agent, in English: the person is told what to
               // do instead, in their words.
               reportAlert(
@@ -229,7 +227,7 @@ export function ToolPanel({
                 ),
                 "problem"
               )
-            );
+          );
         },
       }),
     // What the session was handed as it started, from the same place the pane

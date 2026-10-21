@@ -73,7 +73,8 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
       kind: "firmwareRebuild",
       id: request.id,
       plan: undefined,
-      refusal: result.refusal.message,
+      // What a message carries: the sentence's fields, not its class.
+      refusal: structuredClone(result.refusal.messageText),
     };
   }
   const { start, end } = result.plan.source;
@@ -83,7 +84,7 @@ async function plan(request: FirmwareRebuildRequest): Promise<unknown> {
     plan: {
       offset: result.plan.offset,
       bytes: result.plan.bytes,
-      warnings: result.plan.warnings,
+      warnings: structuredClone(result.plan.warnings),
       source: [start, end],
     },
     refusal: undefined,

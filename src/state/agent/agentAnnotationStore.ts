@@ -1,11 +1,15 @@
 import {
   type AgentAnnotation,
+  type AnnotationDecoded,
+  type AnnotationSite,
   type DrawnAnnotation,
   type FileIdentity,
   sameFile,
 } from "@/core/agent/agentAnnotation";
+import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
+import { keptHandles, onFileReplaced, onHandlesChange, restoreHandles } from "@/state/fileReopen";
 import { createStore } from "@/state/store";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
@@ -17,53 +21,67 @@ import {
 } from "@/state/workspaceStore";
 
 /**
- * The annotations, for the whole app, and from one launch to the next (`keepAnnotations`): what
- * the agent and the person said about places in files. A pane draws the ones for its file
- * whenever it shows it (`drawnIn`), and the Annotations panel lists them in an order of its own —
- * the newest first, then wherever the person drags a card.
+ * The annotations, for the whole app and — once `restoreAnnotations` has run — from one visit to
+ * the next (`AgentAnnotationTools`): what the agent and the person said about places in files. A
+ * pane draws the ones for its file whenever it shows it (`drawnIn`), and the Annotations panel
+ * lists them in an order of its own — the newest first, then wherever the person drags a card.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.items
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.unseen
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.fresh
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.takeFresh
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.newIDs
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.order
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.generation
- * @upstream-differs a store the panes and the panel subscribe to, where upstream tells each pane
+ * @upstream-differs a store the panes and the panel subscribe to, where upstream tells each pane;
+ * `marked` and `chosen` are the panel's own state upstream (`AgentAnnotationCards.newIDs`, the
+ * collection's selection), kept here because the offset menu and an undo select a card from outside
  */
 export interface AgentAnnotationState {
-  /** In the order they were made, oldest first — the order an agent lists them in. */
   readonly items: readonly AgentAnnotation[];
   /** The agent's annotations made while the Annotations panel was not up, counted on its pill. */
   readonly unseen: ReadonlySet<string>;
   /**
-   * Notes — the agent's or the person's — not yet marked new in the Annotations panel: it takes
-   * them at once while it is up, and the next time it comes up otherwise.
-   *
-   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.fresh
+   * Notes — the agent's or the person's — not yet marked new in the panel: it takes them at once
+   * while it is up, and the next time it comes up otherwise.
    */
   readonly fresh: ReadonlySet<string>;
-  /**
-   * The cards' order in the Annotations panel, first card first: a new one goes in front, and a
-   * card dragged stays where it was put.
-   *
-   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.order
-   */
+  /** The cards' order, first card first: a new one goes in front. */
   readonly order: readonly string[];
-  /**
-   * The number the next annotation's id is made with — `a1`, `a2`…, one counter for the app, kept
-   * with the annotations so an id kept from another launch is never made again.
-   *
-   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.nextID
-   */
+  /** The cards that wear the New tag: until the panel is folded, or the page left. */
+  readonly marked: ReadonlySet<string>;
+  /** The cards selected. */
+  readonly chosen: ReadonlySet<string>;
+  /** The card a Shift-click selects the run from: the one last clicked, or last selected alone. */
+  readonly anchor: string | undefined;
+  /** A card selected from outside the panel, for it to scroll to: a new object every time. */
+  readonly reveal: { readonly id: string } | undefined;
+  /** The number the next annotation's id is made with. */
   readonly nextId: number;
 }
 
-const EMPTY: AgentAnnotationState = {
+export const agentAnnotationStore = createStore<AgentAnnotationState>({
   items: [],
   unseen: new Set(),
   fresh: new Set(),
   order: [],
+  marked: new Set(),
+  chosen: new Set(),
+  anchor: undefined,
+  reveal: undefined,
   nextId: 1,
-};
+});
 
-export const agentAnnotationStore = createStore<AgentAnnotationState>(EMPTY);
+/**
+ * Takes the id the next annotation is made with.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.nextID
+ */
+export function claimAnnotationId(): string {
+  const id = agentAnnotationStore.getSnapshot().nextId;
+  agentAnnotationStore.update((state) => ({ ...state, nextId: id + 1 }));
+  return `a${id}`;
+}
 
 /** Whether `document` is still held by a pane — what an annotation on a document lives as long as. */
 function documentIsOpen(document: BinaryDocument): boolean {
@@ -87,6 +105,60 @@ export function allAnnotations(
     const document = one.file.document.deref();
     return document !== undefined && documentIsOpen(document);
   });
+}
+
+/**
+ * Every annotation in the cards' order: the newest first, then as the person arranged them.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.ordered
+ */
+export function orderedAnnotations(
+  state: AgentAnnotationState = agentAnnotationStore.getSnapshot()
+): readonly AgentAnnotation[] {
+  return inCardOrder(allAnnotations(state), state.order);
+}
+
+/**
+ * The person has dragged a card: the cards now stand as `ids` says.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.arrange
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onArrange
+ */
+export function arrangeAnnotations(ids: readonly string[]): void {
+  agentAnnotationStore.update((state) => {
+    const order = arranged(state.order, ids);
+    return order.join() === state.order.join() ? state : { ...state, order };
+  });
+}
+
+/**
+ * The cards `ids` name selected, and no others; with `anchor`, that card is where a Shift-click
+ * selects the run from.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
+ */
+export function selectAnnotations(ids: Iterable<string>, anchor?: string): void {
+  agentAnnotationStore.update((state) => ({
+    ...state,
+    chosen: new Set(ids),
+    anchor: anchor ?? state.anchor,
+  }));
+}
+
+/**
+ * The cards `ids` name selected from outside the panel — the offset menu, a card's link to
+ * another, an undo — and the panel scrolled to the first of them.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
+ */
+export function showAnnotationCards(ids: readonly string[]): void {
+  // One card selected alone is the run's start, as a click on it would be.
+  selectAnnotations(ids, ids.length === 1 ? ids[0] : undefined);
+  const wanted = new Set(ids);
+  const first = orderedAnnotations().find((one) => wanted.has(one.id));
+  if (first !== undefined) {
+    agentAnnotationStore.update((state) => ({ ...state, reveal: { id: first.id } }));
+  }
 }
 
 /**
@@ -184,34 +256,6 @@ export function drawnIn(
 }
 
 /**
- * Every annotation in the cards' order: the newest first, then as the person arranged them.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.ordered
- */
-export function orderedAnnotations(
-  state: AgentAnnotationState = agentAnnotationStore.getSnapshot()
-): readonly AgentAnnotation[] {
-  const rank = new Map<string, number>();
-  state.order.forEach((id, index) => {
-    if (!rank.has(id)) rank.set(id, index);
-  });
-  return [...allAnnotations(state)].sort(
-    (left, right) => (rank.get(left.id) ?? -1) - (rank.get(right.id) ?? -1)
-  );
-}
-
-/**
- * The id the next annotation is made with, taken: `a1`, `a2`… — one counter for the app.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.nextID
- */
-export function takeAnnotationId(): string {
-  const id = agentAnnotationStore.getSnapshot().nextId;
-  agentAnnotationStore.update((state) => ({ ...state, nextId: state.nextId + 1 }));
-  return `a${id}`;
-}
-
-/**
  * Adds `annotation`, its card first and marked new. An agent's annotation made while the
  * Annotations panel is not up also waits on its pill as unseen.
  *
@@ -224,44 +268,11 @@ export function addAnnotation(annotation: AgentAnnotation, panelIsUp: boolean): 
     return {
       ...state,
       items: [...state.items, annotation],
-      unseen,
       order: [annotation.id, ...state.order],
-      fresh: new Set([...state.fresh, annotation.id]),
+      fresh: new Set(state.fresh).add(annotation.id),
+      unseen,
     };
   });
-}
-
-/**
- * The person has dragged a card: the cards now stand as `ids` says.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.arrange
- */
-export function arrangeAnnotations(ids: readonly string[]): void {
-  const state = agentAnnotationStore.getSnapshot();
-  const known = new Set(state.order);
-  const arranged = ids.filter((id) => known.has(id));
-  const placed = new Set(arranged);
-  const order = [...arranged, ...state.order.filter((id) => !placed.has(id))];
-  if (
-    order.length === state.order.length &&
-    order.every((id, index) => id === state.order[index])
-  ) {
-    return;
-  }
-  agentAnnotationStore.update((current) => ({ ...current, order }));
-}
-
-/**
- * The notes made since the panel was last up, which it marks new now that it is; from here on
- * they are not new.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.takeFresh
- */
-export function takeFreshAnnotations(): ReadonlySet<string> {
-  const taken = agentAnnotationStore.getSnapshot().fresh;
-  if (taken.size === 0) return taken;
-  agentAnnotationStore.update((state) => ({ ...state, fresh: new Set() }));
-  return taken;
 }
 
 /**
@@ -279,112 +290,101 @@ export function updateAnnotation(id: string, title: string, note: string): void 
 }
 
 /**
- * Removes the annotations `doomed` picks, drops relations to them, and returns their ids.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.remove
- */
-export function removeAnnotations(doomed: (annotation: AgentAnnotation) => boolean): string[] {
-  const removal = annotationRemoval(doomed);
-  return removal === undefined ? [] : removalIds(removal);
-}
-
-/**
  * Annotations removed, kept so the removal can be undone: each with where it stood — among the
- * annotations as they were made, and among the cards — and the relations the others lost with
- * them.
+ * annotations as they were made, and among the cards — and the relations the others lost with them.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.annotation
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.made
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.card
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.removed
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.relations
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.ids
  */
 export interface AnnotationRemoval {
-  /**
-   * In the order they stood, first first.
-   *
-   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.removed
-   */
+  /** In the order they stood, first first. */
   readonly removed: readonly {
-    /** @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.annotation */
     readonly annotation: AgentAnnotation;
-    /** @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.made */
     readonly made: number;
-    /** @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.Removed.card */
     readonly card: number | undefined;
   }[];
-  /**
-   * The relations of the annotations that named a removed one, as they were.
-   *
-   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.relations
-   */
+  /** The relations of the annotations that named a removed one, as they were. */
   readonly relations: ReadonlyMap<string, readonly string[]>;
+  readonly ids: readonly string[];
 }
 
 /**
- * The ids of the annotations a removal took, in the order they stood.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.Removal.ids
- */
-export const removalIds = (removal: AnnotationRemoval): string[] =>
-  removal.removed.map((one) => one.annotation.id);
-
-/**
- * Removes the annotations `doomed` picks, as `removeAnnotations` does, and returns what puts them
- * back: the Annotations panel's ✕ and Delete, which ⌘Z undoes.
+ * Removes the annotations `doomed` picks, drops relations to them, and returns what puts them back:
+ * the panel's ✕ and Delete, which Ctrl/⌘ Z undoes.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.removal
  */
-export function annotationRemoval(
+export function removalOf(
   doomed: (annotation: AgentAnnotation) => boolean
 ): AnnotationRemoval | undefined {
-  const state = agentAnnotationStore.getSnapshot();
-  const all = allAnnotations(state);
+  const all = allAnnotations();
   const gone = new Set(all.filter(doomed).map((one) => one.id));
   if (gone.size === 0) return undefined;
+  const { order } = agentAnnotationStore.getSnapshot();
   const cards = new Map<string, number>();
-  state.order.forEach((id, index) => {
+  order.forEach((id, index) => {
     if (!cards.has(id)) cards.set(id, index);
   });
   const removed = all.flatMap((annotation, made) =>
     gone.has(annotation.id) ? [{ annotation, made, card: cards.get(annotation.id) }] : []
   );
   const relations = new Map<string, readonly string[]>();
-  for (const annotation of all) {
-    if (gone.has(annotation.id)) continue;
-    if (annotation.relatedTo.some((id) => gone.has(id))) {
-      relations.set(annotation.id, annotation.relatedTo);
+  for (const one of all) {
+    if (!gone.has(one.id) && one.relatedTo.some((id) => gone.has(id))) {
+      relations.set(one.id, one.relatedTo);
     }
   }
-  agentAnnotationStore.update((current) => ({
-    ...current,
-    items: current.items
+  const without = (ids: ReadonlySet<string>) => new Set([...ids].filter((id) => !gone.has(id)));
+  agentAnnotationStore.update((state) => ({
+    ...state,
+    items: state.items
       .filter((one) => !gone.has(one.id))
       .map((one) => ({ ...one, relatedTo: one.relatedTo.filter((id) => !gone.has(id)) })),
-    order: current.order.filter((id) => !gone.has(id)),
-    unseen: new Set([...current.unseen].filter((id) => !gone.has(id))),
-    fresh: new Set([...current.fresh].filter((id) => !gone.has(id))),
+    order: state.order.filter((id) => !gone.has(id)),
+    unseen: without(state.unseen),
+    fresh: without(state.fresh),
+    marked: without(state.marked),
+    chosen: without(state.chosen),
   }));
-  return { removed, relations };
+  return { removed, relations, ids: removed.map((one) => one.annotation.id) };
 }
 
 /**
- * Puts back what `removal` removed: each annotation where it stood, its card in its place among
+ * Removes the annotations `doomed` picks, drops relations to them, and returns their ids.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.remove
+ */
+export function removeAnnotations(doomed: (annotation: AgentAnnotation) => boolean): string[] {
+  return [...(removalOf(doomed)?.ids ?? [])];
+}
+
+/**
+ * Puts back what `removalOf` removed: each annotation where it stood, its card in its place among
  * the cards, and the relations as they were — to the annotations there still are. Ones put back
  * already are left.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.restore
  * @upstream ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.relating
  */
-export function restoreAnnotations(removal: AnnotationRemoval): void {
+export function restoreRemoval(removal: AnnotationRemoval): void {
   const present = new Set(allAnnotations().map((one) => one.id));
   const returning = removal.removed.filter((one) => !present.has(one.annotation.id));
   if (returning.length === 0) return;
   agentAnnotationStore.update((state) => {
     const items = [...state.items];
-    for (const entry of [...returning].sort((left, right) => left.made - right.made)) {
+    for (const entry of [...returning].sort((one, other) => one.made - other.made)) {
       items.splice(Math.min(entry.made, items.length), 0, entry.annotation);
     }
     const order = [...state.order];
     const byCard = [...returning].sort(
-      (left, right) =>
-        (left.card ?? Number.MAX_SAFE_INTEGER) - (right.card ?? Number.MAX_SAFE_INTEGER)
+      (one, other) =>
+        (one.card ?? Number.MAX_SAFE_INTEGER) - (other.card ?? Number.MAX_SAFE_INTEGER)
     );
     for (const entry of byCard) {
       order.splice(Math.min(entry.card ?? order.length, order.length), 0, entry.annotation.id);
@@ -411,172 +411,37 @@ export function markAnnotationsSeen(): void {
   agentAnnotationStore.update((state) => ({ ...state, unseen: new Set() }));
 }
 
-// MARK: - Kept between launches
-
-/**
- * One annotation as it is kept: an annotation on a file, its file by its name, size, date and —
- * in the desktop shell — its path. One on a document never saved is not kept: it goes with the
- * document.
- *
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Stored
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Stored.init
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Stored.annotation
- */
-type StoredAnnotation = AgentAnnotation & { readonly file: { readonly kind: "disk" } };
-
-/**
- * What is kept: the annotations in the order they were made, the cards' order, the new and the
- * unseen ones, and the next id.
- *
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents
- */
-interface KeptAnnotations {
-  /** @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents.annotations */
-  readonly annotations: readonly StoredAnnotation[];
-  /** @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents.order */
-  readonly order: readonly string[];
-  /** @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents.fresh */
-  readonly fresh: readonly string[];
-  /** @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents.unseen */
-  readonly unseen: readonly string[];
-  /** @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents.nextID */
-  readonly nextId: number;
-}
-
-/**
- * Where the annotations are kept between launches: this browser's IndexedDB, beside the
- * favourites — nothing carries them to another machine. A test installs a store of its own, or
- * none, which keeps them for the run alone.
- *
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.url
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.defaultURL
- * @upstream-differs IndexedDB, where upstream writes Annotations.json in Application Support
- */
-let storage: KeyValueStore | undefined;
-const KEPT = "annotations";
-let saveScheduled = false;
-
-/**
- * Reads what was kept, and from now on writes there after every change. Nothing kept — the first
- * launch — is no annotations. A launch reads it once, before anything is annotated.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.keep
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.read
- */
-export function keepAnnotations(
-  store: KeyValueStore = openKeyValueStore("byteripper-annotations")
-): Promise<void> {
-  storage = store;
-  reading = readKept(store);
-  return reading;
-}
-
-/** The read `keepAnnotations` started, for a restore that selects cards among what it brings. */
-let reading: Promise<void> = Promise.resolve();
-export const annotationsRead = (): Promise<void> => reading;
-
-async function readKept(store: KeyValueStore): Promise<void> {
-  const kept = await store.get<KeptAnnotations>(KEPT).catch(() => undefined);
-  if (kept === undefined || !Array.isArray(kept.annotations)) return;
-  agentAnnotationStore.update((state) => {
-    // Anything annotated while the kept ones were being read stays, after them.
-    const keptIds = new Set(kept.annotations.map((one) => one.id));
-    const items = [...kept.annotations, ...state.items.filter((one) => !keptIds.has(one.id))];
-    const ids = new Set(items.map((one) => one.id));
-    const order = [...state.order, ...kept.order].filter(
-      (id, index, all) => ids.has(id) && all.indexOf(id) === index
-    );
-    const placed = new Set(order);
-    order.push(
-      ...items
-        .map((one) => one.id)
-        .filter((id) => !placed.has(id))
-        .reverse()
-    );
-    const numbers = items
-      .map((one) => Number.parseInt(one.id.slice(1), 10))
-      .filter((number) => Number.isFinite(number));
-    return {
-      items,
-      order,
-      fresh: new Set([...kept.fresh, ...state.fresh].filter((id) => ids.has(id))),
-      unseen: new Set([...kept.unseen, ...state.unseen].filter((id) => ids.has(id))),
-      nextId: Math.max(kept.nextId, state.nextId, Math.max(0, ...numbers) + 1),
-    };
-  });
-}
-
-/**
- * Writes the annotations once the change in hand is done: a survey that makes fifty writes the
- * store once, not fifty times.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.scheduleSave
- */
-function scheduleSave(): void {
-  if (storage === undefined || saveScheduled) return;
-  saveScheduled = true;
-  queueMicrotask(() => void saveAnnotationsNow());
-}
-
-/**
- * Writes the annotations now. Ones on a document never saved are left out: they go with the
- * document.
- *
- * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.saveNow
- * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.write
- */
-export async function saveAnnotationsNow(): Promise<void> {
-  saveScheduled = false;
-  if (storage === undefined) return;
-  const state = agentAnnotationStore.getSnapshot();
-  const stored = allAnnotations(state).filter(
-    (one): one is StoredAnnotation => one.file.kind === "disk"
-  );
-  const ids = new Set(stored.map((one) => one.id));
-  const kept: KeptAnnotations = {
-    annotations: stored,
-    order: state.order.filter((id) => ids.has(id)),
-    fresh: [...state.fresh].filter((id) => ids.has(id)).sort(),
-    unseen: [...state.unseen].filter((id) => ids.has(id)).sort(),
-    nextId: state.nextId,
-  };
-  await storage.put(KEPT, kept);
-}
-
-agentAnnotationStore.subscribe(scheduleSave);
-
-/**
- * Whether the Annotations panel stays with no annotation in it — the panel's own say, which keeps it
- * while ⌘Z has a removal made there to put back.
- */
-let panelHeld: () => boolean = () => false;
-
-/** Lets the panel keep itself in the dock with no annotation in it while `held` says so. */
-export function holdNotesPanelWhile(held: () => boolean): void {
-  panelHeld = held;
-  syncAnnotationsPanel();
-}
-
-/**
- * The Annotations panel is there while there is an annotation, or while the panel holds itself, and
- * goes with the last one otherwise; while it is up, the agent's new ones count as seen.
- *
- * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.notesChanged
- */
+// The Annotations panel is there while there is an annotation, and goes with the last one; while
+// it is up, the agent's new ones count as seen and every note made since it was last up wears the
+// New tag — the tags staying while it is up and going when it is folded.
+// @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.notesChanged
+// @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.noteLookedAt
+// @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.leftView
 let synced = false;
-export function syncAnnotationsPanel(): void {
+function syncPanel(): void {
   if (synced) return;
   synced = true;
   try {
-    syncNotesPanel(allAnnotations().length > 0 || panelHeld());
-    if (notesPanelIsUp(workspaceStore.getSnapshot())) markAnnotationsSeen();
+    // The panel stays up, empty, while the removal that emptied it can be taken back: with it gone
+    // there would be nowhere to press Undo.
+    const up = notesPanelIsUp(workspaceStore.getSnapshot());
+    syncNotesPanel(allAnnotations().length > 0 || (up && canUndoRemoval()));
+    if (notesPanelIsUp(workspaceStore.getSnapshot())) {
+      markAnnotationsSeen();
+      agentAnnotationStore.update((state) =>
+        state.fresh.size === 0
+          ? state
+          : { ...state, fresh: new Set(), marked: new Set([...state.marked, ...state.fresh]) }
+      );
+    } else if (agentAnnotationStore.getSnapshot().marked.size > 0) {
+      agentAnnotationStore.update((state) => ({ ...state, marked: new Set() }));
+    }
   } finally {
     synced = false;
   }
 }
-agentAnnotationStore.subscribe(syncAnnotationsPanel);
-workspaceStore.subscribe(syncAnnotationsPanel);
+agentAnnotationStore.subscribe(syncPanel);
+workspaceStore.subscribe(syncPanel);
 
 /**
  * Forgets every annotation, for a test that leaves none behind for the next.
@@ -584,6 +449,300 @@ workspaceStore.subscribe(syncAnnotationsPanel);
  * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.discardForTesting
  */
 export function discardAnnotationsForTesting(): void {
-  storage = undefined;
-  agentAnnotationStore.update(() => EMPTY);
+  keeping = false;
+  restoring = undefined;
+  lastWritten = undefined;
+  undoable = [];
+  redoable = [];
+  agentAnnotationStore.update(() => ({
+    items: [],
+    unseen: new Set(),
+    fresh: new Set(),
+    order: [],
+    marked: new Set(),
+    chosen: new Set(),
+    anchor: undefined,
+    reveal: undefined,
+    nextId: 1,
+  }));
 }
+
+// MARK: - Undo
+
+/**
+ * The removals made in the panel, the last last: Ctrl/⌘ Z puts the cards back where they stood,
+ * Shift Ctrl/⌘ Z removes them again. Kept while the page is open, not from one visit to the next.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.removals
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.recordRemoval
+ * @upstream-differs two stacks of the page's, where upstream gives the window an UndoManager of its own
+ */
+let undoable: AnnotationRemoval[] = [];
+let redoable: AnnotationRemoval[] = [];
+
+/**
+ * The panel's removal of the cards `ids`, which it can take back.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.wireCards
+ */
+export function removeFromPanel(ids: ReadonlySet<string>): void {
+  const removal = removing(() => removalOf((one) => ids.has(one.id)));
+  if (removal === undefined) return;
+  undoable.push(removal);
+  redoable = [];
+}
+
+/** Whether a removal made in the panel is under way: one that will be there to take back. */
+let removingInPanel = false;
+function removing<T>(remove: () => T): T {
+  removingInPanel = true;
+  try {
+    return remove();
+  } finally {
+    removingInPanel = false;
+  }
+}
+
+/** Whether the panel has a removal to take back. */
+export const canUndoRemoval = (): boolean => undoable.length > 0 || removingInPanel;
+/** Whether the panel has a removal taken back to make again. */
+export const canRedoRemoval = (): boolean => redoable.length > 0;
+
+/**
+ * Undo: the last removal made in the panel undone — the cards back where they stood, selected.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.putBack
+ */
+export function undoRemoval(): void {
+  const removal = undoable.pop();
+  if (removal === undefined) return;
+  restoreRemoval(removal);
+  redoable.push(removal);
+  showAnnotationCards(removal.ids);
+}
+
+/**
+ * Redo: the removal undone made again.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.removeAgain
+ */
+export function redoRemoval(): void {
+  const undone = redoable.pop();
+  if (undone === undefined) return;
+  const ids = new Set(undone.ids);
+  const removal = removing(() => removalOf((one) => ids.has(one.id)));
+  if (removal !== undefined) undoable.push(removal);
+}
+
+// MARK: - Kept between visits
+
+/**
+ * What is kept: the annotations on files on disk — one on a document with no file goes with the
+ * document — and with them the order of the cards, which are not yet marked new, and which the
+ * pill still counts.
+ *
+ * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Contents
+ * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.Stored
+ * @upstream-differs kept in the browser's database, where upstream writes a JSON file in
+ * Application Support; the file is known by its identity, which the shell's full path makes exact
+ */
+export interface StoredAnnotations {
+  readonly annotations: readonly {
+    readonly id: string;
+    readonly identity: FileIdentity;
+    readonly range: readonly [number, number] | undefined;
+    readonly node: string | undefined;
+    readonly title: string;
+    readonly note: string;
+    readonly decoded: AnnotationDecoded | undefined;
+    readonly relatedTo: readonly string[];
+    readonly site: AnnotationSite | undefined;
+    readonly author: "agent" | "person";
+  }[];
+  readonly order: readonly string[];
+  readonly fresh: readonly string[];
+  readonly unseen: readonly string[];
+  readonly nextId: number;
+}
+
+const DATABASE = "byteripper-annotations";
+const KEY = "annotations";
+// The handles the files were opened with, which Open Recent keeps the same way: a file opened by the
+// picker has no path a page can see, so a handle is the only way back to it after a restart.
+const HANDLES_KEY = "handles";
+let storage: KeyValueStore | undefined;
+let keeping = false;
+let saveScheduled = false;
+
+/** Points the annotations at another store: a test's memory one. */
+export function setAnnotationsStorage(store: KeyValueStore): void {
+  storage = store;
+  restoring = undefined;
+  lastWritten = undefined;
+}
+
+/** What the store holds now, as it is written. */
+export function annotationsToStore(
+  state: AgentAnnotationState = agentAnnotationStore.getSnapshot()
+): StoredAnnotations {
+  const annotations = allAnnotations(state).flatMap((one) =>
+    one.file.kind === "disk"
+      ? [
+          {
+            id: one.id,
+            identity: one.file.identity,
+            range: one.range,
+            node: one.node,
+            title: one.title,
+            note: one.note,
+            decoded: one.decoded,
+            relatedTo: one.relatedTo,
+            site: one.site,
+            author: one.author,
+          },
+        ]
+      : []
+  );
+  const ids = new Set(annotations.map((one) => one.id));
+  const kept = (list: Iterable<string>) => [...list].filter((id) => ids.has(id));
+  return {
+    annotations,
+    order: kept(state.order),
+    fresh: kept(state.fresh).sort(),
+    unseen: kept(state.unseen).sort(),
+    nextId: state.nextId,
+  };
+}
+
+/**
+ * Reads what the last visit kept, and from here on writes after every change. Nothing kept — the
+ * first visit — is no annotations.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.keep
+ */
+export function restoreAnnotations(): Promise<void> {
+  // Once a visit: StrictMode mounts the shell twice, and a second read would add every kept
+  // annotation again under a fresh id.
+  restoring ??= readKept();
+  return restoring;
+}
+let restoring: Promise<void> | undefined;
+
+async function readKept(): Promise<void> {
+  storage ??= openKeyValueStore(DATABASE);
+  const heldHandles = await storage
+    .get<Parameters<typeof restoreHandles>[0]>(HANDLES_KEY)
+    .catch(() => undefined);
+  if (Array.isArray(heldHandles)) restoreHandles(heldHandles);
+  const kept = await storage.get<StoredAnnotations>(KEY).catch(() => undefined);
+  if (kept !== undefined && Array.isArray(kept.annotations)) {
+    const items: AgentAnnotation[] = kept.annotations.map((one) => ({
+      id: one.id,
+      file: { kind: "disk", identity: one.identity },
+      range: one.range,
+      node: one.node,
+      title: one.title,
+      note: one.note,
+      decoded: one.decoded,
+      relatedTo: one.relatedTo,
+      site: one.site,
+      author: one.author,
+    }));
+    agentAnnotationStore.update((state) => {
+      const { added, renamed, nextId } = mergedKept(state.items, items, kept.nextId);
+      const ids = new Set(added.map((one) => one.id));
+      const rename = (list: readonly string[]) =>
+        list.map((id) => renamed.get(id) ?? id).filter((id) => ids.has(id));
+      const order = rename(kept.order);
+      // Ones with no place in the order stand in front, the newest of them first.
+      order.push(
+        ...added
+          .map((one) => one.id)
+          .filter((id) => !order.includes(id))
+          .reverse()
+      );
+      return {
+        ...state,
+        items: [...added, ...state.items],
+        order: [...state.order, ...order],
+        fresh: new Set([...state.fresh, ...rename(kept.fresh)]),
+        unseen: new Set([...state.unseen, ...rename(kept.unseen)]),
+        nextId: Math.max(state.nextId, nextId),
+      };
+    });
+  }
+  keeping = true;
+  // What came of putting the two together — a kept card given a new id — is written at once.
+  scheduleSave();
+  // What was opened before the last visit's handles were read is written with them.
+  if (keptHandles().length > 0)
+    void storage.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+}
+
+/**
+ * The kept annotations beside the ones made before they were read — by an agent that reconnected
+ * the moment the page came back, given ids from 1 again. Those keep the ids the agent was told;
+ * a kept one whose id is taken gets a new one, and the kept ones that point at it follow it.
+ *
+ * @web-only the desktop reads what it kept before anything can annotate; a page reads its
+ * database while an agent may already be at work
+ */
+export function mergedKept(
+  present: readonly AgentAnnotation[],
+  kept: readonly AgentAnnotation[],
+  keptNextId: number
+): { added: AgentAnnotation[]; renamed: Map<string, string>; nextId: number } {
+  const number = (id: string) => Number(id.slice(1)) || 0;
+  const taken = new Set(present.map((one) => one.id));
+  let nextId = Math.max(keptNextId, ...[...present, ...kept].map((one) => number(one.id) + 1), 1);
+  const renamed = new Map<string, string>();
+  for (const one of kept) if (taken.has(one.id)) renamed.set(one.id, `a${nextId++}`);
+  const added = kept.map((one) => ({
+    ...one,
+    id: renamed.get(one.id) ?? one.id,
+    relatedTo: one.relatedTo.map((id) => renamed.get(id) ?? id),
+  }));
+  return { added, renamed, nextId };
+}
+
+/**
+ * Writes the annotations once the change in hand is done: a survey that makes fifty writes the
+ * database once, not fifty times.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.scheduleSave
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.saveNow
+ */
+function scheduleSave(): void {
+  if (!keeping || saveScheduled) return;
+  saveScheduled = true;
+  queueMicrotask(() => {
+    saveScheduled = false;
+    // A click on a card, a tag coming or going, changes nothing that is kept: nothing is written.
+    const kept = annotationsToStore();
+    const written = JSON.stringify(kept);
+    if (written === lastWritten) return;
+    lastWritten = written;
+    void storage?.put(KEY, kept).catch(() => undefined);
+  });
+}
+/** What was written last, as text, to tell a change worth writing from one that is not. */
+let lastWritten: string | undefined;
+agentAnnotationStore.subscribe(scheduleSave);
+// A save in place gave the file a new date: what is on it stays on it.
+onFileReplaced((from, to) => {
+  agentAnnotationStore.update((state) =>
+    state.items.some((one) => one.file.kind === "disk" && sameFile(one.file.identity, from))
+      ? {
+          ...state,
+          items: state.items.map((one) =>
+            one.file.kind === "disk" && sameFile(one.file.identity, from)
+              ? { ...one, file: { kind: "disk", identity: to } }
+              : one
+          ),
+        }
+      : state
+  );
+});
+onHandlesChange(() => {
+  if (keeping) void storage?.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+});

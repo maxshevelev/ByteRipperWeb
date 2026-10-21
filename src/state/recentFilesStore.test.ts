@@ -104,7 +104,7 @@ describe("pruning at launch", () => {
   it("drops a file that is gone, and keeps the ones that are not", async () => {
     recordRecentFile(handle({ name: "live.bin" }), "live.bin");
     recordRecentFile(
-      handle({ name: "gone.bin", getFileError: new DOMException("No such file", "NotFound") }),
+      handle({ name: "gone.bin", getFileError: new DOMException("No such file", "NotFoundError") }),
       "gone.bin"
     );
 
@@ -145,7 +145,7 @@ describe("restoring the list", () => {
       {
         handle: handle({
           name: "gone.bin",
-          getFileError: new DOMException("No such file", "NotFound"),
+          getFileError: new DOMException("No such file", "NotFoundError"),
         }),
         name: "gone.bin",
       },

@@ -150,7 +150,7 @@ export function buildNodeDetail(
   const detail = withMapRegions(
     withListedRanges(
       withVariableHistory(
-        withVendorDMI(
+        withHPDMI(
           withAcerDMI(
             withLenovoDMI(
               buildDetailRows(node, image, reader, repairs),
@@ -193,33 +193,6 @@ export function buildNodeDetail(
 }
 
 /**
- * HP's identity, on the `HP_MUD` entry: its fields and the variables beside it in the store,
- * as BCU reports them. Apple's, on the SysF store: the serial, the configuration code and the
- * order number the store keeps, the board's serial.
- *
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
- */
-function withVendorDMI(
-  detail: NodeDetail,
-  node: UEFINode,
-  image: UEFIImage,
-  reader: ImageReader
-): NodeDetail {
-  const vendor =
-    node.kind === "vssEntry"
-      ? hpDMIDetail(node, image, reader)
-      : node.kind === "sysFStore"
-        ? appleDMIDetail(node, reader)
-        : undefined;
-  if (vendor === undefined) return detail;
-  return {
-    ...detail,
-    fields: [...detail.fields, ...vendor.fields],
-    tables: [...detail.tables, ...vendor.tables],
-  };
-}
-
-/**
  * Acer's DMI area, read off the block as a whole: the identity fields, and what the
  * integrity checks found in them.
  *
@@ -232,6 +205,35 @@ function withAcerDMI(detail: NodeDetail, node: UEFINode, reader: ImageReader): N
     ...detail,
     fields: [...detail.fields, ...acer.fields],
     tables: [...detail.tables, ...acer.tables],
+  };
+}
+
+/**
+ * HP's identity, on the `HP_MUD` entry: its fields and the variables beside it in the store,
+ * as BCU reports them. Apple's, on the SysF store: the serial, the configuration code and the
+ * order number the store keeps, the board's serial.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withHPDMI(
+  detail: NodeDetail,
+  node: UEFINode,
+  image: UEFIImage,
+  reader: ImageReader
+): NodeDetail {
+  const vendor =
+    node.kind === "vssEntry"
+      ? hpDMIDetail(node, image, reader)
+      : node.kind === "sysFStore"
+        ? appleDMIDetail(node, reader)
+        : undefined;
+  if (vendor === undefined || (vendor.fields.length === 0 && vendor.tables.length === 0)) {
+    return detail;
+  }
+  return {
+    ...detail,
+    fields: [...detail.fields, ...vendor.fields],
+    tables: [...detail.tables, ...vendor.tables],
   };
 }
 

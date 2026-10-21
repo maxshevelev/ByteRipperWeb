@@ -190,6 +190,7 @@ export interface MeSubtree {
    * passes over the whole region.
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.loadChecksums
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.loadChecksumsIfShown
    */
   readonly rowPicked: (node: MEANode) => void;
   /**

@@ -21,6 +21,11 @@ import {
  * whoever asks: a zone, a node of a tool's tree, a body a tool decompressed
  * (`Design/GAPS.md` G4, G49; upstream's `Design/FRAGMENT_PANELS_PLAN.md`).
  *
+ * `name` is what the panel, its pill and its link call the part: what was
+ * opened — the node, the zone — and nothing else. Not the dump's name, which
+ * the link names, and not what was done to the bytes, which the codec's badge
+ * says.
+ *
  * `codec` is the whole of what the part is: the panel shows what it decodes
  * from `source`, and Update in Parent writes back what it encodes. The link is
  * made here rather than by each caller because making it reads the source out
@@ -40,13 +45,7 @@ import {
 export async function openLinkedPart(options: {
   /** The pane the bytes came out of — a file slot, or another part. */
   readonly parent: PaneId;
-  /**
-   * What the panel, its pill and its link call the part: what was opened — the node, the zone —
-   * and nothing else. Not the dump's name, which the link names, and not what was done to the
-   * bytes, which the codec's badge says.
-   *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
-   */
+  /** What the panel, its pill and its link are called. */
   readonly name: string;
   /** Where the bytes are in the parent: what the link points at. Half-open. */
   readonly source: readonly [number, number];
@@ -76,7 +75,6 @@ export async function openLinkedPart(options: {
   const slot = paneState(parent);
   if (slot === undefined) return undefined;
   const codec = options.codec ?? new CopyPartCodec();
-  const partName = name;
   if (options.selecting !== undefined) {
     const open = Object.entries(workspaceStore.getSnapshot().parts).find(([, held]) => {
       const origin = held?.origin;
@@ -86,7 +84,7 @@ export async function openLinkedPart(options: {
         origin.sourceRange[0] === source[0] &&
         origin.sourceRange[1] === source[1] &&
         origin.codec.constructor === codec.constructor &&
-        origin.partName === name
+        held?.name === name
       );
     });
     if (open !== undefined) {
@@ -107,7 +105,7 @@ export async function openLinkedPart(options: {
       content: documentPartReader(slot.document),
       source,
       name: slot.name,
-      partName,
+      partName: name,
     });
   } catch (error) {
     reportAlert(
@@ -124,7 +122,7 @@ export async function openLinkedPart(options: {
   const origin = await DocumentOrigin.of({
     parent,
     source,
-    partName,
+    partName: name,
     codec,
     ...(options.layout === undefined ? {} : { layout: options.layout }),
     content: bytes,

@@ -14,8 +14,10 @@ import {
   segmentStripHoverText,
   segmentStripMark,
   zoneBracketHoverText,
+  zoneBracketMark,
 } from "@/render/minimap/minimapHover";
 import { MinimapLayout } from "@/render/minimap/minimapLayout";
+import { capsuleFrame, opensRight } from "@/ui/callout/hoverCalloutGeometry";
 
 /** A detail map of a small file, so every byte has its own height. */
 const detail = { mode: "detail" as const, areaHeight: 400, topRow: 0, extent: 0 };
@@ -46,10 +48,12 @@ const hoverOf = (
     pieces: [],
     brackets: [],
     marks: marks.map((mark) => ({ ...mark, y: yOf(mark.offset) })),
-    zoneColors: { focused: "blue", other: "grey" },
+    zoneColors: ZONES,
     x,
     y,
   });
+
+const ZONES = { focused: "teal", other: "khaki" };
 
 /** The middle of a bookmark's mark box on `layout`. */
 function centreOfMark(layout: MinimapLayout, offset: number): { x: number; y: number } {
@@ -69,7 +73,7 @@ describe("hovering a bookmark's mark (§19.4.3)", () => {
     expect(hoverOf(layout, [{ offset: 0x400, name: "EC table" }], x, y)).toBe("00000400: EC table");
   });
 
-  // Anywhere that is not a mark says nothing, which shows no tooltip at all.
+  // Anywhere that is not a mark says nothing, which shows no callout at all.
   // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testHoveringElsewhereSaysNothing
   test("says nothing anywhere else", () => {
     const layout = layoutOf({});
@@ -81,69 +85,13 @@ describe("hovering a bookmark's mark (§19.4.3)", () => {
     expect(hoverOf(layout, marks, x, y + 30)).toBe("");
   });
 
-  // The tooltip answers from the pointer's position, so the mark on the second map
+  // The callout answers from the pointer's position, so the mark on the second map
   // of a comparison — in its own margin, on the other side — is found too.
   // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testHoveringAMarkOnTheSecondMapNamesItToo
   test("names a mark on the second map of a comparison", () => {
     const layout = layoutOf({ placement: "right" });
     const { x, y } = centreOfMark(layout, 0x800);
     expect(hoverOf(layout, [{ offset: 0x800, name: "NVRAM" }], x, y)).toBe("00000800: NVRAM");
-  });
-});
-
-describe("the callout's glyph and place", () => {
-  // The name is up at once, wearing the mark it names, and stands beside the mark's box.
-  // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutNamesAMarkAtOnceAndGoesWhenThePointerLeaves
-  test("a mark's callout wears the bookmark and stands beside its box", () => {
-    const layout = layoutOf({});
-    const { x, y } = centreOfMark(layout, 0x400);
-    const hover = minimapHover({
-      layout,
-      cuts: [],
-      pieces: [],
-      brackets: [],
-      marks: [{ offset: 0x400, name: "EC table", y: yOf(0x400) }],
-      zoneColors: { focused: "blue", other: "grey" },
-      x,
-      y,
-    });
-    expect(hover?.text).toBe("00000400: EC table");
-    expect(hover?.mark).toEqual({ kind: "bookmark" });
-    const box = bookmarkMarkBox(layout, yOf(0x400));
-    expect(hover?.box).toEqual({ x: box?.x, y: box?.top, width: box?.width, height: box?.height });
-  });
-
-  // A bracket's callout wears the bracket, in the colour the gutter draws it in; a legend's
-  // stands at the pointer, not at a box — a strip or a bracket is long, so its callout follows
-  // the pointer along it.
-  // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testALegendsCalloutFollowsThePointer
-  test("a bracket's callout wears its colour and follows the pointer", () => {
-    const layout = layoutOf({ lanes: 1 });
-    const gutter = layout.zoneGutterRect;
-    if (gutter === undefined) throw new Error("premise: the map has a gutter");
-    const hover = minimapHover({
-      layout,
-      cuts: [],
-      pieces: [],
-      brackets: [
-        {
-          id: "z",
-          name: "BIOS",
-          start: 0x100,
-          end: 0x300,
-          top: yOf(0x100),
-          height: yOf(0x300) - yOf(0x100),
-          depth: 0,
-          focused: true,
-        },
-      ],
-      marks: [],
-      zoneColors: { focused: "blue", other: "grey" },
-      x: gutter.x,
-      y: yOf(0x200),
-    });
-    expect(hover?.mark).toEqual({ kind: "zone", color: "blue" });
-    expect(hover?.box).toBeUndefined();
   });
 });
 
@@ -184,6 +132,22 @@ describe("hovering a zone's bracket (§19.4.5)", () => {
     expect(text.startsWith("0x100")).toBe(true);
     expect(text).not.toContain("—");
   });
+
+  // The glyph is the bracket in the colour of the zone's state: a zone not in
+  // focus in the other zones' colour.
+  // @upstream ByteRipperTests/MinimapZoneTests.swift#MinimapZoneTests.testHoveringABracketNamesTheZone
+  test("wears the bracket's colour", () => {
+    const brackets = [bracket("BIOS region", 0x100, 0x300)];
+    expect(zoneBracketMark(layout, brackets, ZONES, gutter.x, yOf(0x200))).toEqual({
+      kind: "zone",
+      color: "khaki",
+    });
+    const focused = [{ ...bracket("BIOS region", 0x100, 0x300), focused: true }];
+    expect(zoneBracketMark(layout, focused, ZONES, gutter.x, yOf(0x200))).toEqual({
+      kind: "zone",
+      color: "teal",
+    });
+  });
 });
 
 describe("hovering the segment strip (§19.4.4)", () => {
@@ -202,7 +166,7 @@ describe("hovering the segment strip (§19.4.4)", () => {
       name: names[index] ?? "",
       top: yOf(start),
       height: yOf(end) - yOf(start),
-      tint: `tint-${index}`,
+      tint: `tint${index}`,
     }));
   const cuts = [64, 128].map((offset) => ({ offset, y: yOf(offset) }));
   const x = strip.x + strip.width / 2;
@@ -226,10 +190,11 @@ describe("hovering the segment strip (§19.4.4)", () => {
       y: yOf(96),
     });
     expect(named).toContain("testpiece");
-    expect(
-      segmentStripMark({ strip, cuts, pieces: piecesOf([]), x, y: yOf(96) }),
-      "and wears S1's tint"
-    ).toEqual({ kind: "segment", color: "tint-1" });
+    // And it wears S1's tint.
+    expect(segmentStripMark({ strip, cuts, pieces: piecesOf([]), x, y: yOf(96) })).toEqual({
+      kind: "segment",
+      tint: "tint1",
+    });
   });
 
   // Hovering a boundary — within the snap distance of a cut — names the cut's
@@ -240,9 +205,108 @@ describe("hovering the segment strip (§19.4.4)", () => {
     const text = segmentStripHoverText({ strip, cuts, pieces: piecesOf([]), x, y: yOf(64) });
     expect(text).toBe("0x40");
     expect(text).not.toContain("S1");
-    expect(
-      segmentStripMark({ strip, cuts, pieces: piecesOf([]), x, y: yOf(64) }),
-      "the two pieces the cut separates, the one before it on top"
-    ).toEqual({ kind: "cut", above: "tint-0", below: "tint-1" });
+    // Its glyph is the two pieces it separates, the earlier one on top.
+    expect(segmentStripMark({ strip, cuts, pieces: piecesOf([]), x, y: yOf(64) })).toEqual({
+      kind: "cut",
+      above: "tint0",
+      below: "tint1",
+    });
+  });
+
+  // A strip is long, so its callout follows the pointer along it rather than
+  // standing at one end — and stays clear of the cursor.
+  // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testALegendsCalloutFollowsThePointer
+  test("its callout follows the pointer, clear of it", () => {
+    const at = (y: number) =>
+      minimapHover({
+        layout,
+        cuts,
+        pieces: piecesOf([]),
+        brackets: [],
+        marks: [],
+        zoneColors: ZONES,
+        x,
+        y,
+      });
+    const high = at(yOf(20));
+    const low = at(yOf(40));
+    expect(high?.mark).toEqual({ kind: "segment", tint: "tint0" });
+    expect((low?.anchor.y ?? 0) - (high?.anchor.y ?? 0)).toBeCloseTo(yOf(40) - yOf(20), 5);
+    const anchor = low?.anchor ?? { x: 0, y: 0, width: 0, height: 0 };
+    const frame = capsuleFrame({ width: 80, height: 20 }, anchor, true, {
+      x: -500,
+      y: -500,
+      width: 2000,
+      height: 2000,
+    });
+    const under =
+      x >= frame.x &&
+      x <= frame.x + frame.width &&
+      yOf(40) >= frame.y &&
+      yOf(40) <= frame.y + frame.height;
+    expect(under).toBe(false);
+  });
+});
+
+describe("the callout on a bookmark's mark (§19.4.3)", () => {
+  // The name is up the moment the pointer reaches the mark, beside the arrow and
+  // opening into the map — never over the mark.
+  // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testTheCalloutNamesAMarkAtOnceAndGoesWhenThePointerLeaves
+  test("stands beside the mark, level with it, opening into the map", () => {
+    const layout = layoutOf({});
+    const { x, y } = centreOfMark(layout, 0x400);
+    const shown = minimapHover({
+      layout,
+      cuts: [],
+      pieces: [],
+      brackets: [],
+      marks: [{ offset: 0x400, name: "EC table", y: yOf(0x400) }],
+      zoneColors: ZONES,
+      x,
+      y,
+    });
+    expect(shown?.text).toBe("00000400: EC table");
+    expect(shown?.mark).toEqual({ kind: "bookmark" });
+    const box = bookmarkMarkBox(layout, yOf(0x400));
+    expect(shown?.anchor).toEqual({
+      x: box?.x,
+      y: box?.top,
+      width: box?.width,
+      height: box?.height,
+    });
+    const map = { x: 0, y: 0, width: 60, height: 400 };
+    const anchor = shown?.anchor ?? map;
+    expect(opensRight(anchor, map)).toBe(true);
+    const frame = capsuleFrame({ width: 100, height: 20 }, anchor, true, {
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 600,
+    });
+    expect(frame.x).toBeGreaterThan(anchor.x + anchor.width);
+    expect(frame.y + frame.height / 2).toBeCloseTo(anchor.y + anchor.height / 2, 5);
+    // An unmarked row's margin has nothing to say.
+    expect(hoverOf(layout, [{ offset: 0x400, name: "EC table" }], x, y + 30)).toBe("");
+  });
+
+  // The second map of a comparison marks its rows in the right margin, so its
+  // callout opens to the left — into its own map.
+  // @upstream ByteRipperTests/BookmarkMinimapTests.swift#BookmarkMinimapTests.testASecondMapsCalloutOpensToTheLeft
+  test("opens to the left on the second map of a comparison", () => {
+    const layout = layoutOf({ placement: "right" });
+    const { x, y } = centreOfMark(layout, 0x800);
+    const shown = minimapHover({
+      layout,
+      cuts: [],
+      pieces: [],
+      brackets: [],
+      marks: [{ offset: 0x800, name: "NVRAM", y: yOf(0x800) }],
+      zoneColors: ZONES,
+      x,
+      y,
+    });
+    expect(shown?.text).toBe("00000800: NVRAM");
+    const anchor = shown?.anchor ?? { x: 0, y: 0, width: 0, height: 0 };
+    expect(opensRight(anchor, { x: 0, y: 0, width: 60, height: 400 })).toBe(false);
   });
 });

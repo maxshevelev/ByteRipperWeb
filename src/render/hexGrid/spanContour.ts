@@ -152,57 +152,6 @@ export function selectionContours(
 }
 
 /**
- * Rectilinear outlines with the parts beyond `band` brought in toward it: every
- * vertex above the band moves down, and every one below it moves up, by the same
- * whole number of dash periods, so they still lie outside the band but no more
- * than a period from it.
- *
- * What is drawn inside the band does not change, dashes included. The outline's
- * edges are horizontal or vertical, so the only edges this shortens are the
- * vertical ones crossing the band's edge, and each by a whole number of
- * `period`s: the length of path before any point inside the band changes by
- * whole periods, which leaves the dash phase there where it was. The edges
- * beyond the band are moved, never drawn — they are outside the row being
- * painted.
- *
- * A note of a few megabytes is an outline millions of pixels tall, and a canvas
- * lays its dashes along the whole of it on every stroke — and, past some length,
- * gives up and draws the line solid.
- *
- * @upstream ByteRipperApp/Hex/HexView.swift#HexView.outlinesFolded
- */
-export function outlinesFolded(
-  loops: readonly (readonly ContourPoint[])[],
-  band: { readonly top: number; readonly bottom: number },
-  period: number
-): ContourPoint[][] {
-  if (period <= 0) return loops.map((loop) => [...loop]);
-  return loops.map((original) => {
-    let loop = [...original];
-    const above = loop.filter((point) => point.y < band.top).map((point) => point.y);
-    if (above.length > 0) {
-      // Whole periods, stopping short of the band: the moved vertices stay strictly above it.
-      const shift = (Math.ceil((band.top - Math.max(...above)) / period) - 1) * period;
-      if (shift > 0) {
-        loop = loop.map((point) =>
-          point.y < band.top ? { x: point.x, y: point.y + shift } : point
-        );
-      }
-    }
-    const below = loop.filter((point) => point.y > band.bottom).map((point) => point.y);
-    if (below.length > 0) {
-      const shift = (Math.ceil((Math.min(...below) - band.bottom) / period) - 1) * period;
-      if (shift > 0) {
-        loop = loop.map((point) =>
-          point.y > band.bottom ? { x: point.x, y: point.y - shift } : point
-        );
-      }
-    }
-    return loop;
-  });
-}
-
-/**
  * The rows a contour over `[start, end)` touches, half-open.
  *
  * One row wider at each end than the span itself. The contour's horizontal
@@ -299,4 +248,113 @@ export function traceContour(
     context.arcTo(corner.x, corner.y, to.x, to.y, radius);
   }
   context.closePath();
+}
+
+/**
+ * Rectilinear outlines with the parts beyond `band` brought in toward it:
+ * every vertex above the band moves down, and every one below it moves up, by
+ * the same whole number of dash periods, so they still lie outside the band
+ * but no more than a period from it.
+ *
+ * What is drawn inside the band does not change, dashes included. The
+ * outline's edges are horizontal or vertical, so the only edges this shortens
+ * are the vertical ones crossing the band's edge, and each by a whole number of
+ * `period`s: the length of path before any point inside the band changes by
+ * whole periods, which leaves the dash phase there where it was — provided the
+ * path does not start on one of those edges ({@link startingOnAHorizontalEdge}).
+ * The edges beyond the band are moved, never drawn — they are outside the row
+ * being painted.
+ *
+ * A note's outline is one polygon the height of the note — millions of pixels
+ * for a few megabytes — and the canvas lays its dashes along the whole of it on
+ * every stroke, however little of it the row's clip shows.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.outlinesFolded
+ */
+export function outlinesFolded(
+  loops: readonly (readonly ContourPoint[])[],
+  band: { readonly lower: number; readonly upper: number },
+  period: number
+): ContourPoint[][] {
+  if (period <= 0) return loops.map((loop) => [...loop]);
+  return loops.map((original) => {
+    let loop: ContourPoint[] = [...original];
+    const above = loop.filter((point) => point.y < band.lower).map((point) => point.y);
+    if (above.length > 0) {
+      // Whole periods, stopping short of the band: the moved vertices stay
+      // strictly above it.
+      const shift = (Math.ceil((band.lower - Math.max(...above)) / period) - 1) * period;
+      if (shift > 0) {
+        loop = loop.map((point) =>
+          point.y < band.lower ? { x: point.x, y: point.y + shift } : point
+        );
+      }
+    }
+    const below = loop.filter((point) => point.y > band.upper).map((point) => point.y);
+    if (below.length > 0) {
+      const shift = (Math.ceil((Math.min(...below) - band.upper) / period) - 1) * period;
+      if (shift > 0) {
+        loop = loop.map((point) =>
+          point.y > band.upper ? { x: point.x, y: point.y - shift } : point
+        );
+      }
+    }
+    return loop;
+  });
+}
+
+/**
+ * The same loop, its points turned so the edge that closes it — the one
+ * {@link traceContour} starts halfway along — is horizontal.
+ *
+ * A dash pattern starts where the path does. The contours start on a vertical
+ * edge, which is the edge a fold shortens; a start halfway along it would move
+ * by half the shortening and take the dashes with it. A horizontal edge is
+ * only ever moved whole.
+ *
+ * @web-only upstream's rounded path starts at a corner of its own, which a fold moves whole
+ */
+export function startingOnAHorizontalEdge(loop: readonly ContourPoint[]): ContourPoint[] {
+  const count = loop.length;
+  for (let i = 0; i < count; i++) {
+    const previous = loop[(i - 1 + count) % count];
+    const current = loop[i];
+    if (previous !== undefined && current !== undefined && previous.y === current.y) {
+      return [...loop.slice(i), ...loop.slice(0, i)];
+    }
+  }
+  return [...loop];
+}
+
+/**
+ * Whether the outline `contours` draws runs within `reach` of `(x, y)`: the
+ * band either side of the line that a note answers the pointer in.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.noteContour
+ * @upstream-differs measured to the sharp polygon rather than the stroked rounded path; the two differ only round a corner, by less than the reach
+ */
+export function contourNear(
+  contours: readonly (readonly ContourPoint[])[],
+  x: number,
+  y: number,
+  reach: number
+): boolean {
+  for (const loop of contours) {
+    const count = loop.length;
+    for (let i = 0; i < count; i++) {
+      const a = loop[i];
+      const b = loop[(i + 1) % count];
+      if (a === undefined || b === undefined) continue;
+      // The nearest point of the edge: the pointer's own coordinate, clamped to
+      // the edge, along it — the edges are horizontal or vertical, but a
+      // general segment costs nothing more.
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = dx * dx + dy * dy;
+      const t =
+        length === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / length));
+      if (Math.hypot(x - (a.x + t * dx), y - (a.y + t * dy)) <= reach) return true;
+    }
+  }
+  return false;
 }

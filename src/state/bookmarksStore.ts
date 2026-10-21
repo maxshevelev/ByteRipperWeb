@@ -325,7 +325,7 @@ export function bookmarkHostName(pane: PaneId): string | undefined {
 
 /**
  * What the mark's callout says on the row containing `offset`, and nothing when
- * there is nothing to say (§20.2, §20.7).
+ * there is nothing to say (§20.3, §20.7).
  *
  * In a pane showing a file whole that is the mark's name and nothing else: the
  * address is drawn on the mark, right under the pointer, and a callout

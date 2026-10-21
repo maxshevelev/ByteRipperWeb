@@ -1,11 +1,4 @@
 import type { AgentArguments } from "@/core/agent/agentArguments";
-import {
-  BACKGROUND_FILE_CHOICES,
-  DEFAULT_BACKGROUND_FILES,
-  defaultMemoryMiB,
-  memoryChoicesMiB,
-  snappedLimit,
-} from "@/core/agent/agentBackgroundLimits";
 import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { type AgentCallRecord, AgentServer, isRunning } from "@/core/agent/agentServer";
@@ -21,6 +14,13 @@ import {
 import { isObject } from "@/core/agent/json";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
 import { AgentAnnotationTools } from "@/state/agent/agentAnnotationTools";
+import {
+  AGENT_BACKGROUND_LIMITS,
+  defaultMemoryMiB,
+  defaultPhysicalMemory,
+  memoryChoicesMiB,
+  snapped,
+} from "@/state/agent/agentBackgroundDocuments";
 import { AgentDesk } from "@/state/agent/agentDesk";
 import { AgentDiffTools, placeJson } from "@/state/agent/agentDiffTools";
 import { AgentDumpTools } from "@/state/agent/agentDumpTools";
@@ -32,7 +32,7 @@ import { AgentRefsTools } from "@/state/agent/agentRefsTools";
 import {
   loadAgentSettings,
   rememberAgentBackgroundFiles,
-  rememberAgentBackgroundMemory,
+  rememberAgentBackgroundMemoryMiB,
   rememberAgentEditsAllowed,
   rememberAgentEnabled,
   rememberAgentLaunchesApp,
@@ -76,6 +76,15 @@ export const AGENT_ACTIVITY_HOLD = 2000;
 
 /** What the Agent window and the status mark show. */
 export interface AgentServiceState {
+  /**
+   * Whether an agent is at work: a call is running, or one ended less than
+   * {@link AGENT_ACTIVITY_HOLD} ago. A call often takes a few milliseconds, and a mark that showed
+   * only the running ones would never be seen; held a moment after each, a run of calls reads as one
+   * stretch of work.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isActive
+   */
+  readonly active: boolean;
   /** The switch. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isEnabled */
   readonly enabled: boolean;
   /** Whether an agent may write into an open file. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.editsAllowed */
@@ -90,14 +99,24 @@ export interface AgentServiceState {
    */
   readonly launchesApp: boolean;
   /**
-   * Whether an agent is at work: a call is running, or one ended less than
-   * {@link AGENT_ACTIVITY_HOLD} ago. A call often takes a few milliseconds, and a mark that showed
-   * only the running ones would never be seen; held a moment after each, a run of calls reads as one
-   * stretch of work.
+   * How many files an agent opened by path stay parsed at once.
    *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isActive
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFileLimit
    */
-  readonly active: boolean;
+  readonly backgroundFileLimit: number;
+  /**
+   * How many MiB those files may hold between them.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryLimitMiB
+   */
+  readonly backgroundMemoryLimitMiB: number;
+  /**
+   * The computer's memory, which the memory bound offered is a share of: the shell's word for it
+   * once it has said.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.physicalMemory
+   */
+  readonly physicalMemory: number;
   /** Whether the endpoint is open. @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isRunning */
   readonly running: boolean;
   /**
@@ -122,25 +141,16 @@ export interface AgentServiceState {
   readonly toolStats: Readonly<Record<string, AgentToolStats>>;
   /** What a client is configured with, once the shell has said. */
   readonly relay: RelayCommand | undefined;
-  /** The bounds on the files an agent opened by path, as kept: nothing when none was chosen. */
-  readonly backgroundFilesKept: number | undefined;
-  readonly backgroundMemoryKept: number | undefined;
-  /**
-   * The machine's memory, which the memory bound offered is a share of, once the shell has said.
-   *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.physicalMemory
-   */
-  readonly physicalMemory: number | undefined;
 }
-
-/** What the memory bounds are a share of until the shell has said: a small machine's memory. */
-const ASSUMED_MEMORY = 4 * 2 ** 30;
 
 const INITIAL: AgentServiceState = {
   active: false,
   enabled: false,
   editsAllowed: false,
   launchesApp: false,
+  backgroundFileLimit: AGENT_BACKGROUND_LIMITS.defaultFiles,
+  backgroundMemoryLimitMiB: defaultMemoryMiB(defaultPhysicalMemory()),
+  physicalMemory: defaultPhysicalMemory(),
   running: false,
   failure: undefined,
   endpoint: undefined,
@@ -148,9 +158,6 @@ const INITIAL: AgentServiceState = {
   log: [],
   toolStats: {},
   relay: undefined,
-  backgroundFilesKept: undefined,
-  backgroundMemoryKept: undefined,
-  physicalMemory: undefined,
 };
 
 /**
@@ -239,6 +246,11 @@ export class AgentService {
   private builtCatalogue: readonly AgentToolEntry[] | undefined;
   private readonly modules: () => readonly ToolModule[];
   private callListeners = new Set<(record: AgentCallRecord) => void>();
+  /** The bounds as kept, before they are brought inside the choices this computer is offered. */
+  private keptLimits: { files: number | undefined; memoryMiB: number | undefined } = {
+    files: undefined,
+    memoryMiB: undefined,
+  };
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.init */
   constructor(
@@ -263,7 +275,6 @@ export class AgentService {
       ((await this.diffTools.locate(this.moduleTools.hostFor(place), [range]))[0] ?? []).map(
         placeJson
       );
-    this.applyBounds();
   }
 
   /** Whether there is a shell to serve through; a browser has none, and no agent. */
@@ -333,6 +344,7 @@ export class AgentService {
    *
    * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.place
    * @upstream-differs upstream reads it again inside the synchronous lookup; the page's read is a wait, so it is done before the tool runs
+   * — and so is reading again one let go to stay inside the bounds (`AgentDesk.revive`)
    */
   private refreshing(tool: AgentTool): AgentTool {
     return {
@@ -341,20 +353,14 @@ export class AgentService {
         for (const name of ["document", "against"]) {
           const id = call.arguments.get(name);
           if (typeof id !== "string") continue;
+          // One let go to stay inside the bounds is read again under its id.
+          await this.desk.revive(id);
           const place = this.desk.places().find((one) => one.id === id);
-          if (place === undefined) await this.desk.reopen(id);
-          else if (!place.isOnScreen && place.pane !== undefined) {
+          if (place !== undefined && !place.isOnScreen && place.pane !== undefined) {
             await this.desk.background.touch(place.pane);
           }
         }
-        // The background files are brought back inside their bounds once the tool has answered: a
-        // file grows as it is asked about, and whatever the call opened or parsed is counted now.
-        // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.trimming
-        try {
-          return await tool.run(call);
-        } finally {
-          this.desk.background.trim();
-        }
+        return tool.run(call);
       },
     };
   }
@@ -369,9 +375,28 @@ export class AgentService {
       // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.appVersion
       info: { name: "byteripper", version: appVersionText(), title: "ByteRipper" },
       instructions: AGENT_INSTRUCTIONS,
-      tools: this.allTools().map((tool) => this.labelling(this.noted(tool))),
+      tools: this.allTools().map((tool) => this.trimming(this.labelling(this.noted(tool)))),
     });
     return this.builtServer;
+  }
+
+  /**
+   * `tool`, bringing the background files back inside their bounds once it has answered: a file
+   * grows as it is asked about, and whatever the call opened or parsed is counted now.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.trimming
+   */
+  private trimming(tool: AgentTool): AgentTool {
+    return {
+      ...tool,
+      run: async (call) => {
+        try {
+          return await tool.run(call);
+        } finally {
+          await this.desk.background.trim();
+        }
+      },
+    };
   }
 
   /**
@@ -469,10 +494,9 @@ export class AgentService {
       enabled: settings.enabled,
       editsAllowed: settings.editsAllowed,
       launchesApp: settings.launchesApp,
-      backgroundFilesKept: settings.backgroundFiles,
-      backgroundMemoryKept: settings.backgroundMemoryMiB,
     }));
-    this.applyBounds();
+    this.keptLimits = { files: settings.backgroundFiles, memoryMiB: settings.backgroundMemoryMiB };
+    this.applyLimits();
     await this.apply();
     void this.loadRelay();
   }
@@ -490,64 +514,62 @@ export class AgentService {
     this.store.update((state) => ({ ...state, editsAllowed: allowed }));
   }
 
-  /**
-   * How many files an agent opened by path stay parsed at once.
-   *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFileLimit
-   */
-  get backgroundFileLimit(): number {
-    return snappedLimit(
-      this.store.getSnapshot().backgroundFilesKept,
-      BACKGROUND_FILE_CHOICES,
-      DEFAULT_BACKGROUND_FILES
-    );
-  }
-
-  set backgroundFileLimit(count: number) {
-    rememberAgentBackgroundFiles(count);
-    this.store.update((state) => ({ ...state, backgroundFilesKept: count }));
-    this.applyBounds();
-  }
-
-  /**
-   * The memory bounds this machine is offered, in MiB.
-   *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.memoryChoicesMiB
-   */
-  get memoryChoicesMiB(): number[] {
-    return memoryChoicesMiB(this.store.getSnapshot().physicalMemory ?? ASSUMED_MEMORY);
-  }
-
-  /**
-   * How many MiB those files may hold between them.
-   *
-   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryLimitMiB
-   */
-  get backgroundMemoryLimitMiB(): number {
-    const physical = this.store.getSnapshot().physicalMemory ?? ASSUMED_MEMORY;
-    return snappedLimit(
-      this.store.getSnapshot().backgroundMemoryKept,
-      this.memoryChoicesMiB,
-      defaultMemoryMiB(physical)
-    );
-  }
-
-  set backgroundMemoryLimitMiB(mib: number) {
-    rememberAgentBackgroundMemory(mib);
-    this.store.update((state) => ({ ...state, backgroundMemoryKept: mib }));
-    this.applyBounds();
-  }
-
-  /** The bounds, as the settings now give them, on the files open in the background. */
-  private applyBounds(): void {
-    this.desk.background.fileLimit = this.backgroundFileLimit;
-    this.desk.background.memoryLimit = this.backgroundMemoryLimitMiB * 2 ** 20;
-  }
-
   /** The configuration shown follows at once: it is what the choice is. @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.launchChanged */
   setLaunchesApp(launches: boolean): void {
     rememberAgentLaunchesApp(launches);
     this.store.update((state) => ({ ...state, launchesApp: launches }));
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundFileLimit */
+  setBackgroundFileLimit(count: number): void {
+    rememberAgentBackgroundFiles(count);
+    this.keptLimits = { ...this.keptLimits, files: count };
+    this.applyLimits();
+  }
+
+  /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.backgroundMemoryLimitMiB */
+  setBackgroundMemoryLimitMiB(mib: number): void {
+    rememberAgentBackgroundMemoryMiB(mib);
+    this.keptLimits = { ...this.keptLimits, memoryMiB: mib };
+    this.applyLimits();
+  }
+
+  /**
+   * The memory bounds this computer is offered, in MiB.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.memoryChoicesMiB
+   */
+  memoryChoicesMiB(): number[] {
+    return memoryChoicesMiB(this.store.getSnapshot().physicalMemory);
+  }
+
+  /**
+   * The kept bounds brought inside the choices and handed to the open set, which lets go of what is
+   * over them.
+   *
+   * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.init
+   * @upstream-differs run again when the shell says how much memory the computer has, which changes
+   * what is offered
+   */
+  private applyLimits(): void {
+    const physical = this.store.getSnapshot().physicalMemory;
+    const files = snapped(
+      this.keptLimits.files,
+      AGENT_BACKGROUND_LIMITS.fileChoices,
+      AGENT_BACKGROUND_LIMITS.defaultFiles
+    );
+    const memoryMiB = snapped(
+      this.keptLimits.memoryMiB,
+      memoryChoicesMiB(physical),
+      defaultMemoryMiB(physical)
+    );
+    this.desk.background.fileLimit = files;
+    this.desk.background.memoryLimit = memoryMiB * 2 ** 20;
+    this.store.update((state) => ({
+      ...state,
+      backgroundFileLimit: files,
+      backgroundMemoryLimitMiB: memoryMiB,
+    }));
   }
 
   /**
@@ -720,16 +742,15 @@ export class AgentService {
     if (info === undefined) return;
     this.store.update((state) => ({
       ...state,
-      physicalMemory: info.physicalMemory ?? state.physicalMemory,
       relay: {
         command: info.command,
         script: info.script,
         environment: info.environment,
         platform: info.platform,
       },
+      physicalMemory: info.memory ?? state.physicalMemory,
     }));
-    // The memory bound offered is a share of the machine's, now known.
-    this.applyBounds();
+    this.applyLimits();
   }
 
   /** Shows or hides the Agent window. @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow */

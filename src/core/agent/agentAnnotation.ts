@@ -215,7 +215,8 @@ export function annotationRelations(
 }
 
 /**
- * What the callout over the bytes says: the title, the note and the annotations this one is about.
+ * What the callout over the bytes says: the title, the note and the annotations this one is about,
+ * named by `titles` where it knows them.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotation.swift#AgentAnnotation.hoverText
  */
@@ -251,17 +252,19 @@ export interface DrawnAnnotation {
 
 /**
  * What was said in the note on `[start, end)` — the outline the pointer is on — and whether the
- * person said it, or nothing for none. Two notes on the same bytes draw one outline; the first made
- * is the one that speaks.
+ * person said it rather than the agent, or `undefined` for none. Two notes on the same bytes draw
+ * one outline; the first made is the one that speaks.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexAgentMarkHover
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexAgentMarkHover
  */
 export function drawnHover(
   drawn: readonly DrawnAnnotation[],
-  span: { readonly start: number; readonly end: number },
+  start: number,
+  end: number,
   titles: ReadonlyMap<string, string>
 ): { readonly text: string; readonly byPerson: boolean } | undefined {
-  const note = drawn.find((one) => one.start === span.start && one.end === span.end);
+  const note = drawn.find((one) => one.start === start && one.end === end);
   if (note === undefined) return undefined;
   const text = annotationHoverText(note.annotation, titles);
   return text.length === 0 ? undefined : { text, byPerson: note.annotation.author === "person" };

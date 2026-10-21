@@ -50,7 +50,7 @@ describe("a device overrides variable", () => {
     expect(isBZip2Variable(node)).toBe(true);
     expect(isBZip2Variable({ kind: "sysFEntry", name: "other" })).toBe(false);
     expect(isBZip2Variable({ kind: "section", name: "overrides" })).toBe(false);
-    // The panel is the variable's, then body: the pill's badge says bzip2.
+    // The panel is the variable's name, then body; the pill's badge says bzip2.
     expect(partName({ name: node.name, header: [node.header.start, node.header.end] }, true)).toBe(
       "overrides body"
     );

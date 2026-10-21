@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
 import { huffmanDictionariesWanted } from "@/firmware/me/engine/huffmanNeed";
@@ -63,7 +63,12 @@ import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
 import { columnTemplate, type TableColumn, useColumnWidths } from "@/ui/toolPanel/columnWidths";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
-import { detailSelectionHandlers, FieldList, ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import {
+  DetailFields,
+  detailSelectionHandlers,
+  type ListedField,
+  ToolDetail,
+} from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 
 /**
@@ -847,6 +852,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               subject={focus}
               detail={detailOf(selected)}
               placeholder={L("Select a row to see what it is.")}
+              // The engine's field names run long (`systemHeaderCRCValid`): the column
+              // takes the longest of them, up to half the list.
+              // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderDetail
+              names="longest"
               // Decided by the curator, with the name: this is the one place
               // that knows a row is the partition table rather than a row that
               // happens to be called "Regions (FPT)".
@@ -1019,14 +1028,41 @@ function uniqueKeys(texts: readonly string[]): string[] {
 }
 
 /**
- * The Summary tab: one shared field list per block, under the block's heading — the rows the
- * UEFI Structure's detail and this panel's own are drawn with. The list is what gives a reader
- * the selection: a drag down the rows takes a band of them, Ctrl+A or ⌘A the block, and a copy
- * has a tab between a name and its value, which a summary pasted into a report wants.
+ * What each summary row's label column is wide at: upstream's 200 points at its design
+ * size of 11, in the panel's own type size, so it follows a zoom as upstream's scaled
+ * width does.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryLabelWidth
+ */
+const SUMMARY_LABEL_WIDTH = "calc(200em / 11)";
+
+/**
+ * One Summary row as a field of the shared detail list: the label, and the value
+ * drawn as the row's tone asks. A status value is bold and coloured, with the tick a
+ * passed check carries, all of it from the tone, which is the same rendering the
+ * tree's detail and the UEFI Structure's use; a `.comingSoon` value is drawn grey,
+ * the shape of a row the engine will answer once the bridge reaches it, and so is a
+ * `.pending` one, which the reading under way will answer.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
+ */
+function summaryField(row: MEASummaryRow): ListedField {
+  const muted = row.value.kind === "comingSoon" || row.value.kind === "pending";
+  return { label: row.label, value: valueText(row), tone: muted ? "standard" : row.tone, muted };
+}
+
+/**
+ * The Summary's blocks, each one the shared detail list (`DetailFields`) — the rows the
+ * UEFI Structure and this panel's own detail are drawn with — under the block's heading.
+ * The list is what gives a reader the selection: a drag down the rows takes a band of
+ * them, Ctrl+A or ⌘A in a block the block, and a copy puts it on the clipboard with a
+ * tab between a name and its value, which a summary pasted into a report wants. The
+ * name column is one width in every block, so the values line up from the table to the
+ * messages — wider than the detail list's, because the summary carries long labels
+ * ("TCB Security Version Number") — and a label too long for it wraps.
  *
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showSummary
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderSummary
- * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
  */
 export function SummaryView({
   blocks,
@@ -1042,32 +1078,26 @@ export function SummaryView({
   const blockKeys = uniqueKeys(blocks.map((block) => block.title ?? ""));
   const selecting = detailSelectionHandlers();
   return (
-    <div className="me-summary" ref={scrollRef} onCopy={selecting.onCopy}>
-      {blocks.map((block, blockIndex) =>
-        block.title === undefined && block.rows.length === 0 ? null : (
-          <section className="me-summary-block" key={blockKeys[blockIndex]}>
-            {block.title === undefined ? null : <h3 className="me-summary-title">{block.title}</h3>}
-            {block.rows.length === 0 ? null : (
-              // biome-ignore lint/a11y/noStaticElementInteractions: Ctrl+A is the list's, not a control's
-              <div
-                className="me-summary-list"
-                tabIndex={selecting.tabIndex}
-                onKeyDown={(event) => selecting.selectAll(event)}
-              >
-                <FieldList
-                  fields={block.rows.map((row) => ({
-                    label: row.label,
-                    value: valueText(row),
-                    tone: row.tone,
-                    // "Coming soon" and "Loading…" alike: grey, a row the engine will answer.
-                    isPromise: row.value.kind !== "value",
-                  }))}
-                />
-              </div>
-            )}
-          </section>
-        )
-      )}
+    <div className="me-summary" ref={scrollRef}>
+      {blocks.map((block, blockIndex) => (
+        <Fragment key={blockKeys[blockIndex]}>
+          {block.title === undefined ? null : <h3 className="me-summary-title">{block.title}</h3>}
+          {block.rows.length === 0 ? null : (
+            // Focusable by a click, so Ctrl+A or ⌘A and the copy arrive at the block.
+            // biome-ignore lint/a11y/noStaticElementInteractions: the keys select text, not a control's
+            <div
+              className="me-summary-block"
+              tabIndex={selecting.tabIndex}
+              onCopy={selecting.onCopy}
+              onKeyDown={(event) => {
+                selecting.selectAll(event);
+              }}
+            >
+              <DetailFields fields={block.rows.map(summaryField)} nameWidth={SUMMARY_LABEL_WIDTH} />
+            </div>
+          )}
+        </Fragment>
+      ))}
     </div>
   );
 }

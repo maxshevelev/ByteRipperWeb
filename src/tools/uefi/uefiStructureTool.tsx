@@ -602,6 +602,17 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         };
   }, [state?.protectedRanges]);
 
+  // Where the image keeps the board's identity: the button appears when it is found, and
+  // an edit that may have made or unmade a store drops the list. Asked before the protected
+  // ranges, which the same helper reads after it: the search takes a fraction of a second, the
+  // hashing seconds, and a button that waits for them is a button the reader takes for absent.
+  // @upstream-differs upstream asks when the tree is shown; the worker is asked once here
+  const dmiStores = state?.dmiStores ?? [];
+  const dmiSearched = state?.dmiStores !== undefined;
+  useEffect(() => {
+    if (status === "ready" && !dmiSearched) askFirmwareDmiStores(context.pane);
+  }, [status, dmiSearched, context.pane]);
+
   // The protected ranges, once the tree is there to read them over: the reading
   // opens every volume's files and hashes megabytes, so a panel nobody has
   // opened pays for none of it.
@@ -622,14 +633,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     if (status === "ready" && hasDvarStore) askFirmwareDvarSettings(context.pane);
   }, [status, hasDvarStore, context.pane]);
-  // Where the image keeps the board's identity: the button appears when it is found, and
-  // an edit that may have made or unmade a store drops the list.
-  // @upstream-differs upstream asks when the tree is shown; the worker is asked once here
-  const dmiStores = state?.dmiStores ?? [];
-  const dmiSearched = state?.dmiStores !== undefined;
-  useEffect(() => {
-    if (status === "ready" && !dmiSearched) askFirmwareDmiStores(context.pane);
-  }, [status, dmiSearched, context.pane]);
   // The detail on screen is asked again when the drivers that read Lenovo's entries have
   // been found: it says which, which it could not before.
   const lenovoReaders = state?.lenovoDMIReaders;
@@ -985,6 +988,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   node.dvarValue.number === undefined ? undefined : BigInt(node.dvarValue.number),
               },
         valueRow: node.valueRow,
+        isHPDMIArea: node.isHPDMIArea,
         dvarSettings: state?.dvarSettings,
       },
       catalogue.catalogue
@@ -1371,7 +1375,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         context.report(L("There is no LENV block to decode here."));
         return;
       }
-      // The panel is the block's: the pill's badge says it is decoded.
       context.openPart(
         found.name,
         [found.range[0], found.range[1]],
@@ -1659,7 +1662,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.revealNodeAtCaret
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegionForReveal
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showUEFIFocus
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onRevealAtCaret
    */
   const revealNode = useCallback(
@@ -1674,6 +1676,10 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       if (mePath !== undefined) {
         const node = meaNodeAt(meRoots, mePath);
         if (node !== undefined) {
+          // The ME half of showing a UEFI focus: a row the panel picked rather than the
+          // reader, so the table moves to it — the focus is state the table is drawn from,
+          // and the scroll target brings the row into view.
+          // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
           context.noteNavigationStep();
           setOpen((current) => {
             const next = new Set(current);
@@ -1907,15 +1913,15 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * routed by which one is set — not by the id's shape, which a one-level ME
    * path ("0") and a UEFI node ("0") cannot tell apart.
    *
-   * An ME row is shown as a reveal shows it — selected, its detail up, the table moved to it —
-   * which upstream's `selectME`, following a selection the reader had already made, did not do.
-   *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.zoneSelected
-   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
    */
   const zonePicked = useCallback(
     (zoneId: string) => {
       if (meFocus !== undefined) {
+        // An ME zone goes the way a reveal does: the row is selected, its zone published,
+        // and the table brought to it. The zone on screen is only ever the selected row's,
+        // so the click lands on the row the table is already on.
+        // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.showMEFocus
         const mePath = zoneId.length === 0 ? [] : zoneId.split("/").map(Number);
         const node = meaNodeAt(meRoots, mePath);
         if (node === undefined) return;
@@ -2814,14 +2820,14 @@ export const uefiStructureTool: ToolModule = {
 
 /**
  * The DMI button's face: the word in a rounded frame, a badge rather than a glyph — no symbol
- * says "the board's identity", and the technician knows the area by that name.
+ * says "the board's identity", and the technician knows the area by that name. Drawn in the
+ * text's colour, so the frame and the word follow the theme.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.init
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.draw
- * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.intrinsicContentSize
- * @upstream-differs a frame of CSS (`.uefi-dmi-badge`) around the word, which follows the
- * theme by itself
+ * @upstream-differs a CSS border and padding (`.uefi-dmi-badge`) where AppKit measures and
+ * strokes the frame itself
  */
 function DmiBadge() {
   return (

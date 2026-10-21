@@ -65,3 +65,14 @@ export function placeholderProblem(text: string): string | undefined {
   if (count > 1) return L("Exactly one character");
   return undefined;
 }
+
+/**
+ * "256 MB", "1 GB": a memory bound of Settings ▸ Agent, in the units a computer's own memory is told
+ * in.
+ *
+ * @upstream ByteRipperApp/Settings/AgentSettings.swift#AgentSettingsViewController.memoryTitle
+ * @upstream-differs worded by the catalogue rather than `ByteCountFormatter`, which a page has not
+ */
+export function memoryTitle(mib: number): string {
+  return mib >= 1024 && mib % 1024 === 0 ? L("%1$@ GB", mib / 1024) : L("%1$@ MB", mib);
+}

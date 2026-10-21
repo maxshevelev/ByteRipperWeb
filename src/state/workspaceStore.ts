@@ -25,7 +25,7 @@ import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
-import { rememberOpenedFile } from "@/state/fileReopen";
+import { rememberOpenedFile, rememberSavedFile } from "@/state/fileReopen";
 import {
   collapsePanels,
   EMPTY_DOCK,
@@ -832,6 +832,27 @@ export function renamePane(pane: PaneId, raw: string): boolean {
 }
 
 /**
+ * The name a save offers: the pane's own, with `.bin` after it for a document
+ * never saved that has no extension of its own. A fragment's name is a node's
+ * or a zone's and never a file's — `Intel ME v11.8.50` is not a file with the
+ * extension `50` — so it always gets one.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveAsName
+ * @upstream-differs offered to whichever route the browser saves by — the
+ * picker, or the download a browser without one falls back to
+ */
+export function saveAsName(
+  slot: Pick<PaneState, "name" | "untitled" | "origin"> | undefined
+): string {
+  if (slot === undefined) return "";
+  const name = slot.name;
+  if (!slot.untitled) return name;
+  const dot = name.lastIndexOf(".");
+  if (slot.origin === undefined && dot > 0 && dot < name.length - 1) return name;
+  return `${name}.bin`;
+}
+
+/**
  * Saves a pane, by whichever route the browser offers.
  *
  * The outcome matters to the caller: a save in place rebases the document onto
@@ -844,21 +865,6 @@ export function renamePane(pane: PaneId, raw: string): boolean {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.saveAs
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneSaveError
  */
-/**
- * The name Save As suggests: the pane's own, with `.bin` after it for a document never saved
- * that has no extension of its own. A fragment's name is a node's or a zone's and never a
- * file's — `Intel ME v11.8.50` is not a file with the extension `50` — so it always gets one.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveAsName
- */
-export function saveAsName(slot: Pick<PaneState, "name" | "untitled" | "origin">): string {
-  if (!slot.untitled) return slot.name;
-  const dot = slot.name.lastIndexOf(".");
-  const hasExtension = dot > 0 && dot < slot.name.length - 1;
-  if (slot.origin === undefined && hasExtension) return slot.name;
-  return `${slot.name}.bin`;
-}
-
 export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const state = workspaceStore.getSnapshot();
   const slot = paneIn(state, pane);
@@ -896,6 +902,10 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
     overlay.rebase(base);
     slot.document.markSaved();
     noteDocumentChanged();
+    // The file is known again by what the save made of it: an annotation on it, and its handle,
+    // follow a save in place; a Save As is a file of its own, opened again by its own handle.
+    if (outcome.kind === "savedInPlace") rememberSavedFile(slot.file, outcome.file);
+    else rememberOpenedFile(outcome.file);
     workspaceStore.update((current) =>
       withPane(current, pane, {
         ...slot,
@@ -1350,23 +1360,6 @@ export function togglePart(pane: PartId): void {
   const state = workspaceStore.getSnapshot();
   if (state.dock.expanded === panelOf(pane)) foldParts();
   else raisePart(pane);
-}
-
-/**
- * Brings `pane` to the front without moving anything in it: a part's panel raised, or the stage
- * cleared and one of the window's own panes made the active one — so the keys, the caret a
- * difference is looked for from, and a tool opened next all go to the file shown.
- *
- * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.bringForward
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateOwnPane
- */
-export function bringPaneForward(pane: PaneId): void {
-  if (isSlot(pane)) {
-    foldParts();
-    setActivePane(pane);
-  } else {
-    raisePart(pane);
-  }
 }
 
 /**

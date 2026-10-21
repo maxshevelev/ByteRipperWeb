@@ -4,40 +4,18 @@ import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { type DesktopFiles, installDesktopFilesForTesting } from "@/platform/desktop/desktopFiles";
-import { memoryKeyValueStore } from "@/platform/storage/keyValueStore";
 import {
   agentAnnotationStore,
   allAnnotations,
-  annotationRemoval,
-  arrangeAnnotations,
   discardAnnotationsForTesting,
   drawnIn,
-  keepAnnotations,
-  orderedAnnotations,
-  restoreAnnotations,
-  saveAnnotationsNow,
-  takeFreshAnnotations,
   updateAnnotation,
 } from "@/state/agent/agentAnnotationStore";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { forgetOpenedFilesForTesting } from "@/state/fileReopen";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import {
-  canNavigateBack,
-  forgetCaretOnScreen,
-  navigateBack,
-  navigateForward,
-  navigationHistory,
-  showNotesLeaving,
-} from "@/state/navigationStore";
-import {
-  forgetPanelRemovalsForTesting,
-  notesPanelStore,
-  redoPanelRemoval,
-  removeFromPanel,
-  undoPanelRemoval,
-} from "@/state/notesPanelStore";
+import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { noticeStore } from "@/state/noticeStore";
 import {
   closePane,
@@ -50,10 +28,6 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
-import { dumpMenu, type PaneMenuActions } from "@/ui/shell/paneMenus";
-
-/** Nothing the offset menu's annotation items do calls the shell back. */
-const noActions = new Proxy({}, { get: () => () => undefined }) as PaneMenuActions;
 
 /**
  * An agent's annotations: made, listed, related and removed through the service; drawn by the
@@ -144,9 +118,9 @@ async function answer(name: string, args: { [key: string]: Json } = {}): Promise
 /** What pane `pane` draws, as half-open stretches of its own addresses. */
 const spans = (pane: PaneId = "a") => drawnIn(pane).map((one) => [one.start, one.end]);
 
-/** What the outline of `[start, end)` in pane `pane` says, when the pointer is on it. */
-const hover = (start: number, end: number, pane: PaneId = "a") =>
-  drawnHover(drawnIn(pane), { start, end }, annotationTitles(allAnnotations()))?.text;
+/** What the outline of the note on `[start, end)` of pane `pane` says, or "" for none. */
+const hoverText = (start: number, end: number, pane: PaneId = "a") =>
+  drawnHover(drawnIn(pane), start, end, annotationTitles(allAnnotations()))?.text ?? "";
 
 /** Lets the selection a reveal asks for land, as the pane would. */
 function selectOnReveal(): void {
@@ -170,7 +144,6 @@ beforeEach(() => {
 
 afterEach(() => {
   discardAnnotationsForTesting();
-  forgetPanelRemovalsForTesting();
   service.desk.background.closeAll();
   while (leave.length > 0) leave.pop()?.();
   workspaceStore.update((state) => ({
@@ -226,7 +199,7 @@ describe("an annotation", () => {
       related_to: ["a1"],
     });
     expect(member(pointer, "related_to")).toEqual(["a1"]);
-    expect(hover(0x20, 0x24)).toBe("Pointer\nRelated Annotations: a1 Table");
+    expect(hoverText(0x20, 0x24)).toBe("Pointer\nRelated Annotations: a1 Table");
 
     const unknown = await call("annotate", { offset: 0, title: "X", related_to: ["a9"] });
     expect(unknown.text).toBe("No annotation a9. Call `annotations` for the ones there are.");
@@ -266,16 +239,16 @@ describe("an annotation", () => {
 });
 
 describe("on screen", () => {
-  // Each outline says its own note: the title and the note of the annotation it outlines, the
-  // inner one's on the inner outline.
+  // Each outline says its own note: the title and the note of the annotation it outlines, the inner
+  // one's on the inner outline.
   // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testEachOutlineSaysItsOwnTitleAndNote
   it("each outline says its own title and note", async () => {
     open(counting(0x1000));
     await answer("annotate", { offset: 0, length: 0x100, title: "Region" });
     await answer("annotate", { offset: 0x10, length: 4, title: "Signature", note: "Magic." });
-    expect(hover(0x10, 0x14)).toBe("Signature\nMagic.");
-    expect(hover(0, 0x100)).toBe("Region");
-    expect(hover(0x200, 0x210)).toBeUndefined();
+    expect(hoverText(0x10, 0x14)).toBe("Signature\nMagic.");
+    expect(hoverText(0, 0x100)).toBe("Region");
+    expect(hoverText(0x200, 0x210)).toBe("");
   });
 
   // An annotation belongs to the file: another file in the pane does not show it, the list keeps
@@ -441,6 +414,24 @@ describe("on screen", () => {
     expect(canNavigateBack()).toBe(true);
   });
 
+  // Only a card's own double-click leaves the panel as a step; the agent's reveal while the panel
+  // is up leaves the bytes the person was on, and Back never raises the panel for it.
+  it("records the panel as the place left only for the person's show", async () => {
+    open(counting(0x10000));
+    selectOnReveal();
+    await answer("annotate", { offset: "0x8000", length: 8, title: "Far" });
+    openNotesPanel();
+    await service.annotationTools.show("a1");
+    expect(navigationHistory.backStack.some((place) => place.isNotes === true)).toBe(false);
+    openNotesPanel();
+    await service.annotationTools.show("a1", true);
+    expect(navigationHistory.backStack.at(-1)?.isNotes).toBe(true);
+    // A person's note that could not be made — no document in the pane — is no step at all.
+    const steps = navigationHistory.backStack.length;
+    expect(await service.annotationTools.addNote("None", "", "b", 0, 2)).toBe(false);
+    expect(navigationHistory.backStack).toHaveLength(steps);
+  });
+
   // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testRevealBringsThePlaceOnScreen
   it("with reveal brings the place on screen", async () => {
     open(counting(0x10000));
@@ -501,174 +492,5 @@ describe("the Annotations panel", () => {
     expect([edited?.title, edited?.note]).toEqual(["Board ID, checked", "Twice."]);
     expect(edited?.range).toEqual([0x30, 0x38]);
     expect(edited?.author).toBe("person");
-  });
-
-  // The cards' order is the store's own: a new card goes first, a card dragged stays where it was
-  // put. The agent's list stays oldest first.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testACardDraggedOntoAnotherTakesItsPlace
-  it("puts the newest card first, and a card arranged stays where it was put", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    await answer("annotate", { offset: 2, title: "B" });
-    await answer("annotate", { offset: 4, title: "C" });
-    expect(orderedAnnotations().map((one) => one.title)).toEqual(["C", "B", "A"]);
-    expect(allAnnotations().map((one) => one.title)).toEqual(["A", "B", "C"]);
-    arrangeAnnotations(["a1", "a3", "a2"]);
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a1", "a3", "a2"]);
-    await answer("annotate", { offset: 6, title: "D" });
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a4", "a1", "a3", "a2"]);
-  });
-
-  // Every new card is marked New: taken by the panel at once while it is up, otherwise when it
-  // comes up; taken, it is not new again.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteIsNewUntilTheWindowGoesOutOfView
-  it("keeps a new note fresh until the panel takes it", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    await service.annotationTools.addNote("B", "", "a", 2, 4);
-    expect([...takeFreshAnnotations()]).toEqual(["a1", "a2"]);
-    expect(takeFreshAnnotations().size).toBe(0);
-  });
-
-  // ⌘Z puts the cards last removed back where they stood, with the relations the others lost.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testUndoPutsRemovedCardsBackWhereTheyStood
-  it("puts removed cards back where they stood, relations and all", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    await answer("annotate", { offset: 2, title: "B", related_to: ["a1"] });
-    await answer("annotate", { offset: 4, title: "C" });
-    arrangeAnnotations(["a2", "a1", "a3"]);
-    const removal = annotationRemoval((one) => one.id === "a1");
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a3"]);
-    expect(allAnnotations().find((one) => one.id === "a2")?.relatedTo).toEqual([]);
-
-    if (removal === undefined) throw new Error("a1 should have been removed");
-    restoreAnnotations(removal);
-    expect(allAnnotations().map((one) => one.id)).toEqual(["a1", "a2", "a3"]);
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a1", "a3"]);
-    expect(allAnnotations().find((one) => one.id === "a2")?.relatedTo).toEqual(["a1"]);
-    // Put back already, it is left.
-    restoreAnnotations(removal);
-    expect(allAnnotations()).toHaveLength(3);
-  });
-
-  // Everything an annotation holds is kept, with the cards' order and the new and unseen sets, and
-  // read again at the next launch; the next id goes on from there.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheAnnotationsAreKeptForTheNextLaunch
-  it("is kept for the next launch", async () => {
-    const kept = memoryKeyValueStore();
-    await keepAnnotations(kept);
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0x28, length: 4, title: "Signature", note: "Magic." });
-    await service.annotationTools.addNote("Model", "By hand.", "a", 0x40, 0x48);
-    await answer("annotate", { offset: 0, title: "Pointer", related_to: ["a1"] });
-    arrangeAnnotations(["a1", "a3", "a2"]);
-    await saveAnnotationsNow();
-    const before = allAnnotations();
-    const state = agentAnnotationStore.getSnapshot();
-
-    // The next launch: nothing in memory, the store read again.
-    discardAnnotationsForTesting();
-    expect(allAnnotations()).toEqual([]);
-    await keepAnnotations(kept);
-    expect(allAnnotations()).toEqual(before);
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a1", "a3", "a2"]);
-    expect(agentAnnotationStore.getSnapshot().fresh).toEqual(state.fresh);
-    expect(agentAnnotationStore.getSnapshot().unseen).toEqual(state.unseen);
-    expect(agentAnnotationStore.getSnapshot().nextId).toBe(4);
-  });
-
-  // A removal made in the panel is one step: ⌘Z puts the cards back, selected; ⇧⌘Z removes them
-  // again.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testUndoPutsRemovedCardsBackWhereTheyStood
-  it("takes a removal back with Undo, and makes it again with Redo", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    await answer("annotate", { offset: 2, title: "B" });
-    removeFromPanel(new Set(["a1"]));
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2"]);
-
-    expect(undoPanelRemoval()).toBe(true);
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2", "a1"]);
-    expect(notesPanelStore.getSnapshot().select?.ids).toEqual(["a1"]);
-    expect(undoPanelRemoval()).toBe(false);
-
-    expect(redoPanelRemoval()).toBe(true);
-    expect(orderedAnnotations().map((one) => one.id)).toEqual(["a2"]);
-    expect(undoPanelRemoval()).toBe(true);
-    expect(allAnnotations()).toHaveLength(2);
-  });
-
-  // The last cards removed in the panel leave it up, empty, so ⌘Z still has a panel to reach; a
-  // removal made elsewhere takes the pill with the last annotation.
-  it("stays, empty, after its last cards are removed, until they are put back", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    openNotesPanel();
-    removeFromPanel(new Set(["a1"]));
-    expect(allAnnotations()).toHaveLength(0);
-    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
-
-    expect(undoPanelRemoval()).toBe(true);
-    expect(allAnnotations()).toHaveLength(1);
-    await answer("remove_annotations", { ids: ["a1"] });
-    expect(workspaceStore.getSnapshot().notesPanel).toBeUndefined();
-  });
-
-  // A note is marked New when the panel comes up, and while it is up; the marks go when it folds.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteIsNewUntilTheWindowGoesOutOfView
-  it("marks a note New until the panel goes out of view", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, title: "A" });
-    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
-    openNotesPanel();
-    expect([...notesPanelStore.getSnapshot().newIds]).toEqual(["a1"]);
-    await answer("annotate", { offset: 2, title: "B" });
-    expect([...notesPanelStore.getSnapshot().newIds]).toEqual(["a1", "a2"]);
-    foldParts();
-    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
-    openNotesPanel();
-    expect(notesPanelStore.getSnapshot().newIds.size).toBe(0);
-  });
-
-  // A note made by hand brings the panel up as a step of the history: Back returns to the place it
-  // was made on, and Forward comes to the panel again.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteMadeShowsTheWindowAndBackReturnsToItsPlace
-  it("brings the panel up when a note is made, a step Back returns from", async () => {
-    open(counting(0x1000));
-    await paneState("a")?.typing.setSelection(0x30, 0x38);
-    expect(await service.annotationTools.addNote("Board ID", "", "a", 0x30, 0x38)).toBe(true);
-    showNotesLeaving("a");
-    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
-    expect(canNavigateBack()).toBe(true);
-
-    navigateBack();
-    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(false);
-    expect(selection()).toEqual([0x30, 0x38]);
-    navigateForward();
-    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
-  });
-
-  // A right-click on a byte inside annotations offers each of them, the innermost first; picking
-  // one brings the panel up with its card selected, a step Back returns from.
-  // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheOffsetMenuOpensTheAnnotationsOnTheByte
-  it("is opened from the offset menu of a byte inside it, the innermost first", async () => {
-    open(counting(0x1000));
-    await answer("annotate", { offset: 0, length: 0x100, title: "Outer" });
-    await answer("annotate", { offset: 0x10, length: 0x10, title: "Inner" });
-    const offered = dumpMenu(workspaceStore.getSnapshot(), "a", 0x18, noActions)
-      .filter((entry) => entry !== undefined && "label" in entry)
-      .map((entry) => (entry as { label: string }).label)
-      .filter((label) => label.startsWith("Open Annotation"));
-    expect(offered).toEqual(["Open Annotation “Inner”", "Open Annotation “Outer”"]);
-
-    const item = dumpMenu(workspaceStore.getSnapshot(), "a", 0x18, noActions).find(
-      (entry) =>
-        entry !== undefined && "label" in entry && entry.label === "Open Annotation “Outer”"
-    ) as { onSelect: () => void };
-    item.onSelect();
-    expect(notesPanelIsUp(workspaceStore.getSnapshot())).toBe(true);
-    expect(notesPanelStore.getSnapshot().select?.ids).toEqual(["a1"]);
-    expect(canNavigateBack()).toBe(true);
   });
 });

@@ -16,8 +16,8 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { ProjectFolder } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
+import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
 import { mapOn, minimapStore } from "@/state/minimapStore";
-import { chosenCards } from "@/state/notesPanelStore";
 import {
   PANE_IDS,
   type PaneId,
@@ -129,7 +129,7 @@ export async function snapshotWorkspace(): Promise<{
   const notes: NotesState | undefined =
     state.notesPanel === undefined
       ? undefined
-      : { isUp: notesPanelIsUp(state), selected: [...chosenCards()] };
+      : { isUp: notesPanelIsUp(state), selected: [...agentAnnotationStore.getSnapshot().chosen] };
   return {
     workspace: { version: WORKSPACE_VERSION, tab, ...(notes === undefined ? {} : { notes }) },
     handles,

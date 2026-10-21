@@ -1,4 +1,4 @@
-import { LocalizedText, type LocalizedTextWire } from "@/core/localization/localization";
+import { LocalizedText, type LocalizedTextData } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
 import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import type { LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
@@ -17,8 +17,8 @@ export type PartCodecState =
   | {
       readonly kind: "readOnly";
       readonly bytes: readonly number[];
-      readonly title: LocalizedTextWire;
-      readonly reason: LocalizedTextWire;
+      readonly title: LocalizedTextData;
+      readonly reason: LocalizedTextData;
       readonly transform?: string | undefined;
     }
   | {
@@ -34,8 +34,8 @@ export function partCodecState(codec: PartCodec): PartCodecState | undefined {
     return {
       kind: "readOnly",
       bytes: [...codec.bytes],
-      title: codec.title.toWire(),
-      reason: codec.reason.toWire(),
+      title: codec.title,
+      reason: codec.reason,
       transform: codec.transform,
     };
   }
@@ -62,8 +62,8 @@ export function codecOf(state: PartCodecState, pane: PaneId): PartCodec {
     case "readOnly":
       return new ReadOnlyPartCodec(
         Uint8Array.from(state.bytes),
-        LocalizedText.fromWire(state.title),
-        LocalizedText.fromWire(state.reason),
+        LocalizedText.from(state.title),
+        LocalizedText.from(state.reason),
         state.transform
       );
     case "uefi":

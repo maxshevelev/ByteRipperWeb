@@ -11,7 +11,7 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
-import { keepAnnotations } from "@/state/agent/agentAnnotationStore";
+import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
@@ -34,7 +34,6 @@ import {
   noteCaretIfOnScreen,
   recordJump,
 } from "@/state/navigationStore";
-import { redoPanelRemoval, undoPanelRemoval } from "@/state/notesPanelStore";
 import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
 import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
 import {
@@ -82,7 +81,6 @@ import { projectQuestionStore } from "@/state/workspace/projects";
 import { startWorkspaceRecorder } from "@/state/workspace/workspaceRecorder";
 import { restoreWorkspace } from "@/state/workspace/workspaceRestorer";
 import {
-  bringPaneForward,
   canRevertToOriginal,
   closePane,
   closePart,
@@ -93,7 +91,6 @@ import {
   frontPane,
   isSlot,
   joinIntoPane,
-  notesPanelIsUp,
   openEmptyInPane,
   openInPane,
   type PaneId,
@@ -120,7 +117,6 @@ import {
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
 import { TOOLS } from "@/tools/registry";
-import { HoverCallout } from "@/ui/callout/HoverCallout";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -539,11 +535,23 @@ export function AppShell() {
       void fileFromRecentHandle(row.handle)
         .then((file) => accept([openedFileFrom(file, row.handle)], undefined, "activePane"))
         .catch((error: unknown) => {
-          // A file that is gone (NotFound) drops out of the menu at once; a
-          // refused permission, or any other failure, is kept — the file exists,
-          // and the next re-open can ask for it again.
-          if (error instanceof DOMException && error.name === "NotFound") dropRecentFile(row.name);
-          reportAlert(L("Could not open file."), L("This file could not be opened."));
+          // A file that is gone drops out of the menu at once, and the alert says it is gone,
+          // as upstream's does; a refused permission, or any other failure, is kept — the file
+          // exists, and the next re-open can ask for it again — and the alert says which.
+          const name = error instanceof DOMException ? error.name : "";
+          if (name === "NotFoundError") {
+            dropRecentFile(row.name);
+            reportAlert(L("File not found"), L("“%1$@” is no longer there.", row.name));
+          } else if (name === "NotAllowedError" || name === "SecurityError") {
+            reportAlert(L("Could not open file."), L("The browser refused access to this file."));
+          } else {
+            reportAlert(
+              L("Could not open file."),
+              error instanceof Error && error.message.length > 0
+                ? error.message
+                : L("This file could not be opened.")
+            );
+          }
         });
     },
     [accept]
@@ -841,10 +849,10 @@ export function AppShell() {
     void restoreBookmarks();
     // The favourites and this browser's identity, from the last visit.
     void restoreFavorites();
+    // The annotations, with the order of their cards, from the last visit.
+    void restoreAnnotations();
     // The files opened most recently, back for File ▸ Open Recent.
     void restoreRecentFiles();
-    // The annotations, kept from one launch to the next.
-    void keepAnnotations();
     // The projects opened lately, for File ▸ Open Recent Project.
     void loadRecentProjects();
   }, []);
@@ -992,6 +1000,8 @@ export function AppShell() {
         }
         case "z":
         case "y": {
+          // The Annotations cards have their own: it takes back a removal there.
+          if (target instanceof Element && target.closest(".notes-cards") !== null) return;
           // Undo and Redo belong to the Edit menu and act on the active pane
           // wherever the keyboard is — after a click on the toolbar, say. A text
           // field keeps its own: undoing a typed character is not undoing a cut.
@@ -999,14 +1009,6 @@ export function AppShell() {
           const redo = chord === "y" ? detectKeyboardPlatform() === "other" : event.shiftKey;
           if (chord === "y" && !redo) return;
           event.preventDefault();
-          // With the Annotations panel up, Undo and Redo are its: a removal of cards taken back
-          // or made again.
-          // @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.windowWillReturnUndoManager
-          if (notesPanelIsUp(workspaceStore.getSnapshot())) {
-            if (redo) redoPanelRemoval();
-            else undoPanelRemoval();
-            return;
-          }
           // Undo means the document in front: an edit made in a part is undone
           // in the part, not in the file it is lying over.
           const inFront = paneInFront();
@@ -1126,8 +1128,9 @@ export function AppShell() {
       event.preventDefault();
       // A tool's tree or table keeps the focus a click would have given it:
       // its rows are what the arrows move, and with the focus left where it was
-      // they went to the dump's caret, or scrolled the list under the pointer.
-      const list = target.closest('[role="tree"], [role="grid"]');
+      // they went to the dump's caret, or scrolled the list under the pointer. So does the
+      // Annotations cards' list, whose Delete, Select All and Undo are the cards' own.
+      const list = target.closest('[role="tree"], [role="grid"], .notes-cards');
       if (list instanceof HTMLElement && list.tabIndex >= 0) list.focus({ preventScroll: true });
     };
     window.addEventListener("mousedown", onMouseDown);
@@ -1458,7 +1461,16 @@ export function AppShell() {
   // itself, the tool having recorded the place it left (`Design/PORT_AGENT.md`).
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealForTool
   useEffect(() => {
-    const bringForward = bringPaneForward;
+    // One of a comparison's two panes becomes the active one, as `activateOwnPane` does.
+    // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateOwnPane
+    const bringForward = (pane: PaneId) => {
+      if (isSlot(pane)) {
+        foldParts();
+        setActivePane(pane);
+      } else {
+        raisePart(pane);
+      }
+    };
     agentShell.bringForward = bringForward;
     // A dialog the person is in the middle of is not driven over.
     agentShell.busy = () =>
@@ -2580,7 +2592,6 @@ export function AppShell() {
           `NSAlert` (§4.1: a file that will not open, a save that failed). */}
       <AlertDialog alert={state.alert} onDismiss={dismissAlert} />
       <NoteFormDialog />
-      <HoverCallout />
       <UpdateDialogs />
       <AboutDialog />
       {/* A long update holds the window while it is worked out, as upstream's

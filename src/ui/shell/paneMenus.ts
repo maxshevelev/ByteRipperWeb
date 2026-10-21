@@ -8,7 +8,7 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
-import { drawnIn } from "@/state/agent/agentAnnotationStore";
+import { drawnIn, showAnnotationCards } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import {
   addBookmarkAtOffset,
@@ -19,7 +19,6 @@ import { bookmarkAt, marksFor } from "@/state/bookmarksStore";
 import { askFirmwarePart } from "@/state/firmwareStore";
 import { showNotesLeaving } from "@/state/navigationStore";
 import { askNote } from "@/state/noteFormStore";
-import { selectInPanel } from "@/state/notesPanelStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { segmentSource } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
@@ -751,29 +750,23 @@ function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * The offset menu's **Open Annotation “title”** for every annotation whose place holds the
- * clicked byte, the innermost — the shortest — first: the Annotations panel comes up with that
- * card selected, a step its Back returns from to the bytes clicked.
+ * Offset menu ▸ Open Annotation “title”, for every annotation whose place holds the clicked byte,
+ * the innermost — the shortest — first: the Annotations panel comes up with that card selected.
  *
  * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.addNoteMenuItems
  * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.openNoteFromMenu
  * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget
- * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.pane
- * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.id
- * @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#NoteMenuTarget.init
- * @upstream-differs the places the pane draws, at its own addresses, so a part that keeps its
- * file's addresses at an offset of its own offers them at the right bytes
  */
-// help: menu.offset.open-note
 function noteItems(pane: PaneId, offset: number): MenuEntry[] {
   return drawnIn(pane)
-    .filter((one) => offset >= one.start && offset < Math.max(one.end, one.start + 1))
-    .sort((left, right) => left.end - left.start - (right.end - right.start))
+    .filter((one) => offset >= one.start && offset < one.end)
+    .sort((one, other) => one.end - one.start - (other.end - other.start))
     .map((one) => ({
+      // help: menu.offset.open-note
       label: L("Open Annotation “%1$@”", one.annotation.title),
       onSelect: () => {
         showNotesLeaving(pane);
-        selectInPanel([one.annotation.id]);
+        showAnnotationCards([one.annotation.id]);
       },
     }));
 }
@@ -794,11 +787,14 @@ export function addNoteToSelection(pane: PaneId, start: number, end: number): vo
     button: L("Add"),
     title: "",
     note: "",
-    // The note is seen made: the Annotations panel comes up, a step its Back returns from to the
-    // bytes it was made on.
+    // The panel is then brought up, a step of the history its Back returns from to these bytes.
+    // @upstream ByteRipperApp/Notes/MainViewController+Notes.swift#MainViewController.showNotesWindow
     done: (title, note) =>
-      void agentService.annotationTools.addNote(title, note, pane, start, end).then((made) => {
-        if (made) showNotesLeaving(pane);
-      }),
+      void agentService.annotationTools.addNote(title, note, pane, start, end).then(
+        (made) => {
+          if (made) showNotesLeaving(pane);
+        },
+        () => undefined
+      ),
   });
 }

@@ -81,7 +81,7 @@ describe("an AMI BIOS Guard update in the panel", () => {
     expect(body?.space).toEqual([0]);
     expect(body?.openTitle).toBe("Open Assembled BIOS Region");
     expect(body?.saveTitle).toBe("Save Assembled BIOS Region as…");
-    // A saved file is named by what it is, a panel by the node it was opened from, then body.
+    // A saved file is named by what it is; a panel by the node it was opened from, then body.
     expect(body?.suggestedName).toBe("BIOS region.bin");
     expect(body?.partName).toBe("AMI BIOS Guard update body");
     expect(contentOf(wire(update))).toBe("decompressedBody");

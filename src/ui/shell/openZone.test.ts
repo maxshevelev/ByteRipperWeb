@@ -6,6 +6,7 @@ import {
   type PaneId,
   paneState,
   partPane,
+  saveAsName,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { publishZones } from "@/state/zoneStore";
@@ -143,24 +144,25 @@ describe("opening a zone", () => {
   });
 
   /**
-   * Named after the zone it is, and nothing else: not the dump it came out of, which the
-   * panel's link names.
+   * A fragment is named by what was opened, without the dump around it: the
+   * panel, its pill and its link all say the zone's name.
    *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAFragmentIsNamedByWhatWasOpenedAlone
    * @upstream ByteRipperTests/ToolZonesTests.swift#ToolZonesTests.testARightClickInsideAZoneOffersOpeningItInAPanel
+   * @upstream-differs at the state: the pill's title is the part's name, which is what is read
    */
   it("names the part after the zone alone", async () => {
     const { menu } = dumpWithZones([zone("r", "#2 Row", 4, 8)], 5);
 
     pick(menu, `Open Zone “#2 Row”`);
 
-    expect(paneState(await opened())?.name).toBe("#2 Row");
+    const part = paneState(await opened());
+    expect(part?.name).toBe("#2 Row");
+    expect(part?.origin?.partName).toBe("#2 Row");
+    expect(saveAsName(part)).toBe("#2 Row.bin");
   });
 
-  /**
-   * A nameless zone is named by where it is.
-   *
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openZone
-   */
+  /** A nameless zone falls back to its range. */
   it("names a nameless zone by where it is", async () => {
     const { menu } = dumpWithZones([zone("r", "", 4, 8)], 5);
 

@@ -1,5 +1,15 @@
 # ByteRipperWeb — porting the window `13e34be`…`1a04fad`
 
+> **Merged (2026-10-21).** This window was ported twice in parallel: on `origin/main` up to
+> upstream `cab45101` (released as `0.9.3-2`), and here up to `d3759bd6` from a `main` that had not
+> been pulled. The merge keeps `origin/main`'s implementation of everything up to `cab45101` — it is
+> as complete by the map, carries the fixes made after it and was released — and lays onto it the
+> units for the commits after `cab45101`: Y2's chip catalogue, Y5's Apple DMI (`8bba71b8`), Y8's
+> activity dot (`604bec1b`), Y10, Y11 (with Edit ▸ Undo reaching the Annotations panel's removals,
+> which `origin/main` answered from the keyboard only), Y12, Y12b and Y13. The units below say what
+> was done here; for Y1, Y3, Y4, Y6, Y7, Y9 and the rest of Y5 and Y8 the code is `origin/main`'s.
+> Before a port, pull and check `main` is level with `origin/main`.
+
 The seventy-seven upstream commits on `main` past `13e34be` (one merge,
 `1a04fad`, carries nothing of its own), as work units in dependency order.
 Each unit is a separate commit that ends with the check suite green

@@ -1,9 +1,14 @@
-import { DEFAULT_BACKGROUND_FILES } from "@/core/agent/agentBackgroundLimits";
 import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
+import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
-import { closeFirmware, firmwareHeldBytes } from "@/state/firmwareStore";
-import { closeBackgroundPane, openBackgroundPane, type PartId } from "@/state/workspaceStore";
+import { closeFirmware, heldFirmwareBytes } from "@/state/firmwareStore";
+import {
+  closeBackgroundPane,
+  openBackgroundPane,
+  type PartId,
+  paneState,
+} from "@/state/workspaceStore";
 
 /**
  * Files an agent opened by path, with no window (`Design/PORT_AGENT.md`, "Many dumps").
@@ -28,13 +33,16 @@ import { closeBackgroundPane, openBackgroundPane, type PartId } from "@/state/wo
 
 /** What one read of the bridge returns at most. */
 const CHUNK = 8 << 20;
+const MIB = 1 << 20;
 
 export interface BackgroundEntry {
   /**
-   * What the agent calls it: `d1`, `d2`… and stays when the file is read again, or let go and read
-   * again.
+   * What the agent calls it: `d1`, `d2`… and stays when the file is read again, or when it is let go
+   * and named again.
    *
    * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry.id
+   * @upstream-differs minted when the file is opened rather than when an agent first asks for it,
+   * every answer that opens one naming it
    */
   readonly id: string;
   /** The pane that holds the document now — a new one after the file changed on disk. */
@@ -43,25 +51,13 @@ export interface BackgroundEntry {
   /** The file's modification time when it was read, milliseconds. */
   modified: number;
   size: number;
-  /** When it was last asked about, on the documents' clock. */
+  /** When it was last asked about, on the clock. */
   lastUsed: number;
 }
 
-/**
- * The bytes `entry` holds in memory: the file, read whole, and what its compressed sections
- * decompressed to. Its tree's nodes and the ME analysis are not counted; beside the buffers they
- * are small.
- *
- * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry.heldBytes
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.residentByteCount
- * @upstream-differs the whole file is held — the page reads it into a Blob — where upstream counts the chunks its cache holds
- */
-export const heldBytesOf = (entry: BackgroundEntry): number =>
-  entry.size + firmwareHeldBytes(entry.pane);
-
 export class AgentBackgroundDocuments {
-  private files = DEFAULT_BACKGROUND_FILES;
-  private memory = 1 << 30;
+  private files: number = AGENT_BACKGROUND_LIMITS.defaultFiles;
+  private memory = defaultMemoryMiB(defaultPhysicalMemory()) * MIB;
   /**
    * Told of each file let go to stay inside the bounds — not of one closed on purpose.
    *
@@ -71,7 +67,14 @@ export class AgentBackgroundDocuments {
   private held: BackgroundEntry[] = [];
   private readonly bridge: () => AgentBridge | undefined;
   private readonly mint: () => string;
+  /**
+   * Counts the uses, so the last one is told apart from the one before even within a clock tick.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.clock
+   */
   private clock = 0;
+  /** The trims asked for, one after another: each weighs the files, which is a wait. */
+  private trims: Promise<void> = Promise.resolve();
 
   constructor(bridge: () => AgentBridge | undefined, mint: () => string) {
     this.bridge = bridge;
@@ -93,7 +96,7 @@ export class AgentBackgroundDocuments {
 
   set fileLimit(count: number) {
     this.files = count;
-    this.trim();
+    void this.trim();
   }
 
   /**
@@ -107,16 +110,7 @@ export class AgentBackgroundDocuments {
 
   set memoryLimit(bytes: number) {
     this.memory = bytes;
-    this.trim();
-  }
-
-  /**
-   * What they hold between them.
-   *
-   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.heldBytes
-   */
-  get heldBytes(): number {
-    return this.held.reduce((sum, one) => sum + heldBytesOf(one), 0);
+    void this.trim();
   }
 
   entryOf(pane: string): BackgroundEntry | undefined {
@@ -126,6 +120,9 @@ export class AgentBackgroundDocuments {
   /**
    * The file at `path`, opened or already open. Throws what opening it threw — no such file, not
    * readable.
+   *
+   * `id` is the one it had when it was let go to stay inside the bounds, for a file named again
+   * (`AgentDesk`); a file already open answers under the id it has now.
    *
    * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.open
    */
@@ -176,7 +173,7 @@ export class AgentBackgroundDocuments {
       lastUsed: this.tick(),
     };
     this.held.push(entry);
-    this.trim();
+    await this.trim();
     return entry;
   }
 
@@ -222,18 +219,56 @@ export class AgentBackgroundDocuments {
   }
 
   /**
+   * What one holds in memory: the whole file, which the shell's bridge read into a Blob; what was
+   * read of that Blob into the chunk cache, and any bytes added; and what its compressed sections
+   * decompressed to. Its tree's nodes and the ME analysis are not counted; beside the buffers they
+   * are small.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.Entry.heldBytes
+   * @upstream-differs the file counts whole: upstream reads it from disk a chunk at a time and holds
+   * only those, where the page can read a file only through the bridge, so it holds the Blob the
+   * bridge filled; and the decompressed buffers are asked of the firmware worker that holds them
+   */
+  async heldBytesOf(entry: BackgroundEntry): Promise<number> {
+    const storage = paneState(entry.pane)?.document.storage;
+    const resident = storage instanceof EditOverlayStorage ? storage.residentByteCount : 0;
+    return entry.size + resident + (await heldFirmwareBytes(entry.pane));
+  }
+
+  /**
+   * What they hold between them.
+   *
+   * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.heldBytes
+   */
+  async heldBytes(): Promise<number> {
+    const each = await Promise.all(this.held.map((entry) => this.heldBytesOf(entry)));
+    return each.reduce((sum, one) => sum + one, 0);
+  }
+
+  /**
    * Lets go of the least recently used until both bounds hold, keeping the one used last. Run after
    * every call too: a file grows as it is asked about — a tree opened, a section decompressed.
    *
    * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundDocuments.trim
+   * @upstream-differs a wait, since the decompressed buffers are weighed in their worker; the trims
+   * asked for run one after another, so two never let go of the same file
    */
-  trim(): void {
-    const kept = this.held.reduce<BackgroundEntry | undefined>(
-      (last, one) => (last === undefined || one.lastUsed > last.lastUsed ? one : last),
-      undefined
+  trim(): Promise<void> {
+    this.trims = this.trims.then(
+      () => this.trimNow(),
+      () => this.trimNow()
     );
-    if (kept === undefined) return;
-    let held = this.heldBytes;
+    return this.trims;
+  }
+
+  private async trimNow(): Promise<void> {
+    if (this.held.length === 0) return;
+    const weighed = await Promise.all(
+      this.held.map(async (entry) => [entry, await this.heldBytesOf(entry)] as const)
+    );
+    const weights = new Map<BackgroundEntry, number>(weighed);
+    const kept = this.held.reduce((last, one) => (one.lastUsed > last.lastUsed ? one : last));
+    let held = this.held.reduce((sum, one) => sum + (weights.get(one) ?? 0), 0);
     while (this.held.length > this.files || held > this.memory) {
       const oldest = this.held
         .filter((one) => one !== kept)
@@ -242,7 +277,7 @@ export class AgentBackgroundDocuments {
           undefined
         );
       if (oldest === undefined) return;
-      held -= heldBytesOf(oldest);
+      held -= weights.get(oldest) ?? 0;
       this.close(oldest.pane);
       this.onRelease?.(oldest);
     }
@@ -269,3 +304,79 @@ const reason = (error: unknown): string =>
   error instanceof Error
     ? error.message.replace(/^Error invoking remote method '[^']*': (Error: )?/, "")
     : String(error);
+
+/**
+ * The bounds Settings ▸ Agent offers for the files an agent opened by path
+ * (`AgentBackgroundDocuments`), and what they are until the person picks.
+ *
+ * A parsed dump holds the file the bridge read, what was read of it into the cache — at most 32 MiB,
+ * `ChunkCache` — and what its compressed sections decompressed to, at most 256 MiB a tree and some
+ * tens of MiB for a usual BIOS. Eight files and 1 GiB keep a working set of dumps parsed on any
+ * computer the app runs on; past a quarter of the computer's memory the agent's files would be
+ * pushing the person's own work out of it.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.fileChoices
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.defaultFiles
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.memoryChoicesMiB
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.defaultMemoryMiBWanted
+ */
+export const AGENT_BACKGROUND_LIMITS = {
+  fileChoices: [1, 2, 4, 8, 16, 32, 64],
+  defaultFiles: 8,
+  memoryChoicesMiB: [256, 512, 1024, 2048, 4096, 8192, 16384],
+  defaultMemoryMiBWanted: 1024,
+} as const;
+
+/**
+ * The memory bounds offered on a computer with `physicalMemory` bytes: up to a quarter of it, and
+ * always the smallest.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.memoryChoicesMiB
+ */
+export function memoryChoicesMiB(physicalMemory: number): number[] {
+  const quarter = Math.floor(physicalMemory / 4 / MIB);
+  const offered = AGENT_BACKGROUND_LIMITS.memoryChoicesMiB.filter((mib) => mib <= quarter);
+  return offered.length === 0 ? [AGENT_BACKGROUND_LIMITS.memoryChoicesMiB[0]] : offered;
+}
+
+/** @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.defaultMemoryMiB */
+export function defaultMemoryMiB(physicalMemory: number): number {
+  const offered = memoryChoicesMiB(physicalMemory);
+  return (
+    offered.findLast((mib) => mib <= AGENT_BACKGROUND_LIMITS.defaultMemoryMiBWanted) ??
+    (offered[0] as number)
+  );
+}
+
+/**
+ * A kept value brought inside what is offered: the largest choice not over it — a setting made on a
+ * computer with more memory, or written by hand — or `fallback` when there is none or nothing was
+ * kept.
+ *
+ * @upstream ByteRipperApp/Agent/AgentBackgroundDocuments.swift#AgentBackgroundLimits.snapped
+ */
+export function snapped(
+  value: number | undefined,
+  choices: readonly number[],
+  fallback: number
+): number {
+  if (value === undefined || value <= 0) return fallback;
+  return choices.findLast((choice) => choice <= value) ?? (choices[0] as number);
+}
+
+/**
+ * The computer's memory, as far as the page can tell before the shell has said: what the browser
+ * reports — rounded, and never more than 8 GiB — or 8 GiB.
+ *
+ * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.physicalMemory
+ * @upstream-differs the shell's `os.totalmem()` replaces it once the page has asked
+ * (`AgentRelayInfo.memory`); a page alone cannot know
+ */
+export function defaultPhysicalMemory(): number {
+  const reported =
+    typeof navigator === "undefined"
+      ? undefined
+      : (navigator as { deviceMemory?: number }).deviceMemory;
+  return (typeof reported === "number" && reported > 0 ? reported : 8) * 1024 * MIB;
+}

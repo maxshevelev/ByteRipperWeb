@@ -1,11 +1,14 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { ImageReader } from "@/firmware/imageReader";
 import { LenovoDMIFormat, smbiosKey } from "@/firmware/lenovoDmi/lenovoDmiFormat";
+import { APPLE_SERIAL, appleImage } from "@/firmware/testing/testAppleDMI";
 import { BootGuardImage, bootPolicyV1 } from "@/firmware/testing/testBootGuard";
+import { HP_SERIAL, hpImage, hpVariables } from "@/firmware/testing/testHPDMI";
 import * as Test from "@/firmware/testing/testImage";
 import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
-import { APPLE_SERIAL, appleImage, HP_SERIAL, hpImage } from "@/firmware/testing/testVendorDMI";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
+import { allDMIStores } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
@@ -446,42 +449,6 @@ describe("a lazy compressed section", () => {
  * Lenovo's DMI store, as the worker finds it for the panel's button and the details: the
  * stores wherever they lie, and which drivers name an entry's key.
  */
-describe("the vendors' identity in NVRAM", () => {
-  /** The rows down to the first node of `kind`, opening each branch on the way. */
-  function rowOf(roots: readonly WireNode[], kind: string): WireNode | undefined {
-    for (const node of roots) {
-      if (node.kind === kind) return node;
-      const below = rowOf(expand(node.id), kind);
-      if (below !== undefined) return below;
-    }
-    return undefined;
-  }
-
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheTreeFindsTheEntry
-  it("finds HP's HP_MUD entry, and the row says whose it is", () => {
-    const bytes = hpImage();
-    const roots = open(bytes);
-    const stores = ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores;
-    expect(stores.map((store) => store.kind)).toEqual(["vssEntry"]);
-    const store = rowOf(roots, "vss2Store");
-    const entry = (store === undefined ? [] : expand(store.id)).find(
-      (one) => one.header[0] === stores[0]?.range[0]
-    );
-    expect(entry?.dmiArea).toBe("hp");
-    expect(entry?.valueRow).toBe(`HP_MUD · ${HP_SERIAL}`);
-  });
-
-  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift#AppleDMIAreaTests.testTheDMIStoresSeeTheStore
-  it("finds Apple's SysF store, and the row says whose it is", () => {
-    const roots = open(appleImage());
-    const stores = ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores;
-    expect(stores.map((store) => store.kind)).toEqual(["sysFStore"]);
-    const store = rowOf(roots, "sysFStore");
-    expect(store?.dmiArea).toBe("apple");
-    expect(store?.valueRow).toBe(`Apple SysF store · ${APPLE_SERIAL}`);
-  });
-});
-
 describe("the board's identity stores", () => {
   const STORE = Uint8Array.from([
     ...testLog(STANDARD_LOG.slice(2), 0x77),
@@ -540,5 +507,57 @@ describe("the board's identity stores", () => {
     expect(ask({ kind: "firmwareLenovoReaders", id: ++job }, "firmwareLenovoReaders").found).toBe(
       false
     );
+  });
+});
+
+/**
+ * HP's identity, as the worker finds it for the panel's DMI button and names its row: the
+ * `HP_MUD` entry, found without the panel opening the way to it, on a copy the store marks
+ * deleted too.
+ */
+describe("HP's DMI area", () => {
+  /** The `HP_MUD` entry's range in the file, as the parser and the reader find it. */
+  function mudRange(bytes: Uint8Array): [number, number] {
+    const source = sourceOver(bytes);
+    const [store] = allDMIStores(parseUefiImage(source).roots, new ImageReader(source));
+    if (store === undefined) throw new Error("no HP_MUD entry");
+    return [store.range.start, store.range.end];
+  }
+
+  /** The wire nodes below `nodes`, every branch read. */
+  function everything(nodes: readonly WireNode[]): WireNode[] {
+    return nodes.flatMap((node) => [
+      node,
+      ...everything(node.isExpandable ? expand(node.id) : node.children),
+    ]);
+  }
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheTreeFindsTheEntry
+  it("finds the entry without the panel opening the way to it", () => {
+    const bytes = hpImage(hpVariables({ mudState: 0x3c }));
+    const [start, end] = mudRange(bytes);
+    open(bytes);
+    expect(ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores).toEqual([
+      { kind: "vssEntry", range: [start, end] },
+    ]);
+  });
+
+  it("names the entry by its serial, on a marked copy too", () => {
+    for (const mudState of [0x3f, 0x3c]) {
+      const rows = everything(open(hpImage(hpVariables({ mudState }))));
+      const mud = rows.filter((one) => one.isHPDMIArea === true);
+      expect(mud.map((one) => one.valueRow)).toEqual([`HP_MUD · ${HP_SERIAL}`]);
+      expect(rows.find((one) => one.name === "BuildId")?.isHPDMIArea).toBeUndefined();
+    }
+  });
+
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift#AppleDMIAreaTests.testTheDMIStoresSeeTheStore
+  it("finds Apple's SysF store, and the row says whose it is", () => {
+    const rows = everything(open(appleImage()));
+    const stores = ask({ kind: "firmwareDmiStores", id: ++job }, "firmwareDmiStores").stores;
+    expect(stores.map((store) => store.kind)).toEqual(["sysFStore"]);
+    const store = rows.find((one) => one.kind === "sysFStore");
+    expect(store?.isAppleDMIArea).toBe(true);
+    expect(store?.valueRow).toBe(`Apple SysF store · ${APPLE_SERIAL}`);
   });
 });

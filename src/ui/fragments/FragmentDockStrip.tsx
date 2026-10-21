@@ -1,6 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
+import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { CloseButton } from "@/ui/shell/CloseButton";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
@@ -49,14 +50,21 @@ export interface DockItem {
    */
   readonly hasChanges: boolean;
   /**
-   * The codec's word for what the bytes went through, and its badge's sentence; nothing for the
-   * file's own bytes.
+   * The codec's word for what the part's bytes went through — `LZMA`, `XOR 77`
+   * — in a capsule after the name; nothing for a part that holds the file's own
+   * bytes. What the name used to say with `decompressed` or `(decoded)`, said
+   * once for every kind of part.
    *
    * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transform
-   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transformExplanation
    * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.transform
    */
-  readonly transform?: { readonly text: string; readonly explanation?: string | undefined };
+  readonly transform?: string | undefined;
+  /**
+   * The badge's sentence, under the pointer.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item.transformExplanation
+   */
+  readonly transformExplanation?: string | undefined;
   /**
    * What the pill holds: a part of a dump, the help book or the Agent window.
    * Decides the glyph and what the ✕ is called — the dock holds identity and
@@ -118,11 +126,8 @@ function FragmentPill({
         {item.kind === "help" ? (
           <HelpGlyph className="fragment-pill-glyph" />
         ) : item.kind === "notes" ? (
-          // Upstream's `note.text`.
-          <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 1.5h10v13H3Z" />
-            <path d="M5.5 5h5M5.5 8h5M5.5 11h3" />
-          </svg>
+          // The panel's one picture, as its header and its empty view wear it.
+          <NotesGlyph className="fragment-pill-glyph" size={11} />
         ) : item.kind === "agent" ? (
           // The toolbar button's own glyph, so the pill is recognisably what that button opened.
           <span className="fragment-pill-glyph fragment-pill-icon">
@@ -137,12 +142,15 @@ function FragmentPill({
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
-        {/* What the name used to say with `decompressed` or `(decoded)`, said once for every
-            kind of part. In the pill that is up it takes the pill's ink (`.fragment-pill-codec`).
-            @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.ink */}
+        {/* The badge keeps its word whole; the name gives way to it. In the pill
+            that is up it is drawn in the pill's ink.
+            @upstream ByteRipperApp/Pane/PartBadgeView.swift#PartBadgeView.ink
+            @upstream-differs the pill's stylesheet inks it, where upstream hands the badge a colour;
+            the capsule is washed away from the ink rather than with it, which keeps the word legible
+            in every theme */}
         {item.transform === undefined ? null : (
-          <span className="pane-codec-badge fragment-pill-codec" title={item.transform.explanation}>
-            {item.transform.text}
+          <span className="fragment-pill-badge" title={item.transformExplanation}>
+            {item.transform}
           </span>
         )}
         {item.unseen !== undefined && item.unseen > 0 ? (
@@ -151,14 +159,14 @@ function FragmentPill({
           </span>
         ) : null}
         {/* A dot, not a word: the pill has room for a name and a codec's word and no more. A
-            pill with no changes has no dot at all, so the ✕ sits right after the name.
+            disc on the pill's centre line, not a "•", which sits where the font puts it — below
+            the middle; and not there at all without changes, so it takes no width before the ✕.
             @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView
-            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.color
             @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.diameter
+            @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.color
             @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.draw
             @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#ChangeDotView.intrinsicContentSize
-            @upstream-differs a CSS disc (`.fragment-pill-dot`), five pixels across, in the pill's
-            ink when it is up */}
+            @upstream-differs a styled span, its size and disc in the pill's stylesheet */}
         {item.hasChanges ? (
           <span className="fragment-pill-dot" role="img" aria-label={L("Unsaved changes")} />
         ) : null}

@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { PEER_CONTOUR_PADDING } from "@/render/hexGrid/hexGridRenderer";
 import { HexLayout } from "@/render/hexGrid/hexLayout";
 import {
+  bookmarkMarkRect,
   contextMenuAnchor,
   dragHasLeftDeadZone,
   hexClickPlacement,
+  hexHover,
+  type NoteSpan,
+  noteContour,
   pointerTarget,
 } from "@/ui/pane/hexPointer";
 
@@ -249,5 +254,148 @@ describe("the drag dead zone", () => {
     const boundary = inByte(0, 1);
     expect(left(at(boundary, 3), at(boundary, 3))).toBe(true);
     expect(left(at(boundary, -1), at(boundary, -1))).toBe(true);
+  });
+});
+
+/**
+ * The callout over the dump (§20.3): what it says where, and what it stands
+ * beside. Ported from `HoverCalloutTests`, which drive the real view with
+ * synthesized mouse moves; here the point goes straight to `hexHover`, the
+ * decision `updateHoverCallout` makes, and `noteContour`, the outline's reach.
+ * The events that take the callout away are the pane's (`HexPane.tsx`).
+ */
+describe("the callout over the dump", () => {
+  const size = 0x10000;
+  const PERSON = "green";
+  const AGENT = "violet";
+  /** One note on 0x40..<0x60 — rows 4 and 5. */
+  const note = (author: "person" | "agent") => ({
+    start: 0x40,
+    end: 0x60,
+    text: "Signature\nMagic.",
+    author,
+  });
+  type Note = ReturnType<typeof note>;
+
+  const hover = (
+    x: number,
+    y: number,
+    options: {
+      notes?: readonly Note[];
+      marks?: ReadonlyMap<number, string>;
+      dragging?: boolean;
+    } = {}
+  ) =>
+    hexHover({
+      layout,
+      fileSize: size,
+      x,
+      y,
+      dragging: options.dragging ?? false,
+      bookmarkText: (offset) => options.marks?.get(offset) ?? "",
+      notes: options.notes ?? [],
+      noteText: (one: Note) => ({ text: one.text, byPerson: one.author === "person" }),
+      colors: { person: PERSON, agent: AGENT },
+    });
+
+  /** The middle of the address of `row`. */
+  const address = (row: number) => {
+    const frame = layout.offsetColumnFrame(row);
+    return [frame.x + frame.width / 2, frame.y + frame.height / 2] as const;
+  };
+  /** The middle of the hex byte in `column`. */
+  const byteX = (column: number) => layout.hexByteX(column) + layout.charWidth;
+
+  // @upstream ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAMarkedAddressSaysItsNameAtOnce
+  it("names a marked address at once, beside the mark; an unmarked or unnamed one says nothing", () => {
+    const marks = new Map([
+      [0x10, "ME region"],
+      [0x30, ""],
+    ]);
+    const shown = hover(...address(1), { marks });
+    expect(shown?.text).toBe("ME region");
+    expect(shown?.mark).toEqual({ kind: "bookmark" });
+    const mark = bookmarkMarkRect(layout, 1);
+    expect(shown?.anchor).toEqual(mark);
+    // It opens to the right of the address, level with the row: the anchor is
+    // the mark, which the capsule stands beside (`capsuleFrame`).
+    expect(mark.x + mark.width).toBeLessThan(layout.hexByteX(0));
+    expect(hover(...address(2), { marks })).toBeUndefined();
+    expect(hover(...address(3), { marks })).toBeUndefined();
+  });
+
+  // @upstream ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testNoCalloutWhileAMarkIsDragged
+  it("says nothing while a mark is being dragged, and comes back once it is dropped", () => {
+    const marks = new Map([[0x10, "ME region"]]);
+    expect(hover(...address(1), { marks, dragging: true })).toBeUndefined();
+    expect(hover(...address(1), { marks })?.text).toBe("ME region");
+  });
+
+  /** The y of the note's top edge above `column`: the middle of the band round row 4's top it answers in. */
+  const topEdgeY = (notes: readonly NoteSpan[], column: number) => {
+    const x = byteX(column);
+    const top = 4 * layout.rowHeight;
+    const hits: number[] = [];
+    for (let y = top - 10; y <= top + 10; y += 0.5) {
+      if (noteContour(layout, notes, size, x, y) !== undefined) hits.push(y);
+    }
+    expect(hits.length).toBeGreaterThan(0);
+    return ((hits[0] ?? 0) + (hits[hits.length - 1] ?? 0)) / 2;
+  };
+
+  // @upstream ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testANoteSpeaksOnItsOutlineOnly
+  it("lets a note speak on its outline only, following the pointer along the line", () => {
+    const notes = [note("person")];
+    const edge = topEdgeY(notes, 3);
+    const first = hover(byteX(3), edge, { notes });
+    expect(first?.text).toBe("Signature\nMagic.");
+    expect(first?.mark).toEqual({ kind: "annotation", color: PERSON });
+
+    const along = hover(byteX(10), edge, { notes });
+    expect((along?.anchor.x ?? 0) - (first?.anchor.x ?? 0)).toBeCloseTo(byteX(10) - byteX(3), 5);
+
+    expect(hover(byteX(7), 5 * layout.rowHeight, { notes })).toBeUndefined();
+    expect(hover(byteX(7), 8.5 * layout.rowHeight, { notes })).toBeUndefined();
+  });
+
+  // @upstream ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testBothEdgesOfANoteAnswerAsFarOut
+  it("answers as far out on a note's left edge as on its right", () => {
+    const notes = [note("person")];
+    const y = 5 * layout.rowHeight;
+    const reach = (around: number) => {
+      const xs: number[] = [];
+      for (let x = around - 5.5; x <= around + 5.5; x += 0.5) {
+        if (noteContour(layout, notes, size, x, y) !== undefined) xs.push(x);
+      }
+      return xs;
+    };
+    const left = reach(layout.hexByteX(0) - PEER_CONTOUR_PADDING);
+    const right = reach(layout.hexByteX(15) + layout.hexByteWidth + PEER_CONTOUR_PADDING);
+    expect(left.length).toBeGreaterThan(0);
+    expect(left.length).toBe(right.length);
+    // Some of the left edge's reach lies over the Offset column, whose address
+    // has nothing to say here: it goes on to the note.
+    expect(
+      left.some((x) => x < layout.leftPadding + layout.offsetColumnWidth + layout.gapAfterOffset)
+    ).toBe(true);
+    for (const x of [...left, ...right])
+      expect(hover(x, y, { notes })?.text).toBe("Signature\nMagic.");
+    expect(hover((left[0] ?? 0) - 2, y, { notes })).toBeUndefined();
+  });
+
+  // @upstream ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testAnAgentsNoteWearsTheAgentsHue
+  it("dresses an agent's note in the agent's hue", () => {
+    const notes = [note("agent")];
+    const shown = hover(byteX(3), topEdgeY(notes, 3), { notes });
+    expect(shown?.mark).toEqual({ kind: "annotation", color: AGENT });
+  });
+
+  // @web-only the innermost of two outlines that meet, which upstream states in noteContour's doc comment
+  it("names the inner note where two outlines meet", () => {
+    const outer = { ...note("person"), start: 0x40, end: 0x80, text: "Outer" };
+    const inner = { ...note("person"), start: 0x40, end: 0x48, text: "Inner" };
+    const notes = [outer, inner];
+    expect(hover(byteX(3), topEdgeY(notes, 3), { notes })?.text).toBe("Inner");
+    expect(hover(byteX(12), topEdgeY(notes, 12), { notes })?.text).toBe("Outer");
   });
 });

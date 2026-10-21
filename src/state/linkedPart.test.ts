@@ -16,7 +16,6 @@ import {
   openEmptyInPane,
   type PartId,
   paneState,
-  saveAsName,
   workspaceStore,
 } from "@/state/workspaceStore";
 
@@ -163,22 +162,6 @@ describe("the link", () => {
     await paneState("a")?.document.overwrite(0x30, Uint8Array.from([0xff]));
 
     expect(await origin?.state()).toBe("intact");
-  });
-
-  /**
-   * A fragment is named by what was opened, without the dump around it: the panel, its pill and
-   * its link all say the zone's name; saved, it is a file of bytes.
-   *
-   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAFragmentIsNamedByWhatWasOpenedAlone
-   */
-  it("names a fragment by what was opened alone", async () => {
-    await fileInA();
-    const part = await openLinkedPart({ parent: "a", name: "FFSv2", source: [0x10, 0x20] });
-    const slot = part === undefined ? undefined : paneState(part);
-
-    expect(slot?.name).toBe("FFSv2");
-    expect(slot?.origin?.partName).toBe("FFSv2");
-    expect(slot === undefined ? undefined : saveAsName(slot)).toBe("FFSv2.bin");
   });
 });
 

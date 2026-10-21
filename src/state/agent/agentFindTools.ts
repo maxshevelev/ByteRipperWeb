@@ -639,9 +639,9 @@ export class AgentFindTools {
         `Node ${nodeText} is not a LENV block, or in one, that has anything to decode.`
       );
     }
+    // The panel's name is the block's, as the panel the person opens on the same block is
+    // named: the pill's badge says it is decoded.
     return {
-      // The panel's name is the block's, as the panel the person opens on the same block is
-      // named: the pill's badge says it is decoded.
       name: found.name,
       source: [found.range[0], found.range[1]],
       layout: IMAGE_LAYOUT,

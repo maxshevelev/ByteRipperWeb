@@ -343,8 +343,20 @@ export interface NamedNode {
    * @upstream-differs the panel holds no bytes, so the worker reads the value
    */
   readonly valueRow?: string | undefined;
-  /** Whose identity the row holds, where the worker read one off its bytes: HP's, Apple's. */
-  readonly dmiArea?: "hp" | "apple" | undefined;
+  /**
+   * HP's `HP_MUD` entry the DMI area is read from, whose `valueRow` is the variable's name
+   * and the serial — on a copy the store marks deleted too.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the store
+   */
+  readonly isHPDMIArea?: boolean | undefined;
+  /**
+   * For Apple's SysF store that holds the Mac's identity: set, and `valueRow` is the store's name
+   * and the serial.
+   *
+   * @upstream-differs the panel holds no bytes, so the worker reads the store
+   */
+  readonly isAppleDMIArea?: boolean | undefined;
   /** What Dell's Setup says the DVAR variables are, once the forms have been read. */
   readonly dvarSettings?: DellSetupCatalogue | undefined;
 }
@@ -411,9 +423,15 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   if (node.kind === "gpnvRecord") return node.valueRow ?? displayName(node);
   // Acer's DMI area says what it holds: the serial, the rest in the detail.
   if (node.kind === "acerDMIStore") return node.valueRow ?? displayName(node);
-  // HP's `HP_MUD` and Apple's SysF store say whose they are: the serial, the rest in the
-  // detail — on a copy the store marks deleted as well, which is where most HP boards keep it.
-  if (node.dmiArea !== undefined && node.valueRow !== undefined) return node.valueRow;
+  // HP's `HP_MUD` says whose it is: the serial, the rest in the detail — on a copy the store
+  // marks deleted as well, which is where most HP boards keep it.
+  if (node.kind === "vssEntry" && node.isHPDMIArea === true && node.valueRow !== undefined) {
+    return node.valueRow;
+  }
+  // Apple's SysF store says whose it is: the serial, the rest in the detail.
+  if (node.kind === "sysFStore" && node.isAppleDMIArea === true && node.valueRow !== undefined) {
+    return node.valueRow;
+  }
   // Lenovo's DMI store says what it holds, decoded: a block its generation, an entry its
   // value, a write of the log what it did.
   if (
@@ -561,7 +579,7 @@ export function kindLabel(kind: string): string {
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dmiStoreTitle
  */
 export function dmiStoreTitle(store: DMIStore): string {
-  // HP's is a VSS entry, and what it is to the bench is HP's DMI.
+  // HP's is a VSS entry and Apple's a SysF store; what each is to the bench is its maker's DMI.
   const kind =
     store.kind === "vssEntry"
       ? L("HP DMI")

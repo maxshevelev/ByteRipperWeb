@@ -104,7 +104,8 @@ export class UEFIPartCodec implements PartCodec {
   }
 
   /**
-   * What a decompressed buffer was compressed with; a node of the file is the file's bytes.
+   * What a decompressed buffer was compressed with; a node of the file is the
+   * file's bytes.
    *
    * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.transform
    */
@@ -160,7 +161,7 @@ export class UEFIPartCodec implements PartCodec {
         LocalizedText.of("“%1$@” cannot be put back", parent.partName),
         answer?.refusal === undefined
           ? LocalizedText.of("Nothing was changed in %1$@.", parent.name)
-          : LocalizedText.fromWire(answer.refusal)
+          : LocalizedText.from(answer.refusal)
       );
     }
     return {
@@ -170,7 +171,7 @@ export class UEFIPartCodec implements PartCodec {
       notes:
         plan.warnings.length === 0
           ? [LocalizedText.of("Nothing was written inside a Boot Guard or vendor protected range.")]
-          : plan.warnings.map((warning) => LocalizedText.fromWire(warning)),
+          : plan.warnings.map((warning) => LocalizedText.from(warning)),
     };
   }
 }

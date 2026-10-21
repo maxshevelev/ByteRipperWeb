@@ -80,7 +80,7 @@ textarea,
      to themselves a control stands a text line's height in one and a glyph's in
      another, and the row reads as boxes of different sizes. The icon buttons and
      the two pop-ups all read this. */
-  --toolbar-control-height: 26px;
+  --toolbar-control-height: 30px;
   grid-row: 1;
   display: flex;
   align-items: center;
@@ -492,7 +492,7 @@ textarea,
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 30px;
+  width: 34px;
   height: var(--toolbar-control-height);
   padding: 0;
   border: 1px solid transparent;
@@ -1416,40 +1416,40 @@ textarea,
   width: auto;
 }
 
-/* A named mark's name, while the pointer rests on it. Positioned against the
-   scroller's viewport, so it stays put while the rows under it scroll. */
+/* The hover callout (HoverCallout.tsx, §19.4.3, §20.3): the tooltip's grey,
+   lifted a little lighter, with an edge firmer than a separator so it holds its
+   shape over bytes of any colour; the interface's regular 13 px text, a glyph
+   before it, a long note wrapped at 360 px. Fixed over the page, never under
+   the pointer's clicks. One line reads as a pill, several as a rounded plate. */
 .hover-callout {
-  /* Laid out out of sight first: its place is worked out from its size. */
   position: fixed;
-  left: -10000px;
-  top: 0;
   z-index: 1000;
   display: flex;
   align-items: flex-start;
   gap: 5px;
-  max-width: calc(360px + 13px + 5px + 20px);
+  box-sizing: border-box;
+  max-width: 100vw;
   padding: 5px 10px;
-  border: 1px solid var(--callout-rim);
   border-radius: 13px;
-  background: var(--callout-ground);
+  border: 1px solid var(--callout-rim);
+  background: var(--callout-fill);
   color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 16px;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 0.3);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
   pointer-events: none;
-  user-select: none;
-}
-
-.hover-callout:not([data-placed]) {
-  visibility: hidden;
 }
 
 .hover-callout-glyph {
   flex: none;
-  margin-top: 1.5px;
+  /* Level with the first line, whatever follows it. */
+  margin-top: 1px;
 }
 
 .hover-callout-text {
+  max-width: 360px;
+  /* A note's title, its words and its relations are lines of their own. */
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -3162,12 +3162,19 @@ button.uefi-title {
   color: var(--accent);
 }
 
-.uefi-reveal {
+/* The title row's buttons — Show DMI Area, the search, the filter and the reveal — are one
+   size, their faces centred in it, in the same quiet ink. The title gives way first: a long
+   image name truncates before a button does. Show DMI Area is in the row only when the image
+   keeps the board's identity somewhere the tree reads, and is as wide as its badge. */
+.uefi-reveal,
+.uefi-dmi,
+.uefi-filter,
+.uefi-search-toggle {
   flex: none;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  min-width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
   background: none;
@@ -3176,64 +3183,23 @@ button.uefi-title {
 }
 
 .uefi-reveal:hover,
-.uefi-dmi:hover {
+.uefi-dmi:hover,
+.uefi-filter:hover,
+.uefi-search-toggle:hover {
+  background: none;
   color: var(--text);
 }
 
-.uefi-dmi-badge {
-  box-sizing: border-box;
-  height: 15px;
-  padding: 0 5px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 13px;
-}
-
-.uefi-dmi:active .uefi-dmi-badge {
-  background: var(--part-badge-fill);
-}
-
-/* Show DMI Area: left of the search, and in the row only when the image keeps the board's
-   identity somewhere the tree reads. Its face is the word in a rounded frame
-   (`.uefi-dmi-badge`), upstream's UEFIDMIBadgeButton: 10 px semibold, a 15 px frame. */
-.uefi-dmi {
-  flex: none;
-  display: grid;
-  place-items: center;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-/* The title row's filter: a funnel with a menu, tinted while the tree lists anything
-   it leaves out by default. The title gives way first: a long image name truncates
-   before the button does. */
-.uefi-filter {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-}
-
-.uefi-filter:hover {
-  color: var(--text);
-}
+/* The filter: a funnel with a menu, tinted while the tree lists anything it leaves out
+   by default. */
 
 .uefi-filter.is-tinted {
   color: var(--accent);
 }
 
 .uefi-filter-glyph {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.3;
@@ -3241,24 +3207,7 @@ button.uefi-title {
   stroke-linejoin: round;
 }
 
-/* The title row's search: a magnifier left of the filter, accent while the bar is open. */
-.uefi-search-toggle {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.uefi-search-toggle:hover {
-  color: var(--text);
-}
-
+/* The search: a magnifier left of the filter, accent while the bar is open. */
 .uefi-search-toggle.is-open {
   color: var(--accent);
 }
@@ -3428,6 +3377,26 @@ button.uefi-title {
   color: var(--text-faint);
 }
 
+/* The DMI button's face: the word in a rounded frame, 17 px high, 5 px between the word
+   and the frame. Centred on its capitals: a word in capitals has no descenders to keep
+   room for. A press fills the frame faintly. */
+.uefi-dmi-badge {
+  box-sizing: border-box;
+  display: block;
+  height: 17px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  letter-spacing: 0.02em;
+}
+
+.uefi-dmi:active .uefi-dmi-badge {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
 .uefi-reveal svg,
 .uefi-search-toggle svg,
 .tool-detail-glyph {
@@ -3438,6 +3407,13 @@ button.uefi-title {
   stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* The title row's icons stand a size above the detail's. */
+.uefi-reveal svg,
+.uefi-search-toggle svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* The rows are set inline from the divider's fraction. */
@@ -3878,18 +3854,29 @@ button.uefi-title {
   font-weight: 600;
 }
 
-/* Every label one width, so the rows read as a column of pairs, and a value too
-   long for its column wraps inside it rather than running off the side. The
-   column is as wide as the longest name the list holds — never narrower than
-   the shared default, and never wider than half the list — so a long field
-   name (`systemHeaderCRCValid`) is not cut mid-word, and one that does not fit
-   half the list wraps there. Upstream's `ToolFieldList.nameWidth`; the rows are
-   a subgrid of the list, so they share the one column. */
+/* The one list every panel draws a named value with (`ToolFieldList`): a grid
+   whose rows share its two columns, so every name is one width and the rows
+   read as a column of pairs, and a value too long for its column wraps inside
+   it rather than running off the side. The name column is the shared one —
+   `detailLabelWidth`, 104 points at upstream's design size of 11 — or a list's
+   own (`--tool-detail-name`), and never more than half the list (less the gap between the columns), where a
+   name too long for it wraps. A container, so a name can be held to that half
+   by the list's own width. */
 .tool-detail-fields {
   display: grid;
-  grid-template-columns: fit-content(50%) minmax(0, 1fr);
+  grid-template-columns: min(var(--tool-detail-name, 9.5em), calc(50% - 3px)) minmax(0, 1fr);
   gap: 3px 6px;
   margin: 0;
+  container-type: inline-size;
+}
+
+/* The ME Analyzer's and the FIT's details: as wide as the longest name, never
+   narrower than the shared column, and still never more than half the list
+   (`ToolFieldList.nameWidth`). A name breaks anywhere, so its least width is a
+   letter's and `fit-content` is what decides: the name's whole width, up to
+   the half. */
+.tool-detail-fields[data-names="longest"] {
+  grid-template-columns: fit-content(calc(50% - 3px)) minmax(0, 1fr);
 }
 
 .tool-detail-row {
@@ -3900,21 +3887,20 @@ button.uefi-title {
 }
 
 .tool-detail-row dt {
-  min-width: 9.5em;
   color: var(--text-muted);
   /* A name too long for its column continues on the next line. */
   overflow-wrap: anywhere;
 }
 
+/* The floor under a column that takes the longest name: the list's own width
+   for a short list, half the list at most. */
+.tool-detail-fields[data-names="longest"] dt {
+  min-width: min(var(--tool-detail-name, 9.5em), calc(50cqi - 3px));
+}
+
 .tool-detail-row dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-/* A row the engine has not answered yet — "Coming soon", "Loading…": a promise,
-   and drawn as one. */
-.tool-detail-row dd[data-promise] {
-  color: var(--text-faint);
 }
 
 .tool-detail-row dd[data-mono] {
@@ -3942,6 +3928,12 @@ button.uefi-title {
 
 .tool-detail-row dd[data-tone="bad"] {
   color: var(--semantic-bad);
+}
+
+/* A value nobody has answered yet — the ME Analyzer's "Coming soon" and
+   "Loading…": a promise, and drawn as one. */
+.tool-detail-row dd[data-soon] {
+  color: var(--text-faint);
 }
 
 /* A check that passed: a tick in the value's own colour, sat on the text's
@@ -4444,26 +4436,23 @@ button.uefi-title {
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--surface);
-  /* A block is one shared field list under its heading (`ToolFieldList`): the
-     rows the UEFI Structure's detail and this panel's own are drawn with, so a
-     band of them is selected and copied as it is there. */
+  /* The rows are the shared detail list's, and select as its do: a drag across
+     rows, a word, a row, a block by Ctrl+A or ⌘A. */
   user-select: text;
   -webkit-user-select: text;
 }
 
-.me-summary-block + .me-summary-block {
-  margin-top: 10px;
-}
-
-.me-summary-list:focus {
-  outline: none;
-}
-
 .me-summary-title {
-  margin: 0 0 2px;
+  margin: 10px 0 2px;
   color: var(--text);
   font-size: inherit;
   font-weight: 600;
+}
+
+/* A block's list, focusable so a select-all and a copy arrive at it — and the
+   ring that would say so is not wanted on a list of text. */
+.me-summary-block {
+  outline: none;
 }
 
 .me-tree {
@@ -4947,21 +4936,6 @@ button.uefi-title {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-/* The two bounds on an agent's background dumps: labels right-aligned before their menus, as
-   upstream's grid stands them. */
-.settings-agent-limits {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  align-items: center;
-  justify-items: start;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.settings-agent-limits > .settings-label {
-  justify-self: end;
 }
 
 .settings-select {
@@ -5600,6 +5574,12 @@ button.uefi-title {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 }
 
+/* A pill with no ✕ — the Annotations panel's — ends as it begins, the name as far
+   from the right edge as the glyph is from the left. */
+.fragment-pill:not(:has(> .close-button)) {
+  padding-right: 10px;
+}
+
 /* Filled rather than outlined, so the dock says at a glance which pill the
    panel in front belongs to. */
 .fragment-pill[data-up] {
@@ -5652,37 +5632,55 @@ button.uefi-title {
   height: 11px;
 }
 
-/* The codec the part's bytes went through — LZMA, XOR 77 — in the header's
-   capsule after the name. It keeps its word whole; the name gives way to it. In
-   the pill that is up it is drawn in the pill's ink, the capsule a wash of it,
-   where the muted grey on the faint fill does not read. */
-.fragment-pill-codec {
+/* The codec the part's bytes went through — LZMA, XOR 77 — in a capsule after the
+   name: the header's badge, upstream's one PartBadgeView for both — 10 pt medium,
+   6 × 1 insets, the secondary label on the quaternary fill. It keeps its word
+   whole; the name gives way. */
+.fragment-pill-badge {
   flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--part-badge-fill);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
-.fragment-pill[data-up] .fragment-pill-codec {
-  background: color-mix(in srgb, currentColor 25%, transparent);
+/* In the pill that is up, where the grey on the grey capsule does not read: the
+   word in the pill's ink, as upstream has it, on a capsule washed away from that
+   ink — darker under white ink, lighter under dark — so it reads in every theme. */
+.fragment-pill[data-up] .fragment-pill-badge {
+  background: var(--pill-badge-wash);
   color: inherit;
 }
 
-/* A dot, not a word: the pill has room for a name and a codec's word and no
-   more. A disc on the pill's centre line — a "•" sits where the font puts it,
-   below the middle of the line. */
+/* A dot, not a word: the pill has room for a name and a codec's word and no more. */
 .fragment-pill-dot {
   flex: none;
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: currentColor;
+  color: var(--text-muted);
 }
 
 .fragment-pill[data-up] .fragment-pill-glyph,
+.fragment-pill[data-up] .fragment-pill-dot,
 .fragment-pill[data-up] .close-button {
   color: inherit;
 }
 
-.fragment-pill[data-up] .fragment-pill-dot {
-  background: currentColor;
+/* The ✕ in a pill is round under the pointer, as the pill is. In the pill that is
+   up it keeps the pill's ink, on the badge's wash — the window's grey would put a
+   white cross on a light grey. */
+.fragment-pill .close-button {
+  border-radius: 50%;
+}
+
+.fragment-pill[data-up] .close-button:hover {
+  background: var(--pill-badge-wash);
 }
 
 /* ============================================================================
@@ -6550,161 +6548,136 @@ body[data-pulling-panel] * {
   font-size: 12px;
 }
 
-.notes-cards {
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+/* The panel takes the keys when its last card goes; it draws no ring for it. */
+.notes-panel:focus {
   outline: none;
 }
 
-/* The panel with no annotation in it: upstream's empty screen, centred, in the secondary colour. */
+/* Upstream's NotesEmptyView: a stack in the middle of the panel — the panel's
+   picture at 48, light, in the tertiary grey; the title at 17 semibold and the
+   message in the secondary; the ?. 10 apart, 16 under the picture. */
 .notes-empty {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 16px;
+  overflow: auto;
   color: var(--text-muted);
   text-align: center;
 }
 
 .notes-empty-icon {
+  flex: none;
   margin-bottom: 6px;
-  opacity: 0.6;
+  color: var(--empty-state-icon);
+  stroke-width: 1;
 }
 
-.notes-empty-title {
+.notes-empty h3 {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
 }
 
-.notes-empty-message {
-  margin: 0;
+.notes-empty p {
   max-width: 360px;
+  margin: 0;
+  font-size: 13px;
 }
 
-/* The cards stand where the layout puts them (`notesLayout.ts`), each moved there by a transform,
-   so a card moving aside for another, or up into a gap, slides rather than jumps. */
-.notes-cards-content {
+/* The ? stands in the stack, under the message, rather than at the panel's edge. */
+.notes-empty .help-button {
+  margin: 0;
+}
+
+.notes-cards {
+  /* The cards' offsets, which a carried card is tested against, are taken from here. */
   position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  outline: none;
+}
+
+/* With no card the empty view takes the panel; the list stays, for the keys. */
+.notes-cards[hidden] {
+  display: none;
+}
+
+.notes-column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .note-card {
   --note-hue: var(--zone-agent);
-  position: absolute;
-  top: 0;
-  left: 0;
-  box-sizing: border-box;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 10px;
   border: 1.5px dashed var(--note-hue);
   border-radius: 6px;
-  /* Over the panel's own ground, so a card carried over another hides it. */
-  background:
-    linear-gradient(
-      color-mix(in srgb, var(--note-hue) 9%, transparent),
-      color-mix(in srgb, var(--note-hue) 9%, transparent)
-    ),
-    var(--surface);
+  background: color-mix(in srgb, var(--note-hue) 9%, transparent);
   cursor: default;
-  transition: transform 250ms ease;
-  touch-action: none;
-}
-
-/* The carried card's place: kept, and drawn empty. */
-.note-card[data-motion="empty"] {
-  visibility: hidden;
-}
-
-/* The card being dragged follows the pointer above the others, lifted by a shadow; let go, it
-   settles into its place. */
-.note-card[data-motion="carried"],
-.note-card[data-motion="landing"] {
-  z-index: 2;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
-  pointer-events: none;
-}
-
-.note-card[data-motion="carried"] {
-  transition: none;
-}
-
-.notes-cards[data-carrying] {
-  cursor: grabbing;
-}
-
-/* A card removed fades out where it stood while the others move up; one put back fades in. */
-.note-card[data-motion="leaving"] {
-  animation: note-card-out 250ms ease forwards;
-  pointer-events: none;
-}
-
-.note-card[data-motion="arriving"] {
-  animation: note-card-in 250ms ease;
-}
-
-@keyframes note-card-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes note-card-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .note-card {
-    transition: none;
-  }
-
-  .note-card[data-motion="leaving"],
-  .note-card[data-motion="arriving"] {
-    animation: none;
-  }
-}
-
-/* New, on the top edge of a card the person has not yet turned away from: white on the card's hue,
-   half out of the card as the ✕ stands out of its corner, as an app just installed wears a mark
-   beside its name (`AnnotationNewTag`). */
-.note-card-new {
-  position: absolute;
-  top: -7.5px;
-  left: 10px;
-  box-sizing: border-box;
-  height: 15px;
-  padding: 0 6px;
-  border-radius: 7.5px;
-  background: var(--note-hue);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  line-height: 15px;
-  text-transform: uppercase;
-  pointer-events: none;
 }
 
 .note-card.is-person {
   --note-hue: var(--zone-person);
 }
 
+/* The place of the card being carried: kept, and drawn empty. */
+.note-card.is-carried {
+  visibility: hidden;
+}
+
+/* A card taken out, fading where it stood while the others close up. */
+.note-card-leaving {
+  position: absolute;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* The picture of the carried card, following the pointer above the others. */
+.note-card-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--surface);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
+}
+
+/* The New tag, on the card's top edge. */
+.note-card-new {
+  position: absolute;
+  top: -8px;
+  left: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--note-hue);
+  color: var(--surface);
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 16px;
+}
+
 .note-card.is-selected {
   border-style: solid;
-  background:
-    linear-gradient(
-      color-mix(in srgb, var(--note-hue) 18%, transparent),
-      color-mix(in srgb, var(--note-hue) 18%, transparent)
-    ),
-    var(--surface);
+  background: color-mix(in srgb, var(--note-hue) 18%, transparent);
 }
 
 /* The ✕ stands out of the card's corner, as the badge on an app being deleted does: a ring and a
@@ -6841,4 +6814,24 @@ body[data-pulling-panel] * {
 
 .note-form-note {
   resize: vertical;
+}
+
+/* The bar's glyphs, drawn on a 16-point grid, stand a size up in it: the help's sign, a
+   point smaller on that grid, keeps its point. The same glyphs elsewhere — the agent's in
+   the dock and on the cards — keep the size they are drawn at. */
+.toolbar .toolbar-icon svg,
+.toolbar .menu-trigger > svg:not(.menu-chevron) {
+  width: 19px;
+  height: 19px;
+}
+
+.toolbar .menu-trigger > svg.help-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+/* The commands menu's sign is a character, set a size up with the glyphs beside it. */
+.commands-glyph {
+  font-size: 17px;
+  line-height: 1;
 }

@@ -170,7 +170,7 @@ export async function pruneMissingRecentFiles(): Promise<void> {
       // *read* when it already may be; the row stays, not deleted for asking.
       if (state === "granted") await row.handle.getFile();
     } catch (error) {
-      if (error instanceof DOMException && error.name === "NotFound") continue;
+      if (error instanceof DOMException && error.name === "NotFoundError") continue;
     }
     kept.push(row);
   }

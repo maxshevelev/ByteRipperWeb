@@ -32,6 +32,7 @@ import { allDMIStores, type DMIStore } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { volumeErasePolarity } from "@/firmware/uefi/fileParser";
 import { gpnvRowText } from "@/firmware/uefi/gpnvStore";
+import { type HPDMIArea, readHPDMIArea } from "@/firmware/uefi/hpDmiArea";
 import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import { supersededCopies } from "@/firmware/uefi/nvramVariableHistory";
 import { DEFAULT_LIMITS, Parser, ProgressSink } from "@/firmware/uefi/parserState";
@@ -268,21 +269,7 @@ let dvarSettings: DellSetupCatalogue | undefined;
 let dmiStores: DMIStore[] | undefined;
 let lenovoReaders: LenovoDMIFirmwareReaders | undefined;
 
-/** What the worker last said its buffers hold. */
-let heldSaid = 0;
-/**
- * Posts `message`, and before it what the buffers hold when that changed: a question that opened
- * a compressed section has made the tree heavier by what it decompressed to, and whoever waits on
- * the answer weighs the tree as soon as it has it.
- */
-const post = (message: FirmwareWorkerResponse) => {
-  const held = buffers.byteCount;
-  if (held !== heldSaid) {
-    heldSaid = held;
-    scope.postMessage({ kind: "firmwareHeldBytes", bytes: held } satisfies FirmwareWorkerResponse);
-  }
-  scope.postMessage(message);
-};
+const post = (message: FirmwareWorkerResponse) => scope.postMessage(message);
 
 /**
  * The tree as an image, for the readings that need the whole of it — which
@@ -388,26 +375,59 @@ function lenovoWireFields(
 }
 
 /**
- * HP's `HP_MUD` and Apple's SysF store say whose they are — the serial, the rest in the
- * detail — on a copy the store marks deleted as well, which is where most HP boards keep
- * `HP_MUD`. Read here, where the bytes are: an entry is told for HP's by its bytes.
+ * HP's `HP_MUD` entry says whose it is: the serial, the rest in the detail — on a copy the
+ * store marks deleted as well, which is where most HP boards keep it. Read here, where the
+ * bytes are, and marked so the panel's `?` opens HP's entry.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.baseName
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHPDMIDetail.swift#UEFIHPDMIDetail.row
- * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift#UEFIAppleDMIDetail.row
- * @upstream-differs the panel holds no bytes, so the worker reads the text
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIHelpTerms.swift#UEFIHelpTerms.term
+ * @upstream-differs the panel holds no bytes, so the worker reads the row and says the entry
+ * is the area
  */
-function vendorDMIWireFields(
+function hpDMIWireFields(
   node: UEFINode,
   store: UEFINode | undefined
-): { valueRow?: string; dmiArea?: "hp" | "apple" } {
-  if (node.kind !== "vssEntry" && node.kind !== "sysFStore") return {};
+): { valueRow?: string; isHPDMIArea?: true } {
+  if (node.kind !== "vssEntry") return {};
   const reader = readerFor(node);
   if (reader === undefined) return {};
-  const text =
-    node.kind === "vssEntry" ? hpDMIRowText(node, store, reader) : appleDMIRowText(node, reader);
-  if (text === undefined) return {};
-  return { valueRow: text, dmiArea: node.kind === "vssEntry" ? "hp" : "apple" };
+  const text = hpDMIRowText(node, store, reader, hpDMIAreaOfStore);
+  return text === undefined ? {} : { valueRow: text, isHPDMIArea: true };
+}
+
+/**
+ * Apple's SysF store says whose the Mac is: the serial, the rest in the detail. Read here, where
+ * the bytes are, and marked so the panel's `?` opens Apple's entry.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.baseName
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift#UEFIAppleDMIDetail.row
+ * @upstream-differs the panel holds no bytes, so the worker reads the row and says the store is
+ * the area
+ */
+function appleDMIWireFields(node: UEFINode): { valueRow?: string; isAppleDMIArea?: true } {
+  if (node.kind !== "sysFStore") return {};
+  const reader = readerFor(node);
+  if (reader === undefined) return {};
+  const text = appleDMIRowText(node, reader);
+  return text === undefined ? {} : { valueRow: text, isAppleDMIArea: true };
+}
+
+/**
+ * HP's area of each store, read once. Every entry under HP's GUID asks for its store's area,
+ * and the whole tree crosses the wire on every reveal: read afresh each time, a store of eight
+ * hundred entries was read eight hundred times over, seconds per reveal. Emptied with the
+ * tree, when the image is opened or edited.
+ *
+ * @web-only upstream asks for the rows on screen, here the tree crosses the wire whole
+ */
+let hpDMIAreas = new WeakMap<UEFINode, HPDMIArea | null>();
+
+function hpDMIAreaOfStore(store: UEFINode, reader: ImageReader): HPDMIArea | undefined {
+  const held = hpDMIAreas.get(store);
+  if (held !== undefined) return held ?? undefined;
+  const area = readHPDMIArea(store, reader);
+  hpDMIAreas.set(store, area ?? null);
+  return area;
 }
 
 /**
@@ -419,13 +439,14 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
   ...(node.kind === "vssEntry" || node.kind === "nvarEntry"
     ? { valueRow: valueRowOf(node, store, readerFor(node)) }
     : {}),
+  ...hpDMIWireFields(node, store),
+  ...appleDMIWireFields(node),
   ...(node.kind === "gpnvRecord"
     ? { valueRow: gpnvRowText(node.name, readerFor(node)?.bytes(node.body)) }
     : {}),
   ...(node.kind === "acerDMIStore" && readerFor(node) !== undefined
     ? { valueRow: acerDMIRowText(node, readerFor(node) as ImageReader) }
     : {}),
-  ...vendorDMIWireFields(node, store),
   ...lenovoWireFields(node, store),
   hiddenCopies: hiddenCopiesOf(node),
   isEmptySpace: isEmptySpace(node),
@@ -824,6 +845,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         protectedRanges = undefined;
         dvarSettings = undefined;
         dmiStores = undefined;
+        hpDMIAreas = new WeakMap();
         lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;
@@ -865,6 +887,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         // The forms too: an edit may have landed in the driver.
         dvarSettings = undefined;
         dmiStores = undefined;
+        hpDMIAreas = new WeakMap();
         lenovoReaders = undefined;
         addresses = undefined;
         fixedAnchor = undefined;
@@ -1063,6 +1086,11 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
+      // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+      case "firmwareHeldBytes":
+        post({ kind: "firmwareHeldBytes", id: request.id, bytes: buffers.byteCount });
+        return;
+
       // A question an agent asked of the tree, answered here where the tree is and in English
       // (`Design/PORT_AGENT.md`).
       case "agentUefi": {
@@ -1249,7 +1277,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
               post({
                 kind: "firmwareRebuildProgress",
                 id: request.id,
-                phase: progress.phase.toWire(),
+                phase: progress.phase,
                 fraction: progress.fraction,
               }),
           }
@@ -1259,7 +1287,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
             kind: "firmwareRebuild",
             id: request.id,
             plan: undefined,
-            refusal: result.refusal.text.toWire(),
+            refusal: result.refusal.messageText,
             caution: result.refusal.caution,
           });
           return;
@@ -1271,7 +1299,7 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           plan: {
             offset: result.plan.offset,
             bytes: result.plan.bytes,
-            warnings: result.plan.warnings.map((warning) => warning.toWire()),
+            warnings: result.plan.warnings,
             source: [start, end],
           },
           refusal: undefined,

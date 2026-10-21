@@ -186,17 +186,6 @@ languageStore.subscribe(() => {
   }
 });
 
-/** By pane, what its worker last said its compressed sections' buffers hold. */
-const heldBytes = new Map<PaneId, number>();
-
-/**
- * How many bytes the compressed sections of `pane`'s tree opened so far decompressed to and are
- * still held, as its worker last said; nothing read, nothing held.
- *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
- */
-export const firmwareHeldBytes = (pane: PaneId): number => heldBytes.get(pane) ?? 0;
-
 function ensureWorker(pane: PaneId): PaneWorker {
   const existing = workers[pane];
   if (existing !== undefined) return existing;
@@ -208,10 +197,6 @@ function ensureWorker(pane: PaneId): PaneWorker {
   teachLanguage(held);
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
-    if (response.kind === "firmwareHeldBytes") {
-      heldBytes.set(pane, response.bytes);
-      return;
-    }
     // A reply to a superseded job is an answer to an old question — and what
     // supersedes a one-at-a-time ask is *another ask of its own kind*, not any
     // ask at all. The pane's job counter is shared, so gating every reply on it
@@ -223,6 +208,12 @@ function ensureWorker(pane: PaneId): PaneWorker {
     if (response.kind === "agentUefi") {
       agentAsks.get(response.id)?.(response);
       agentAsks.delete(response.id);
+      return;
+    }
+    if (response.kind === "firmwareHeldBytes") {
+      heldBytesKnown[pane] = response.bytes;
+      heldBytesAsks.get(response.id)?.(response.bytes);
+      heldBytesAsks.delete(response.id);
       return;
     }
     const latest = held.latest.get(response.kind);
@@ -355,7 +346,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
         layoutWaiters.delete(pane);
         return;
       case "firmwareRebuildProgress":
-        rebuildProgress.get(pane)?.(LocalizedText.fromWire(response.phase), response.fraction);
+        rebuildProgress.get(pane)?.(LocalizedText.from(response.phase), response.fraction);
         return;
       case "firmwareReach": {
         update(pane, { roots: response.roots });
@@ -812,8 +803,6 @@ async function askHelper(
 /** What the helper found, taken up if the tree it read is still the pane's. */
 function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerResponse): void {
   const held = workers[pane];
-  // A helper's buffers are a second parse's, gone with it: only the pane's own are counted.
-  if (response.kind === "firmwareHeldBytes") return;
   if (held === undefined || held.job !== helper.job || response.id !== helper.job) return;
   if (response.kind === "firmwareProtectedRanges") {
     const { raw, ...shown } = response;
@@ -1805,7 +1794,7 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
  * @upstream ByteRipperApp/Pane/PaneUEFIState.swift#PaneUEFIState.invalidate
  */
 export function closeFirmware(pane: PaneId): void {
-  heldBytes.delete(pane);
+  delete heldBytesKnown[pane];
   workers[pane]?.worker.terminate();
   helpers[pane]?.worker.terminate();
   delete helpers[pane];
@@ -1849,6 +1838,40 @@ function replaceChildren(
     if (at !== index) return node;
     if (rest.length === 0) return { ...node, children, hiddenCopies, isExpandable: false };
     return { ...node, children: replaceChildren(node.children, rest, children, hiddenCopies) };
+  });
+}
+
+/** What each pane's worker last said its tree holds beyond its nodes. */
+const heldBytesKnown: Partial<Record<PaneId, number>> = {};
+const heldBytesAsks = new Map<number, (bytes: number) => void>();
+let heldBytesAskId = 0;
+/** How long a busy worker is waited for before its last answer stands in for this one. */
+const HELD_BYTES_WAIT = 250;
+
+/**
+ * How many bytes the pane's tree holds beyond its nodes: what the compressed sections opened so
+ * far decompressed to, and are still held. Nothing for a pane no tree has been read for — no
+ * worker is started to say so.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.decompressedByteCount
+ * @upstream-differs asked of the worker that holds the tree; a worker busy past a quarter of a
+ * second is answered for by what it said last, so weighing a file never waits on a parse
+ */
+export function heldFirmwareBytes(pane: PaneId): Promise<number> {
+  const held = workers[pane];
+  if (held === undefined) return Promise.resolve(0);
+  heldBytesAskId += 1;
+  const id = heldBytesAskId;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      heldBytesAsks.delete(id);
+      resolve(heldBytesKnown[pane] ?? 0);
+    }, HELD_BYTES_WAIT);
+    heldBytesAsks.set(id, (bytes) => {
+      clearTimeout(timer);
+      resolve(bytes);
+    });
+    held.worker.postMessage({ kind: "firmwareHeldBytes", id });
   });
 }
 

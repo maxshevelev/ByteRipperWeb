@@ -21,9 +21,8 @@ import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { ProjectFolder } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
-import { annotationsRead } from "@/state/agent/agentAnnotationStore";
+import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
-import { selectInPanel } from "@/state/notesPanelStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import {
   PANE_IDS,
@@ -610,9 +609,9 @@ function applySurface(state: SurfaceState): void {
  */
 async function restoreNotes(notes: NotesState | undefined): Promise<void> {
   if (notes === undefined) return;
-  await annotationsRead();
+  await restoreAnnotations();
   if (notes.isUp) openNotesPanel();
-  if (notes.selected.length > 0) selectInPanel(notes.selected);
+  if (notes.selected.length > 0) selectAnnotations(notes.selected, notes.selected[0]);
 }
 
 /**

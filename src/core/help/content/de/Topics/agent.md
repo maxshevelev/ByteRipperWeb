@@ -1,4 +1,4 @@
-@source-sha c42bb4854289156b16c948cbcf7d7bcd0e36d34b5ce3c7dbb4e4029a56a4d276
+@source-sha a8294bee5c7b3985e4361b7ecfcb6542b20b89cbcc4cb3d064d45e98eea5d30b
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -12,6 +12,7 @@
 @covers menu.window.agent
 @covers settings.agent.edits
 @covers settings.agent.launch
+@covers settings.agent.background
 
 [[edition:**Diese Seite handelt von der Windows-Anwendung.** Der Agentendienst braucht eine Verbindung, die eine Seite im Browser nicht öffnen kann; die Browser-Ausgabe hat ihn daher nicht, und nichts hier Beschriebene gibt es dort.||]]
 
@@ -117,14 +118,14 @@ Der Agent liest eine Datei über ihren Pfad mit den Rechten des Benutzerkontos, 
 
 ## Über ihren Pfad geöffnete Dumps
 
-Ein Dump, den der Agent über seinen Pfad öffnet, ohne Bereich, wird einmal gelesen und analysiert: Weitere Fragen dazu — die ME-Version, danach die Seriennummer aus DMI — beantwortet der Agent aus den bereits analysierten Daten. Eine Frage an alle Dumps eines Ordners öffnet jeden von ihnen auf dieselbe Weise.
+Ein Dump, den der Agent über seinen Pfad öffnet, ohne ihn anzuzeigen, wird einmal gelesen und analysiert: Weitere Fragen dazu — die ME-Version, danach die Seriennummer aus DMI — beantwortet der Agent aus den bereits analysierten Daten. Eine Frage an alle Dumps eines Ordners öffnet jeden von ihnen auf dieselbe Weise.
 
 Nicht alle diese Dumps bleiben erhalten. Unter **Einstellungen ▸ Agent** werden zwei Grenzen festgelegt:
 
 - **Höchstens offene Dumps:** — von 1 bis 64; im Auslieferungszustand 8.
-- **Höchstens Arbeitsspeicher dafür:** — von 256 MB bis zu einem Viertel des Arbeitsspeichers dieses Rechners, höchstens 16 GB; im Auslieferungszustand 1 GB.
+- **Höchstens Arbeitsspeicher dafür:** — von 256 MB bis zu einem Viertel des Arbeitsspeichers dieses Computers, höchstens 16 GB; im Auslieferungszustand 1 GB.
 
-Gezählt werden die vollständig gelesenen Dateien und der entpackte Inhalt ihrer komprimierten Abschnitte. Der Strukturbaum und das Ergebnis der ME-Analyse werden nicht gezählt; neben diesen Puffern belegen sie wenig. Wird eine der beiden Grenzen überschritten, wird der Dump geschlossen, der am längsten nicht abgefragt wurde. Der zuletzt abgefragte Dump bleibt geöffnet, auch wenn er allein die Speichergrenze überschreitet. Fragt der Agent erneut nach einem geschlossenen Dump, wird dieser unter derselben Bezeichnung neu gelesen und analysiert; das kostet Zeit, die Antwort bleibt dieselbe. Ein auf der Festplatte geänderter Dump wird bei der nächsten Abfrage neu gelesen.
+Gezählt werden die Dateien selbst, die jeweils vollständig gelesen werden, die zum Lesen bereitgehaltenen Ausschnitte daraus und der entpackte Inhalt ihrer komprimierten Abschnitte. Der Strukturbaum und das Ergebnis der ME-Analyse werden nicht gezählt; neben diesen Puffern belegen sie wenig. Wird eine der beiden Grenzen überschritten, wird der Dump geschlossen, der am längsten nicht abgefragt wurde. Der zuletzt abgefragte Dump bleibt geöffnet, auch wenn er allein die Speichergrenze überschreitet. Fragt der Agent erneut nach einem geschlossenen Dump, wird dieser unter derselben Bezeichnung neu gelesen und analysiert; das kostet Zeit, die Antwort bleibt dieselbe. Ein auf der Festplatte geänderter Dump wird bei der nächsten Abfrage neu gelesen.
 
 Sollen an alle Dumps eines großen Ordners mehrere Fragen gestellt werden, ist es schneller, sie Dump für Dump zu stellen statt Frage für Frage: Sind es mehr Dumps, als die Grenzen erhalten, liest ein zweiter Durchgang durch den Ordner die meisten von ihnen erneut.
 

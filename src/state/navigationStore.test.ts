@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { addAnnotation, discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import {
   canNavigateBack,
@@ -12,9 +13,13 @@ import {
   navigationHistory,
   noteToolStep,
   recordJump,
+  recordStepFromNotes,
+  showNotesLeaving,
 } from "@/state/navigationStore";
 import { registerToolNavigation, resetToolNavigation, toolChoiceOf } from "@/state/toolNavigation";
 import {
+  foldParts,
+  notesPanelIsUp,
   openEmptyInPane,
   openInPane,
   paneState,
@@ -314,5 +319,74 @@ describe("a tool's choice in the history", () => {
     navigateBack();
 
     expect(other.shown).toEqual([]);
+  });
+});
+
+/**
+ * The Annotations panel as a place of the history: a note made brings it up, a step Back returns
+ * from to the bytes it was made on; a card's double-click leaves it, and Back comes to it again.
+ *
+ * @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testANoteMadeShowsTheWindowAndBackReturnsToItsPlace
+ * @upstream-differs one history holds the panel, where upstream's window keeps its own stacks
+ */
+describe("the Annotations panel", () => {
+  const noteOn = (id: string, document: BinaryDocument) => ({
+    id,
+    file: { kind: "document" as const, document: new WeakRef(document), name: "dump.bin" },
+    range: [0, 4] as [number, number],
+    node: undefined,
+    title: id,
+    note: "",
+    decoded: undefined,
+    relatedTo: [],
+    site: undefined,
+    author: "person" as const,
+  });
+  const up = () => notesPanelIsUp(workspaceStore.getSnapshot());
+
+  afterEach(() => {
+    foldParts();
+    discardAnnotationsForTesting();
+  });
+
+  it("is shown after a note is made, and Back returns to the bytes, Forward to the panel", async () => {
+    const { document } = await fileIn("a", 0x1000);
+    document.setSelection({ start: 0x20, end: 0x28, fileSize: 0x1000 });
+    addAnnotation(noteOn("a1", document), false);
+    showNotesLeaving("a");
+    expect(up()).toBe(true);
+    expect(canNavigateBack()).toBe(true);
+    expect(canNavigateForward()).toBe(false);
+
+    navigateBack();
+    expect(up()).toBe(false);
+    expect(document.selection.start).toBe(0x20);
+    expect(canNavigateForward()).toBe(true);
+
+    navigateForward();
+    expect(up()).toBe(true);
+    expect(canNavigateForward()).toBe(false);
+  });
+
+  it("is a step Back returns to from the place a card took the reader to", async () => {
+    const { document } = await fileIn("a", 0x1000);
+    addAnnotation(noteOn("a1", document), false);
+    showNotesLeaving("a");
+    // A card's double-click: the panel leaves, the caret goes to the place.
+    recordStepFromNotes();
+    foldParts();
+    document.setSelection({ start: 0x40, end: 0x44, fileSize: 0x1000 });
+
+    navigateBack();
+    expect(up()).toBe(true);
+  });
+
+  it("is not recorded twice while it is already up", async () => {
+    const { document } = await fileIn("a", 0x1000);
+    addAnnotation(noteOn("a1", document), false);
+    showNotesLeaving("a");
+    const depth = navigationHistory.backStack.length;
+    showNotesLeaving("a");
+    expect(navigationHistory.backStack.length).toBe(depth);
   });
 });

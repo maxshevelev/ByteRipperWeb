@@ -7,6 +7,7 @@ import type {
 } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
+import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import { type OffsetRange, type Piece, PieceTable } from "@/core/storage/pieceTable";
 import type { ScratchStore } from "@/core/storage/scratchStore";
 
@@ -296,6 +297,21 @@ export class EditOverlayStorage implements EditableByteStorage {
    */
   get baseSize(): number {
     return this.base.size;
+  }
+
+  /**
+   * The bytes this storage holds in memory now: what its base has cached of
+   * the file — or the whole base, when that lives in memory — and the add
+   * buffer. What a holder of many documents weighs them by.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#EditOverlayStorage.residentByteCount
+   */
+  get residentByteCount(): number {
+    const base = this.base;
+    let held = 0;
+    if (base instanceof FileBackedStorage) held = base.cache.cachedByteCount;
+    else if (base instanceof MemoryBackedStorage) held = base.size;
+    return held + this.addedLength;
   }
 
   /**

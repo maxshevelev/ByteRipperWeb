@@ -113,14 +113,14 @@ An agent reads a file by its path with the rights of the user account ByteRipper
 
 ## Dumps opened by path
 
-A dump the agent opens by its path, without a pane, is read and parsed once: further questions about it — the ME version, then the DMI serial number — are answered from what was parsed. A question about every dump in a folder opens each of them in the same way.
+A dump the agent opens by its path, without putting it on screen, is read and parsed once: further questions about it — the ME version, then the DMI serial number — are answered from what was parsed. A question about every dump in a folder opens each of them in the same way.
 
 Such dumps are not all kept. **Settings ▸ Agent** sets two limits:
 
 - **Dumps kept open:** — from 1 to 64; 8 after installation.
 - **Memory for them:** — from 256 MB to a quarter of this computer's memory, at most 16 GB; 1 GB after installation.
 
-Counted are the files, read whole, and what their compressed sections decompressed to. The tree of the structure and the ME analysis are not counted; beside those buffers they are small. Past either limit, the dump not asked about for the longest time is closed. The dump asked about last stays open even when it alone exceeds the memory limit. When the agent names a closed dump again, it is read and parsed again under the same name; this takes time, but the answer is the same. A dump changed on disk is read again the next time it is asked about.
+Counted are the files themselves, each of which is read whole, the parts of them held ready for reading, and what their compressed sections decompressed to. The tree of the structure and the ME analysis are not counted; beside those buffers they are small. Past either limit, the dump not asked about for the longest time is closed. The dump asked about last stays open even when it alone exceeds the memory limit. When the agent names a closed dump again, it is read and parsed again under the same name; this takes time, but the answer is the same. A dump changed on disk is read again the next time it is asked about.
 
 To ask several questions about every dump in a large folder, it is quicker to ask them dump by dump than question by question: with more dumps than the limits keep, a second pass over the folder reads most of them again.
 

@@ -158,7 +158,7 @@ function register(ipcMain, fromApp, app) {
       script: relayScript(app),
       environment: { ELECTRON_RUN_AS_NODE: "1" },
       platform: process.platform,
-      physicalMemory: os.totalmem(),
+      memory: os.totalmem(),
     };
   });
 

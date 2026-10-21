@@ -60,6 +60,49 @@ export function dumpFiles(paths: readonly string[]): string[] {
 }
 
 /**
+ * What a survey calls each file: its path from `root`, or — for a list of `paths` — from the
+ * deepest folder they all share; and that folder, so `root` joined to a name opens the file. A
+ * file's name alone is not enough: dumps of one board are often all `bios.bin`, one to a folder. A
+ * file outside the folder keeps its whole path.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.surveyNames
+ * @upstream-differs links are not resolved: the shell lists a folder's files under the folder as
+ * it was given, so they share it as written, and a page has no realpath to ask for a list of
+ * `paths` spelled two ways — those keep their whole paths
+ */
+export function surveyNames(
+  paths: readonly string[],
+  root?: string | undefined
+): { readonly root: string; readonly names: string[] } {
+  // Either separator, as `baseName` reads one; the folder is written back with the one it used.
+  const parts = (path: string): string[] => path.split(/[\\/]/);
+  const trimmed = (folder: string[]): string[] =>
+    folder.length > 1 && folder[folder.length - 1] === "" ? folder.slice(0, -1) : folder;
+  const files = paths.map(parts);
+  let base = root === undefined ? (files[0] ?? [""]).slice(0, -1) : trimmed(parts(root));
+  if (root === undefined) {
+    for (const file of files.slice(1)) {
+      const folder = file.slice(0, -1);
+      let shared = 0;
+      while (shared < base.length && shared < folder.length && base[shared] === folder[shared]) {
+        shared += 1;
+      }
+      base = base.slice(0, shared);
+    }
+  }
+  const names = paths.map((path, index) => {
+    const file = files[index] ?? [];
+    const inside =
+      file.length > base.length && base.every((part, position) => file[position] === part);
+    return inside ? file.slice(base.length).join("/") : path;
+  });
+  const sample = root ?? paths[0] ?? "/";
+  const separator = sample.includes("\\") && !sample.includes("/") ? "\\" : "/";
+  const folder = base.join(separator);
+  return { root: folder === "" ? separator : folder, names };
+}
+
+/**
  * `"matches.0.start"` → the steps into an answer; a number is an index, negative from the end.
  *
  * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.parsePath
@@ -114,46 +157,4 @@ export class SurveyGroups {
       )
       .map((entry) => entry.group);
   }
-}
-
-/**
- * What a survey calls each file: its path from `root`, or — for a list of `paths` — from the
- * deepest folder they all share. A file's name alone is not enough: dumps of one board are often
- * all `bios.bin`, one to a folder. A file outside the root keeps its whole path.
- *
- * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.surveyNames
- * @upstream-differs no link is resolved: the shell lists a folder's files under the folder as it
- * was given, so the two sides already agree
- */
-export function surveyNames(
-  files: readonly string[],
-  root: string | undefined
-): { root: string; names: string[] } {
-  const sample = root ?? files[0] ?? "";
-  const separator = sample.includes("\\") && !sample.includes("/") ? "\\" : "/";
-  const parts = (path: string): string[] => {
-    const split = path.split(/[\\/]+/);
-    if (split.length > 1 && split.at(-1) === "") split.pop();
-    return split;
-  };
-  const split = files.map(parts);
-  let base = root === undefined ? (split[0] ?? [""]).slice(0, -1) : parts(root);
-  if (root === undefined) {
-    for (const file of split.slice(1)) {
-      const folder = file.slice(0, -1);
-      let shared = 0;
-      while (shared < base.length && shared < folder.length && base[shared] === folder[shared]) {
-        shared += 1;
-      }
-      base = base.slice(0, shared);
-    }
-  }
-  const names = files.map((path, index) => {
-    const file = split[index] ?? [];
-    const inside = file.length > base.length && base.every((one, at) => file[at] === one);
-    return inside ? file.slice(base.length).join("/") : path;
-  });
-  const joined = base.join(separator);
-  const top = joined === "" || /^[A-Za-z]:$/.test(joined) ? `${joined}${separator}` : joined;
-  return { root: top, names };
 }

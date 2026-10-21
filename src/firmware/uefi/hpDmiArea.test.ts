@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
-import {
-  HP_SERIAL,
-  hpImage,
-  hpMud,
-  hpVariable,
-  hpVariables,
-} from "@/firmware/testing/testVendorDMI";
+import { HP_SERIAL, hpImage, hpMud, hpVariable, hpVariables } from "@/firmware/testing/testHPDMI";
 import { allDMIStores } from "@/firmware/uefi/dmiStore";
 import {
-  HP_DMI,
+  HP_MUD_NAME,
+  HP_SETTINGS_GUID,
   type HPDMIArea,
   hpCTNumber,
   hpFindings,
@@ -22,137 +17,106 @@ import {
   isHPDMIAreaEntry,
   readHPDMIArea,
 } from "@/firmware/uefi/hpDmiArea";
-import { NVRAM } from "@/firmware/uefi/nvramParser";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
-import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { displayName, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * HP's identity (`hpDmiArea.ts`): the `HP_MUD` variable and the three beside it in the main
  * VSS2 store. The layout is read off the dumps it was surveyed from, so the tests carry
- * synthetic variables in it.
+ * synthetic variables in it (`testHPDMI.ts`).
  *
  * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests
  */
 
-const parse = (bytes: Uint8Array) => parseUefiImage(sourceOver(bytes));
-const readerOf = (bytes: Uint8Array) => new ImageReader(sourceOver(bytes));
-
-function store(bytes: Uint8Array): UEFINode {
-  const found = parse(bytes).allNodes.find((node) => node.kind === "vss2Store");
-  if (found === undefined) throw new Error("no VSS2 store");
-  return found;
+function parsed(bytes: Uint8Array) {
+  const source = sourceOver(bytes);
+  const image = parseUefiImage(source);
+  const reader = new ImageReader(source);
+  const store = image.allNodes.find((one) => one.kind === "vss2Store") as UEFINode;
+  return { image, reader, store };
 }
 
 function area(bytes: Uint8Array): HPDMIArea {
-  const read = readHPDMIArea(store(bytes), readerOf(bytes));
-  if (read === undefined) throw new Error("no HP DMI area");
-  return read;
+  const { store, reader } = parsed(bytes);
+  const found = readHPDMIArea(store, reader);
+  if (found === undefined) throw new Error("no HP DMI area");
+  return found;
 }
 
 describe("HP's DMI area", () => {
-  /**
-   * The store says who the machine is: what BCU reports as the serial, the SKU, the family, the
-   * CT number, the product name, the UUID, the build ID, the feature byte and the asset
-   * tracking number.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheStoreSaysWhoTheMachineIs
-   */
-  it("says who the machine is", () => {
-    const read = area(hpImage());
-    expect(hpSerialNumber(read)).toBe(HP_SERIAL);
-    expect(hpSKU(read)).toBe("TEST123#ABD");
-    expect(hpProductFamily(read)).toBe("103C_5336AN HP EliteBook");
-    expect(hpCTNumber(read)).toBe("PTXTEST01JK100B");
-    expect(hpProductName(read)).toBe("HP EliteBook 645 14 inch G11 Notebook PC");
-    expect(hpUUIDText(read)).toBe("78563412-AB90-4788-89CD-EF0102030405");
-    expect(read.buildID).toBe("24WWTEST602#SABD#DABD");
-    expect(read.featureByte).toBe("476J6S6b7B7H.TR");
-    expect(read.assetTag).toBe(HP_SERIAL);
-    expect(read.isDeleted).toBe(false);
-    expect(hpFindings(read)).toEqual([]);
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheStoreSaysWhoTheMachineIs
+  it("says who the machine is, as BCU reports it", () => {
+    const found = area(hpImage());
+    expect(hpSerialNumber(found)).toBe(HP_SERIAL);
+    expect(hpSKU(found)).toBe("TEST123#ABD");
+    expect(hpProductFamily(found)).toBe("103C_5336AN HP EliteBook");
+    expect(hpCTNumber(found)).toBe("PTXTEST01JK100B");
+    expect(hpProductName(found)).toBe("HP EliteBook 645 14 inch G11 Notebook PC");
+    expect(hpUUIDText(found)).toBe("78563412-AB90-4788-89CD-EF0102030405");
+    expect(found.buildID).toBe("24WWTEST602#SABD#DABD");
+    expect(found.featureByte).toBe("476J6S6b7B7H.TR");
+    expect(found.assetTag).toBe(HP_SERIAL);
+    expect(found.isDeleted).toBe(false);
+    expect(hpFindings(found)).toEqual([]);
   });
 
-  /**
-   * The bench's "show the DMI area" goes to the `HP_MUD` entry — and only with the bytes, since
-   * a marked entry's name is in them.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheDMIStoresSeeTheEntry
-   */
-  it("is seen by the DMI stores, with the bytes", () => {
-    const bytes = hpImage();
-    const parsed = parse(bytes);
-    const entry = parsed.allNodes.find(
-      (node) => node.kind === "vssEntry" && node.name === HP_DMI.mudName
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheDMIStoresSeeTheEntry
+  it("is the HP_MUD entry to the DMI search, and only with the bytes", () => {
+    const { image, reader, store } = parsed(hpImage());
+    const entry = image.allNodes.find(
+      (one) => one.kind === "vssEntry" && one.name === HP_MUD_NAME
     ) as UEFINode;
-    expect(allDMIStores(parsed.roots, readerOf(bytes))).toEqual([
+    expect(allDMIStores(image.roots, reader)).toEqual([
       { kind: "vssEntry", range: nodeRange(entry) },
     ]);
-    expect(allDMIStores(parsed.roots)).toEqual([]);
-    const held = store(bytes);
-    expect(isHPDMIAreaEntry(entry, held, readerOf(bytes))).toBe(true);
-    const tags = parsed.allNodes.find(
-      (node) => node.kind === "vssEntry" && node.name === "HP_TAGS"
+    expect(allDMIStores(image.roots)).toEqual([]);
+    expect(isHPDMIAreaEntry(entry, store, reader)).toBe(true);
+    const tags = image.allNodes.find(
+      (one) => one.kind === "vssEntry" && one.name === "HP_TAGS"
     ) as UEFINode;
-    expect(isHPDMIAreaEntry(tags, held, readerOf(bytes))).toBe(false);
+    expect(isHPDMIAreaEntry(tags, store, reader)).toBe(false);
   });
 
-  /**
-   * On most boards read from the store marks `HP_MUD` deleted and keeps no current copy; the
-   * copy is whole, is read, and says so.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testADeletedCopyIsReadAndSaysSo
-   */
-  it("reads a deleted copy, and says so", () => {
-    const read = area(hpImage(hpVariables(0x3c)));
-    expect(hpSerialNumber(read)).toBe(HP_SERIAL);
-    expect(read.isDeleted).toBe(true);
-    expect(hpFindings(read)).toEqual(["deletedCopy"]);
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testADeletedCopyIsReadAndSaysSo
+  it("reads a copy the store marks deleted, and says so", () => {
+    const found = area(hpImage(hpVariables({ mudState: 0x3c })));
+    expect(hpSerialNumber(found)).toBe(HP_SERIAL);
+    expect(found.isDeleted).toBe(true);
+    expect(hpFindings(found)).toEqual(["deletedCopy"]);
   });
 
-  /**
-   * Where the store keeps a current copy, it wins over an earlier one.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheCurrentCopyWinsOverAnEarlierOne
-   */
-  it("takes the current copy over an earlier one", () => {
-    const earlier = hpVariable(HP_DMI.mudName, hpMud("5CDOLD0001"), HP_DMI.factoryGuid, 0x3c);
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testTheCurrentCopyWinsOverAnEarlierOne
+  it("reads the current copy over an earlier one", () => {
+    const earlier = hpVariable(HP_MUD_NAME, hpMud({ serial: "5CDOLD0001" }), { state: 0x3c });
     const bytes = hpImage([earlier, ...hpVariables()]);
-    const read = area(bytes);
-    expect(hpSerialNumber(read)).toBe(HP_SERIAL);
-    expect(read.isDeleted).toBe(false);
-    const old = parse(bytes).allNodes.find(
-      (node) => node.kind === "vssEntry" && node.name === "Invalid"
+    const found = area(bytes);
+    expect(hpSerialNumber(found)).toBe(HP_SERIAL);
+    expect(found.isDeleted).toBe(false);
+    const { image, reader, store } = parsed(bytes);
+    const old = image.allNodes.find(
+      (one) => one.kind === "vssEntry" && displayName(one) === "Invalid"
     ) as UEFINode;
-    expect(isHPDMIAreaEntry(old, store(bytes), readerOf(bytes))).toBe(false);
+    expect(old).toBeDefined();
+    expect(isHPDMIAreaEntry(old, store, reader)).toBe(false);
   });
 
-  /**
-   * The asset tag is the serial by default; another value is worth knowing.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testAnAssetTagOtherThanTheSerialIsANote
-   */
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testAnAssetTagOtherThanTheSerialIsANote
   it("notes an asset tag other than the serial", () => {
-    expect(hpFindings(area(hpImage(hpVariables(NVRAM.vssVariableAdded, "5CGOTHER01"))))).toEqual([
-      "assetTagIsNotTheSerial",
-    ]);
+    const found = area(hpImage(hpVariables({ assetTag: "5CGOTHER01" })));
+    expect(hpFindings(found)).toEqual(["assetTagIsNotTheSerial"]);
   });
 
-  /**
-   * Only the layout read from: another size, another GUID, or a serial that is no text is not
-   * read.
-   *
-   * @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testWhatIsNotTheLayoutIsNotRead
-   */
-  it("does not read what is not the layout", () => {
-    const readOf = (held: Uint8Array) => {
-      const bytes = hpImage([held]);
-      return readHPDMIArea(store(bytes), readerOf(bytes));
+  // @upstream Packages/UEFIImage/Tests/UEFIImageTests/HPDMIAreaTests.swift#HPDMIAreaTests.testWhatIsNotTheLayoutIsNotRead
+  it("reads only the layout read from", () => {
+    const unread = (variable: Uint8Array) => {
+      const { store, reader } = parsed(hpImage([variable]));
+      return readHPDMIArea(store, reader);
     };
-    expect(readOf(hpVariable(HP_DMI.mudName, hpMud().subarray(0, 0x100)))).toBeUndefined();
-    expect(readOf(hpVariable(HP_DMI.mudName, hpMud(), HP_DMI.settingsGuid))).toBeUndefined();
+    expect(unread(hpVariable(HP_MUD_NAME, hpMud().subarray(0, 0x100)))).toBeUndefined();
+    expect(unread(hpVariable(HP_MUD_NAME, hpMud(), { guid: HP_SETTINGS_GUID }))).toBeUndefined();
     const garbled = hpMud();
     garbled[2] = 0x01;
     garbled[3] = 0xd8;
-    expect(readOf(hpVariable(HP_DMI.mudName, garbled))).toBeUndefined();
+    expect(unread(hpVariable(HP_MUD_NAME, garbled))).toBeUndefined();
   });
 });

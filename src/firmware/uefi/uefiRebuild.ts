@@ -91,16 +91,17 @@ export interface RebuildPlan {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal
  * @upstream-differs a thrown Error carrying the sentence, where upstream throws
  * a struct: the climb refuses from ten levels down, and an Error is what
- * TypeScript carries back up
+ * TypeScript carries back up. The Error's own `message` is the sentence in English
  */
 export class Refusal extends Error {
   /**
-   * The sentence, put into words by whoever shows it: the page in its language, an agent in
-   * English. `message` is the English, for a log.
+   * The sentence, put into words by whoever shows it: the person's language in the alert, English
+   * for an agent.
    *
    * @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.message
+   * @upstream-differs named apart from the Error's `message`, which is a string
    */
-  readonly text: LocalizedText;
+  readonly messageText: LocalizedText;
   /**
    * Set when the refusal is the planner's caution, not a fact about the bytes.
    *
@@ -109,10 +110,10 @@ export class Refusal extends Error {
   readonly caution: RebuildCaution | undefined;
 
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.Refusal.init */
-  constructor(text: LocalizedText, caution?: RebuildCaution) {
-    super(text.textIn("en"));
+  constructor(message: LocalizedText, caution?: RebuildCaution) {
+    super(message.textIn("en"));
     this.name = "Refusal";
-    this.text = text;
+    this.messageText = message;
     this.caution = caution;
   }
 }
@@ -395,7 +396,7 @@ function protectionWarnings(
       "The change writes inside “%1$@”: the hash the firmware checks it against no longer matches.",
       range.name
     );
-    if (!warnings.some((one) => one.textIn("en") === warning.textIn("en"))) warnings.push(warning);
+    if (!warnings.some((one) => sameText(one, warning))) warnings.push(warning);
   }
   return warnings;
 }
@@ -1793,6 +1794,10 @@ function concat(...parts: readonly Uint8Array[]): Uint8Array {
 /** `bytes` with `range` replaced by `replacement`, which may be another length. */
 const spliced = (bytes: Uint8Array, range: ImageRange, replacement: Uint8Array): Uint8Array =>
   concat(bytes.subarray(0, range.start), replacement, bytes.subarray(range.end));
+
+/** The same sentence, whatever language it is read in: the same key and the same words in it. */
+const sameText = (one: LocalizedText, other: LocalizedText): boolean =>
+  one.textIn("en") === other.textIn("en");
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);

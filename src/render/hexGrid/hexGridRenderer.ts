@@ -18,6 +18,7 @@ import {
   contourRowSpan,
   outlinesFolded,
   selectionContours,
+  startingOnAHorizontalEdge,
   traceContour,
 } from "@/render/hexGrid/spanContour";
 
@@ -131,7 +132,7 @@ export function caretRowReach(
  *
  * @upstream ByteRipperApp/Hex/HexView.swift#HexView.bookmarkMarkBody
  */
-const BOOKMARK_PADDING = 2;
+export const BOOKMARK_PADDING = 2;
 /**
  * The apex angle of the mark's tip, held at every font size.
  *
@@ -167,12 +168,13 @@ const ZONE_LINE_WIDTH = 2;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFocusedAlpha */
 const ZONE_ALPHA = 0.9;
 /**
- * A note is dashed: four pixels drawn, three left out.
+ * A note's dash: four pixels drawn, three left out.
  *
- * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawAgentMarkContours
  * @upstream ByteRipperApp/Hex/HexView.swift#HexView.noteDash
  */
 const AGENT_MARK_DASH = [4, 3];
+/** One whole dash, which is what a note's outline may be folded by. */
+const AGENT_MARK_DASH_PERIOD = AGENT_MARK_DASH.reduce((sum, one) => sum + one, 0);
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFillAlpha */
 const ZONE_FILL_ALPHA = 0.1;
 
@@ -1551,33 +1553,11 @@ export class HexGridRenderer {
     const config = this.config;
     if (config === undefined) return;
     for (const { contours } of this.zonesAt(rowStart, this.agentMarks)) {
-      this.fillContours(y, this.foldedToRow(contours, y), config.colors.agentMark, ZONE_FILL_ALPHA);
+      this.fillContours(y, contours, config.colors.agentMark, ZONE_FILL_ALPHA);
     }
     for (const { contours } of this.zonesAt(rowStart, this.personMarks)) {
-      this.fillContours(
-        y,
-        this.foldedToRow(contours, y),
-        config.colors.personMark,
-        ZONE_FILL_ALPHA
-      );
+      this.fillContours(y, contours, config.colors.personMark, ZONE_FILL_ALPHA);
     }
-  }
-
-  /**
-   * A note's outlines cut down to the band round the row at `y` (`outlinesFolded`), two rows of
-   * slack each side: the padding, the rounded corners and the line's own width all stay well
-   * inside it.
-   *
-   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkShapes
-   */
-  private foldedToRow(contours: readonly (readonly ContourPoint[])[], y: number): ContourPoint[][] {
-    const rowHeight = this.config?.layout.rowHeight ?? 0;
-    const top = y + this.originY;
-    return outlinesFolded(
-      contours,
-      { top: top - 2 * rowHeight, bottom: top + this.rowBandHeight + 2 * rowHeight },
-      AGENT_MARK_DASH.reduce((sum, one) => sum + one, 0)
-    );
   }
 
   /**
@@ -1596,7 +1576,7 @@ export class HexGridRenderer {
       for (const { contours } of this.zonesAt(rowStart, marks)) {
         this.strokeContours(
           y,
-          this.foldedToRow(contours, y),
+          this.foldedAround(rowStart, contours),
           colour,
           PEER_CONTOUR_LINE_WIDTH,
           ZONE_ALPHA,
@@ -1604,6 +1584,30 @@ export class HexGridRenderer {
         );
       }
     }
+  }
+
+  /**
+   * A note's outline cut down to the band round the row being painted
+   * ({@link outlinesFolded}): a note of a few megabytes is an outline millions
+   * of pixels tall, and the canvas lays its dashes along the whole of it on
+   * every stroke — and this strokes it once per row repainted.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.agentMarkShapes
+   * @upstream-differs the band is the painted row and two and a half rows each side, not two, so a vertex left inside it is never nearer its edge than half a row — a fold can then never leave an edge too short for its rounded corners, which would move the dashes after it
+   */
+  private foldedAround(
+    rowStart: number,
+    contours: readonly (readonly ContourPoint[])[]
+  ): ContourPoint[][] {
+    const config = this.config;
+    if (config === undefined) return [];
+    const { layout } = config;
+    const top = layout.rowFrame(rowStart / BYTES_PER_ROW).y;
+    const band = {
+      lower: top - 2.5 * layout.rowHeight,
+      upper: top + 3.5 * layout.rowHeight,
+    };
+    return outlinesFolded(contours.map(startingOnAHorizontalEdge), band, AGENT_MARK_DASH_PERIOD);
   }
 
   private paintZoneOutlines(rowStart: number, y: number): void {
