@@ -104,6 +104,7 @@ import {
   wireTopSwapTwin,
 } from "@/tools/uefi/uefiTopSwap";
 import {
+  dmiButtonTitle,
   dmiStoreTitle,
   isEmptyPadding,
   listed,
@@ -2196,11 +2197,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             )}
             aria-label={L("Show DMI Area")}
           >
-            <DmiBadge />
+            <DmiBadge title={dmiButtonTitle(dmiStores)} />
           </button>
         ) : (
           <MenuButton
-            label={<DmiBadge />}
+            label={<DmiBadge title={dmiButtonTitle(dmiStores)} />}
             title={L(
               "Show in the tree where the image keeps the board's serial number, UUID and model"
             )}
@@ -2819,9 +2820,10 @@ export const uefiStructureTool: ToolModule = {
 };
 
 /**
- * The DMI button's face: the word in a rounded frame, a badge rather than a glyph — no symbol
- * says "the board's identity", and the technician knows the area by that name. Drawn in the
- * text's colour, so the frame and the word follow the theme.
+ * The DMI button's face: the words in a rounded frame, a badge rather than a glyph — no symbol
+ * says "the board's identity", and the technician knows the area by that name, and by whose layout
+ * it is: `Lenovo DMI`, `ASUS DMI` (`dmiButtonTitle`). Drawn in the text's colour, so the frame and
+ * the words follow the theme.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIDMIBadgeButton.swift#UEFIDMIBadgeButton.init
@@ -2829,10 +2831,10 @@ export const uefiStructureTool: ToolModule = {
  * @upstream-differs a CSS border and padding (`.uefi-dmi-badge`) where AppKit measures and
  * strokes the frame itself
  */
-function DmiBadge() {
+function DmiBadge({ title }: { readonly title: string }) {
   return (
     <span className="uefi-dmi-badge" aria-hidden="true">
-      {L("DMI")}
+      {title}
     </span>
   );
 }

@@ -573,6 +573,43 @@ export function kindLabel(kind: string): string {
 }
 
 /**
+ * The DMI button's word: whose layout the image's stores are — "Lenovo DMI", "ASUS DMI" — or
+ * plain "DMI" when they are more than one vendor's, which no image seen so far is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dmiButtonTitle
+ */
+export function dmiButtonTitle(stores: readonly DMIStore[]): string {
+  const vendors = new Set(
+    stores.map((store) => dmiVendorTitle(store.kind)).filter((one) => one !== undefined)
+  );
+  const [only] = vendors;
+  return vendors.size === 1 && only !== undefined ? only : L("DMI");
+}
+
+/**
+ * The vendor whose layout a store of `kind` is, as the bench calls the area: GPNV is ASUS's, a VSS
+ * entry here is HP's `HP_MUD`, a SysF store Apple's.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFITreeDisplay.swift#UEFITreeDisplay.dmiVendorTitle
+ */
+function dmiVendorTitle(kind: string): string | undefined {
+  switch (kind) {
+    case "lenovoDMIStore":
+      return L("Lenovo DMI");
+    case "gpnvStore":
+      return L("ASUS DMI");
+    case "acerDMIStore":
+      return L("Acer DMI");
+    case "vssEntry":
+      return L("HP DMI");
+    case "sysFStore":
+      return L("Apple DMI");
+    default:
+      return undefined;
+  }
+}
+
+/**
  * A store of the board's identity as the panel's DMI menu lists it: what it is and where —
  * "Lenovo DMI store at 0x00630000".
  *

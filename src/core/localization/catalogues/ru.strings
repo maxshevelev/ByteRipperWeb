@@ -1543,6 +1543,7 @@
 "An agent — Claude Code, Claude Desktop or another MCP client on this computer — can then list the files open here, read their bytes and show places in them. It cannot save a file. The connection is local, but what the agent reads, its program passes to the model behind it." = "Тогда агент — Claude Code, Claude Desktop или другой клиент MCP на этом компьютере — сможет получить список открытых здесь файлов, читать их байты и показывать в них нужные места. Сохранить файл он не может. Соединение локальное, но прочитанное агентом его программа передаёт модели, на которой он работает.";
 "Run this command once in a terminal. It adds ByteRipper to Claude Code for every folder." = "Выполните эту команду один раз в терминале. Она добавляет ByteRipper в Claude Code для всех папок.";
 "Acer DMI" = "Acer DMI";
+"ASUS DMI" = "ASUS DMI";
 "System serial" = "Серийный номер системы";
 "MB Serial" = "Серийный номер платы";
 "Asset tag" = "Инвентарный номер";
