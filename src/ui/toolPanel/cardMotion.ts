@@ -63,7 +63,7 @@ export function playCardMotion(
   element: HTMLElement,
   from: Box | undefined,
   opening: boolean,
-  options: { readonly duration?: number | undefined } = {}
+  options: { readonly duration?: number | undefined; readonly easing?: string | undefined } = {}
 ): Promise<void> {
   if (from === undefined || prefersReducedMotion() || typeof element.animate !== "function") {
     return Promise.resolve();
@@ -81,7 +81,9 @@ export function playCardMotion(
         ],
     {
       duration: options.duration ?? (opening ? OPEN_MS : CLOSE_MS),
-      easing: opening ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.4, 0, 1, 1)",
+      easing:
+        options.easing ??
+        (opening ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.4, 0, 1, 1)"),
       // Folded stays folded until the caller takes the card away; opened is just the card.
       fill: opening ? "none" : "forwards",
     }

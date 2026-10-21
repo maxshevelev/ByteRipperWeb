@@ -31,7 +31,63 @@ export const COMMIT_FRACTION = 0.5;
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.flickSpeed
  */
-export const FLICK_SPEED = 900;
+export const FLICK_SPEED = 600;
+/**
+ * How far back the hand's speed is measured, in milliseconds: the last tenth of a second, not the
+ * last movement — a fling that slows in its last frames is still a fling, and its last few pixels
+ * alone read as a drag.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.flickWindow
+ */
+export const FLICK_WINDOW_MS = 100;
+
+/**
+ * Where the pointer was, and when, in milliseconds.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.Sample
+ */
+export interface Sample {
+  /** @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.Sample.y */
+  readonly y: number;
+  /** @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.Sample.time */
+  readonly time: number;
+}
+
+/**
+ * How far, and how fast, the hand went `direction` over the last {@link FLICK_WINDOW_MS}: from the
+ * first sample inside the window to the last. Travel the other way does not count, and a hand
+ * that has stopped has gone nowhere.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#PullDown.recentTravel
+ */
+export function recentTravel(
+  samples: readonly Sample[],
+  direction: Direction
+): { readonly distance: number; readonly speed: number } {
+  const last = samples.at(-1);
+  if (last === undefined || direction === "none") return { distance: 0, speed: 0 };
+  const since = last.time - FLICK_WINDOW_MS;
+  const first = samples.find((one) => one.time >= since);
+  if (first === undefined || first.time >= last.time) return { distance: 0, speed: 0 };
+  const travel = last.y - first.y;
+  const along = direction === "down" ? travel : -travel;
+  if (along <= 0) return { distance: 0, speed: 0 };
+  return { distance: along, speed: along / ((last.time - first.time) / 1000) };
+}
+
+/**
+ * The easing a fold that carries a throw on runs with: it starts at the hand's speed — never
+ * slower than its own average, which is what an ease-in start was, and what showed as a pause
+ * between the hand and the motion — and comes to rest at its end.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.throwTiming
+ */
+export function throwTiming(speed: number, travel: number, durationMs: number): string {
+  if (travel <= 0 || durationMs <= 0) return "linear";
+  const slope = Math.max(1, (speed * (durationMs / 1000)) / travel);
+  const x1 = 0.25;
+  return `cubic-bezier(${x1}, ${Math.min(x1 * slope, 0.9)}, 0.6, 1)`;
+}
 /**
  * A flick has to be a real shove, not a fast tremble: the movement that carries the speed must
  * itself be this long.

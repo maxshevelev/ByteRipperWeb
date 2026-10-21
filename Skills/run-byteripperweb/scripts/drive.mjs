@@ -65,8 +65,13 @@ function readState() {
 /** The page target's websocket, or a clear error. */
 async function attach(state) {
   const list = await (await fetch(`http://127.0.0.1:${state.port}/json/list`)).json();
-  const page = list.find((one) => one.type === "page");
+  // A page of the app's, not one Chrome opened of its own — an update shows chrome://settings.
+  const page =
+    list.find((one) => one.type === "page" && !String(one.url).startsWith("chrome")) ??
+    list.find((one) => one.type === "page");
   if (page === undefined) throw new Error("the browser has no page open");
+  // In front: a page behind another is hidden, and a hidden page's animations and frames stop.
+  await fetch(`http://127.0.0.1:${state.port}/json/activate/${page.id}`).catch(() => undefined);
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
     ws.onopen = resolve;
@@ -515,7 +520,10 @@ const COMMANDS = {
     const state = readState();
     try {
       const list = await (await fetch(`http://127.0.0.1:${state.port}/json/list`)).json();
-      const page = list.find((one) => one.type === "page");
+      // A page of the app's, not one Chrome opened of its own — an update shows chrome://settings.
+  const page =
+    list.find((one) => one.type === "page" && !String(one.url).startsWith("chrome")) ??
+    list.find((one) => one.type === "page");
       if (page !== undefined) {
         const cdp = new Cdp(await new Promise((resolve, reject) => {
           const ws = new WebSocket(page.webSocketDebuggerUrl);

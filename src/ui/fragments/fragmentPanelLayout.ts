@@ -9,35 +9,36 @@
  */
 
 /**
- * How much of the pane header behind the panel the panel covers.
+ * How far the panel stands in from the left and right edges of the panes behind it. A margin on
+ * three sides, with the panes showing dimmed through it, is what says the panel lies *over* them:
+ * a strip at the top alone read to some as the window having changed its layout.
  *
- * A fifth. The overlap is what says the panel is laid *over* the file rather
- * than docked beside it — a panel that cleared the header entirely would read
- * as a second pane — and a fifth is enough to say so while leaving the header
- * itself readable.
- *
- * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelLayout.headerCoveredShare
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelLayout.sideInset
  */
-export const HEADER_COVERED_SHARE = 0.2;
+export const SIDE_INSET = 16;
 
 /**
- * The pane header's height, which the peek is a share of.
- *
- * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.headerHeight
- * @upstream-differs upstream pins the header at this height with a constraint;
- * here it sizes itself to its glyph, its name and its padding, which at the
- * app's own font measures 28.5 — near enough that taking upstream's number is
- * truer than inventing a second one, and the half point is invisible in a peek
- */
-const PANE_HEADER_HEIGHT = 28;
-
-/**
- * How much of the panes behind is left showing above the panel: the rest of
- * that header.
+ * How much of the panes behind is left showing above the panel: twice the side margin, so the
+ * top reads as the panel's open edge and the file's own header stays visible behind the scrim.
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelLayout.parentPeek
  */
-export const PARENT_PEEK = PANE_HEADER_HEIGHT * (1 - HEADER_COVERED_SHARE);
+export const PARENT_PEEK = SIDE_INSET * 2;
+
+/**
+ * The panel's place in an area `width` by `height`: in from either side by the margin — a quarter
+ * of the width at most, so a narrow window gives up the margins rather than the panel — and on the
+ * area's bottom edge, which is the dock's top.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.restingFrame
+ */
+export function restingFrame(
+  width: number,
+  height: number
+): { readonly x: number; readonly width: number; readonly height: number } {
+  const inset = Math.min(SIDE_INSET, width / 4);
+  return { x: inset, width: Math.max(0, width - inset * 2), height: panelHeight(height) };
+}
 
 /**
  * The panel never folds itself smaller than this by being in a short window:

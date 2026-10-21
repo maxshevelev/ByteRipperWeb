@@ -90,6 +90,7 @@ export function FragmentPanels({
   const [seenPanels, setSeenPanels] = useState(state.dock.panels);
   const [folded, setFolded] = useState<typeof upNow>(undefined);
   const [raisedFromNothing, setRaisedFromNothing] = useState(true);
+  const [isNewPanel, setIsNewPanel] = useState(true);
   if (upNow !== seenUp) {
     setSeenUp(upNow);
     const stillThere = seenUp !== undefined && state.dock.panels.includes(seenUp);
@@ -97,6 +98,7 @@ export function FragmentPanels({
     const isNew = upNow !== undefined && !seenPanels.includes(upNow);
     setFolded(stillThere && (upNow === undefined || isNew) ? seenUp : undefined);
     setRaisedFromNothing(seenUp === undefined || isNew);
+    setIsNewPanel(isNew);
     // Closed while it was up: it folds away as it goes.
     if (seenUp !== undefined && !stillThere) foldAwayOnClose(seenUp);
   }
@@ -151,6 +153,8 @@ export function FragmentPanels({
   const motion = {
     pill: up,
     opensOutOfPill: raisedFromNothing && !folding,
+    // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.apply
+    risesFromBelow: isNewPanel,
     folding,
     onFolded: () => setFolded(undefined),
     // The pull carried on: the dock folds — not a toggle, which would raise a panel the

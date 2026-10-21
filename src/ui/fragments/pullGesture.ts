@@ -1,9 +1,13 @@
 import {
+  type Direction,
   directionOf,
+  FLICK_WINDOW_MS,
   type Movement,
-  NO_MOVEMENT,
   outcome,
   position,
+  recentTravel,
+  type Sample,
+  throwTiming,
 } from "@/ui/fragments/pullDown";
 import { prefersReducedMotion } from "@/ui/toolPanel/cardMotion";
 
@@ -45,6 +49,8 @@ export const MINIMUM_SLIDE_MS = 100;
  */
 export interface PulledFold {
   readonly duration: number;
+  /** The easing that carries a throw on, at the hand's speed; nothing for a fold that was not thrown. */
+  readonly easing?: string | undefined;
 }
 
 /**
@@ -63,9 +69,12 @@ export function beginPull(
   collapse: (fold: PulledFold) => boolean
 ): () => void {
   let anchor = startY;
-  let anchorTime = startTime;
-  let movement: Movement = NO_MOVEMENT;
+  let direction: Direction = "none";
+  // The pointer's last tenth of a second and a little more: how fast the hand was going is
+  // measured over them, not over the last movement alone.
+  let samples: Sample[] = [{ y: startY, time: startTime }];
   let travel = 0;
+  const movement = (): Movement => ({ direction, ...recentTravel(samples, direction) });
 
   document.body.setAttribute("data-pulling-panel", "");
   window.getSelection()?.removeAllRanges();
@@ -73,15 +82,12 @@ export function beginPull(
   const move = (event: PointerEvent) => {
     if (event.pointerId !== pointerId) return;
     const y = event.clientY;
-    const direction = directionOf(y - anchor);
-    if (direction !== undefined) {
-      const distance = Math.abs(y - anchor);
-      // A floor under the interval: two events can share a timestamp, and a division by
-      // nothing is not a speed.
-      const seconds = Math.max((event.timeStamp - anchorTime) / 1000, 1 / 240);
-      movement = { direction, distance, speed: distance / seconds };
+    samples.push({ y, time: event.timeStamp });
+    samples = samples.filter((one) => one.time >= event.timeStamp - FLICK_WINDOW_MS * 2);
+    const moved = directionOf(y - anchor);
+    if (moved !== undefined) {
+      direction = moved;
       anchor = y;
-      anchorTime = event.timeStamp;
     }
     travel = position(y - startY);
     panel.style.transform = `translateY(${travel}px)`;
@@ -101,13 +107,19 @@ export function beginPull(
 
     const height = panel.offsetHeight;
     // A cancelled gesture is not an instruction.
-    const decided =
-      event.type === "pointercancel" ? "springBack" : outcome(travel, height, movement);
+    const last = movement();
+    const decided = event.type === "pointercancel" ? "springBack" : outcome(travel, height, last);
     if (decided === "collapse") {
       // From wherever the hand left it, so the rest of the way takes the rest of the time: a
       // panel already most of the way down must not dawdle through a full slide.
       const share = height > 0 ? Math.max(0, height - travel) / height : 1;
-      if (collapse({ duration: Math.max(MINIMUM_SLIDE_MS, SLIDE_MS * share) })) return;
+      const duration = Math.max(MINIMUM_SLIDE_MS, SLIDE_MS * share);
+      // A throw down carries on at its speed.
+      const easing =
+        last.direction === "down"
+          ? throwTiming(last.speed, Math.max(0, height - travel), duration)
+          : undefined;
+      if (collapse({ duration, easing })) return;
     }
     springBack(panel, travel);
   };

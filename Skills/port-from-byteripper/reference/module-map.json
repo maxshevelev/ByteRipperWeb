@@ -5329,7 +5329,6 @@
         "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.move": "n/a — AppKit's one helper for setting a view's frame, animated or not: the web moves a panel by its own `transform` and `element.animate` — `playCardMotion` for the flights, `springBack` in `pullGesture.ts` for the spring back",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#PanelLanding*": "n/a — the landing is a clip-path from the pill's box (`revealFrom`), not a transform worked out between anchor points",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelHost.*": "n/a — AppKit's wall, its hit testing and its layout callback: in a browser the host is the wall by being an element over the panes and is rendered only while a panel is up, and its size comes from a `ResizeObserver`",
-        "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.restingFrame": "n/a — the panel's resting place is the host's own box: `panelHeight` gives the height and the host puts it on its bottom edge",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.foldedFrame": "n/a — a folded panel is not rendered at all, so it has nowhere to wait",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.cornerRadius": "n/a — the panel's corner is `.fragment-panel`'s own rule",
         "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.shadowRadius": "n/a — the panel's shadow is `.fragment-panel`'s own rule",
@@ -5351,7 +5350,13 @@
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.height": "n/a — the dock's height is `.fragment-dock`'s own rule",
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.draw": "n/a — the dock's background and the rule along its top edge are `.fragment-dock`'s own",
         "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.pillsForTesting": "n/a — a suite that wants the pills reads the DOM",
-        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.flying": "n/a — the panel in flight is `folding` on the panel's own element; no layout pass of the page places it"
+        "ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.flying": "n/a — the panel in flight is `folding` on the panel's own element; no layout pass of the page places it",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.layout": "n/a — AppKit layer drawing: the dock's and the pills' shadows, places and theme colours are the stylesheet's (.fragment-dock, .fragment-pill, --pill-folded), which a theme switch cannot zero",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.viewDidChangeEffectiveAppearance": "n/a — AppKit layer drawing: the dock's and the pills' shadows, places and theme colours are the stylesheet's (.fragment-dock, .fragment-pill, --pill-folded), which a theme switch cannot zero",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.zPosition": "n/a — AppKit layer drawing: the dock's and the pills' shadows, places and theme colours are the stylesheet's (.fragment-dock, .fragment-pill, --pill-folded), which a theme switch cannot zero",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.layout": "n/a — AppKit layer drawing: the dock's and the pills' shadows, places and theme colours are the stylesheet's (.fragment-dock, .fragment-pill, --pill-folded), which a theme switch cannot zero",
+        "ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.viewDidChangeEffectiveAppearance": "n/a — AppKit layer drawing: the dock's and the pills' shadows, places and theme colours are the stylesheet's (.fragment-dock, .fragment-pill, --pill-folded), which a theme switch cannot zero",
+        "ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelView.shadowOpacity": "n/a — the stylesheet's box-shadow on .fragment-panel"
       },
       "files": {
         "FragmentDock.swift": "src/state/fragmentDock.ts",

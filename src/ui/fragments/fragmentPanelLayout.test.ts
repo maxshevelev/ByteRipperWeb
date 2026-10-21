@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  HEADER_COVERED_SHARE,
   MINIMUM_PANEL_HEIGHT,
   PARENT_PEEK,
   panelHeight,
+  restingFrame,
+  SIDE_INSET,
 } from "@/ui/fragments/fragmentPanelLayout";
 
 /**
@@ -13,16 +14,31 @@ import {
  */
 describe("a fragment panel's geometry", () => {
   /**
-   * The panel's top edge covers a fifth of the parent's header: enough of an
-   * overlap to say the panel is over it, little enough that the header is
-   * still readable.
+   * The panel stands in from the panes on three sides — twice as far at the top as at either side
+   * — and sits on the dock: a margin all round, with the panes dimmed through it, is what says it
+   * lies over them.
    *
-   * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testThePanelCoversAFifthOfTheParentsHeader
+   * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testThePanelStandsInFromThePanesBehind
    */
-  it("covers a fifth of the parent's header", () => {
-    expect(panelHeight(600)).toBe(600 - PARENT_PEEK);
-    expect(HEADER_COVERED_SHARE).toBe(0.2);
-    expect(PARENT_PEEK).toBeCloseTo(28 * 0.8, 3);
+  it("stands in from the panes behind", () => {
+    expect(PARENT_PEEK).toBe(SIDE_INSET * 2);
+    expect(restingFrame(800, 600)).toEqual({
+      x: SIDE_INSET,
+      width: 800 - SIDE_INSET * 2,
+      height: 600 - PARENT_PEEK,
+    });
+  });
+
+  /**
+   * In a window too narrow for the margins they give way rather than the panel shrinking to
+   * nothing.
+   *
+   * @upstream ByteRipperTests/FragmentPanelTests.swift#FragmentPanelTests.testTheSideMarginsGiveWayInANarrowArea
+   */
+  it("gives up the side margins in a narrow area", () => {
+    const frame = restingFrame(40, 600);
+    expect(frame.width, "a quarter of the width at each side at most").toBe(20);
+    expect(frame.x + frame.width / 2, "and still centred").toBe(20);
   });
 
   /**

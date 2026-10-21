@@ -5425,9 +5425,16 @@ button.uefi-title {
      everything. */
   z-index: 10;
   display: grid;
-  /* The panel sits on the host's bottom edge, which is the dock's top edge. */
+  /* The panel sits on the host's bottom edge, which is the dock's top edge, and stands in from
+     the panes on either side (FragmentPanelLayout.sideInset): the margin, with the panes dimmed
+     through it, is what says it lies over them. A quarter of the width at most. */
   align-items: end;
+  padding: 0 min(16px, 25%);
   min-height: 0;
+  /* The scrim: the panes behind dimmed, fading in as the panel rises and out as it folds. */
+  background: var(--scrim);
+  animation: fragment-scrim-in 0.3s ease-out;
+  transition: background-color 0.24s ease-out;
   /* Upstream's host clips: nothing of a panel is drawn outside the area it
      covers. */
   overflow: hidden;
@@ -5449,7 +5456,24 @@ button.uefi-title {
   border-radius: 10px 10px 0 0;
   background: var(--surface);
   /* Cast upward, onto the file the part came out of. */
-  box-shadow: 0 -3px 14px rgb(0 0 0 / 0.28);
+  box-shadow: 0 -2px 16px rgb(0 0 0 / 0.35);
+}
+
+.fragment-panel-host[data-folding] {
+  background: transparent;
+}
+
+@keyframes fragment-scrim-in {
+  from {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fragment-panel-host {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* The window's own placement is the window's: inside a panel the three take the
@@ -5537,6 +5561,11 @@ button.uefi-title {
      as chrome of the same kind. */
   border-top: 1px solid var(--border);
   overflow-x: auto;
+  /* Lies on top of everything, the panel coming out from under it: drawn over the panel host,
+     with a shadow cast upward over the panes and the panel. */
+  position: relative;
+  z-index: 11;
+  box-shadow: 0 -2px 8px rgb(0 0 0 / 0.22);
 }
 
 /*
@@ -5554,9 +5583,12 @@ button.uefi-title {
   /* Past this the name truncates rather than the pill taking the whole dock. */
   max-width: 220px;
   padding-right: 6px;
-  border: 1px solid var(--border);
+  border: 0.5px solid color-mix(in srgb, var(--border) 50%, transparent);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  /* A folded pill is a card laid on the dock, standing slightly off it; the one that is up is
+     filled and needs nothing more to stand out. */
+  background: var(--pill-folded);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 }
 
 /* Filled rather than outlined, so the dock says at a glance which pill the
@@ -5565,6 +5597,7 @@ button.uefi-title {
   border-color: transparent;
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: none;
 }
 
 .fragment-pill-face {

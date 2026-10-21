@@ -40,6 +40,7 @@ import type { ToolContext } from "@/tools/toolModule";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import { singleFileDropTargetTitle } from "@/ui/drag/dragDrop";
 import { dragCarried } from "@/ui/drag/PaneDropBands";
+import { SIDE_INSET } from "@/ui/fragments/fragmentPanelLayout";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { TOOL_PATTERN_QUERY } from "@/ui/search/ToolPatternQueryControls";
 import { CloseButton } from "@/ui/shell/CloseButton";
@@ -86,7 +87,13 @@ export function ToolPanel({
 }) {
   const workspace = useStore(workspaceStore);
   const session = sessionOn(useStore(toolController), surface);
-  const { boundPane, width } = session;
+  const { boundPane, width: kept } = session;
+  // A fragment panel stands in from the panes on either side, and the margins come out of its
+  // tool panel, not its dump: the part's bytes are as wide as the file's behind it would be with the
+  // same tool open, and the width remembered is the window's.
+  // @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.toolPanelWidthAllowance
+  const allowance = surface === WORKSPACE_SURFACE ? 0 : SIDE_INSET * 2;
+  const width = Math.max(0, kept - allowance);
   const tool = activeModule(session);
   const slot = boundPane === undefined ? undefined : paneIn(workspace, boundPane);
   const choices = paneChoices(workspace.panes);
@@ -378,10 +385,10 @@ export function ToolPanel({
         edge="right"
         label={L("Resize the tool panel")}
         width={width}
-        min={MIN_TOOL_PANEL_WIDTH}
-        max={MAX_TOOL_PANEL_WIDTH}
-        initial={DEFAULT_TOOL_PANEL_WIDTH}
-        onChange={(next) => setToolPanelWidth(surface, next)}
+        min={MIN_TOOL_PANEL_WIDTH - allowance}
+        max={MAX_TOOL_PANEL_WIDTH - allowance}
+        initial={DEFAULT_TOOL_PANEL_WIDTH - allowance}
+        onChange={(next) => setToolPanelWidth(surface, next + allowance)}
       />
     </aside>
   );

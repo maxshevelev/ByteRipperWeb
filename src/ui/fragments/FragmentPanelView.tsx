@@ -1,4 +1,5 @@
 import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { foldParts } from "@/state/workspaceStore";
 import { panelHeight } from "@/ui/fragments/fragmentPanelLayout";
 import { DRAG_THRESHOLD } from "@/ui/fragments/pullDown";
 import { beginPull, type PulledFold } from "@/ui/fragments/pullGesture";
@@ -91,6 +92,13 @@ export function FragmentPanelHost({
       className="fragment-panel-host"
       data-folding={folding ? "" : undefined}
       style={{ "--fragment-panel-height": `${height}px` } as React.CSSProperties}
+      // A click on the dimmed panes around the panel folds it: what is behind is what the click
+      // asked for. A press inside the panel is the panel's.
+      // @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelHost.mouseDown
+      // @upstream ByteRipperApp/Fragments/FragmentPanelView.swift#FragmentPanelHost.onBackgroundClick
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget && event.button === 0 && !folding) foldParts();
+      }}
       onDragEnter={refuseDrag}
       onDragOver={refuseDrag}
       onDrop={refuseDrag}
@@ -117,6 +125,7 @@ export function FragmentPanel({
   children,
   pill,
   opensOutOfPill = false,
+  risesFromBelow = false,
   folding = false,
   onFolded,
   onCollapse,
@@ -126,6 +135,8 @@ export function FragmentPanel({
   readonly pill?: number | undefined;
   /** Brought up from the dock rather than switched to: it grows out of its pill. */
   readonly opensOutOfPill?: boolean | undefined;
+  /** Opened just now, new to the dock: it slides up from under the dock instead. */
+  readonly risesFromBelow?: boolean | undefined;
   /** Folding back into its pill, to be taken away when that is done. */
   readonly folding?: boolean | undefined;
   readonly onFolded?: (() => void) | undefined;
@@ -150,9 +161,11 @@ export function FragmentPanel({
   useLayoutEffect(() => {
     const element = panel.current;
     if (element === null || !opensOutOfPill) return;
-    const frame = requestAnimationFrame(() => void playCardMotion(element, pillBox(pill), true));
+    const frame = requestAnimationFrame(() =>
+      risesFromBelow ? rise(element) : void playCardMotion(element, pillBox(pill), true)
+    );
     return () => cancelAnimationFrame(frame);
-  }, [opensOutOfPill, pill]);
+  }, [opensOutOfPill, risesFromBelow, pill]);
   // Where the pill is, kept as it renders: a closed panel's pill goes in the same commit the
   // panel does, and the fold has to know where it was.
   const lastPill = useRef<Box | undefined>(undefined);
@@ -324,6 +337,29 @@ export function FragmentPanel({
       <PaneHeaderHostContext.Provider value={host}>{children}</PaneHeaderHostContext.Provider>
     </div>
   );
+}
+
+/**
+ * How long a panel opened just now takes to slide up from under the dock.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.riseDuration
+ */
+const RISE_MS = 300;
+
+/**
+ * A panel opened just now slides up from under the dock — the dock lies on top, and the panel
+ * comes out from under it — where one brought up again grows out of its pill.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.rise
+ */
+function rise(element: HTMLElement): void {
+  if (prefersReducedMotion() || typeof element.animate !== "function") return;
+  const below = element.getBoundingClientRect().height;
+  if (below <= 0) return;
+  element.animate([{ transform: `translateY(${below}px)` }, { transform: "translateY(0)" }], {
+    duration: RISE_MS,
+    easing: "cubic-bezier(0.2, 0.8, 0.25, 1)",
+  });
 }
 
 /**
