@@ -464,10 +464,19 @@ let saveScheduled = false;
  * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.keep
  * @upstream ByteRipperApp/Notes/AnnotationsFile.swift#AnnotationsFile.read
  */
-export async function keepAnnotations(
+export function keepAnnotations(
   store: KeyValueStore = openKeyValueStore("byteripper-annotations")
 ): Promise<void> {
   storage = store;
+  reading = readKept(store);
+  return reading;
+}
+
+/** The read `keepAnnotations` started, for a restore that selects cards among what it brings. */
+let reading: Promise<void> = Promise.resolve();
+export const annotationsRead = (): Promise<void> => reading;
+
+async function readKept(store: KeyValueStore): Promise<void> {
   const kept = await store.get<KeptAnnotations>(KEPT).catch(() => undefined);
   if (kept === undefined || !Array.isArray(kept.annotations)) return;
   agentAnnotationStore.update((state) => {

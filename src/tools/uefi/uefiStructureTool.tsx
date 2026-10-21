@@ -325,6 +325,27 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
 }
 
 /**
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIParkedState
+ * @upstream-differs its open rows go as a list, a set having no JSON of its own
+ */
+function encodedParked(state: ToolSessionState): string | undefined {
+  const parked = restoredParked(state);
+  return parked === undefined ? undefined : JSON.stringify({ ...parked, open: [...parked.open] });
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolModule.restoredState */
+function decodedParked(data: string): ToolSessionState | undefined {
+  try {
+    const held = JSON.parse(data) as { open?: unknown };
+    if (!Array.isArray(held.open) || !held.open.every((key) => typeof key === "string"))
+      return undefined;
+    return restoredParked({ ...held, open: new Set(held.open) });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The ME sub-tree's rows, under the region's own.
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
@@ -2782,6 +2803,8 @@ export const uefiStructureTool: ToolModule = {
   // help: panel.uefi
   helpTopic: TOPIC.toolUEFI,
   View: UefiStructureView,
+  encodedState: encodedParked,
+  restoredState: decodedParked,
   agentQueries: uefiAgentQueries,
   agentComparisons: uefiAgentComparisons,
   agentEdits: uefiAgentEdits,

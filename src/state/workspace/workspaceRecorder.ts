@@ -3,10 +3,12 @@ import {
   type DocumentSource,
   type FileStamp,
   type FragmentState,
+  type NotesState,
   type PaneState,
   type SegmentationState,
   type SurfaceState,
   type TabState,
+  type ToolState,
   WORKSPACE_VERSION,
   type Workspace,
   workspaceIsEmpty,
@@ -14,6 +16,7 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { mapOn, minimapStore } from "@/state/minimapStore";
+import { chosenCards } from "@/state/notesPanelStore";
 import {
   PANE_IDS,
   type PaneId,
@@ -23,10 +26,12 @@ import {
   surfaceOf,
   WORKSPACE_SURFACE,
 } from "@/state/paneId";
+import { sessionParkedStateOn } from "@/state/parkedToolState";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
+import { sessionOn, toolController } from "@/state/toolController";
 import { partCodecState } from "@/state/workspace/partCodecState";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
@@ -37,7 +42,8 @@ import {
   writeKeptBytes,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
-import { exportKeptEdits, paneState, workspaceStore } from "@/state/workspaceStore";
+import { exportKeptEdits, notesPanelIsUp, paneState, workspaceStore } from "@/state/workspaceStore";
+import { toolById } from "@/tools/registry";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -110,7 +116,16 @@ export async function snapshotWorkspace(): Promise<{
     fragments,
     ...(expandedFragment === undefined ? {} : { expandedFragment }),
   };
-  return { workspace: { version: WORKSPACE_VERSION, tab }, handles, keeps };
+  // The Annotations panel, while its pill is in the dock: whether it was up, and the cards chosen.
+  const notes: NotesState | undefined =
+    state.notesPanel === undefined
+      ? undefined
+      : { isUp: notesPanelIsUp(state), selected: [...chosenCards()] };
+  return {
+    workspace: { version: WORKSPACE_VERSION, tab, ...(notes === undefined ? {} : { notes }) },
+    handles,
+    keeps,
+  };
 }
 
 /**
@@ -201,7 +216,30 @@ function positionOf(
  */
 function surfaceSnapshot(surface: SurfaceId): SurfaceState {
   const map = mapOn(minimapStore.getSnapshot(), surface);
-  return map.visible ? { minimapVisible: true, minimapMode: map.mode } : { minimapVisible: false };
+  const tool = toolSnapshot(surface);
+  return {
+    ...(map.visible ? { minimapVisible: true, minimapMode: map.mode } : { minimapVisible: false }),
+    ...(tool === undefined ? {} : { tool }),
+  };
+}
+
+/**
+ * The open tool-module, what it has chosen, and the pane it reads.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTool
+ */
+function toolSnapshot(surface: SurfaceId): ToolState | undefined {
+  const { activeIdentifier, boundPane } = sessionOn(toolController.getSnapshot(), surface);
+  if (activeIdentifier === undefined || boundPane === undefined) return undefined;
+  const parked = sessionParkedStateOn(boundPane);
+  const state =
+    parked === undefined ? undefined : toolById(activeIdentifier)?.encodedState?.(parked);
+  const slot = PANE_IDS.indexOf(boundPane as SlotId);
+  return {
+    identifier: activeIdentifier,
+    ...(state === undefined ? {} : { state }),
+    ...(slot < 0 ? {} : { pane: slot }),
+  };
 }
 
 /**

@@ -139,6 +139,22 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
   return { focus: held.focus, focusZone: held.focusZone };
 }
 
+/** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITParkedState */
+function encodedParked(state: ToolSessionState): string | undefined {
+  const parked = restoredParked(state);
+  return parked === undefined ? undefined : JSON.stringify(parked);
+}
+
+/** @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolModule.restoredState */
+function decodedParked(data: string): ToolSessionState | undefined {
+  try {
+    const held: unknown = JSON.parse(data);
+    return typeof held === "object" && held !== null ? restoredParked(held) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController
@@ -1019,6 +1035,8 @@ export const fitTool: ToolModule = {
   // help: panel.fit
   helpTopic: TOPIC.toolFIT,
   View: FitToolView,
+  encodedState: encodedParked,
+  restoredState: decodedParked,
   agentQueries: fitAgentQueries,
   agentEdits: fitAgentEdits,
 };

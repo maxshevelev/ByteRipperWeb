@@ -1,4 +1,4 @@
-@source-sha edcda77791d9eb61eae79f7f0bb70d8034d67aeb90e53c80b861246b2188957e
+@source-sha be9fa0c4a0944c53c275e4ad95e7b9cb6fd0572cfac76e2102320c50fdf9eca6
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -15,7 +15,8 @@ Ein Arbeitsbereich gehört zu einem [[edition:Browser-Tab||Fenster]]. [[edition:
 - In jedem Bereich die Adresse oben auf dem Bildschirm, Cursor und Auswahl, die Hex- oder Textspalte und der Einfügemodus.
 - Die [[topic:bookmarks|Lesezeichen]], die ohnehin mit dem Arbeitsbereich aufbewahrt werden.
 - Die [[topic:segments|Segmente]]: Schnitte, Namen und die Verknüpfungen von Segmenten mit den Dateien, aus denen sie zusammengefügt wurden; eine Verknüpfung, deren Datei sich nicht wieder erreichen lässt, kehrt als Segment ohne Verknüpfung zurück.
-- Die [[topic:minimap|Minimap]] und die Suchleiste mit ihrem Muster.
+- Der Bereich [[topic:notes|**Anmerkungen**]] — angehoben, wenn er angehoben war, und mit den Karten, die ausgewählt waren.
+- Die [[topic:minimap|Minimap]], die Suchleiste mit ihrem Muster sowie der Werkzeugbereich mit dem darin gewählten Knoten oder der gewählten Zeile und den geöffneten Zweigen seines Baums.
 - Die [[topic:fragments|Fragment-Bereiche]] samt dem, der vorn lag. Ein Teil wird nicht als Bytes gespeichert, sondern erneut aus seiner Datei entnommen; er zeigt daher deren aktuellen Inhalt und lässt sich weiterhin zurückschreiben.
 - **Nie gesicherte Dokumente** — eine neue Datei, eine Zusammenführung, ein Duplikat, auch eines, das einen Namen erhalten hat — mit ihren Bytes und weiterhin ungesichert, sowie Teile mit Änderungen, die noch nicht in ihre Datei zurückgeschrieben sind, samt diesen Änderungen. Sie werden beim Arbeitsbereich aufbewahrt, solange die Seite geöffnet ist, sodass auch ein abgestürzter Tab sie nicht verliert, und beim Verlassen der Seite wird nicht nach ihnen gefragt.
 - **Ungesicherte Änderungen an Dateien**, die rot wie zuvor und weiterhin ungesichert zurückkehren. Aufbewahrt werden nur die geänderten Bytes, keine Kopie der Datei. Die Änderungen werden nur dann wieder über die Datei gelegt, wenn es dieselbe Datei ist, an der sie gemacht wurden (siehe unten). Beim Verlassen der Seite wird nur nach einer Änderung der letzten Augenblicke gefragt, die der Arbeitsbereich noch nicht aufschreiben konnte.
@@ -41,6 +42,6 @@ Der Arbeitsbereich wird [[edition:in diesem Browser, auf diesem Rechner||in dies
 Jede Datei wird mit ihrer Größe und ihrem Änderungsdatum zum Zeitpunkt des Schreibens verglichen.
 
 - Eine Datei, die nicht mehr da ist, wird nicht geöffnet.
-- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre ungesicherten Änderungen und ihre Segmente werden nicht wiederhergestellt: Sie wurden an anderen Bytes angelegt und zeigten an falsche Stellen.
+- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre ungesicherten Änderungen, ihre Segmente, ihre Teile und die Auswahl im Werkzeugbereich werden nicht wiederhergestellt: Sie bezogen sich auf andere Bytes und zeigten an falsche Stellen.
 
 Tritt einer dieser Fälle ein oder ließ sich eine Datei nicht erreichen, nennt eine einzige Meldung nach der Wiederherstellung die betroffenen Dateien.

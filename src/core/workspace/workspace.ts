@@ -91,8 +91,6 @@ export interface PaneState {
   readonly topOffset: number;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.segments */
   readonly segments?: SegmentationState | undefined;
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows */
-  readonly uefiOpenRows?: readonly (readonly number[])[] | undefined;
   /**
    * The unsaved changes of a file, kept beside the workspace under this name.
    *
@@ -286,8 +284,12 @@ export interface SurfaceState {
 export interface ToolState {
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#ToolState.identifier */
   readonly identifier: string;
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#ToolState.state */
-  readonly state?: unknown;
+  /**
+   * What the session parked, as the tool-module encoded it; absent for one that keeps nothing.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#ToolState.state
+   */
+  readonly state?: string | undefined;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#ToolState.pane */
   readonly pane?: number | undefined;
 }

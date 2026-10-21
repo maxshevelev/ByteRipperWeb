@@ -24,7 +24,7 @@ import {
 import { agentService } from "@/state/agent/agentService";
 import { recordStepFromNotes } from "@/state/navigationStore";
 import { askNote } from "@/state/noteFormStore";
-import { notesPanelStore, removeFromPanel } from "@/state/notesPanelStore";
+import { noteChosenCards, notesPanelStore, removeFromPanel } from "@/state/notesPanelStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
 import { DockPanelHeader } from "@/ui/fragments/DockPanelHeader";
@@ -262,6 +262,11 @@ export function NotesPanel() {
     shown.current = { ids: now, frames: frameOf };
     lastAnnotations.current = new Map(rows.map((one) => [one.id, one]));
   });
+
+  // What the workspace writes down of it.
+  useEffect(() => {
+    noteChosenCards([...chosen]);
+  }, [chosen]);
 
   // The selection stays with the cards it was on.
   useEffect(() => {

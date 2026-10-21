@@ -39,8 +39,11 @@ interface ParkedSession {
 /** @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.parked */
 const parked = new Map<string, ParkedSession>();
 
-/** What the running session last said it would hand back, and for which pane. */
-let sessionParked: { readonly pane: PaneId; readonly state: ToolSessionState } | undefined;
+/**
+ * What each running session last said it would hand back, by the pane it is bound to: a part's
+ * panel runs a session of its own beside the workspace's.
+ */
+const sessionParked = new Map<PaneId, ToolSessionState>();
 
 /**
  * The running session's own state, so the host can file it when the session
@@ -53,7 +56,17 @@ let sessionParked: { readonly pane: PaneId; readonly state: ToolSessionState } |
  * @web-only a React panel cannot be asked for a value as it unmounts, so it says so here as it renders instead, and the host reads it as the session ends
  */
 export function noteSessionParkedState(pane: PaneId, state: ToolSessionState): void {
-  sessionParked = { pane, state };
+  sessionParked.set(pane, state);
+}
+
+/**
+ * What the session running on `pane` would hand back now, left where it is — for the workspace,
+ * which writes it down without ending the session.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTool
+ */
+export function sessionParkedStateOn(pane: PaneId): ToolSessionState | undefined {
+  return sessionParked.get(pane);
 }
 
 /**
@@ -64,13 +77,13 @@ export function noteSessionParkedState(pane: PaneId, state: ToolSessionState): v
  * @web-only the host cannot reach the panel that holds the state: it reads the copy the panel left in `noteSessionParkedState`
  */
 export function takeSessionParkedState(pane: PaneId): ToolSessionState | undefined {
-  const held = sessionParked;
-  sessionParked = undefined;
-  return held !== undefined && held.pane === pane ? held.state : undefined;
+  const held = sessionParked.get(pane);
+  sessionParked.delete(pane);
+  return held;
 }
 
 /**
- * Forgets that any session is talking about a parked state.
+ * Forgets that a session on `pane` is talking about a parked state.
  *
  * Called as a session starts, so the answer standing there belongs to the
  * session that is now running and to no earlier one.
@@ -78,8 +91,8 @@ export function takeSessionParkedState(pane: PaneId): ToolSessionState | undefin
  * @web-only the panel says so after its first commit, and the host cannot tell
  * a fresh panel from a stale copy without this
  */
-export function forgetSessionParkedState(): void {
-  sessionParked = undefined;
+export function forgetSessionParkedState(pane: PaneId): void {
+  sessionParked.delete(pane);
 }
 
 /**

@@ -246,7 +246,7 @@ export function activate(identifier: string | undefined, surface = frontSurface(
     resolved === undefined || pane === undefined ? undefined : takeParkedToolState(resolved, pane);
   // Nothing was said about it yet, so nothing standing from an earlier session
   // can be mistaken for this one's answer.
-  forgetSessionParkedState();
+  if (pane !== undefined) forgetSessionParkedState(pane);
   updateSession(surface, (session) => ({
     ...session,
     activeIdentifier: pane === undefined ? undefined : resolved,
@@ -368,7 +368,7 @@ export function selectPane(pane: PaneId): void {
   // reading, so it is taken and refused rather than left standing — and what
   // the new pane held for this tool, if anything, is this session's.
   const restored = takeParkedToolState(activeIdentifier, pane);
-  forgetSessionParkedState();
+  forgetSessionParkedState(pane);
   updateSession(surface, (session) => ({ ...session, boundPane: pane, restored }));
 }
 

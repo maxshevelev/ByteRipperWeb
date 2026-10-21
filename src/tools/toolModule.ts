@@ -265,6 +265,24 @@ export interface ToolModule extends ToolAgentSurface {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.viewController
    */
   readonly View: (props: { readonly context: ToolContext }) => React.ReactNode;
+  /**
+   * A parked state as the workspace keeps it, for a tool-module that opts in: a choice — a node,
+   * a row, a tab — never what the file holds, which the session reads again when it starts.
+   * Nothing for a state this module does not recognise.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#PersistableToolSessionState
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#PersistableToolSessionState.encoded
+   */
+  readonly encodedState?: (state: ToolSessionState) => string | undefined;
+  /**
+   * A parked state `encodedState` wrote into the workspace, read back for a session about to
+   * start. Absent, or nothing for a text it cannot read: the tool comes back open, with nothing
+   * chosen.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolModule.swift#ToolModule.restoredState
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#PersistableToolSessionState.decoded
+   */
+  readonly restoredState?: (data: string) => ToolSessionState | undefined;
 }
 
 /**

@@ -110,6 +110,27 @@ function restoredParked(state: ToolSessionState | undefined): Parked | undefined
   return { tab: held.tab, open: held.open, focus: held.focus };
 }
 
+/**
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState
+ * @upstream-differs its open rows go as a list, a set having no JSON of its own
+ */
+function encodedParked(state: ToolSessionState): string | undefined {
+  const parked = restoredParked(state);
+  return parked === undefined ? undefined : JSON.stringify({ ...parked, open: [...parked.open] });
+}
+
+/** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.restoredState */
+function decodedParked(data: string): ToolSessionState | undefined {
+  try {
+    const held = JSON.parse(data) as { open?: unknown };
+    if (!Array.isArray(held.open) || !held.open.every((key) => typeof key === "string"))
+      return undefined;
+    return restoredParked({ ...held, open: new Set(held.open) });
+  } catch {
+    return undefined;
+  }
+}
+
 type Result =
   | { readonly phase: "waiting" }
   | {
@@ -1309,6 +1330,8 @@ export const meTool: ToolModule = {
   // help: panel.me
   helpTopic: TOPIC.toolME,
   View: MeToolView,
+  encodedState: encodedParked,
+  restoredState: decodedParked,
   agentQueries: meAgentQueries,
   agentComparisons: meAgentComparisons,
   agentLocator: meAgentLocator,

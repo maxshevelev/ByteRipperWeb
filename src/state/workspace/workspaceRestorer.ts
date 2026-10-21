@@ -4,6 +4,7 @@ import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type FileStamp,
+  type NotesState,
   type PaneState,
   paneRestore,
   type RestoreIssue,
@@ -11,6 +12,7 @@ import {
   type SurfaceState,
   segmentationApplies,
   stampIsUnchanged,
+  type ToolState,
   WORKSPACE_VERSION,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
@@ -18,7 +20,9 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
+import { annotationsRead } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
+import { selectInPanel } from "@/state/notesPanelStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import {
   PANE_IDS,
@@ -29,11 +33,13 @@ import {
   surfaceOf,
   WORKSPACE_SURFACE,
 } from "@/state/paneId";
+import { parkToolState } from "@/state/parkedToolState";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
 import { restorePartition } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
+import { activate } from "@/state/toolController";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
@@ -48,12 +54,15 @@ import {
   foldParts,
   openInPane,
   openKeptUntitledInPane,
+  openNotesPanel,
   openPart,
   paneState,
   raisePart,
   reportAlert,
   setActivePane,
+  workspaceStore,
 } from "@/state/workspaceStore";
+import { toolById } from "@/tools/registry";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -157,7 +166,15 @@ let waitingRecord: WorkspaceRecord | undefined;
  *
  * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.restoreWorkspace
  */
-export async function restoreWorkspace(): Promise<void> {
+export function restoreWorkspace(): Promise<void> {
+  // Once a page: the window coming up twice — React's strict mode does it — restores once.
+  restoring ??= restoreOnce();
+  return restoring;
+}
+
+let restoring: Promise<void> | undefined;
+
+async function restoreOnce(): Promise<void> {
   if (!settingsStore.getSnapshot().restoresWorkspace) return;
   const record = await readOwnWorkspace();
   if (record === undefined || record.workspace.version !== WORKSPACE_VERSION) return;
@@ -267,7 +284,16 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
       opened.map((one) => applyPane(one.slot, one.saved, one.unchanged, linkFiles))
     );
     if (opened.length > 0) applySurface(tab.surface);
+    const tool = tab.surface.tool;
+    if (tool !== undefined) {
+      const target =
+        (tool.pane === undefined
+          ? undefined
+          : opened.find((one) => PANE_IDS.indexOf(one.slot) === tool.pane)) ?? opened[0];
+      if (target !== undefined) restoreTool(tool, target.slot, target.unchanged);
+    }
     await restoreFragments(record, opened, issues);
+    await restoreNotes(record.workspace.notes);
     reportRestoreIssues(issues);
   } finally {
     pauseWorkspaceRecorder(false);
@@ -306,6 +332,8 @@ async function restoreFragments(
   for (const [index, fragment] of tab.fragments.entries()) {
     const source = fragment.pane.document;
     let part: PartId | undefined;
+    // Whether the part holds the bytes its tool chose in: one taken out of a changed parent does not.
+    let unchanged = true;
     if (source.kind === "part") {
       const origin = source.part;
       const parent = panes.get(origin.parent);
@@ -331,6 +359,7 @@ async function restoreFragments(
           origin.edits === undefined ? undefined : await readKeptBytes<Blob>(id, origin.edits.id);
         if (bytes !== undefined) {
           part = openPart(new Uint8Array(await bytes.arrayBuffer()), origin.name);
+          unchanged = parent?.unchanged ?? true;
         } else {
           issues.push({ kind: "missing", name: origin.name });
         }
@@ -351,6 +380,7 @@ async function restoreFragments(
     if (index === tab.expandedFragment) expanded = part;
     await applyPane(part, fragment.pane, true, new Map());
     if (fragment.surface.minimapVisible) applyMinimap(surfaceOf(part), fragment.surface);
+    if (fragment.surface.tool !== undefined) restoreTool(fragment.surface.tool, part, unchanged);
   }
   if (expanded !== undefined) raisePart(expanded);
   else foldParts();
@@ -405,10 +435,11 @@ async function applyPane(
     void pane.typing.setInsertMode(restore.insertMode);
   }
   // Laid out on a frame to come: the pane's scroller registers with the link as it mounts. A tab
-  // reloaded behind another draws no frames, so a frame is never waited on for long either.
-  for (let frame = 0; frame < 30; frame++) {
+  // reloaded behind another draws no frames and slows its timers to one a second, so the wait is
+  // bounded by the clock rather than by a count of frames.
+  const until = performance.now() + 500;
+  while (scrollLink.visibleRange(slot, BYTES_PER_ROW) === undefined && performance.now() < until) {
     await settledWithin(new Promise((resolve) => requestAnimationFrame(resolve)), 50);
-    if (scrollLink.visibleRange(slot, BYTES_PER_ROW) !== undefined) break;
   }
   scrollLink.scrollToOffset(slot, restore.topOffset, BYTES_PER_ROW);
 }
@@ -474,6 +505,47 @@ function applySurface(state: SurfaceState): void {
       setSearchEncoding(find.encoding as SearchEncoding);
     }
   }
+}
+
+/**
+ * The Annotations panel as it was: up over the panes when it was up, with the cards that were
+ * selected selected again. The annotations last between visits with their ids of their own, so
+ * the workspace keeps only which were chosen.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.restore
+ * @upstream-differs a panel of the dock that is up or folded, where upstream puts a window back at its place among tabs
+ */
+async function restoreNotes(notes: NotesState | undefined): Promise<void> {
+  if (notes === undefined) return;
+  await annotationsRead();
+  if (notes.isUp) openNotesPanel();
+  if (notes.selected.length > 0) selectInPanel(notes.selected);
+}
+
+/**
+ * Opens the tool panel on `pane` as it was. What the tool had chosen is handed back only for a
+ * document that is the one it was chosen in, through the box a session parks into; the tool binds
+ * to the active pane as it starts, so the one it read is made active for that moment.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.restoreTool
+ * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.park
+ * @upstream-differs nothing to keep still: upstream opens the panel without moving the window, whose frame already has it, and a page's panel takes its room from the panes
+ */
+function restoreTool(tool: ToolState, pane: PaneId, unchanged: boolean): void {
+  const module = toolById(tool.identifier);
+  if (module === undefined) return;
+  const state =
+    unchanged && tool.state !== undefined ? module.restoredState?.(tool.state) : undefined;
+  if (state !== undefined) parkToolState(tool.identifier, pane, state);
+  const surface = surfaceOf(pane);
+  if (surface !== WORKSPACE_SURFACE) {
+    activate(tool.identifier, surface);
+    return;
+  }
+  const { activePane } = workspaceStore.getSnapshot();
+  setActivePane(pane as SlotId);
+  activate(tool.identifier, surface);
+  setActivePane(activePane);
 }
 
 /** `work`, or a wait of a second (or of `milliseconds`), whichever ends first. */

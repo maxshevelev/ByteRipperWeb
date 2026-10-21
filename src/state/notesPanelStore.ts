@@ -155,12 +155,31 @@ function removing<T>(remove: () => T): T {
 holdNotesPanelWhile(() => isRemoving || canUndoPanelRemoval());
 notesPanelStore.subscribe(syncAnnotationsPanel);
 
+/** The cards selected in the panel, as it last said: what the workspace writes down. */
+let chosen: readonly string[] = [];
+
+/**
+ * The panel's selection changed.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs
+ * @upstream-differs the selection is the panel's own state, which it says here as it changes: the
+ * recorder cannot reach into the panel as it snapshots
+ */
+export function noteChosenCards(ids: readonly string[]): void {
+  chosen = ids;
+}
+
+/** The cards selected in the panel. */
+export const chosenCards = (): readonly string[] => chosen;
+
 /**
  * Asks the panel to select the cards of `ids`, and nothing else, and scroll to the first.
  *
  * @upstream ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.select
  */
 export function selectInPanel(ids: readonly string[]): void {
+  // Chosen already for the workspace, though the panel is folded and selects them only as it shows.
+  chosen = ids;
   notesPanelStore.update((state) => ({
     ...state,
     select: { ids, serial: (state.select?.serial ?? 0) + 1 },

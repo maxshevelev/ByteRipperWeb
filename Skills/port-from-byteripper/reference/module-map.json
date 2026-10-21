@@ -4670,7 +4670,10 @@
         "src/core/workspace/workspace.ts"
       ],
       "status": "in-progress",
-      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts)."
+      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts).",
+      "unported": {
+        "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel"
+      }
     },
     {
       "swift": "ByteRipperApp/Workspace",
@@ -4682,7 +4685,7 @@
         "src/state/workspace/partCodecState.ts"
       ],
       "status": "in-progress",
-      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
+      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
     },
     {
       "swift": "ByteRipperApp/Window/HoverCallout",
@@ -5833,7 +5836,6 @@
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.onShow": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.rows": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.scroll": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
-        "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.selectedIDs": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.show": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.shownTexts": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AgentAnnotationCards.zoomChanged": "n/a — AppKit collection view, item and drawing; NotesPanel lays the cards out as React elements in CSS columns",
@@ -5875,7 +5877,8 @@
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheCardsFollowTheZoomWhileTheWindowIsOpen": "n/a — the panels do not follow the tool panels' zoom (GAPS, the Agent window's row): the browser's page zoom is the zoom",
         "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWindowsToolbarHasBackForwardHelpAndTheAgentButton": "n/a — a window's toolbar; the panel sits under the tab's own toolbar, whose Back and Forward walk its steps",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheTabSetsTheBoundsOnDumpsOpenedByPath": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.*": "n/a — AppKit's drawn view laid on the toolbar's button: the dot is a span inside the React button, drawn, placed and blinked by CSS (.agent-activity-badge), and gone when the service is not active"
+        "ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.*": "n/a — AppKit's drawn view laid on the toolbar's button: the dot is a span inside the React button, drawn, placed and blinked by CSS (.agent-activity-badge), and gone when the service is not active",
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWorkspaceKeepsTheNotesWindowAndItsSelection": "n/a — the workspace is recorded into IndexedDB and restored into the dock, which is checked in the browser rather than by a unit test"
       }
     },
     {
@@ -5918,7 +5921,6 @@
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isOpen": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateBack": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.navigateForward": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
-        "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.restore": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.syncAgentItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.toolbar*": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
         "ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.validateMenuItem": "n/a — a window of its own, a tab beside the dump's; the web keeps the dock panel (7416d51), which NotesPanel is",
