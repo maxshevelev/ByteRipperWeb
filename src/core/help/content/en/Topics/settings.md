@@ -5,6 +5,8 @@
 @covers settings.view
 @covers settings.appearance
 @covers settings.layout
+@covers settings.general
+@covers settings.general.restore-workspace
 @covers settings.comparison
 @covers settings.editing
 @covers settings.text-decoding
@@ -15,9 +17,8 @@
 
 [[edition:There is no ⌘, here: in a browser that chord is the browser's own settings, so the app's live in its menu.||The macOS application opens its settings on ⌘,; this one has no key for it, and the settings open from **File ▸ Settings…**.]]
 
+- **General** — what the program does rather than how it looks, in three groups separated by rules. The first is **Reopen the workspace at launch**: when this [[edition:page||program]] is opened again, the files in the panes come back as they were left — the address on screen, the cursor and selection, the bookmarks, the segments, the fragment panels and the tool panels. It is off after installation. The second is how differences are grouped for **Next / Previous Difference** ([[topic:colors|What the Colours Mean]]). The third is the confirmations raised before edits that change the length of the file ([[topic:editing|Editing Bytes]]); they are enabled by default, and this is the same setting as the "do not ask again" box in the dialogs themselves.
 - **View** — how the program looks and which language it speaks, in three groups separated by rules. The first sets the monospaced font, its size and the row height of the hex view, and whether the app follows [[edition:the browser's||the system's]] light or dark setting or is forced one way; there is no Zoom In and Zoom Out as a setting: [[edition:the browser's page zoom is the zoom||the zoom is **View ▸ Zoom In**, **Zoom Out** and **Actual Size**]] ([[topic:navigation|Moving around]]). The second sets the arrangement of the panes and the word size of the hex view. The third chooses English, Русский or Deutsch, or whatever [[edition:the browser||the system]] reads: the change takes effect at once, and nothing is reloaded, because a reloaded [[edition:page||window]] would have to ask for every open dump again. Firmware terms remain in English in every language, those being the names datasheets and tools give them.
-- **Comparison** — how differences are shown and counted.
-- **Editing** — the confirmations raised before edits that change the length of the file ([[topic:editing|Editing Bytes]]). They are enabled by default, and this is the same setting as the "do not ask again" box in the dialogs themselves.
 - **Text Decoding** — the encoding the text column decodes with.
 - **Search Patterns** — the named search patterns, and the folder through which the library can be synchronised between installations ([[topic:search|Finding Bytes and Text]]).
 - [[edition:||**Agent** — whether agents may connect to ByteRipper, and the text a client program is set up with ([[topic:agent|Working with an Agent]]). Only in the Windows application.]]

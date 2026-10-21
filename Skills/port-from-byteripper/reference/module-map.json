@@ -2039,7 +2039,9 @@
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.tabIdentifiers": "n/a — AppKit's settings window; the web's Settings is a dialog component",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.toolbarLabels": "n/a — AppKit's settings window; the web's Settings is a dialog component",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
-        "ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.language": "n/a — a test hook; the web's tests reach the Language section through the settings store"
+        "ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.language": "n/a — a test hook; the web's tests reach the Language section through the settings store",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.general": "n/a — a test seam",
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showViewTab": "n/a — a test seam: the dialog's tab is a prop"
       },
       "files": {
         "ByteRipperApp/Settings/AppearanceSettings.swift": "",

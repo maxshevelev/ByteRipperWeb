@@ -134,6 +134,7 @@
 "EC firmware image" = "Образ прошивки EC";
 "FIT component" = "Компонент FIT";
 "Format" = "Формат";
+"General" = "Основные";
 "Microcode added" = "Микрокод добавлен";
 "Microcode removed" = "Микрокод удалён";
 "Microcode replaced" = "Микрокод заменён";
@@ -345,6 +346,7 @@
 "Not set" = "Не задано";
 "Not a date" = "Не дата";
 "Removing a microcode" = "Удаление микрокода";
+"Reopen the workspace at launch" = "Восстанавливать рабочую сессию при запуске";
 "Replacing a microcode" = "Замена микрокода";
 "Top Swap" = "Top Swap";
 "Vendor" = "Производитель";
@@ -470,7 +472,6 @@
 "Edit Bookmark…" = "Изменить закладку…";
 "menu|Edit" = "Правка";
 "Edit Segment %1$@" = "Параметры сегмента %1$@";
-"Editing" = "Редактирование";
 "Editing Constraints" = "Ограничения при правке";
 "EFS Volume" = "Том EFS";
 "Empty" = "Пусто";
@@ -1385,6 +1386,7 @@
 "Took what “%1$@” holds from %2$@ machines." = "Взято то, что в «%1$@» держат другие машины (%2$@).";
 "Took what “%1$@” holds from one machine." = "Взято то, что в «%1$@» держит одна машина.";
 "Until then, Get Patterns from a Folder… takes the patterns your other machines keep in their library folder, and Export… saves this browser's list as a file you can put in that folder by hand." = "А пока «Взять шаблоны из папки…» берёт шаблоны, которые другие машины держат в своей папке библиотеки, а «Экспортировать…» сохраняет список этого браузера файлом, который можно положить в ту папку вручную.";
+"When this page is opened again, the files in the panes come back as they were left: the address on screen, the cursor and selection, the bookmarks, the segments, the fragment panels and the tool panels. Documents never saved, and unsaved changes to files, come back too." = "Когда страницу открывают снова, файлы в панелях возвращаются такими, какими их оставили: адрес на экране, курсор и выделение, закладки, сегменты, панели фрагментов и панели инструментов. Возвращаются и ни разу не сохранённые документы, и несохранённые правки в файлах.";
 "“%1$@” could not be taken back: %2$@" = "«%1$@» не удалось вернуть: %2$@";
 "“%1$@” does not say which browser wrote it." = "По «%1$@» не видно, какой браузер его записал.";
 "“%1$@” holds no pattern library." = "В «%1$@» нет библиотеки шаблонов.";

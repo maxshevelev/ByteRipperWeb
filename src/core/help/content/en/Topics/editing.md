@@ -41,7 +41,7 @@ Three operations do change it, and each asks for confirmation before acting:
 - **Edit ▸ Delete Bytes…** — a real deletion, shifting everything after it.
 - **Insert mode** — a typing mode in which keys insert and delete rather than overwrite, and [[key:paste]] pastes into the file rather than over it. The **OVR** / **INS** readout at the right of the pane's status line turns it on and off, and so does the **Insert** key; upstream has a menu item for it and the web does not, the status line being where the mode is already shown ([[topic:hex-view|Reading the Hex View]]). It asks once per file rather than per keystroke, reports itself in the status bar, and changes the shape of the caret.
 
-The confirmations can be switched off in [[topic:settings|Settings ▸ Editing]], or with the "do not ask again" box in the dialog itself. They are enabled by default because these operations change every address after the point at which they act.
+The confirmations can be switched off in [[topic:settings|Settings ▸ General]], or with the "do not ask again" box in the dialog itself. They are enabled by default because these operations change every address after the point at which they act.
 
 ! The length of an SPI dump must not change, the capacity of the chip being fixed. See [[topic:bench-safety|Constraints on Editing an Image]].
 

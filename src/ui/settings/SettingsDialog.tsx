@@ -22,6 +22,7 @@ import {
   SYSTEM_FONT,
   setAppearance,
   setLanguage,
+  setRestoresWorkspace,
   setTextDecoding,
   setTheme,
   settingsStore,
@@ -51,13 +52,7 @@ import {
   snapRowHeightScale,
 } from "@/ui/settings/settingsText";
 
-export type SettingsTab =
-  | "view"
-  | "comparison"
-  | "editing"
-  | "textDecoding"
-  | "favorites"
-  | "agent";
+export type SettingsTab = "general" | "view" | "textDecoding" | "favorites" | "agent";
 
 /**
  * The tabs, in upstream's toolbar order, built when the dialog is drawn. File
@@ -70,9 +65,8 @@ export type SettingsTab =
  * where it was made.
  */
 const tabs = (): readonly { readonly id: SettingsTab; readonly label: string }[] => [
+  { id: "general", label: L("General") },
   { id: "view", label: L("View", { context: "settings" }) },
-  { id: "comparison", label: L("Comparison") },
-  { id: "editing", label: L("Editing") },
   { id: "textDecoding", label: L("Text Decoding") },
   { id: "favorites", label: L("Search Patterns") },
   // Only where the shell can serve one: the desktop build (Design/PORT_AGENT.md).
@@ -101,11 +95,9 @@ export interface SettingsDialogProps {
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.viewItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButton
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.installHelpButton
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingController
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.generalController
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingController
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.comparisonItemID
- * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.editingItemID
+ * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.generalItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.textDecodingItemID
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.init
  * @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showWindow
@@ -123,7 +115,8 @@ export interface SettingsDialogProps {
  * @upstream-differs a <dialog> with a tab strip: Escape closes it natively, and it sizes to the tab it shows
  */
 export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialogProps) {
-  const [tab, setTab] = useState<SettingsTab>("view");
+  // Settings opens on General, as the system's own settings windows do.
+  const [tab, setTab] = useState<SettingsTab>("general");
 
   useEffect(() => {
     if (open && requested !== undefined) setTab(requested);
@@ -160,9 +153,8 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
           fonts, which is nothing to do at every page load. */}
       {open ? (
         <div className="settings-pane" role="tabpanel">
+          {tab === "general" ? <GeneralTab /> : null}
           {tab === "view" ? <ViewTab /> : null}
-          {tab === "comparison" ? <ComparisonTab /> : null}
-          {tab === "editing" ? <EditingTab /> : null}
           {tab === "textDecoding" ? <TextDecodingTab /> : null}
           {tab === "favorites" ? <FavoritesTab /> : null}
           {tab === "agent" ? <AgentTab /> : null}
@@ -179,10 +171,12 @@ export function SettingsDialog({ open, onClose, tab: requested }: SettingsDialog
  * title already names the tab, and a heading over two controls is more words than the controls.
  *
  * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController
- * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.loadView
- * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.separator
- * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.alignLabelColumns
- * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.firstGrid
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.sections
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController.loadView
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController.separator
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController.alignLabelColumns
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController.firstGrid
  * @upstream-differs three React sections in one pane, their label columns one subgrid column of CSS
  * where upstream measures the labels and sets each grid's column to the widest
  */
@@ -199,6 +193,60 @@ function ViewTab() {
       <hr className="settings-rule" />
       <LanguageTab />
     </div>
+  );
+}
+
+/**
+ * The General tab: what the program does rather than how it looks — whether the workspace comes
+ * back when the page is opened again, how differences are grouped, and whether the edits that shift
+ * the file ask first. Comparison and Editing were tabs of their own, one control each; with the
+ * workspace switch they make one page, and it comes first.
+ *
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#GeneralSettingsViewController
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#GeneralSettingsViewController.sections
+ * @upstream ByteRipperApp/Settings/ViewSettingsViewController.swift#SectionedSettingsViewController.sections
+ */
+// help: settings.general
+function GeneralTab() {
+  return (
+    <div className="settings-view">
+      <WorkspaceSection />
+      <hr className="settings-rule" />
+      <ComparisonTab />
+      <hr className="settings-rule" />
+      <EditingTab />
+    </div>
+  );
+}
+
+/**
+ * The General tab's workspace section: one switch, and what it brings back.
+ *
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettingsViewController
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettingsViewController.restoreCheckbox
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettingsViewController.loadView
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettingsViewController.refresh
+ * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettingsViewController.restoreChanged
+ */
+function WorkspaceSection() {
+  const { restoresWorkspace } = useStore(settingsStore);
+  return (
+    <section>
+      {/* help: settings.general.restore-workspace */}
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={restoresWorkspace}
+          onChange={(event) => setRestoresWorkspace(event.target.checked)}
+        />
+        {L("Reopen the workspace at launch")}
+      </label>
+      <p className="settings-caption">
+        {L(
+          "When this page is opened again, the files in the panes come back as they were left: the address on screen, the cursor and selection, the bookmarks, the segments, the fragment panels and the tool panels. Documents never saved, and unsaved changes to files, come back too."
+        )}
+      </p>
+    </section>
   );
 }
 

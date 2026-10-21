@@ -295,6 +295,14 @@ export interface SettingsState {
    */
   readonly language: LanguageChoice;
   readonly textDecoding: TextDecodingSettings;
+  /**
+   * Whether the workspace comes back when the page is opened again (`Design/WORKSPACE.md`). Off by
+   * default: a hex editor that reopens last week's dumps unasked is a surprise on a repair bench,
+   * where every job is a different board.
+   *
+   * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettings.restoresWorkspace
+   */
+  readonly restoresWorkspace: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -304,6 +312,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   theme: "system",
   language: "system",
   textDecoding: DEFAULT_TEXT_DECODING,
+  restoresWorkspace: false,
 };
 
 /**
@@ -363,7 +372,8 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
     ].map((key) => store.get<unknown>(key))
   );
 
-  settingsStore.update(() => ({
+  settingsStore.update((state) => ({
+    restoresWorkspace: state.restoresWorkspace,
     fontFamily: fontFamilyFrom(fontFamily),
     rowHeightScale: rowHeightScaleFrom(rowHeightScale),
     fontSize: fontSizeFrom(fontSize),
@@ -628,4 +638,27 @@ export function forgetGroupingGap(): void {
 
 export function forgetWarnsBeforeShiftingEdits(): void {
   forget(WARNS_BEFORE_SHIFTING_EDITS_KEY);
+}
+
+// MARK: - The workspace
+
+/** @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettings.restoresWorkspaceKey */
+export const RESTORES_WORKSPACE_KEY = "RestoresWorkspaceOnLaunch";
+
+/** Whether the switch was left on; off for a visit that remembers nothing. */
+export async function loadRestoresWorkspace(): Promise<boolean> {
+  const on =
+    (await values()
+      .get<boolean>(RESTORES_WORKSPACE_KEY)
+      .catch(() => undefined)) === true;
+  settingsStore.update((state) =>
+    state.restoresWorkspace === on ? state : { ...state, restoresWorkspace: on }
+  );
+  return on;
+}
+
+/** @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettings.set */
+export function setRestoresWorkspace(on: boolean): void {
+  remember(RESTORES_WORKSPACE_KEY, on);
+  settingsStore.update((state) => ({ ...state, restoresWorkspace: on }));
 }

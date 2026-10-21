@@ -134,6 +134,7 @@
 "EC firmware image" = "EC-Firmware-Abbild";
 "FIT component" = "FIT-Komponente";
 "Format" = "Format";
+"General" = "Allgemein";
 "Microcode added" = "Microcode hinzugefügt";
 "Microcode removed" = "Microcode entfernt";
 "Microcode replaced" = "Microcode ersetzt";
@@ -345,6 +346,7 @@
 "Not set" = "Nicht gesetzt";
 "Not a date" = "Kein Datum";
 "Removing a microcode" = "Microcode wird entfernt";
+"Reopen the workspace at launch" = "Arbeitsbereich beim Start wiederherstellen";
 "Replacing a microcode" = "Microcode wird ersetzt";
 "Top Swap" = "Top Swap";
 "Vendor" = "Hersteller";
@@ -470,7 +472,6 @@
 "Edit Bookmark…" = "Lesezeichen bearbeiten…";
 "menu|Edit" = "Bearbeiten";
 "Edit Segment %1$@" = "Segment %1$@ bearbeiten";
-"Editing" = "Bearbeiten";
 "Editing Constraints" = "Einschränkungen beim Bearbeiten";
 "EFS Volume" = "EFS-Volume";
 "Empty" = "Leer";
@@ -1386,6 +1387,7 @@
 "Took what “%1$@” holds from %2$@ machines." = "Übernommen, was „%1$@“ von %2$@ Rechnern enthält.";
 "Took what “%1$@” holds from one machine." = "Übernommen, was „%1$@“ von einem Rechner enthält.";
 "Until then, Get Patterns from a Folder… takes the patterns your other machines keep in their library folder, and Export… saves this browser's list as a file you can put in that folder by hand." = "Bis dahin übernimmt „Muster aus einem Ordner holen…“ die Muster, die Ihre anderen Rechner in ihrem Bibliotheksordner halten, und „Exportieren…“ sichert die Liste dieses Browsers als Datei, die Sie von Hand in jenen Ordner legen können.";
+"When this page is opened again, the files in the panes come back as they were left: the address on screen, the cursor and selection, the bookmarks, the segments, the fragment panels and the tool panels. Documents never saved, and unsaved changes to files, come back too." = "Wird diese Seite erneut geöffnet, kehren die Dateien in den Bereichen so zurück, wie sie verlassen wurden: die angezeigte Adresse, Cursor und Auswahl, die Lesezeichen, die Segmente, die Fragment-Bereiche und die Werkzeugbereiche. Auch nie gesicherte Dokumente und ungesicherte Änderungen an Dateien kehren zurück.";
 "“%1$@” could not be taken back: %2$@" = "„%1$@“ ließ sich nicht zurücknehmen: %2$@";
 "“%1$@” does not say which browser wrote it." = "„%1$@“ sagt nicht, welcher Browser sie geschrieben hat.";
 "“%1$@” holds no pattern library." = "„%1$@“ enthält keine Musterbibliothek.";
