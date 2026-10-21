@@ -4665,6 +4665,25 @@
       }
     },
     {
+      "swift": "Packages/Workspace",
+      "web": [
+        "src/core/workspace/workspace.ts"
+      ],
+      "status": "in-progress",
+      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts)."
+    },
+    {
+      "swift": "ByteRipperApp/Workspace",
+      "web": [
+        "src/state/workspace/workspaceIdentity.ts",
+        "src/state/workspace/workspaceRecorder.ts",
+        "src/state/workspace/workspaceRestorer.ts",
+        "src/state/workspace/workspaceRecords.ts"
+      ],
+      "status": "in-progress",
+      "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
+    },
+    {
       "swift": "ByteRipperApp/Window/HoverCallout",
       "web": [
         "src/state/hoverCalloutStore.ts",

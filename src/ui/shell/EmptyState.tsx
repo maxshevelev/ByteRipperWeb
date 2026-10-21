@@ -13,6 +13,7 @@ import {
   updatesOffered,
 } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
+import { reopenWaitingWorkspace, workspaceRestoreStore } from "@/state/workspace/workspaceRestorer";
 import { workspaceStore } from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { appNameAndVersion } from "@/ui/shell/appVersion";
@@ -79,6 +80,7 @@ export function EmptyState({
       </button>
       {/* help: shell.empty-state */}
       <p className="empty-state-headline">{L("Drop files here")}</p>
+      <WaitingWorkspace />
       <p className="empty-state-detail">{L("Up to two files can be compared side by side.")}</p>
       <p className="empty-state-detail">
         {/* help: platform.save-capability */}
@@ -107,6 +109,30 @@ export function EmptyState({
         <ReleaseNotes />
       </div>
     </div>
+  );
+}
+
+/**
+ * A workspace waiting for a click to reach its files: the browser asks once more for access to
+ * the files of the last session, and asking needs a click. One button reopens them all.
+ *
+ * @web-only upstream reaches its files without asking; a page may have to ask
+ */
+function WaitingWorkspace() {
+  const { waiting } = useStore(workspaceRestoreStore);
+  if (waiting === undefined) return null;
+  return (
+    <p className="empty-state-workspace">
+      <button
+        type="button"
+        className="empty-state-update"
+        onClick={() => void reopenWaitingWorkspace()}
+      >
+        {L("Reopen the workspace")}
+      </button>
+      {" — "}
+      {waiting.join(", ")}
+    </p>
   );
 }
 

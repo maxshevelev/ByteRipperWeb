@@ -5,6 +5,7 @@ import { hexAddress } from "@/core/text/hexText";
 import { openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { isSlot, type PaneId } from "@/state/paneId";
 import { createStore } from "@/state/store";
+import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import { paneState } from "@/state/workspaceStore";
 
 /**
@@ -138,7 +139,6 @@ export const bookmarksStore = createStore<BookmarksState>({
   recent: [],
 });
 
-const WORKSPACE_KEY = "byteripper.workspace";
 const DATABASE = "byteripper";
 /** A workspace's record is dropped once it has not been seen for this long. */
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
@@ -151,21 +151,6 @@ interface StoredWorkspace {
 }
 
 const values = openKeyValueStore(DATABASE);
-
-/** This tab's workspace id, made once and kept for as long as the tab lives. */
-function workspaceId(): string {
-  try {
-    const existing = sessionStorage.getItem(WORKSPACE_KEY);
-    if (existing !== null) return existing;
-    const made = `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    sessionStorage.setItem(WORKSPACE_KEY, made);
-    return made;
-  } catch {
-    // Private mode, or storage refused. The workspace is then this page load,
-    // which is the honest answer rather than sharing one id with every tab.
-    return "w-transient";
-  }
-}
 
 /** Publishes what the workspace's store now holds, and writes it out. */
 function publish(): void {

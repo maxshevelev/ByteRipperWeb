@@ -264,6 +264,15 @@ textarea,
 }
 
 /* The newer build's line, under the version, in the hint's own size. */
+/* A workspace waiting for a click to reach its files, under the headline. */
+.empty-state-workspace {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 .empty-state-release {
   margin: -8px 0 0;
   color: var(--text-muted);

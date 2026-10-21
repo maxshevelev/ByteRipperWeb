@@ -112,4 +112,6 @@ export const TOPIC = {
 
   // Settings
   settings: topicId("settings"),
+  /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.workspace */
+  workspace: topicId("workspace"),
 } as const;

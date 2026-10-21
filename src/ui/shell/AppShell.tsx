@@ -77,6 +77,8 @@ import { keyboardIsInTreePanel, openTreeSearch } from "@/state/uefiSearchSetting
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
+import { startWorkspaceRecorder } from "@/state/workspace/workspaceRecorder";
+import { restoreWorkspace } from "@/state/workspace/workspaceRestorer";
 import {
   bringPaneForward,
   canRevertToOriginal,
@@ -836,6 +838,14 @@ export function AppShell() {
     void restoreRecentFiles();
     // The annotations, kept from one launch to the next.
     void keepAnnotations();
+  }, []);
+
+  // The workspace: written down as the session goes, and brought back when the page is opened
+  // again, with the setting on (`Design/WORKSPACE.md`).
+  useEffect(() => {
+    const stop = startWorkspaceRecorder();
+    void restoreWorkspace();
+    return stop;
   }, []);
 
   // The find bar always searches the pane the commands act on — the part in

@@ -375,6 +375,7 @@
 "Both" = "Beide";
 "Both apply to the hex views already open, and are what the next visit opens with." = "Beides gilt für die bereits geöffneten Dumps und ist auch der Stand beim nächsten Besuch.";
 "Build date" = "Build-Datum";
+"Changed on disk since the last session. Opened without their unsaved changes, segments, parts and tool state:" = "Seit der letzten Sitzung auf dem Datenträger geändert. Ohne ungesicherte Änderungen, Segmente, Teile und Werkzeugzustand geöffnet:";
 "ByteRipper Help" = "ByteRipper-Hilfe";
 "Bytes from offset %1$@ will be removed. Subsequent offsets will shift — the file structure may be affected." = "Die Bytes ab Offset %1$@ werden entfernt. Die folgenden Offsets verschieben sich — die Dateistruktur kann darunter leiden.";
 "Bytes per word in the hex grid" = "Bytes pro Wort im Hex-Raster";
@@ -649,6 +650,7 @@
 "Minimap" = "Minimap";
 "Minimap mode" = "Minimap-Modus";
 "Minor version" = "Nebenversion";
+"No longer found, not opened:" = "Nicht mehr gefunden, nicht geöffnet:";
 "Modified" = "Geändert";
 "Modified file" = "Geänderte Datei";
 "Modified new file" = "Geänderte neue Datei";
@@ -1116,6 +1118,7 @@
 "Every device" = "Jedes Gerät";
 "Open Decompressed Variable" = "Entpackte Variable öffnen";
 "The variable does not decompress." = "Die Variable lässt sich nicht entpacken.";
+"The workspace was not restored in full" = "Der Arbeitsbereich wurde nicht vollständig wiederhergestellt";
 "There is nothing decompressed to open here." = "Hier ist nichts Entpacktes zum Öffnen.";
 "Cancelling…" = "Wird abgebrochen…";
 "A compressed section on the way to the part no longer decompresses." = "Eine komprimierte Sektion auf dem Weg zu diesem Teil lässt sich nicht mehr entpacken.";
@@ -1361,11 +1364,13 @@
 "Merging keeps both lists, which is usually what you want when setting up a second machine." = "Beim Zusammenführen bleiben beide Listen erhalten — meist das, was man beim Einrichten eines zweiten Rechners will.";
 "Move… keeps the pattern library in a folder you choose. Each browser and each Mac writes its own file there and reads the others, so a folder your computer syncs — iCloud Drive, OneDrive, Dropbox — carries the library to your other machines." = "„Bewegen…“ hält die Musterbibliothek in einem Ordner Ihrer Wahl. Jeder Browser und jeder Mac schreibt dort seine eigene Datei und liest die der anderen; ein Ordner, den Ihr Rechner abgleicht — iCloud Drive, OneDrive, Dropbox —, stellt die Bibliothek daher auf Ihren übrigen Rechnern bereit.";
 "No search patterns yet. Keep a search with Save Search Pattern in the Find bar's menu, or press +." = "Noch keine Suchmuster. Behalten Sie eine Suche mit „Suchmuster sichern“ im Menü der Suchleiste, oder drücken Sie +.";
+"Not opened — this browser keeps no way back to them:" = "Nicht geöffnet — dieser Browser bewahrt keinen Zugang zu ihnen:";
 "Nothing was imported." = "Es wurde nichts importiert.";
 "One library file in “%1$@” could not be read." = "Eine Bibliotheksdatei in „%1$@“ ließ sich nicht lesen.";
 "Pattern library: in this browser only" = "Musterbibliothek: nur in diesem Browser";
 "Patterns you keep, with the encoding they are read in. They appear under Search Patterns in the Find bar's search menu, where picking one fills the bar and searches. Drag rows to reorder them — the menu lists them in this order." = "Die Muster, die Sie behalten, mit der Codierung, in der sie gelesen werden. Sie erscheinen unter „Suchmuster“ im Suchmenü der Suchleiste; ein Muster dort füllt die Leiste und sucht. Ziehen Sie Zeilen, um die Reihenfolge zu ändern — das Menü listet sie in dieser Reihenfolge.";
 "Remove this browser's file from the old folder?" = "Die Datei dieses Browsers aus dem alten Ordner entfernen?";
+"Reopen the workspace" = "Arbeitsbereich wieder öffnen";
 "Reorder" = "Umordnen";
 "Stop publishing to the folder and keep the pattern library in this browser — your other machines stop seeing your changes" = "Nicht mehr in den Ordner veröffentlichen und die Musterbibliothek in diesem Browser halten — Ihre anderen Rechner sehen Ihre Änderungen dann nicht mehr";
 "Take the patterns other machines keep in a library folder, without writing to it" = "Die Muster übernehmen, die andere Rechner in einem Bibliotheksordner halten, ohne hineinzuschreiben";
