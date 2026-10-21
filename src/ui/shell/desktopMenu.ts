@@ -26,6 +26,8 @@ export interface NativeMenuItem {
   readonly accelerator?: string;
   /** The shell answers the accelerator itself, rather than only drawing it. */
   readonly registerAccelerator?: boolean;
+  /** Electron's own editing command, which the item runs in place of a page command. */
+  readonly role?: "cut" | "copy" | "paste";
   /** A menu of its own — File ▸ Open Recent — whose rows are items of their own. */
   readonly submenu?: readonly NativeMenuItem[];
 }
@@ -191,6 +193,7 @@ export function nativeMenus(entries: readonly MenuEntry[]): {
       ...(entry.checked === undefined ? {} : { checked: entry.checked }),
       ...(accelerator === undefined ? {} : { accelerator }),
       ...(entry.shellKey === true ? { registerAccelerator: true } : {}),
+      ...(entry.role === undefined ? {} : { role: entry.role }),
     });
   }
   // What came before the first menu — Settings… — closes it, set apart, where

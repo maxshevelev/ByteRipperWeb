@@ -417,6 +417,24 @@ export function Toolbar({
         else void redoLast(front);
       },
     },
+    // Cut, Copy and Paste, in the desktop shell: its menu answers the keys, so it runs the
+    // system's editing commands, which a text field answers with its text and the dump with its
+    // bytes (its own copy and paste events). A browser keeps these keys for itself.
+    // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeEditMenu
+    ...(nativeMenuBar
+      ? ([
+          { kind: "separator" },
+          {
+            label: L("Cut", { context: "edit" }),
+            shortcut: "⌘X",
+            shellKey: true,
+            role: "cut",
+            onSelect: () => {},
+          },
+          { label: L("Copy"), shortcut: "⌘C", shellKey: true, role: "copy", onSelect: () => {} },
+          { label: L("Paste"), shortcut: "⌘V", shellKey: true, role: "paste", onSelect: () => {} },
+        ] satisfies MenuEntry[])
+      : []),
     {
       // A text field being typed in selects its own text, the Annotations panel every card, and
       // only a dump with the focus every byte. In the desktop shell the menu answers the key, so

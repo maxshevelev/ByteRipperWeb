@@ -742,6 +742,7 @@
 "Panels" = "Panels";
 "Partly inside protected ranges" = "Teilweise innerhalb geschützter Bereiche";
 "Past the end of the file" = "Hinter dem Ende der Datei";
+"Paste" = "Einsetzen";
 "Paste Insert?" = "Mit Verschieben einsetzen?";
 "Pattern" = "Muster";
 "Place the panes side by side" = "Bereiche nebeneinander anordnen";
@@ -1651,3 +1652,4 @@
 "The serial does not begin as the board's serial does. On a Mac's own both begin with the code of the factory; the serial was changed, or came over from another machine." = "Die Seriennummer beginnt nicht wie die der Platine. Bei einem original Mac beginnen beide mit dem Code des Werks; die Seriennummer wurde geändert oder stammt von einem anderen Gerät.";
 "The store marks this copy deleted and keeps no current one. The values are whole, and on most HP boards read so far the store holds them this way; where the firmware takes them from on such a board, the dump does not show." = "Der Speicher markiert diese Kopie als gelöscht und hält keine gültige. Die Werte sind vollständig, und auf den meisten bisher untersuchten HP-Platinen liegen sie so vor; woher die Firmware einer solchen Platine sie tatsächlich nimmt, zeigt der Dump nicht.";
 "The asset tracking number is not the serial number. HP writes the serial number there by default: the owner set another value, or it came over from another machine." = "Die Inventarnummer ist nicht die Seriennummer. HP schreibt dort standardmäßig die Seriennummer ein: Entweder hat der Besitzer einen anderen Wert gesetzt, oder die Nummer stammt von einem anderen Gerät.";
+"edit|Cut" = "Ausschneiden";

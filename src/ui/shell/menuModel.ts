@@ -25,6 +25,13 @@ export interface MenuAction {
    * key handler for — the shell's zoom — needs the menu to register it.
    */
   readonly shellKey?: boolean | undefined;
+  /**
+   * The desktop shell's own editing command the item runs — what the system's Edit menu sends:
+   * it raises the focused element's `cut`, `copy` or `paste` event, which a text field answers
+   * with its text and the dump with its bytes. Only a native menu has these; the page's menu
+   * leaves the keys to the browser.
+   */
+  readonly role?: "cut" | "copy" | "paste" | undefined;
   /** What a pause over the row says — the phrase upstream's `ControlHelp.describe` sets on an item. */
   readonly tooltip?: string | undefined;
   readonly onSelect: () => void;

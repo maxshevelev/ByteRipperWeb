@@ -233,6 +233,16 @@ app.whenReady().then(() => {
       // File ▸ Open Recent is a menu of its own; its rows are items of their own.
       if (one.type === "submenu")
         return { type: "submenu", label: one.label, submenu: one.submenu.map(item) };
+      // Cut, Copy and Paste are the system's: the role raises the focused element's event, which
+      // a text field answers with its text and the dump with its bytes. Without them a Mac's
+      // Electron has no ⌘X, ⌘C or ⌘V in a field at all.
+      if (one.role !== undefined)
+        return {
+          role: one.role,
+          label: one.label,
+          enabled: one.enabled !== false,
+          ...(one.accelerator === undefined ? {} : { accelerator: one.accelerator }),
+        };
       return {
         type: one.type,
         label: one.label,

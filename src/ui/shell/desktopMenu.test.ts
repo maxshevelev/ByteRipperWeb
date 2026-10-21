@@ -99,6 +99,21 @@ describe("the list as menus", () => {
 
     expect(menus[0]?.items[0]?.label).toBe("Find && Replace");
   });
+
+  // Cut, Copy and Paste run the system's editing commands, which raise the focused element's
+  // events: a text field answers with its text, the dump with its bytes.
+  it("hands Cut, Copy and Paste to the shell as its own roles, keys and all", () => {
+    const { menus } = nativeMenus([
+      { kind: "heading", label: "Edit", opensMenu: true },
+      { label: "Copy", shortcut: "⌘C", shellKey: true, role: "copy", onSelect: () => {} },
+    ]);
+
+    expect(menus[0]?.items[0]).toMatchObject({
+      role: "copy",
+      accelerator: "CmdOrCtrl+C",
+      registerAccelerator: true,
+    });
+  });
 });
 
 // The Open Recent submenu the page hangs on the shell's File menu. The bridge
