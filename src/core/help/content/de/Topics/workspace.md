@@ -1,4 +1,4 @@
-@source-sha 934fe93f6d0658843306d4318f7420c3c3fd0049a5a38ec552b35ec63726b69b
+@source-sha 4c3e958ab8d51dc37856d5c8b8f2a9e6724ed53c9f834652a28f2c173b347194
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -14,6 +14,8 @@ Ein Arbeitsbereich gehört zu einem [[edition:Browser-Tab||Fenster]]. [[edition:
 - Datei A und Datei B sowie der aktive Bereich.
 - In jedem Bereich die Adresse oben auf dem Bildschirm, Cursor und Auswahl, die Hex- oder Textspalte und der Einfügemodus.
 - Die [[topic:bookmarks|Lesezeichen]], die ohnehin mit dem Arbeitsbereich aufbewahrt werden.
+- Die [[topic:segments|Segmente]]: Schnitte, Namen und die Verknüpfungen von Segmenten mit den Dateien, aus denen sie zusammengefügt wurden; eine Verknüpfung, deren Datei sich nicht wieder erreichen lässt, kehrt als Segment ohne Verknüpfung zurück.
+- Die [[topic:minimap|Minimap]] und die Suchleiste mit ihrem Muster.
 
 ## Was nicht wiederhergestellt wird
 
@@ -36,6 +38,6 @@ Der Arbeitsbereich wird [[edition:in diesem Browser, auf diesem Rechner||in dies
 Jede Datei wird mit ihrer Größe und ihrem Änderungsdatum zum Zeitpunkt des Schreibens verglichen.
 
 - Eine Datei, die nicht mehr da ist, wird nicht geöffnet.
-- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse.
+- Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre Segmente werden nicht wiederhergestellt: Sie wurden an anderen Bytes angelegt und zeigten an falsche Stellen.
 
 Tritt einer dieser Fälle ein oder ließ sich eine Datei nicht erreichen, nennt eine einzige Meldung nach der Wiederherstellung die betroffenen Dateien.

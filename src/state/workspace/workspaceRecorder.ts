@@ -1,12 +1,20 @@
 import {
+  type FileStamp,
   type PaneState,
+  type SegmentationState,
+  type SurfaceState,
   type TabState,
   WORKSPACE_VERSION,
   type Workspace,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
+import type { OpenedFile } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
-import { PANE_IDS, type SlotId } from "@/state/paneId";
+import { mapOn, minimapStore } from "@/state/minimapStore";
+import { PANE_IDS, type SlotId, type SurfaceId, WORKSPACE_SURFACE } from "@/state/paneId";
+import { searchStore } from "@/state/searchStore";
+import { sourceInfo } from "@/state/segmentSources";
+import { segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
@@ -70,13 +78,89 @@ export function snapshotWorkspace(): {
   const handles: Record<string, FileSystemFileHandle> = {};
   const panes = PANE_IDS.map((slot) => paneSnapshot(slot, handles));
   const state = workspaceStore.getSnapshot();
+  const search = searchStore.getSnapshot();
   const tab: TabState = {
     panes,
     activePane: state.activePane === "b" ? 1 : 0,
-    surface: { minimapVisible: false },
+    surface: {
+      ...surfaceSnapshot(WORKSPACE_SURFACE),
+      ...(search.open ? { findPattern: { text: search.query, encoding: search.encoding } } : {}),
+    },
     fragments: [],
   };
   return { workspace: { version: WORKSPACE_VERSION, tab }, handles };
+}
+
+/**
+ * The minimap of a surface: whether it is shown, and in which mode.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceSurface
+ */
+function surfaceSnapshot(surface: SurfaceId): SurfaceState {
+  const map = mapOn(minimapStore.getSnapshot(), surface);
+  return map.visible ? { minimapVisible: true, minimapMode: map.mode } : { minimapVisible: false };
+}
+
+/**
+ * A file as the workspace writes it: what it was like, and the key of its handle, kept in
+ * `handles`, where the browser gave one.
+ */
+function stampOf(
+  file: OpenedFile,
+  key: string,
+  handles: Record<string, FileSystemFileHandle>
+): FileStamp {
+  if (file.handle !== undefined) handles[key] = file.handle;
+  return {
+    name: file.name,
+    size: file.size,
+    modified: file.lastModified,
+    ...(file.path === undefined ? {} : { path: file.path }),
+    ...(file.handle === undefined ? {} : { handle: key }),
+  };
+}
+
+/**
+ * The pane's partition, or nothing when the file is one piece of itself — nothing worth writing
+ * down. Each link is written by its source's file, not by the id this page minted for it.
+ *
+ * @upstream ByteRipperApp/Workspace/PaneViewModel+Workspace.swift#PaneViewModel.workspaceSegments
+ */
+function segmentsSnapshot(
+  slot: SlotId,
+  handles: Record<string, FileSystemFileHandle>
+): SegmentationState | undefined {
+  const current = segmentsFor(slot);
+  const fileName = paneState(slot)?.name;
+  const only = current?.pieces[0];
+  if (current === undefined || only === undefined) return undefined;
+  if (
+    current.pieces.length === 1 &&
+    only.link === undefined &&
+    (only.name === "" || only.name === fileName)
+  ) {
+    return undefined;
+  }
+  return {
+    contentSize: current.contentSize,
+    pieces: current.pieces.map((piece) => {
+      const link = piece.link;
+      const source = link === undefined ? undefined : sourceInfo(slot, link.source);
+      return {
+        start: piece.start,
+        name: piece.name,
+        ...(link === undefined || source === undefined
+          ? {}
+          : {
+              link: {
+                file: stampOf(source.file, `${slot}:link:${link.source.raw}`, handles),
+                sourceStart: link.start,
+                sourceEnd: link.end,
+              },
+            }),
+      };
+    }),
+  };
 }
 
 /**
@@ -92,20 +176,12 @@ function paneSnapshot(
   const pane = paneState(slot);
   if (pane === undefined || pane.untitled) return undefined;
   const { file, document, typing } = pane;
-  if (file.handle !== undefined) handles[slot] = file.handle;
   const { start, end } = document.selection;
+  const segments = segmentsSnapshot(slot, handles);
   return {
     id: slot,
-    document: {
-      kind: "file",
-      file: {
-        name: file.name,
-        size: file.size,
-        modified: file.lastModified,
-        ...(file.path === undefined ? {} : { path: file.path }),
-        ...(file.handle === undefined ? {} : { handle: slot }),
-      },
-    },
+    document: { kind: "file", file: stampOf(file, slot, handles) },
+    ...(segments === undefined ? {} : { segments }),
     selectionStart: start,
     selectionEnd: end,
     inputRegion: typing.inputRegion,

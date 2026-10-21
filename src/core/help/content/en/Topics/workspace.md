@@ -16,6 +16,8 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 - File A and File B, and the active pane.
 - In each pane, the address at the top of the screen, the caret and the selection, the hex or text column, and insert mode.
 - The [[topic:bookmarks|bookmarks]], which are kept with the workspace in any case.
+- The [[topic:segments|segments]]: cuts, names, and the links of segments to the files they were joined from — a link whose file cannot be reached again comes back as a segment with no link.
+- The [[topic:minimap|minimap]] and the Find bar with its pattern.
 
 ## What is not restored
 
@@ -38,6 +40,6 @@ The workspace is stored [[edition:in this browser, on this machine||in this inst
 Each file is compared with its size and modification date at the time the workspace was written.
 
 - A file that is no longer there is not opened.
-- A file that has changed is opened. If it became shorter, the caret and the screen move to its last address.
+- A file that has changed is opened. If it became shorter, the caret and the screen move to its last address. Its segments are not restored: they were made on other bytes and would point to wrong places.
 
 When either happens, or a file could not be reached, one message after the restore lists the files concerned.

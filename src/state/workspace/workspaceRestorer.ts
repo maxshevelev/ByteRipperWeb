@@ -1,9 +1,14 @@
 import { L } from "@/core/localization/localization";
+import type { SearchEncoding } from "@/core/search/searchPattern";
+import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
 import {
   type FileStamp,
   type PaneState,
   paneRestore,
   type RestoreIssue,
+  type SegmentationState,
+  type SurfaceState,
+  segmentationApplies,
   stampIsUnchanged,
   WORKSPACE_VERSION,
   workspaceIsEmpty,
@@ -11,7 +16,11 @@ import {
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
-import { PANE_IDS, type SlotId } from "@/state/paneId";
+import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
+import { PANE_IDS, type SlotId, WORKSPACE_SURFACE } from "@/state/paneId";
+import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
+import { sourceIDForFile } from "@/state/segmentSources";
+import { restorePartition } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import {
@@ -149,22 +158,27 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
   pauseWorkspaceRecorder(true);
   try {
     const { tab } = record.workspace;
+    const reachOne = (stamp: FileStamp) =>
+      reach(stamp, stamp.handle === undefined ? undefined : record.handles[stamp.handle], asking);
     const reached = await Promise.all(
       tab.panes.map((pane) =>
         pane === undefined || pane.document.kind !== "file"
           ? Promise.resolve(undefined)
-          : reach(
-              pane.document.file,
-              pane.document.file.handle === undefined
-                ? undefined
-                : record.handles[pane.document.file.handle],
-              asking
-            )
+          : reachOne(pane.document.file)
       )
     );
+    // The files the segments were joined from, each once, by what names it.
+    const linkStamps = new Map<string, FileStamp>();
+    for (const pane of tab.panes) {
+      for (const piece of pane?.segments?.pieces ?? []) {
+        if (piece.link !== undefined) linkStamps.set(stampKey(piece.link.file), piece.link.file);
+      }
+    }
+    const links = new Map<string, Reached>();
+    for (const [key, stamp] of linkStamps) links.set(key, await reachOne(stamp));
     // Something is behind a click: the whole workspace waits for it, rather than coming back in
     // halves.
-    if (reached.some((one) => one?.kind === "asks")) {
+    if ([...reached, ...links.values()].some((one) => one?.kind === "asks")) {
       waitingRecord = record;
       keepWaitingWorkspace(true);
       workspaceRestoreStore.update(() => ({
@@ -199,7 +213,12 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
     });
     const active = PANE_IDS[tab.activePane];
     if (active !== undefined && paneState(active) !== undefined) setActivePane(active);
-    await Promise.all(opened.map((one) => applyPane(one.slot, one.saved, one.unchanged)));
+    const linkFiles = new Map<string, OpenedFile>();
+    for (const [key, one] of links) if (one.kind === "opened") linkFiles.set(key, one.file);
+    await Promise.all(
+      opened.map((one) => applyPane(one.slot, one.saved, one.unchanged, linkFiles))
+    );
+    if (opened.length > 0) applySurface(tab.surface);
     reportRestoreIssues(issues);
   } finally {
     pauseWorkspaceRecorder(false);
@@ -213,10 +232,19 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.apply
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.scroll
  */
-async function applyPane(slot: SlotId, saved: PaneState, unchanged: boolean): Promise<void> {
+async function applyPane(
+  slot: SlotId,
+  saved: PaneState,
+  unchanged: boolean,
+  linkFiles: ReadonlyMap<string, OpenedFile>
+): Promise<void> {
   const pane = paneState(slot);
   if (pane === undefined) return;
   const restore = paneRestore(saved, pane.document.size, unchanged);
+  const segments = saved.segments;
+  if (segments !== undefined && segmentationApplies(segments, pane.document.size, unchanged)) {
+    restoreSegments(slot, segments, linkFiles);
+  }
   await pane.typing.setSelection(restore.selection.start, restore.selection.end);
   await pane.typing.setInputRegion(restore.inputRegion);
   if (pane.typing.isInsertMode !== restore.insertMode) {
@@ -228,6 +256,65 @@ async function applyPane(slot: SlotId, saved: PaneState, unchanged: boolean): Pr
     if (scrollLink.visibleRange(slot, BYTES_PER_ROW) !== undefined) break;
   }
   scrollLink.scrollToOffset(slot, restore.topOffset, BYTES_PER_ROW);
+}
+
+/** What names a file of the workspace, to reach it once however many pieces link to it. */
+const SEARCH_ENCODINGS: readonly string[] = ["hex", "ascii", "utf8", "utf16LE", "utf16BE"];
+
+const stampKey = (stamp: FileStamp): string =>
+  stamp.handle ?? stamp.path ?? `${stamp.name}|${stamp.size}|${stamp.modified}`;
+
+/**
+ * Puts a written partition back, minting each source's id again from the file reached for it — a
+ * link whose file could not be reached comes back as a piece with no link. Not an undo step: the
+ * session that made the cuts is over, and undo here would take the pane to a partition it never
+ * had.
+ *
+ * @upstream ByteRipperApp/Workspace/PaneViewModel+Workspace.swift#PaneViewModel.restoreSegments
+ */
+function restoreSegments(
+  slot: SlotId,
+  state: SegmentationState,
+  linkFiles: ReadonlyMap<string, OpenedFile>
+): void {
+  const pieces = state.pieces.map((piece) => {
+    const file = piece.link === undefined ? undefined : linkFiles.get(stampKey(piece.link.file));
+    if (piece.link === undefined || file === undefined)
+      return { start: piece.start, name: piece.name };
+    return {
+      start: piece.start,
+      name: piece.name,
+      link: new SegmentLink(
+        sourceIDForFile(slot, file),
+        piece.link.sourceStart,
+        Math.max(piece.link.sourceStart, piece.link.sourceEnd)
+      ),
+    };
+  });
+  restorePartition(slot, new Segmentation(state.contentSize, pieces));
+}
+
+/**
+ * The minimap as it was, and the find bar with its pattern.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.apply
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reopenFindBar
+ */
+function applySurface(state: SurfaceState): void {
+  if (state.minimapVisible) {
+    setMinimapVisible(WORKSPACE_SURFACE, true);
+    if (state.minimapMode === "detail" || state.minimapMode === "overview") {
+      setMinimapMode(WORKSPACE_SURFACE, state.minimapMode);
+    }
+  }
+  const find = state.findPattern;
+  if (find !== undefined) {
+    openSearch();
+    editQuery(find.text);
+    if (SEARCH_ENCODINGS.includes(find.encoding as SearchEncoding)) {
+      setSearchEncoding(find.encoding as SearchEncoding);
+    }
+  }
 }
 
 /**
