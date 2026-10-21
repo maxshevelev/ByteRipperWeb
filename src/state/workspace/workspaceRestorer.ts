@@ -111,7 +111,9 @@ type Reached =
 
 /**
  * The file a stamp names, by the handle the browser gave — asking for access only when `asking`,
- * which is inside a click — and then by its path, where the shell can read one.
+ * which is inside a click — and then by its path, where the shell can read one. Only reading is
+ * asked for: a restore opens the file and changes nothing in it, and a browser asked for writing
+ * says it is about to save changes. Save asks for writing itself when it writes (`fileSink.ts`).
  *
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#FileStamp.locate
  */
@@ -124,9 +126,9 @@ async function reach(
     const permissions = handle as HandlePermissions;
     let state: PermissionState = "granted";
     if (permissions.queryPermission !== undefined) {
-      state = await permissions.queryPermission({ mode: "readwrite" }).catch(() => "prompt");
+      state = await permissions.queryPermission({ mode: "read" }).catch(() => "prompt");
       if (state !== "granted" && asking && permissions.requestPermission !== undefined) {
-        state = await permissions.requestPermission({ mode: "readwrite" }).catch(() => "denied");
+        state = await permissions.requestPermission({ mode: "read" }).catch(() => "denied");
       }
     }
     if (state === "granted") {

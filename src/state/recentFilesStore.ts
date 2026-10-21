@@ -123,20 +123,22 @@ export function dropRecentFile(name: string): void {
 }
 
 /**
- * The file a stored handle points at, its write permission asked for when it is
- * not already held, so the re-opened file keeps Save in place. The caller must
+ * The file a stored handle points at, its read permission asked for when it is
+ * not already held. Only reading: opening changes nothing, and a browser asked for
+ * writing says it is about to save changes — Save asks for writing itself when it
+ * writes, so the re-opened file keeps Save in place all the same. The caller must
  * be the user gesture that may be allowed to ask — **File ▸ Open Recent**
  * clicking a row is; a launch, pruning at start, is not, and so does not call
  * this at all.
  *
  * @upstream-differs upstream re-opens by the path it kept; a browser gives the page
- * no path, only the handle, and the handle is what carries the write access with it
+ * no path, only the handle, and the handle is what carries the access with it
  */
 export async function fileFromRecentHandle(handle: FileSystemFileHandle): Promise<File> {
   const permissions = handle as HandlePermissions;
   if (permissions.queryPermission !== undefined && permissions.requestPermission !== undefined) {
-    const state = await permissions.queryPermission({ mode: "readwrite" });
-    if (state !== "granted") await permissions.requestPermission({ mode: "readwrite" });
+    const state = await permissions.queryPermission({ mode: "read" });
+    if (state !== "granted") await permissions.requestPermission({ mode: "read" });
   }
   return handle.getFile();
 }

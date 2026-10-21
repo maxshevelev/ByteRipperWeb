@@ -37,7 +37,7 @@ The workspace is stored [[edition:in this browser, on this machine||in this inst
 
 ## Reaching the files again
 
-[[edition:A page cannot open a file by itself. In a Chromium browser — Chrome, Edge, Opera — the workspace keeps the browser's reference to each file, and the files open by themselves where the browser still allows it; where it asks first, the empty window shows **Reopen the workspace** with the files' names, and one click opens them all. Firefox and Safari keep no such reference: a file opened there does not come back, and the message after the restore names it.||Each file is opened again by its full path.]]
+[[edition:A page cannot open a file by itself. In a Chromium browser — Chrome, Edge, Opera — the workspace keeps the browser's reference to each file, and the files open by themselves where the browser still allows it; where it asks first, the empty window shows **Reopen the workspace** with the files' names, and one click opens them all. The browser is asked only to read the files: a restore changes nothing in them, and a save asks for writing when it writes. Firefox and Safari keep no such reference: a file opened there does not come back, and the message after the restore names it.||Each file is opened again by its full path.]]
 
 ## Files that changed or are missing
 

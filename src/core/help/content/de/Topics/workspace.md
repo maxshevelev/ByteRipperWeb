@@ -1,4 +1,4 @@
-@source-sha bb6e93e14ee0a8121e2d4843f871e9989b7e8c1a928116d38d0d7bf8c3d073de
+@source-sha 5dd5a1ea1377713d0831e771d4a2f1e787341b3eff6b8b124b0636b9fe2a05ed
 # Der Arbeitsbereich
 
 > Ist die Option eingeschaltet, öffnet die Seite, was beim Verlassen geöffnet war.
@@ -35,7 +35,7 @@ Der Arbeitsbereich wird [[edition:in diesem Browser, auf diesem Rechner||in dies
 
 ## Wie die Dateien wieder geöffnet werden
 
-[[edition:Eine Seite kann eine Datei nicht von selbst öffnen. In einem Chromium-Browser — Chrome, Edge, Opera — bewahrt der Arbeitsbereich den Verweis des Browsers auf jede Datei auf, und die Dateien öffnen sich von selbst, soweit der Browser das noch erlaubt; fragt er zuerst, zeigt das leere Fenster **Arbeitsbereich wieder öffnen** mit den Namen der Dateien, und ein Klick öffnet sie alle. Firefox und Safari bewahren keinen solchen Verweis: Eine dort geöffnete Datei kehrt nicht zurück, und die Meldung nach der Wiederherstellung nennt sie.||Jede Datei wird über ihren vollständigen Pfad wieder geöffnet.]]
+[[edition:Eine Seite kann eine Datei nicht von selbst öffnen. In einem Chromium-Browser — Chrome, Edge, Opera — bewahrt der Arbeitsbereich den Verweis des Browsers auf jede Datei auf, und die Dateien öffnen sich von selbst, soweit der Browser das noch erlaubt; fragt er zuerst, zeigt das leere Fenster **Arbeitsbereich wieder öffnen** mit den Namen der Dateien, und ein Klick öffnet sie alle. Der Browser wird nur um das Lesen der Dateien gebeten: Die Wiederherstellung ändert nichts an ihnen, und das Schreiben wird erst beim Sichern erbeten. Firefox und Safari bewahren keinen solchen Verweis: Eine dort geöffnete Datei kehrt nicht zurück, und die Meldung nach der Wiederherstellung nennt sie.||Jede Datei wird über ihren vollständigen Pfad wieder geöffnet.]]
 
 ## Geänderte und fehlende Dateien
 
