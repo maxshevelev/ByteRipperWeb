@@ -1,5 +1,12 @@
 # Workspace — the session the page brings back
 
+> **Desktop shell only (2026-10-21).** The owner withdrew the workspace, projects and Open Recent
+> from the browser edition: a browser reopens a kept file only as far as it allows at the time,
+> which is not a feature to rely on. All of it below runs in the desktop shell (`inDesktopShell`),
+> where the same handles are read without a question — the shell grants its page every permission
+> — and a file's path is there where a handle is not. In a browser the page starts empty on every
+> load and deletes what an earlier build kept.
+
 The web edition of upstream's `Design/WORKSPACE_PLAN.md` (G29). Upstream keeps
 the windows of an app and restores them at its launch; a web page has a tab,
 and "launch" has to be said in a tab's words. What follows is what the owner

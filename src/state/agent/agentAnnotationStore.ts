@@ -8,6 +8,7 @@ import {
 } from "@/core/agent/agentAnnotation";
 import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { keptHandles, onFileReplaced, onHandlesChange, restoreHandles } from "@/state/fileReopen";
 import { createStore } from "@/state/store";
@@ -633,7 +634,9 @@ async function readKept(): Promise<void> {
   const heldHandles = await storage
     .get<Parameters<typeof restoreHandles>[0]>(HANDLES_KEY)
     .catch(() => undefined);
-  if (Array.isArray(heldHandles)) restoreHandles(heldHandles);
+  // A file's handle is kept from one visit to the next in the desktop shell only; a browser opens
+  // a kept handle again only as far as it allows at the time (`inDesktopShell`).
+  if (Array.isArray(heldHandles) && inDesktopShell()) restoreHandles(heldHandles);
   const kept = await storage.get<StoredAnnotations>(KEY).catch(() => undefined);
   if (kept !== undefined && Array.isArray(kept.annotations)) {
     const items: AgentAnnotation[] = kept.annotations.map((one) => ({
@@ -675,7 +678,8 @@ async function readKept(): Promise<void> {
   // What came of putting the two together — a kept card given a new id — is written at once.
   scheduleSave();
   // What was opened before the last visit's handles were read is written with them.
-  if (keptHandles().length > 0)
+  if (!inDesktopShell()) void storage.remove(HANDLES_KEY).catch(() => undefined);
+  else if (keptHandles().length > 0)
     void storage.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
 }
 
@@ -744,5 +748,7 @@ onFileReplaced((from, to) => {
   );
 });
 onHandlesChange(() => {
-  if (keeping) void storage?.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+  if (keeping && inDesktopShell()) {
+    void storage?.put(HANDLES_KEY, [...keptHandles()]).catch(() => undefined);
+  }
 });

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AgentAnnotation } from "@/core/agent/agentAnnotation";
+import { type DesktopFiles, installDesktopFilesForTesting } from "@/platform/desktop/desktopFiles";
 import { memoryKeyValueStore } from "@/platform/storage/keyValueStore";
 import {
   addAnnotation,
@@ -129,6 +130,11 @@ describe("the annotations' cards", () => {
   });
 
   it("keeps the handles files were opened with, so a card finds its file after a restart", async () => {
+    // The desktop shell's: a browser keeps none (below).
+    installDesktopFilesForTesting({
+      pathOf: () => undefined,
+      file: () => Promise.reject(new Error("no files")),
+    } as unknown as DesktopFiles);
     const database = memoryKeyValueStore();
     setAnnotationsStorage(database);
     forgetOpenedFilesForTesting();
@@ -145,6 +151,27 @@ describe("the annotations' cards", () => {
     await restoreAnnotations();
     expect(keptHandles().map((one) => one.identity.name)).toEqual(["a.rom"]);
     forgetOpenedFilesForTesting();
+    installDesktopFilesForTesting();
+  });
+
+  it("keeps no handle from one visit to the next in a browser", async () => {
+    installDesktopFilesForTesting(null);
+    const database = memoryKeyValueStore();
+    await database.put("handles", [{ identity: { name: "a.rom", size: 16, modified: 1 } }]);
+    setAnnotationsStorage(database);
+    forgetOpenedFilesForTesting();
+    discardAnnotationsForTesting();
+    await restoreAnnotations();
+    expect(keptHandles()).toHaveLength(0);
+    const handle = { kind: "file", name: "a.rom" } as unknown as FileSystemFileHandle;
+    rememberOpenedFile({ name: "a.rom", size: 16, lastModified: 1, source: new Blob([]), handle });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      await database.get<unknown[]>("handles"),
+      "what an earlier page kept goes"
+    ).toBeUndefined();
+    forgetOpenedFilesForTesting();
+    installDesktopFilesForTesting();
   });
 
   it("keeps the notes, their order and the ids for the next visit", async () => {

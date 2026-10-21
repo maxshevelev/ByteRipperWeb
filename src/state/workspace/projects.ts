@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { isProjectFolderName, ProjectFolder } from "@/platform/files/projectFolder";
 import { PANE_IDS } from "@/state/paneId";
 import { createStore } from "@/state/store";
@@ -39,12 +40,13 @@ import { notesPanelIsUp, paneState, reportAlert, workspaceStore } from "@/state/
  */
 
 /**
- * Whether this browser can keep a project: a folder it can write.
+ * Whether projects are offered: in the desktop shell, which opens a project's files again by
+ * their paths, and not in a browser (`inDesktopShell`).
  *
- * @web-only Firefox and Safari have no directory handle to write through
+ * @web-only the owner's decision: a browser cannot open a project's files again by itself
  */
 export const canKeepProjects = (): boolean =>
-  typeof window !== "undefined" && "showDirectoryPicker" in window;
+  inDesktopShell() && typeof window !== "undefined" && "showDirectoryPicker" in window;
 
 /** The question the session without a project is asked before a project replaces it. */
 export const projectQuestionStore = createStore<{

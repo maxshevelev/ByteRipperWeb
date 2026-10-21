@@ -9,6 +9,7 @@ import {
 import { L } from "@/core/localization/localization";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { agentService } from "@/state/agent/agentService";
 import {
@@ -210,8 +211,13 @@ function ViewTab() {
 function GeneralTab() {
   return (
     <div className="settings-view">
-      <WorkspaceSection />
-      <hr className="settings-rule" />
+      {/* The workspace comes back in the desktop shell only (`inDesktopShell`). */}
+      {inDesktopShell() ? (
+        <>
+          <WorkspaceSection />
+          <hr className="settings-rule" />
+        </>
+      ) : null}
       <ComparisonTab />
       <hr className="settings-rule" />
       <EditingTab />

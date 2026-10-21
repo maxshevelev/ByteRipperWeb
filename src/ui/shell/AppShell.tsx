@@ -7,6 +7,7 @@ import { ChunkCache } from "@/core/storage/chunkCache";
 import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -20,6 +21,7 @@ import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffSt
 import { editStore } from "@/state/editStore";
 import { manageFavoritesRequests, restoreFavorites } from "@/state/favoritesStore";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
+import { forgetReopeningInBrowser } from "@/state/forgetReopening";
 import { startHelpAddress } from "@/state/helpAddress";
 import { showHelp } from "@/state/helpStore";
 import {
@@ -484,7 +486,7 @@ export function AppShell() {
         // A handle is what makes this file re-openable from File ▸ Open Recent
         // without a picker, so it is recorded where a file actually opened — the
         // one place every open path, Open… and a drop, runs through.
-        if (file.handle !== undefined) recordRecentFile(file.handle, file.name);
+        if (file.handle !== undefined && inDesktopShell()) recordRecentFile(file.handle, file.name);
       }
       if (plan.ignoredCount > 0) {
         const ignored = ignoredFilesAlert(plan.ignoredCount, "open");
@@ -852,15 +854,20 @@ export function AppShell() {
     void restoreFavorites();
     // The annotations, with the order of their cards, from the last visit.
     void restoreAnnotations();
-    // The files opened most recently, back for File ▸ Open Recent.
-    void restoreRecentFiles();
-    // The projects opened lately, for File ▸ Open Recent Project.
-    void loadRecentProjects();
+    // What reopens files on its own is the desktop shell's (`inDesktopShell`): a browser keeps
+    // none of it, and forgets what an earlier build of the page kept.
+    if (inDesktopShell()) {
+      // The files opened most recently, back for File ▸ Open Recent.
+      void restoreRecentFiles();
+      // The projects opened lately, for File ▸ Open Recent Project.
+      void loadRecentProjects();
+    } else void forgetReopeningInBrowser();
   }, []);
 
   // The workspace: written down as the session goes, and brought back when the page is opened
-  // again, with the setting on (`Design/WORKSPACE.md`).
+  // again, with the setting on (`Design/WORKSPACE.md`). The desktop shell's alone.
   useEffect(() => {
+    if (!inDesktopShell()) return;
     const stop = startWorkspaceRecorder();
     void restoreWorkspace();
     return stop;

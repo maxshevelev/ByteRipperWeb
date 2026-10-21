@@ -7,6 +7,7 @@ import { loadCatalogue } from "@/core/localization/bundledCatalogues";
 import { installCatalogue, L } from "@/core/localization/localization";
 import { DEFAULT_PLACEHOLDER } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS, DEFAULT_DECODER_IDENTIFIER } from "@/core/text/byteDecoderRegistry";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { hexFontStack } from "@/render/hexGrid/fontMetrics";
 import { WORD_SIZES, type WordSize } from "@/render/hexGrid/hexLayout";
@@ -651,7 +652,9 @@ export const RESTORES_WORKSPACE_KEY = "RestoresWorkspaceOnLaunch";
 
 /** Whether the switch was left on; off for a visit that remembers nothing. */
 export async function loadRestoresWorkspace(): Promise<boolean> {
+  // The workspace comes back in the desktop shell only (`inDesktopShell`).
   const on =
+    inDesktopShell() &&
     (await values()
       .get<boolean>(RESTORES_WORKSPACE_KEY)
       .catch(() => undefined)) === true;

@@ -1,15 +1,17 @@
 # The Workspace
 
-> With the switch on, the page opens what was open when it was left.
+> With the switch on, ByteRipper opens at launch what was open when it was closed.
 
 @covers settings.general.restore-workspace
 @covers workspace.restore-warning
 
+[[edition:**This page is about the Windows application.** A page in a browser cannot open a file again by itself, so the browser edition keeps no workspace: a reload starts from the empty window ([[topic:opening-files|Opening Files]]), and nothing below exists there.||]]
+
 The switch is **Reopen the workspace at launch** in [[topic:settings|Settings ▸ General]]. It is off after installation: on a repair bench each job is a different board, and dumps from an earlier job opening by themselves would be in the way.
 
-## Which workspace a page is
+## Which workspace is reopened
 
-A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading the page brings back that tab's own workspace. A new tab takes up the workspace that was left most recently and that no open tab holds: a tab closed by mistake is opened again from a new one. A second tab opened while the first is still open starts empty.||Opening the program again brings back the workspace of the window that was closed last.]]
+A workspace belongs to a window. Opening the program again brings back the workspace of the window that was closed last.
 
 ## What is restored
 
@@ -20,8 +22,8 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 - The [[topic:notes|**Annotations** panel]], raised when it was up, with the cards that were selected.
 - The [[topic:minimap|minimap]], the Find bar with its pattern, and the tool panel with the node or row selected in it and the open branches of its tree.
 - The [[topic:fragments|fragment panels]], with the panel that was in front. A part is not stored as bytes: it is extracted from its file again, so it shows what the file holds now and can still be written back into it.
-- **Documents never saved** — New File, a join, a duplicate, including one that has been given a name — with their bytes, still unsaved, and parts with changes not yet put back into their file, with those changes. They are kept beside the workspace while the page is open, so that a crash of the tab does not lose them either, and leaving the page does not ask about them.
-- **Unsaved changes to files**, which come back red as they were, still unsaved. Only the changed bytes are kept, not a copy of the file. The changes are laid over the file again only when it is the file they were made on (see below). Leaving the page asks only about a change made in the last moments, before the workspace could write it down.
+- **Documents never saved** — New File, a join, a duplicate, including one that has been given a name — with their bytes, still unsaved, and parts with changes not yet put back into their file, with those changes. They are kept beside the workspace while the program runs, so that an abnormal termination does not lose them either, and quitting does not ask about them.
+- **Unsaved changes to files on disk**, which come back red as they were, still unsaved. Only the changed bytes are kept beside the workspace, not a copy of the file; like documents never saved, they survive an abnormal termination, and quitting does not ask about them. The changes are laid over the file again only when it is the file they were made on (see below).
 
 ## What is not restored
 
@@ -31,13 +33,13 @@ A workspace belongs to a [[edition:browser tab||window]]. [[edition:Reloading th
 
 ## When the workspace is written
 
-Continuously: every few seconds while the [[edition:page||program]] is in front, and when it is left. Switching the setting off deletes every stored workspace.
+Continuously: every few seconds while the program is in front, and when it is left. Switching the setting off deletes every stored workspace.
 
-The workspace is stored [[edition:in this browser, on this machine||in this installation, on this machine]], and does not leave it.
+The workspace is stored in this installation, on this machine, and does not leave it.
 
 ## Reaching the files again
 
-[[edition:A page cannot open a file by itself. In a Chromium browser — Chrome, Edge, Opera — the workspace keeps the browser's reference to each file, and the files open by themselves where the browser still allows it; where it asks first, the empty window shows **Reopen the workspace** with the files' names, and one click opens them all. The browser is asked only to read the files: a restore changes nothing in them, and a save asks for writing when it writes. Firefox and Safari keep no such reference: a file opened there does not come back, and the message after the restore names it.||Each file is opened again by its full path.]]
+Each file is opened again by its full path.
 
 ## Files that changed or are missing
 
