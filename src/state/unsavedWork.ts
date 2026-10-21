@@ -50,6 +50,7 @@ export function unsavedPanes(): UnsavedPane[] {
  */
 export function watchForUnsavedWork(): () => void {
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (leaving) return;
     // With the workspace kept, what it holds as it is now comes back unsaved, so leaving does not
     // ask about it (`Design/WORKSPACE.md`); only what it could not write down yet is asked about.
     const { panes, parts } = workspaceStore.getSnapshot();
@@ -68,4 +69,17 @@ export function watchForUnsavedWork(): () => void {
 
   window.addEventListener("beforeunload", onBeforeUnload);
   return () => window.removeEventListener("beforeunload", onBeforeUnload);
+}
+
+/** Set once the page has asked about everything itself and is going. */
+let leaving = false;
+
+/**
+ * The page is going — to another project — having asked about what would be lost itself: the
+ * browser's question would be a second one.
+ *
+ * @web-only a switch between projects is a reload
+ */
+export function leaveWithoutAsking(): void {
+  leaving = true;
 }

@@ -77,6 +77,8 @@ import { keyboardIsInTreePanel, openTreeSearch } from "@/state/uefiSearchSetting
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
+import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
+import { projectQuestionStore } from "@/state/workspace/projects";
 import { startWorkspaceRecorder } from "@/state/workspace/workspaceRecorder";
 import { restoreWorkspace } from "@/state/workspace/workspaceRestorer";
 import {
@@ -725,9 +727,14 @@ export function AppShell() {
   const bookmarkCount = useStore(bookmarksStore).bookmarks.length;
   const nameA = state.panes.a?.name;
   const nameB = state.panes.b?.name;
+  // The open project's name follows the files', as every window of a project carries it.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.projectName
+  const projectName = useStore(projectsStore).current?.name;
   useEffect(() => {
-    document.title = windowTitle({ a: nameA, b: nameB }, bookmarkCount);
-  }, [nameA, nameB, bookmarkCount]);
+    const title = windowTitle({ a: nameA, b: nameB }, bookmarkCount);
+    document.title = projectName === undefined ? title : `${title} — ${projectName}`;
+  }, [nameA, nameB, bookmarkCount, projectName]);
+  const projectQuestion = useStore(projectQuestionStore).ask;
   /** Go To, and which half of it the keyboard starts in. */
   const [goTo, setGoTo] = useState<"offset" | "bookmarks" | undefined>(undefined);
   /** The pane and address a Select Block was asked for from, or nothing. */
@@ -838,6 +845,8 @@ export function AppShell() {
     void restoreRecentFiles();
     // The annotations, kept from one launch to the next.
     void keepAnnotations();
+    // The projects opened lately, for File ▸ Open Recent Project.
+    void loadRecentProjects();
   }, []);
 
   // The workspace: written down as the session goes, and brought back when the page is opened
@@ -2663,6 +2672,19 @@ export function AppShell() {
         panes={paneAsk?.panes ?? []}
         onChoose={(slot) => paneAsk?.answer(slot)}
         onCancel={() => paneAsk?.answer(undefined)}
+      />
+      {/* @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.askToSaveSessionAsProject */}
+      <ConfirmDialog
+        open={projectQuestion !== undefined}
+        title={L("Save the current session as a project?")}
+        message={L(
+          "Opening a project closes what is open now. Saved as a project, it can be opened again as it is."
+        )}
+        confirmLabel={L("Save…")}
+        otherLabel={L("Don't Save")}
+        onOther={() => projectQuestion?.("discard")}
+        onConfirm={() => projectQuestion?.("save")}
+        onCancel={() => projectQuestion?.("cancel")}
       />
       <ConfirmDialog
         open={closeAsk !== undefined}

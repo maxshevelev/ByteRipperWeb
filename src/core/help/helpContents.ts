@@ -27,7 +27,13 @@ export interface HelpSectionShape {
 export const HELP_SECTIONS: readonly HelpSectionShape[] = [
   {
     id: "getting-started",
-    topics: [TOPIC.overview, TOPIC.firstComparison, TOPIC.openingFiles, TOPIC.largeFiles],
+    topics: [
+      TOPIC.overview,
+      TOPIC.firstComparison,
+      TOPIC.openingFiles,
+      TOPIC.projects,
+      TOPIC.largeFiles,
+    ],
   },
   {
     id: "reading",

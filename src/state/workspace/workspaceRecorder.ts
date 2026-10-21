@@ -14,6 +14,7 @@ import {
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
 import type { OpenedFile } from "@/platform/files/openedFile";
+import type { ProjectFolder } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { mapOn, minimapStore } from "@/state/minimapStore";
 import { chosenCards } from "@/state/notesPanelStore";
@@ -33,12 +34,18 @@ import { segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
 import { partCodecState } from "@/state/workspace/partCodecState";
+import {
+  currentProject,
+  recordProjectHandles,
+  switchToProject,
+} from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   readWorkspaceRecord,
   removeAllKeptBytes,
   removeAllWorkspaceRecords,
   removeKeptBytesExcept,
+  removeWorkspaceRecord,
   writeKeptBytes,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
@@ -360,11 +367,16 @@ function paneSnapshot(
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.record
  */
-export async function recordWorkspace(leaving = false): Promise<void> {
-  if (paused || !settingsStore.getSnapshot().restoresWorkspace) return;
+export async function recordWorkspace(leaving = false): Promise<boolean> {
+  if (paused) return false;
+  const restores = settingsStore.getSnapshot().restoresWorkspace;
+  const project = currentProject();
+  // A project waiting for a click to reach its files is not written over with the empty tab.
+  if (project !== undefined) return keepsWaiting ? false : recordProject(project, restores);
+  if (!restores) return false;
   const { workspace, handles, keeps } = await snapshotWorkspace();
   if (keepsWaiting) {
-    if (workspaceIsEmpty(workspace)) return;
+    if (workspaceIsEmpty(workspace)) return false;
     // A file opened by hand: the workspace that was waiting is given up for this one.
     keepsWaiting = false;
   }
@@ -378,11 +390,82 @@ export async function recordWorkspace(leaving = false): Promise<void> {
     keptVersions.set(one.key, one.version);
   }
   const text = JSON.stringify(workspace);
-  if (text === lastWritten && !leaving && due.length === 0) return;
+  if (text === lastWritten && !leaving && due.length === 0) return true;
   lastWritten = text;
   await writeWorkspaceRecord(id, { workspace, leftAt: Date.now(), handles });
   // A document closed takes its copy with it.
   await removeKeptBytesExcept(id, new Set(keeps.map((one) => one.key)));
+  return true;
+}
+
+/**
+ * Writes the tab into the open project — always, whatever the switch says: it is a folder the
+ * person made to keep. With the switch on, the tab's own record says which project it had open,
+ * for a reload to open it again. Answers whether the project's file was written.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.record
+ * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.isProject
+ */
+async function recordProject(
+  project: { readonly id: string; readonly folder: ProjectFolder },
+  restores: boolean
+): Promise<boolean> {
+  const { workspace, handles, keeps } = await snapshotWorkspace();
+  try {
+    const due = keeps.filter((one) => projectVersions.get(one.key) !== one.version);
+    for (const one of due) {
+      const value = await one.value();
+      if (value === undefined) continue;
+      await project.folder.writeKept(one.key, value);
+      projectVersions.set(one.key, one.version);
+    }
+    const wrote = await project.folder.write(workspace);
+    if (wrote) await recordProjectHandles(project.id, handles);
+    await project.folder.removeKeptExcept(new Set(keeps.map((one) => one.key)));
+  } catch {
+    return false;
+  }
+  if (restores) {
+    await writeWorkspaceRecord(workspaceId(), {
+      workspace,
+      leftAt: Date.now(),
+      handles,
+      project: project.id,
+    });
+  }
+  return true;
+}
+
+/**
+ * By key, the content version last written into the open project: a keeper of its own, started
+ * afresh with each project.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
+ */
+const projectVersions = new Map<string, number>();
+
+/**
+ * Records into the project from now on, or — nothing — into the tab's session. What the keeper
+ * knew was written is in the folder it leaves.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.switchTo
+ */
+export function recordInto(project: { id: string; folder: ProjectFolder } | undefined): void {
+  projectVersions.clear();
+  switchToProject(project);
+}
+
+/**
+ * Forgets the session the tab kept by itself: it was saved as a project, or discarded for one.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.discardSession
+ */
+export async function discardSession(): Promise<void> {
+  const id = workspaceId();
+  lastWritten = undefined;
+  keptVersions.clear();
+  await removeWorkspaceRecord(id);
+  await removeKeptBytesExcept(id, new Set());
 }
 
 /** Bytes to keep beside the workspace: under which key, for which content, made how. */
@@ -477,7 +560,11 @@ export const readOwnWorkspace = () => readWorkspaceRecord(workspaceId());
  * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.holdsCurrentBytes
  */
 export function workspaceHolds(document: BinaryDocument): boolean {
-  if (paused || keepsWaiting || !settingsStore.getSnapshot().restoresWorkspace) return false;
+  if (paused || keepsWaiting) return false;
   const key = keptKeys.get(document);
-  return key !== undefined && keptVersions.get(key) === versions.get(document)?.count;
+  if (key === undefined) return false;
+  const version = versions.get(document)?.count;
+  // A project holds what it has written whatever the switch says.
+  if (currentProject() !== undefined) return projectVersions.get(key) === version;
+  return settingsStore.getSnapshot().restoresWorkspace && keptVersions.get(key) === version;
 }

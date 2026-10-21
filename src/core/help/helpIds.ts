@@ -71,6 +71,8 @@ export const TOPIC = {
   firstComparison: topicId("first-comparison"),
   openingFiles: topicId("opening-files"),
   largeFiles: topicId("large-files"),
+  /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.projects */
+  projects: topicId("projects"),
 
   // Reading a dump
   hexView: topicId("hex-view"),

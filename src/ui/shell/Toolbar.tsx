@@ -38,6 +38,14 @@ import {
 import { nextRedo, nextUndo, redoLast, undoLast } from "@/state/undoRouter";
 import { checkForUpdate } from "@/state/updateStore";
 import { useStore } from "@/state/useStore";
+import { clearRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
+import {
+  canKeepProjects,
+  closeProject,
+  openProjectFromPicker,
+  openRecentProject,
+  saveAsProject,
+} from "@/state/workspace/projects";
 import {
   agentPanelIsUp,
   frontPane,
@@ -173,6 +181,7 @@ export function Toolbar({
   const diff = useStore(diffStore);
   // File ▸ Open Recent, the shell only: the menu re-sends when the list moves.
   const recent = useStore(recentFilesStore);
+  const projects = useStore(projectsStore);
   // Subscribed for the nudge; the document itself is the truth.
   useStore(editStore);
   // The history changes on every jump, and what draws Back and Forward follows it.
@@ -285,6 +294,38 @@ export function Toolbar({
       disabled: !panesReachable || state.panes[state.activePane] === undefined,
       onSelect: () => onOpen(undefined, "otherPane"),
     },
+    // The projects (`Design/WORKSPACE.md`, "Projects"), where a page can keep a folder.
+    // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.makeFileMenu
+    // @upstream-differs Open Project… is a command of its own, and the recent projects a group of
+    // rows under their heading, a menu here having no submenus
+    ...(canKeepProjects()
+      ? ([
+          { kind: "separator" },
+          // help: menu.file.open-project
+          { label: L("Open Project…"), onSelect: () => void openProjectFromPicker() },
+          ...(projects.recent.length === 0
+            ? []
+            : ([
+                // help: menu.file.open-recent-project
+                { kind: "heading", label: L("Open Recent Project") },
+                ...projects.recent.map((one) => ({
+                  label: one.name,
+                  checked: one.id === projects.current?.id,
+                  onSelect: () => void openRecentProject(one.id),
+                })),
+                { label: L("Clear Menu"), onSelect: () => void clearRecentProjects() },
+                { kind: "separator" },
+              ] satisfies MenuEntry[])),
+          // help: menu.file.save-as-project
+          { label: L("Save as Project…"), onSelect: () => void saveAsProject() },
+          // help: menu.file.close-project
+          {
+            label: L("Close Project"),
+            disabled: projects.current === undefined,
+            onSelect: () => void closeProject(),
+          },
+        ] satisfies MenuEntry[])
+      : []),
     { kind: "separator" },
     {
       // help: menu.file.save

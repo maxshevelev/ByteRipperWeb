@@ -194,6 +194,7 @@
 "Setup help" = "Setup-Hilfe";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Dieses Fenster erlaubt der Dateiauswahl nicht, Dateien zu lesen. Wählen Sie „Öffnen…“ noch einmal: Ab jetzt wird eine einfachere Auswahl verwendet.";
 "Picture size" = "Bildgröße";
+"Project" = "Projekt";
 "%1$@, instance %2$@" = "%1$@, Instanz %2$@";
 "AMD firmware directory" = "AMD-Firmware-Verzeichnis";
 "AMD firmware entry" = "AMD-Firmware-Eintrag";
@@ -398,6 +399,7 @@
 "Clear Menu" = "Menü löschen";
 "Clear Recents" = "Zuletzt gesucht löschen";
 "Click to change the background" = "Klicken, um den Hintergrund zu wechseln";
+"Close Project" = "Projekt schließen";
 "Close" = "Schließen";
 "Close %1$@" = "%1$@ schließen";
 "Close and Break Link" = "Schließen und Verbindung trennen";
@@ -463,6 +465,7 @@
 "Deleted here" = "Hier gelöscht";
 "differing %1$@" = "Unterschiede %1$@";
 "Do not ask again" = "Nicht mehr fragen";
+"Don't Save" = "Nicht sichern";
 "Done" = "Fertig";
 "Download" = "Herunterladen";
 "Download As…" = "Herunterladen als…";
@@ -544,8 +547,13 @@
 "Save Body of “%1$@” as…" = "Rumpf von „%1$@“ sichern unter…";
 "Save Node Body as…" = "Knotenrumpf sichern unter…";
 "Save Node as…" = "Knoten sichern unter…";
+"Save as Project…" = "Als Projekt sichern…";
+"Save the current session as a project?" = "Die aktuelle Sitzung als Projekt sichern?";
 "Save “%1$@” as…" = "„%1$@“ sichern unter…";
 "Saved %1$@ bytes." = "%1$@ Bytes gesichert.";
+"Save…" = "Sichern…";
+"The project could not be read." = "Das Projekt konnte nicht gelesen werden.";
+"The project could not be written." = "Das Projekt konnte nicht geschrieben werden.";
 "There is nothing to save here." = "Hier gibt es nichts zu sichern.";
 "Getting Started" = "Erste Schritte";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub drosselt diese Adresse. Gezeigt werden die Namen aus dem Build; sie erneuern sich beim nächsten Öffnen.";
@@ -1117,6 +1125,8 @@
 "Device or properties" = "Gerät oder Eigenschaften";
 "Every device" = "Jedes Gerät";
 "Open Decompressed Variable" = "Entpackte Variable öffnen";
+"Open Recent Project" = "Benutzte Projekte";
+"Opening a project closes what is open now. Saved as a project, it can be opened again as it is." = "Das Öffnen eines Projekts schließt alles, was jetzt geöffnet ist. Als Projekt gesichert, lässt es sich später unverändert wieder öffnen.";
 "The variable does not decompress." = "Die Variable lässt sich nicht entpacken.";
 "The workspace was not restored in full" = "Der Arbeitsbereich wurde nicht vollständig wiederhergestellt";
 "There is nothing decompressed to open here." = "Hier ist nichts Entpacktes zum Öffnen.";
@@ -1367,6 +1377,7 @@
 "Not opened — this browser keeps no way back to them:" = "Nicht geöffnet — dieser Browser bewahrt keinen Zugang zu ihnen:";
 "Nothing was imported." = "Es wurde nichts importiert.";
 "One library file in “%1$@” could not be read." = "Eine Bibliotheksdatei in „%1$@“ ließ sich nicht lesen.";
+"Open Project…" = "Projekt öffnen…";
 "Pattern library: in this browser only" = "Musterbibliothek: nur in diesem Browser";
 "Patterns you keep, with the encoding they are read in. They appear under Search Patterns in the Find bar's search menu, where picking one fills the bar and searches. Drag rows to reorder them — the menu lists them in this order." = "Die Muster, die Sie behalten, mit der Codierung, in der sie gelesen werden. Sie erscheinen unter „Suchmuster“ im Suchmenü der Suchleiste; ein Muster dort füllt die Leiste und sucht. Ziehen Sie Zeilen, um die Reihenfolge zu ändern — das Menü listet sie in dieser Reihenfolge.";
 "Remove this browser's file from the old folder?" = "Die Datei dieses Browsers aus dem alten Ordner entfernen?";
@@ -1383,6 +1394,7 @@
 "The library is read-only until its conflicting changes are answered — Resolve… first." = "Die Bibliothek ist schreibgeschützt, bis ihre abweichenden Änderungen beantwortet sind — zuerst „Konflikte lösen…“.";
 "The pattern library already in “%1$@” cannot be read yet — if it is still downloading, wait for it and try again." = "Die Musterbibliothek, die bereits in „%1$@“ liegt, lässt sich noch nicht lesen — wird sie noch geladen, warten Sie ab und versuchen Sie es erneut.";
 "The pattern library could not be exported: %1$@" = "Die Musterbibliothek ließ sich nicht exportieren: %1$@";
+"The project is open in another tab." = "Das Projekt ist in einem anderen Tab geöffnet.";
 "This Was Me" = "Das war ich";
 "This browser can read a folder but not keep one. Get Patterns from a Folder… takes the patterns your other machines keep in their library folder; Export… saves this browser's list as a file you can put in that folder by hand." = "Dieser Browser kann einen Ordner lesen, aber keinen halten. „Muster aus einem Ordner holen…“ übernimmt die Muster, die Ihre anderen Rechner in ihrem Bibliotheksordner halten; „Exportieren…“ sichert die Liste dieses Browsers als Datei, die Sie von Hand in jenen Ordner legen können.";
 "This browser carries on writing “%1$@”." = "Dieser Browser schreibt „%1$@“ weiter.";

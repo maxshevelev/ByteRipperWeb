@@ -71,6 +71,38 @@ its position only — upstream's `PaneRestore`.
 
 ## Projects
 
-`.brp` folders (W7): Chromium through `showDirectoryPicker`, the folder's
-handle kept in IndexedDB; the shell through a real folder. Not offered in
-Firefox and Safari, as save in place is not.
+`.brp` folders (W7), where a page can write a folder: a Chromium browser and
+the desktop shell, both through `showDirectoryPicker`. Not offered in Firefox
+and Safari, as save in place is not.
+
+- **The folder** (`platform/files/projectFolder.ts`) holds `Project.json` —
+  the `Workspace` value, indented — and, only while there are any,
+  `Untitled/<id>.bin` and `Edits/<id>.bin` (a length-prefixed JSON header of
+  runs, then the added bytes; upstream writes a binary plist).
+  **Save as Project…** uses the folder picked when it is empty, named `.brp`
+  or a project already (replaced); any other folder gets a `Project.brp`
+  inside it. **Open Project…** takes a project folder, or a folder holding
+  exactly one — a browser's Open… cannot pick a folder.
+- **What a folder cannot hold** — its own handle and its files' handles — is
+  kept in IndexedDB (`byteripper-projects`, `projectRecords.ts`), one entry
+  per project, found again for a picked folder by `isSameEntry`. A file is
+  reached by its handle and, in the shell, by its path; a project copied to
+  another machine opens without the files a browser cannot name.
+  `FileStamp.relativePath` is not written: neither side can say where the
+  project folder is on disk.
+- **Live.** While a project is open the recorder writes into it, whatever
+  the switch says, with a keeper of its own; with the switch on, the tab's
+  record also names the project (`WorkspaceRecord.project`), which is what a
+  reload — and a fresh tab taking the record up — opens again.
+- **A switch is a reload.** Opening another project, or Close Project,
+  writes what is open, hands the next load the project's id in
+  `sessionStorage` (empty for none), and reloads: nothing of the project
+  left behind stays on the page. The session without a project is asked
+  Save… / Don't Save / Cancel first, as upstream; Don't Save asks per
+  document with unsaved changes, then the browser's own question is not
+  asked again.
+- **One tab per project**, by a Web Lock on its id: a second tab opening it
+  is refused with **The project is open in another tab.**
+- **File menu:** Open Project…, the recent projects as a group of rows under
+  **Open Recent Project** with **Clear Menu**, Save as Project…, Close
+  Project. The tab's title carries the project's name.

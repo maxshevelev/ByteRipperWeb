@@ -19,6 +19,7 @@ import {
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
+import { ProjectFolder } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { annotationsRead } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
@@ -41,13 +42,20 @@ import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
+import {
+  holdProject,
+  readProjectEntry,
+  recordOpenedProject,
+  takeProjectHandoff,
+} from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   keepWaitingWorkspace,
   pauseWorkspaceRecorder,
   readOwnWorkspace,
+  recordInto,
 } from "@/state/workspace/workspaceRecorder";
-import type { WorkspaceRecord } from "@/state/workspace/workspaceRecords";
+import type { KeptReader, WorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import { readKeptBytes } from "@/state/workspace/workspaceRecords";
 import {
   applyKeptEdits,
@@ -157,8 +165,14 @@ async function reach(
   return { kind: "issue", issue: { kind: "unreachable", name: stamp.name } };
 }
 
-/** The record this restore works from, kept while it waits for a click. */
-let waitingRecord: WorkspaceRecord | undefined;
+/** What this restore works from, kept while it waits for a click: a record, or a project. */
+let waiting:
+  | { readonly record: WorkspaceRecord; readonly kept: KeptReader }
+  | { readonly project: string }
+  | undefined;
+
+/** The bytes the tab's own session keeps beside itself. */
+const sessionKept: KeptReader = (key) => readKeptBytes(workspaceId(), key);
 
 /**
  * Restores the workspace this tab is, when the setting is on and there is one: called once, as the
@@ -175,14 +189,26 @@ export function restoreWorkspace(): Promise<void> {
 let restoring: Promise<void> | undefined;
 
 async function restoreOnce(): Promise<void> {
+  // A switch between projects is a reload, which says what it switched to.
+  const handoff = takeProjectHandoff();
+  if (handoff !== undefined) {
+    if (handoff !== "") await openProjectAtLoad(handoff, false);
+    return;
+  }
   if (!settingsStore.getSnapshot().restoresWorkspace) return;
   const record = await readOwnWorkspace();
   if (record === undefined || record.workspace.version !== WORKSPACE_VERSION) return;
+  // The project the tab had open, opened again.
+  // @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.lastProject
+  if (record.project !== undefined) {
+    await openProjectAtLoad(record.project, false);
+    return;
+  }
   if (workspaceIsEmpty(record.workspace)) return;
   // A file opened before the restore got here — dropped on the page while it loaded — is the
   // reader's answer: nothing is put back over it.
   if (PANE_IDS.some((slot) => paneState(slot) !== undefined)) return;
-  await restoreFrom(record, false);
+  await restoreFrom(record, false, sessionKept);
 }
 
 /**
@@ -190,12 +216,76 @@ async function restoreOnce(): Promise<void> {
  * and puts the workspace back.
  */
 export async function reopenWaitingWorkspace(): Promise<void> {
-  const record = waitingRecord;
-  if (record === undefined) return;
-  await restoreFrom(record, true);
+  const held = waiting;
+  if (held === undefined) return;
+  if ("project" in held) await openProjectAtLoad(held.project, true);
+  else await restoreFrom(held.record, true, held.kept);
 }
 
-async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<void> {
+/**
+ * Opens the project this browser knows by `id` into the empty tab: its folder reached — asking
+ * for it only when `asking`, which is inside a click — its workspace read, and the recorder
+ * writing into it from then on.
+ *
+ * @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.openProject
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.rebuild
+ */
+export async function openProjectAtLoad(id: string, asking: boolean): Promise<void> {
+  const entry = await readProjectEntry(id);
+  if (entry === undefined) return;
+  const access = await folderAccess(entry.folder, asking);
+  if (access === "asks") {
+    waiting = { project: id };
+    keepWaitingWorkspace(true);
+    workspaceRestoreStore.update(() => ({ waiting: [entry.name] }));
+    return;
+  }
+  waiting = undefined;
+  keepWaitingWorkspace(false);
+  workspaceRestoreStore.update(() => ({ waiting: undefined }));
+  const folder = new ProjectFolder(entry.folder);
+  const workspace = access === "granted" ? await folder.read() : undefined;
+  if (workspace === undefined) {
+    reportAlert(L("The project could not be read."), entry.name);
+    return;
+  }
+  if (!(await holdProject(id))) {
+    // help: projects.open-elsewhere
+    reportAlert(L("The project is open in another tab."), entry.name);
+    return;
+  }
+  recordInto({ id, folder });
+  await recordOpenedProject(id, entry.folder);
+  await restoreFrom({ workspace, leftAt: 0, handles: entry.handles, project: id }, asking, (key) =>
+    folder.readKept(key)
+  );
+}
+
+/** Whether the page may write the folder, or a click must ask first. */
+async function folderAccess(
+  folder: FileSystemDirectoryHandle,
+  asking: boolean
+): Promise<"granted" | "asks" | "denied"> {
+  const permissions = folder as HandlePermissions;
+  if (permissions.queryPermission === undefined) return "granted";
+  let state = await permissions.queryPermission({ mode: "readwrite" }).catch(() => "prompt");
+  if (state !== "granted" && asking && permissions.requestPermission !== undefined) {
+    state = await permissions.requestPermission({ mode: "readwrite" }).catch(() => "denied");
+  }
+  if (state === "granted") return "granted";
+  return state === "prompt" && !asking ? "asks" : "denied";
+}
+
+/**
+ * Puts `record` back into the empty tab, reading the bytes it keeps through `kept`.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.finishWorkspaceTab
+ */
+export async function restoreFrom(
+  record: WorkspaceRecord,
+  asking: boolean,
+  kept: KeptReader
+): Promise<void> {
   pauseWorkspaceRecorder(true);
   try {
     const { tab } = record.workspace;
@@ -220,7 +310,7 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
     // Something is behind a click: the whole workspace waits for it, rather than coming back in
     // halves.
     if ([...reached, ...links.values()].some((one) => one?.kind === "asks")) {
-      waitingRecord = record;
+      waiting = { record, kept };
       keepWaitingWorkspace(true);
       workspaceRestoreStore.update(() => ({
         waiting: tab.panes.flatMap((pane) =>
@@ -229,13 +319,12 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
       }));
       return;
     }
-    waitingRecord = undefined;
+    waiting = undefined;
     keepWaitingWorkspace(false);
     workspaceRestoreStore.update(() => ({ waiting: undefined }));
 
     const issues: RestoreIssue[] = [];
     const opened: { slot: SlotId; saved: PaneState; unchanged: boolean }[] = [];
-    const id = workspaceId();
     for (const [index, saved] of tab.panes.entries()) {
       const slot = PANE_IDS[index];
       if (saved === undefined || slot === undefined) continue;
@@ -243,7 +332,7 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
       // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
       if (saved.document.kind === "untitled") {
         const stamp = saved.document.untitled;
-        const bytes = await readKeptBytes<Blob>(id, stamp.id);
+        const bytes = await kept<Blob>(stamp.id);
         if (bytes === undefined) {
           issues.push({ kind: "missing", name: stamp.name ?? L("Untitled") });
           continue;
@@ -267,7 +356,7 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
       if (!unchanged) issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
       // Its unsaved changes, laid over it only when it is the file they were made on.
       if (unchanged && saved.edits !== undefined) {
-        const edits = await readKeptBytes<OverlayEdits>(id, saved.edits);
+        const edits = await kept<OverlayEdits>(saved.edits);
         try {
           if (edits !== undefined) applyKeptEdits(slot, edits);
         } catch {
@@ -292,7 +381,7 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
           : opened.find((one) => PANE_IDS.indexOf(one.slot) === tool.pane)) ?? opened[0];
       if (target !== undefined) restoreTool(tool, target.slot, target.unchanged);
     }
-    await restoreFragments(record, opened, issues);
+    await restoreFragments(record, opened, issues, kept);
     await restoreNotes(record.workspace.notes);
     reportRestoreIssues(issues);
   } finally {
@@ -316,11 +405,11 @@ async function restoreFrom(record: WorkspaceRecord, asking: boolean): Promise<vo
 async function restoreFragments(
   record: WorkspaceRecord,
   opened: readonly { slot: SlotId; saved: PaneState; unchanged: boolean }[],
-  issues: RestoreIssue[]
+  issues: RestoreIssue[],
+  kept: KeptReader
 ): Promise<void> {
   const { tab } = record.workspace;
   if (tab.fragments.length === 0) return;
-  const id = workspaceId();
   // By the id each pane had when written down, the pane it is now, and whether it is still the
   // document it was.
   const panes = new Map<string, { pane: PaneId; unchanged: boolean }>();
@@ -349,14 +438,13 @@ async function restoreFragments(
         });
         const edits = origin.edits;
         if (part !== undefined && edits !== undefined) {
-          const bytes = await readKeptBytes<Blob>(id, edits.id);
+          const bytes = await kept<Blob>(edits.id);
           if (bytes !== undefined) layOver(part, bytes);
         }
       }
       if (part === undefined) {
         // No way home: its own changes come back as bytes of their own, or nothing does.
-        const bytes =
-          origin.edits === undefined ? undefined : await readKeptBytes<Blob>(id, origin.edits.id);
+        const bytes = origin.edits === undefined ? undefined : await kept<Blob>(origin.edits.id);
         if (bytes !== undefined) {
           part = openPart(new Uint8Array(await bytes.arrayBuffer()), origin.name);
           unchanged = parent?.unchanged ?? true;
@@ -365,7 +453,7 @@ async function restoreFragments(
         }
       }
     } else if (source.kind === "untitled") {
-      const bytes = await readKeptBytes<Blob>(id, source.untitled.id);
+      const bytes = await kept<Blob>(source.untitled.id);
       if (bytes !== undefined) {
         part = openPart(
           new Uint8Array(await bytes.arrayBuffer()),

@@ -194,6 +194,7 @@
 "Setup help" = "Справка Setup";
 "This window does not let the file picker read files. Choose Open… again: a plainer picker is used from now on." = "Это окно не позволяет окну выбора файла читать файлы. Выберите «Открыть…» ещё раз: дальше используется упрощённое окно выбора.";
 "Picture size" = "Размер изображения";
+"Project" = "Проект";
 "%1$@, instance %2$@" = "%1$@, экземпляр %2$@";
 "AMD firmware directory" = "Каталог прошивки AMD";
 "AMD firmware entry" = "Модуль прошивки AMD";
@@ -398,6 +399,7 @@
 "Clear Menu" = "Очистить меню";
 "Clear Recents" = "Очистить недавние";
 "Click to change the background" = "Щёлкните, чтобы сменить фон";
+"Close Project" = "Закрыть проект";
 "Close" = "Закрыть";
 "Close %1$@" = "Закрыть %1$@";
 "Close and Break Link" = "Закрыть и разорвать связь";
@@ -463,6 +465,7 @@
 "Deleted here" = "Удалено здесь";
 "differing %1$@" = "различий %1$@";
 "Do not ask again" = "Больше не спрашивать";
+"Don't Save" = "Не сохранять";
 "Done" = "Готово";
 "Download" = "Скачать";
 "Download As…" = "Скачать как…";
@@ -544,8 +547,13 @@
 "Save Body of “%1$@” as…" = "Сохранить тело «%1$@» как…";
 "Save Node Body as…" = "Сохранить тело узла как…";
 "Save Node as…" = "Сохранить узел как…";
+"Save as Project…" = "Сохранить как проект…";
+"Save the current session as a project?" = "Сохранить текущую сессию как проект?";
 "Save “%1$@” as…" = "Сохранить «%1$@» как…";
 "Saved %1$@ bytes." = "Сохранено байт: %1$@.";
+"Save…" = "Сохранить…";
+"The project could not be read." = "Не удалось прочитать проект.";
+"The project could not be written." = "Не удалось записать проект.";
 "There is nothing to save here." = "Здесь нечего сохранять.";
 "Getting Started" = "С чего начать";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub ограничивает частоту запросов с этого адреса. Показаны имена из сборки, они обновятся при следующем открытии.";
@@ -1117,6 +1125,8 @@
 "Device or properties" = "Устройство или свойства";
 "Every device" = "Любое устройство";
 "Open Decompressed Variable" = "Открыть распакованную переменную";
+"Open Recent Project" = "Недавние проекты";
+"Opening a project closes what is open now. Saved as a project, it can be opened again as it is." = "Открытие проекта закрывает всё, что открыто сейчас. Сохранённое как проект, его можно будет открыть снова в том же виде.";
 "The variable does not decompress." = "Переменная не распаковывается.";
 "The workspace was not restored in full" = "Рабочая сессия восстановлена не полностью";
 "There is nothing decompressed to open here." = "Здесь нечего открывать — ничего не распаковано.";
@@ -1366,6 +1376,7 @@
 "Not opened — this browser keeps no way back to them:" = "Не открыты — этот браузер не хранит к ним доступа:";
 "Nothing was imported." = "Ничего не импортировано.";
 "One library file in “%1$@” could not be read." = "Один файл библиотеки в «%1$@» не удалось прочитать.";
+"Open Project…" = "Открыть проект…";
 "Pattern library: in this browser only" = "Библиотека шаблонов: только в этом браузере";
 "Patterns you keep, with the encoding they are read in. They appear under Search Patterns in the Find bar's search menu, where picking one fills the bar and searches. Drag rows to reorder them — the menu lists them in this order." = "Сохранённые шаблоны и кодировка, в которой они читаются. Они появляются в разделе «Шаблоны поиска» меню поиска: выбор шаблона заполняет строку и запускает поиск. Перетаскивайте строки, чтобы менять порядок — меню показывает их в этом порядке.";
 "Remove this browser's file from the old folder?" = "Убрать файл этого браузера из прежней папки?";
@@ -1382,6 +1393,7 @@
 "The library is read-only until its conflicting changes are answered — Resolve… first." = "Библиотека только для чтения, пока на расхождения нет ответа, — сначала «Разрешить конфликты…».";
 "The pattern library already in “%1$@” cannot be read yet — if it is still downloading, wait for it and try again." = "Библиотеку шаблонов, уже лежащую в «%1$@», пока не прочитать — если она ещё загружается, дождитесь загрузки и повторите.";
 "The pattern library could not be exported: %1$@" = "Библиотеку шаблонов не удалось экспортировать: %1$@";
+"The project is open in another tab." = "Проект открыт в другой вкладке.";
 "This Was Me" = "Это был я";
 "This browser can read a folder but not keep one. Get Patterns from a Folder… takes the patterns your other machines keep in their library folder; Export… saves this browser's list as a file you can put in that folder by hand." = "Этот браузер может прочитать папку, но не держать в ней библиотеку. «Взять шаблоны из папки…» берёт шаблоны, которые другие машины держат в своей папке библиотеки; «Экспортировать…» сохраняет список этого браузера файлом, который можно положить в ту папку вручную.";
 "This browser carries on writing “%1$@”." = "Этот браузер продолжает писать в «%1$@».";
