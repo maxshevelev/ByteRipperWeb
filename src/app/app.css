@@ -5753,9 +5753,9 @@ button.uefi-title {
 }
 
 .help-search {
-  flex: 0 1 220px;
-  min-width: 90px;
-  height: var(--toolbar-control-height);
+  flex: none;
+  margin: 8px 8px 0;
+  height: 24px;
   padding: 0 8px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -5776,10 +5776,6 @@ button.uefi-title {
   font-size: 15px;
 }
 
-.dock-panel-header .help-search {
-  height: 18px;
-}
-
 .help-body {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
@@ -5788,11 +5784,21 @@ button.uefi-title {
 
 /* The contents. Its own scroller, so a long glossary does not take the page
    with it. */
-.help-contents {
-  overflow: auto;
-  padding: 10px 6px 16px;
+/* The column beside the page: the search on top, standing still, and the contents scrolling
+   under it. */
+.help-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--surface-raised);
+}
+
+.help-contents {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 6px 16px;
   font-size: 12px;
 }
 
@@ -6003,12 +6009,12 @@ button.uefi-title {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .help-contents {
+  .help-sidebar {
     display: none;
   }
 
-  .help-body[data-contents] .help-contents {
-    display: block;
+  .help-body[data-contents] .help-sidebar {
+    display: flex;
     position: absolute;
     z-index: 1;
     inset: 0 auto 0 0;

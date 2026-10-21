@@ -135,15 +135,6 @@ export function HelpPanel() {
         >
           {L("Contents")}
         </button>
-        <input
-          ref={focusSearchOnce}
-          type="search"
-          className="help-search"
-          value={query}
-          placeholder={L("Search the help")}
-          aria-label={L("Search the help")}
-          onChange={(event) => setHelpQuery(event.target.value)}
-        />
         {here !== undefined && canShareHelpLink() ? (
           <button
             type="button"
@@ -170,7 +161,20 @@ export function HelpPanel() {
       </DockPanelHeader>
 
       <div className="help-body" data-contents={state.contentsOpen ? "" : undefined}>
-        {book === undefined ? null : <Contents book={book} here={here} />}
+        {/* The search heads the contents, where it has the column's width: the panel's header has
+            no room for a field that can be read. */}
+        <div className="help-sidebar">
+          <input
+            ref={focusSearchOnce}
+            type="search"
+            className="help-search"
+            value={query}
+            placeholder={L("Search the help")}
+            aria-label={L("Search the help")}
+            onChange={(event) => setHelpQuery(event.target.value)}
+          />
+          {book === undefined ? null : <Contents book={book} here={here} />}
+        </div>
         <div className="help-page" ref={page}>
           {book === undefined ? (
             <p className="help-waiting">
