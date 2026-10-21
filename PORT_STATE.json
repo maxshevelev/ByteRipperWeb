@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "d3759bd65eac2635f89993dfc9b2e4323bf553dc",
-  "baselineNote": "A fragment panel reads as lying over the panes (2026-10-21)"
+  "baseCommit": "07a3928ede22158f6bdaad5b1ef8f8c032e14e96",
+  "baselineNote": "In a LENV block stored in the clear an entry opens as itself (2026-10-21)"
 }
