@@ -1,4 +1,4 @@
-@source-sha a8294bee5c7b3985e4361b7ecfcb6542b20b89cbcc4cb3d064d45e98eea5d30b
+@source-sha 12ac5747307b43eb74ff3b77dda3efea560ae1962d84e48398065f3bbd169db6
 # Mit einem Agenten arbeiten
 
 > An ByteRipper lässt sich ein Agent anbinden: Claude Code, Claude Desktop oder ein anderes Programm, das das Protokoll MCP unterstützt. Der Agent hat Zugriff auf die im Programm geöffneten Dateien, liest deren Bytes und zeigt die betreffenden Stellen darin an. Die Unterhaltung mit dem Agenten findet im Fenster seines eigenen Programms statt.
@@ -20,7 +20,7 @@ Agent und Benutzer arbeiten mit denselben Fenstern. Fragen Sie den Agenten nach 
 
 ## Den Dienst einschalten
 
-Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt. Eine Verbindung gilt als Agent, sobald das Programm seine erste Nachricht gesendet hat; eine Verbindung, die aufgebaut wurde, aber nichts gesendet hat, wird nicht gezählt. Solange der Agent arbeitet — eine Anfrage wird beantwortet, oder die letzte Antwort liegt weniger als zwei Sekunden zurück —, blinkt an der Ecke dieser Taste ein roter Punkt. Ist in den Bedienungshilfen des Systems „Bewegung reduzieren“ eingeschaltet, leuchtet der Punkt dauerhaft, ohne zu blinken.
+Im Auslieferungszustand ist der Agentendienst ausgeschaltet. Eingeschaltet wird er unter **Einstellungen ▸ Agent** mit der Option **Agenten die Verbindung mit ByteRipper erlauben**. Solange der Dienst eingeschaltet ist, enthält die Symbolleiste eine Taste für das Agentenfenster, dargestellt als drei verbundene Punkte; ist ein Agent verbunden, sind die Punkte ausgefüllt. Eine Verbindung gilt als Agent, sobald das Programm seine erste Nachricht gesendet hat; eine Verbindung, die aufgebaut wurde, aber nichts gesendet hat, wird nicht gezählt. Solange der Agent arbeitet — eine Anfrage wird beantwortet, oder die letzte Antwort liegt weniger als zwei Sekunden zurück —, blinkt an der Ecke dieser Taste ein orangefarbener Punkt. Ist in den Bedienungshilfen des Systems „Bewegung reduzieren“ eingeschaltet, leuchtet der Punkt dauerhaft, ohne zu blinken.
 
 Die Verbindung ist ausschließlich lokal; ein Netzwerkport wird nicht geöffnet. ByteRipper legt dazu eine benannte Pipe an, `\\.\pipe\ByteRipper-agent-<Benutzername>`, die ein Programm desselben Benutzerkontos wie eine Datei öffnet. Soll der Name der Pipe abweichen — etwa bei einer zweiten, neben der ersten gestarteten Kopie —, legt die Umgebungsvariable `BYTERIPPER_AGENT_SOCKET` einen anderen fest.
 

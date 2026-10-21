@@ -19,7 +19,7 @@ The agent works on the same windows as the user. When it is asked about "this" b
 
 ## Switching the service on
 
-The service is off after installation. It is switched on in **Settings ▸ Agent** with **Let agents connect to ByteRipper**. While it is on, the toolbar has a button for the Agent window, drawn as three joined points; the points are filled while an agent is connected. A connection counts as an agent once its program has sent its first message: one that connected and has said nothing is not counted. While the agent is at work — a request is being answered, or one was answered less than two seconds ago — a red dot blinks on the corner of that button. With reduced motion asked for in the system's accessibility settings, the dot is steady.
+The service is off after installation. It is switched on in **Settings ▸ Agent** with **Let agents connect to ByteRipper**. While it is on, the toolbar has a button for the Agent window, drawn as three joined points; the points are filled while an agent is connected. A connection counts as an agent once its program has sent its first message: one that connected and has said nothing is not counted. While the agent is at work — a request is being answered, or one was answered less than two seconds ago — an orange dot blinks on the corner of that button. With reduced motion asked for in the system's accessibility settings, the dot is steady.
 
 The connection is local. ByteRipper opens a named pipe, `\\.\pipe\ByteRipper-agent-<user name>`, which a program of the same user account opens as it would a file; there is no network port. Where the pipe's name has to be different — a second copy run beside the first — the environment variable `BYTERIPPER_AGENT_SOCKET` names another.
 

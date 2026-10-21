@@ -458,8 +458,8 @@ textarea,
 
 /* An icon-only toolbar button: the glyph, a platter on hover, and a pressed
    look for the ones that carry a state. */
-/* The red dot on the Agent button while an agent is at work: on the button's corner, blinking —
-   steady under reduced motion. */
+/* The dot on the Agent button while an agent is at work: on the button's corner, blinking —
+   steady under reduced motion. Its colour is the palette's caution, something mid-flight. */
 .agent-activity-badge {
   position: absolute;
   top: 1px;
@@ -467,7 +467,7 @@ textarea,
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--semantic-bad);
+  background: var(--semantic-caution);
   pointer-events: none;
   animation: agent-activity-blink 0.5s ease-in-out infinite alternate;
 }

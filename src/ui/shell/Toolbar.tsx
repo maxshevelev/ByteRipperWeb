@@ -1067,9 +1067,10 @@ function IconButton({
 }
 
 /**
- * A red dot on the corner of the toolbar's Agent button that blinks while an agent is at work
- * (`AgentServiceState.active`): the person sees that the program is being driven before a view
- * moves under their hands. Steady where the system asks for reduced motion.
+ * A dot on the corner of the toolbar's Agent button that blinks while an agent is at work
+ * (`AgentServiceState.active`), in the palette's caution colour, something mid-flight: the person
+ * sees that the program is being driven before a view moves under their hands. Steady where the
+ * system asks for reduced motion.
  *
  * @upstream ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge
  * @upstream ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.sync
