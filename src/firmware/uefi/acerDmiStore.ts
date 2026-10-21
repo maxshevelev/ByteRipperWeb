@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import { type DMIField, type DMIFieldEncoding, dmiFieldNode } from "@/firmware/uefi/dmiField";
 import type { Parser } from "@/firmware/uefi/parserState";
@@ -195,7 +195,7 @@ export function acerManufacturingCode(area: AcerDMIArea): string | undefined {
  */
 export function acerFields(area: AcerDMIArea): DMIField[] {
   const field = (
-    name: string,
+    name: LocalizedText,
     start: number,
     end: number,
     encoding: DMIFieldEncoding = "ascii"
@@ -205,19 +205,21 @@ export function acerFields(area: AcerDMIArea): DMIField[] {
     encoding,
   });
   const fields = [
-    field("System serial", 0x00, 0x16),
-    field("MB Serial", 0x50, 0x66),
-    field("UUID", 0x70, 0x80, "acerUUID"),
-    field("Model", 0x80, 0xa0),
+    field(LocalizedText.of("System serial"), 0x00, 0x16),
+    field(LocalizedText.of("MB Serial"), 0x50, 0x66),
+    field(LocalizedText.of("UUID"), 0x70, 0x80, "acerUUID"),
+    field(LocalizedText.of("Model"), 0x80, 0xa0),
   ];
-  if (acerAssetTag(area) !== undefined) fields.push(field("Asset tag", 0xa0, 0xc0));
-  fields.push(field("Product name", 0xc0, 0xe0));
+  if (acerAssetTag(area) !== undefined)
+    fields.push(field(LocalizedText.of("Asset tag"), 0xa0, 0xc0));
+  fields.push(field(LocalizedText.of("Product name"), 0xc0, 0xe0));
   const code = acerManufacturingCode(area);
   if (code !== undefined) {
     const start = [0x690, 0x6a0].find((at) =>
       [...code].every((unit, index) => area.stored[at + index] === unit.charCodeAt(0))
     );
-    if (start !== undefined) fields.push(field("Manufacturing code", start, start + code.length));
+    if (start !== undefined)
+      fields.push(field(LocalizedText.of("Manufacturing code"), start, start + code.length));
   }
   return fields;
 }

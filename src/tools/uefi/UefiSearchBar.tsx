@@ -9,6 +9,7 @@ import {
   searchTypes,
   type UEFITreeQuery,
 } from "@/tools/uefi/uefiTreeSearch";
+import { ChevronGlyph, ListGlyph } from "@/ui/search/findGlyphs";
 
 /** What the status line says when there is something to say. */
 export type SearchStatus = "none" | "notFound" | "searching";
@@ -58,6 +59,8 @@ export function UefiSearchBar({
   onContent,
   onSearch,
   onFindAll,
+  onClose,
+  showsResults,
   onStop,
   patternQuery,
   problem,
@@ -82,6 +85,19 @@ export function UefiSearchBar({
   readonly onSearch: (direction: SearchDirection) => void;
   /** Every match of the Contents search. */
   readonly onFindAll: () => void;
+  /**
+   * The reader shut the bar with Done.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.onClose
+   */
+  readonly onClose: () => void;
+  /**
+   * Whether the Contents search's results are open under the tree: Find All is lit while they
+   * are, as the Find bar's list glyph is.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.showsResults
+   */
+  readonly showsResults: boolean;
   readonly onStop: () => void;
   /** The Find bar's controls the Contents search asks with. */
   readonly patternQuery: ToolPatternQuery;
@@ -110,6 +126,9 @@ export function UefiSearchBar({
   return (
     <div className="uefi-search">
       <div className="uefi-search-line">
+        <span className="find-label uefi-search-label" aria-hidden="true">
+          {L("Find")}
+        </span>
         <fieldset
           className="uefi-search-mode"
           aria-label={L("What to search")}
@@ -149,6 +168,16 @@ export function UefiSearchBar({
         {showsNote ? (
           <span className="uefi-search-note">{L("ME Region is not searched")}</span>
         ) : null}
+        {/* Done shuts the bar, at the end of the line as the Find bar's.
+            @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.onClose */}
+        <button
+          type="button"
+          className="toolbar-button uefi-search-done"
+          title={L("Close the search bar")}
+          onClick={onClose}
+        >
+          {L("Done")}
+        </button>
       </div>
       {contents ? (
         <>
@@ -160,13 +189,17 @@ export function UefiSearchBar({
               onSubmit={onFindAll}
               focusToken={focusToken}
             />
+            {/* A quiet list glyph, lit while the results it opens are open, as the Find bar's.
+                @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.showsResults */}
             <button
               type="button"
+              className={`find-glyph${showsResults ? " is-on" : ""}`}
               disabled={content.text.trim().length === 0}
+              aria-label={L("Find All")}
               title={L("List every place the pattern occurs, compressed sections included")}
               onClick={onFindAll}
             >
-              {L("Find All")}
+              <ListGlyph />
             </button>
           </div>
           {problem === undefined ? null : (
@@ -198,26 +231,30 @@ export function UefiSearchBar({
                 onSearch(event.shiftKey ? "backward" : "forward");
               }}
             />
-            <button
-              type="button"
-              className="uefi-search-step"
-              disabled={!hasQuery}
-              title={L("Go to the previous node that matches")}
-              aria-label={L("Previous match")}
-              onClick={() => onSearch("backward")}
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              className="uefi-search-step"
-              disabled={!hasQuery}
-              title={L("Go to the next node that matches")}
-              aria-label={L("Next match")}
-              onClick={() => onSearch("forward")}
-            >
-              ›
-            </button>
+            {/* The ‹ › pair, joined, as the Find bar's. */}
+            <fieldset className="find-nav">
+              <legend className="visually-hidden">{L("Previous match / Next match")}</legend>
+              <button
+                type="button"
+                className="find-nav-button"
+                disabled={!hasQuery}
+                title={L("Go to the previous node that matches")}
+                aria-label={L("Previous match")}
+                onClick={() => onSearch("backward")}
+              >
+                <ChevronGlyph direction="backward" />
+              </button>
+              <button
+                type="button"
+                className="find-nav-button"
+                disabled={!hasQuery}
+                title={L("Go to the next node that matches")}
+                aria-label={L("Next match")}
+                onClick={() => onSearch("forward")}
+              >
+                <ChevronGlyph direction="forward" />
+              </button>
+            </fieldset>
           </div>
           <div className="uefi-search-line">
             <select

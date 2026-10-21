@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import {
@@ -8,6 +7,7 @@ import {
   acerBlock,
   putText,
 } from "@/firmware/testing/testAcerDMI";
+import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import type { NodeDetail } from "@/tools/toolDetail";
@@ -87,7 +87,9 @@ describe("Acer's DMI area in the detail", () => {
       end: node.body.start + 0x16,
     });
     expect(dmiFieldTextOf(rows[0] as UEFINode, reader)).toBe(ACER_SERIAL);
-    expect(dmiFieldTextOf(rows[2] as UEFINode, reader)).toBe("78563412-AB90-1788-89CD-EF0102030405");
+    expect(dmiFieldTextOf(rows[2] as UEFINode, reader)).toBe(
+      "78563412-AB90-1788-89CD-EF0102030405"
+    );
     expect(value(buildNodeDetail(rows[3] as UEFINode, image, reader), "Value")).toBe("TEST-1050");
   });
 

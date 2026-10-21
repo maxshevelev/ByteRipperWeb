@@ -10,7 +10,7 @@ import {
 } from "@/firmware/uefi/acerDmiStore";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { displayName, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import type { DetailField, DetailTable } from "@/tools/toolDetail";
 import { dmiEntriesTable, dmiEntryRows, dmiFindings } from "@/tools/uefi/uefiDMIEntries";
 
 /**

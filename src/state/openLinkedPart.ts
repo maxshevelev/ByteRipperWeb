@@ -4,7 +4,7 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { agentShell } from "@/state/agent/agentShell";
 import { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
-import { wishShowItemAt, wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
+import { wishFocusItemAt, wishShowItemAt, wishTopLevelRowsOpen } from "@/state/opensTopLevelRows";
 import { activate } from "@/state/toolController";
 import {
   openPart,
@@ -70,12 +70,21 @@ export async function openLinkedPart(options: {
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolHost.swift#ToolHost.openPart
    */
   readonly selecting?: readonly [number, number] | undefined;
+  /**
+   * The byte, in the part's own addresses, whose item the panel's tool puts in focus once it is
+   * open — its node selected, its zone outlined — rather than a selection of bytes. A part of the
+   * same bytes already open is raised and focused in, as with `selecting`.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPart
+   * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartOpening.swift#UEFIPartOpening.openPart
+   */
+  readonly focusing?: number | undefined;
 }): Promise<PartId | undefined> {
   const { parent, name, source } = options;
   const slot = paneState(parent);
   if (slot === undefined) return undefined;
   const codec = options.codec ?? new CopyPartCodec();
-  if (options.selecting !== undefined) {
+  if (options.selecting !== undefined || options.focusing !== undefined) {
     const open = Object.entries(workspaceStore.getSnapshot().parts).find(([, held]) => {
       const origin = held?.origin;
       return (
@@ -92,10 +101,13 @@ export async function openLinkedPart(options: {
       raisePart(part);
       if (options.tool !== undefined) {
         // Raised again for another place: its tree goes to the node of that place too.
-        wishShowItemAt(part, options.selecting[0], options.selecting[1]);
+        if (options.focusing !== undefined) wishFocusItemAt(part, options.focusing);
+        else if (options.selecting !== undefined) {
+          wishShowItemAt(part, options.selecting[0], options.selecting[1]);
+        }
         activate(options.tool, part);
       }
-      await select(part, options.selecting);
+      if (options.selecting !== undefined) await select(part, options.selecting);
       return part;
     }
   }
@@ -131,7 +143,8 @@ export async function openLinkedPart(options: {
   if (options.tool !== undefined) {
     wishTopLevelRowsOpen(part);
     // A match selected in the part: its tree opens to the node the match is in.
-    if (options.selecting !== undefined) {
+    if (options.focusing !== undefined) wishFocusItemAt(part, options.focusing);
+    else if (options.selecting !== undefined) {
       wishShowItemAt(part, options.selecting[0], options.selecting[1]);
     }
     activate(options.tool, part);

@@ -387,11 +387,16 @@ export interface NodeOpen {
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeOpenTitle
  */
-export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefined {
+export function nodeOpenTitle(node: ZonedNode, body: boolean, encoded = false): string | undefined {
   const whole = wholeRange(node);
   const range = body ? node.body : whole;
   if (range[1] <= range[0]) return undefined;
   if (body && range[0] === whole[0] && range[1] === whole[1]) return undefined;
+  // A node whose bytes the file holds XOR-encoded — a LENV block, or an entry in one: the title
+  // says that what opens is the bytes as stored, beside the item that opens them decoded.
+  if (encoded && node.name.length > 0) {
+    return body ? L("Open Encoded Body of “%1$@”", node.name) : L("Open Encoded “%1$@”", node.name);
+  }
   // The name is poured in, never spelled into the key: a key built at run time
   // is a key no translator can find.
   // A node inside a compressed section is read from the buffer the section decoded to, and
@@ -412,12 +417,17 @@ export function nodeOpenTitle(node: ZonedNode, body: boolean): string | undefine
 
 /**
  * What the tree's menu calls saving `node` — or its body alone — to a file:
- * offered wherever opening it is, since it is the same bytes.
+ * offered wherever opening it is, since it is the same bytes, and named `encoded` the same way.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIPresenter.swift#UEFIPresenter.nodeSaveTitle
  */
-export function nodeSaveTitle(node: ZonedNode, body: boolean): string | undefined {
+export function nodeSaveTitle(node: ZonedNode, body: boolean, encoded = false): string | undefined {
   if (nodeOpenTitle(node, body) === undefined) return undefined;
+  if (encoded && node.name.length > 0) {
+    return body
+      ? L("Save Encoded Body of “%1$@” as…", node.name)
+      : L("Save Encoded “%1$@” as…", node.name);
+  }
   const decompressed = (node.space ?? []).length !== 0;
   if (node.name.length === 0) {
     if (decompressed)

@@ -1,8 +1,9 @@
+import type { LocalizedText } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { acerUUIDTextOf } from "@/firmware/uefi/acerDmiStore";
 import { guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 import { hpText } from "@/firmware/uefi/hpDmiArea";
-import { madeUpName, makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
+import { makeNode, namedBy, type UEFINode } from "@/firmware/uefi/uefiNode";
 
 /**
  * One value of a vendor's identity area where the area keeps it as a field of its own bytes —
@@ -14,12 +15,8 @@ import { madeUpName, makeNode, type UEFINode } from "@/firmware/uefi/uefiNode";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIField.init
  */
 export interface DMIField {
-  /**
-   * The field's name, an English key the row puts into words.
-   *
-   * @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIField.name
-   */
-  readonly name: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIField.name */
+  readonly name: LocalizedText;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIField.range */
   readonly range: ImageRange;
   /** @upstream Packages/UEFIImage/Sources/UEFIImage/DMIStore.swift#DMIField.encoding */
@@ -47,7 +44,7 @@ export function dmiFieldNode(field: DMIField, isFixed: boolean): UEFINode {
   return makeNode({
     kind: "dmiField",
     subtype: ENCODINGS.indexOf(field.encoding),
-    ...madeUpName(field.name),
+    ...namedBy(field.name),
     header: { start: field.range.start, end: field.range.start },
     body: field.range,
     isFixed,

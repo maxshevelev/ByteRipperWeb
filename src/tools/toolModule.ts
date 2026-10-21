@@ -215,7 +215,14 @@ export interface ToolContext {
      */
     layout?: UEFIRootLayout,
     /** What to select in the part once it is up, in its own addresses. */
-    selecting?: readonly [number, number]
+    selecting?: readonly [number, number],
+    /**
+     * The byte, in the part's own addresses, whose item the part's tool puts in focus once it
+     * is open.
+     *
+     * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartOpening.swift#UEFIPartOpening.openPart
+     */
+    focusing?: number
   ) => void;
 }
 

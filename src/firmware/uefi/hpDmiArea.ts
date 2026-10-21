@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { type DMIField, type DMIFieldEncoding, dmiFieldNode } from "@/firmware/uefi/dmiField";
 import { type EFIGUID, guid, guidEquals, guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
@@ -93,18 +93,22 @@ export interface HPDMIArea {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/HPDMIArea.swift#HPDMIArea.fields
  */
 export function hpFields(area: HPDMIArea): DMIField[] {
-  const field = (name: string, [start, end]: Field, encoding: DMIFieldEncoding = "utf16") => ({
+  const field = (
+    name: LocalizedText,
+    [start, end]: Field,
+    encoding: DMIFieldEncoding = "utf16"
+  ) => ({
     name,
     range: { start: area.data.start + start, end: area.data.start + end },
     encoding,
   });
   return [
-    field("Serial number", SERIAL_FIELD),
-    field("SKU", SKU_FIELD),
-    field("Product family", FAMILY_FIELD),
-    field("CT number", CT_NUMBER_FIELD),
-    field("Product name", PRODUCT_NAME_FIELD),
-    field("UUID", UUID_FIELD, "smbiosUUID"),
+    field(LocalizedText.of("Serial number"), SERIAL_FIELD),
+    field(LocalizedText.of("SKU"), SKU_FIELD),
+    field(LocalizedText.of("Product family"), FAMILY_FIELD),
+    field(LocalizedText.of("CT number"), CT_NUMBER_FIELD),
+    field(LocalizedText.of("Product name"), PRODUCT_NAME_FIELD),
+    field(LocalizedText.of("UUID"), UUID_FIELD, "smbiosUUID"),
   ];
 }
 

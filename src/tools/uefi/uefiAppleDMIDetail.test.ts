@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appleEntryText } from "@/firmware/uefi/appleDmiArea";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import { APPLE_BOARD, appleImage, appleVariables } from "@/firmware/testing/testAppleDMI";
+import { appleEntryText } from "@/firmware/uefi/appleDmiArea";
 import { allDMIStores } from "@/firmware/uefi/dmiStore";
 import { parseUefiImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";

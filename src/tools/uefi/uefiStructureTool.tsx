@@ -126,7 +126,7 @@ import { useTreeSearch } from "@/tools/uefi/useTreeSearch";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { MenuButton } from "@/ui/shell/MenuButton";
-import type { MenuEntry } from "@/ui/shell/menuModel";
+import type { MenuAction, MenuEntry } from "@/ui/shell/menuModel";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ScopeShapes } from "@/ui/shell/scopeGlyph";
 import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
@@ -1061,19 +1061,6 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    *
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableRow.follow
    */
-  const chooseByPath = useCallback(
-    (path: readonly number[]) => {
-      let nodes = roots ?? [];
-      let found: WireNode | undefined;
-      for (const index of path) {
-        found = nodes[index];
-        if (found === undefined) return;
-        nodes = found.children;
-      }
-      if (found !== undefined) choose(found);
-    },
-    [roots, choose]
-  );
 
   /**
    * What a node has decompressed, read out of the worker's own buffer: the
@@ -1376,6 +1363,13 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         context.report(L("There is no LENV block to decode here."));
         return;
       }
+      // From an entry, the panel opens on that entry: the same place in the block decoded, its
+      // row selected and its zone outlined.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openDecodedBlock
+      const focusing =
+        selecting === undefined && node.kind === "lenvEntry"
+          ? node.header[0] - found.range[0]
+          : undefined;
       context.openPart(
         found.name,
         [found.range[0], found.range[1]],
@@ -1383,7 +1377,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         IMAGE_LAYOUT,
         selecting === undefined
           ? undefined
-          : [selecting[0] - found.range[0], selecting[1] - found.range[0]]
+          : [selecting[0] - found.range[0], selecting[1] - found.range[0]],
+        focusing
       );
     },
     [context]
@@ -1579,6 +1574,29 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
+   * A link in the details went to the node at `path`: unlike a click in the tree, the row may be
+   * in a branch not yet open, or not the one the tree has selected. A whole show, so the branches
+   * on the way are read and opened and the row selected — the tree, the details and the dump's
+   * zone all on the one node — and a step for the history.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.followLink
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onFollowNode
+   */
+  const followLink = useCallback(
+    async (path: readonly number[]) => {
+      for (let length = 1; length < path.length; length++) {
+        await expandFirmwareNodeAndWait(context.pane, path.slice(0, length));
+      }
+      const nodes = firmwareFor(context.pane)?.roots ?? [];
+      const found = firmwareNodeAt(nodes, path);
+      if (found === undefined) return;
+      showRevealed(path, false);
+      choose(found, nodes);
+    },
+    [context.pane, showRevealed, choose]
+  );
+
+  /**
    * What the window's navigation history keeps of the panel: the row in focus — a node of the
    * tree, or a row of the ME sub-tree. Back chooses it again and draws its zones, the way a
    * click would, without taking the dump anywhere, and gives the tree the keyboard.
@@ -1756,8 +1774,16 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   useEffect(() => {
     if (status !== "ready" || roots === undefined || showItemWish === undefined) return;
     const wish = takeShowItemAt(context.pane);
-    if (wish !== undefined) void revealNode(wish.start, wish.end);
-  }, [status, roots, context.pane, revealNode, showItemWish]);
+    if (wish === undefined) return;
+    if (wish.focus === true) {
+      // An entry of a block opened decoded: its node put in focus as a click on its row would —
+      // opened, selected, and its zone published.
+      // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.focusItem
+      void findFirmwareNodeAt(context.pane, wish.start).then((path) => {
+        if (path !== undefined) void followLink(path);
+      });
+    } else void revealNode(wish.start, wish.end);
+  }, [status, roots, context.pane, revealNode, followLink, showItemWish]);
 
   /**
    * The title row's button: the node under the caret — the start of a selection.
@@ -2320,6 +2346,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
           patternQuery={context.patternQuery}
           problem={contentProblem}
           onFindAll={() => void contentSearch.findAll()}
+          onClose={() => setSearchOpen(false)}
+          showsResults={contentSearch.shown}
           status={treeSearch.status}
           progress={treeSearch.progress}
           showsMeNote={meRegionKey !== undefined}
@@ -2423,7 +2451,65 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                     // wrong — a clean row gets no menu at all. Never inside a
                     // compressed section: the fix would be a write into a
                     // buffer that is not the file.
+                    // A LENV block, or an entry in one: the block it opens decoded, and whether
+                    // the file holds it encoded — which is what tells the bytes as stored from the
+                    // bytes decoded, in every item below.
+                    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.nodeMenuItems
+                    const lenv = node.decodableBlock;
+                    const encoded = lenv?.encoded === true;
+                    // A block stored in the clear is its bytes as they read: opening it is opening
+                    // the block, which goes back with its checksum recomputed — one item, not two
+                    // that open the same bytes.
+                    const opensDecoded =
+                      lenv !== undefined && !encoded && node.kind === "lenvBlock";
+                    const decodedTitle =
+                      lenv === undefined
+                        ? undefined
+                        : encoded
+                          ? L("Open Decoded “%1$@”", node.name)
+                          : node.kind === "lenvEntry"
+                            ? L("Open “%1$@” in “%2$@”", node.name, lenv.name)
+                            : undefined;
+                    const openNodeTitle = nodeOpenTitle(node, false, encoded);
+                    const openBodyTitle = nodeOpenTitle(node, true, encoded);
+                    const openDecoded: MenuAction | undefined =
+                      decodedTitle === undefined
+                        ? undefined
+                        : { label: decodedTitle, onSelect: () => void openDecodedBlock(node) };
+                    const openWhole: MenuAction | undefined =
+                      openNodeTitle === undefined
+                        ? undefined
+                        : {
+                            label: openNodeTitle,
+                            onSelect: () =>
+                              void (opensDecoded ? openDecodedBlock(node) : openNode(node, false)),
+                          };
+                    const openBody: MenuAction | undefined =
+                      openBodyTitle === undefined
+                        ? undefined
+                        : { label: openBodyTitle, onSelect: () => void openNode(node, true) };
+                    const openTaken: MenuAction | undefined =
+                      taken === undefined
+                        ? undefined
+                        : {
+                            label: taken.openTitle,
+                            onSelect: () => void openDecompressed(node, taken),
+                          };
+                    // What a double click on the row opens comes first, so the reader sees which
+                    // of the items that is (`openContent`).
+                    // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.opensAsDoubleClick
+                    const doubleClick =
+                      lenv !== undefined
+                        ? (openDecoded ?? (opensDecoded ? openWhole : undefined))
+                        : contentOf(node) === "decompressedBody"
+                          ? openTaken
+                          : contentOf(node) === "body"
+                            ? openBody
+                            : openWhole;
+                    const first = (item: MenuAction | undefined) =>
+                      item === undefined || item === doubleClick ? undefined : item;
                     openContextMenu(event, [
+                      doubleClick,
                       marksOf(node).problem === undefined || node.space.length !== 0
                         ? undefined
                         : {
@@ -2440,12 +2526,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                               });
                             },
                           },
-                      node.decodableBlock === undefined
-                        ? undefined
-                        : {
-                            label: L("Open Decoded Block"),
-                            onSelect: () => void openDecodedBlock(node),
-                          },
+                      first(openDecoded),
                       !isBZip2Variable(node)
                         ? undefined
                         : {
@@ -2466,38 +2547,23 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                             label: taken.saveTitle,
                             onSelect: () => void saveDecompressed(taken),
                           },
-                      taken === undefined
-                        ? undefined
-                        : {
-                            label: taken.openTitle,
-                            onSelect: () => void openDecompressed(node, taken),
-                          },
+                      first(openTaken),
                       // And the node itself, wherever it lives — with its body
                       // on its own where it has a header to leave behind.
-                      nodeOpenTitle(node, false) === undefined
-                        ? undefined
-                        : {
-                            label: nodeOpenTitle(node, false) ?? "",
-                            onSelect: () => void openNode(node, false),
-                          },
-                      nodeOpenTitle(node, true) === undefined
-                        ? undefined
-                        : {
-                            label: nodeOpenTitle(node, true) ?? "",
-                            onSelect: () => void openNode(node, true),
-                          },
+                      first(openWhole),
+                      first(openBody),
                       // The same bytes, saved to a file rather than opened.
-                      nodeSaveTitle(node, false) === undefined
+                      nodeSaveTitle(node, false, encoded) === undefined
                         ? undefined
                         : {
                             // help: panel.uefi.save-node
-                            label: nodeSaveTitle(node, false) ?? "",
+                            label: nodeSaveTitle(node, false, encoded) ?? "",
                             onSelect: () => void saveNode(node, false),
                           },
-                      nodeSaveTitle(node, true) === undefined
+                      nodeSaveTitle(node, true, encoded) === undefined
                         ? undefined
                         : {
-                            label: nodeSaveTitle(node, true) ?? "",
+                            label: nodeSaveTitle(node, true, encoded) ?? "",
                             onSelect: () => void saveNode(node, true),
                           },
                       // A node of either Top Swap block steps to its twin in the
@@ -2563,7 +2629,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   )
           }
           placeholder={L("Select a node to see what it is.")}
-          onSelectNode={chooseByPath}
+          onSelectNode={(path) => void followLink(path)}
           onOutlineRange={outlineRange}
           onFocusTable={() => scrollRef.current?.focus()}
           // The ME sub-tree's rows carry their own term, decided by the

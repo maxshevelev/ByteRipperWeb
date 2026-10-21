@@ -794,7 +794,12 @@ export interface WireNode {
    * @upstream-differs the panel holds no bytes, so the worker decides (`decodableBlock`)
    */
   readonly decodableBlock?:
-    | { readonly range: readonly [number, number]; readonly name: string }
+    | {
+        readonly range: readonly [number, number];
+        readonly name: string;
+        /** Whether the file holds the block XOR-encoded, rather than in the clear. */
+        readonly encoded: boolean;
+      }
     | undefined;
   /**
    * Whether the row stands for room rather than content, which the tree draws grey

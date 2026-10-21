@@ -466,6 +466,8 @@
 "differing %1$@" = "Unterschiede %1$@";
 "Do not ask again" = "Nicht mehr fragen";
 "Don't Save" = "Nicht sichern";
+"Close the search bar" = "Suchleiste schließen";
+"Previous match / Next match" = "Vorheriger Treffer / Nächster Treffer";
 "Done" = "Fertig";
 "Download" = "Herunterladen";
 "Download As…" = "Herunterladen als…";
@@ -1082,6 +1084,12 @@
 "Baseboard serial number" = "Seriennummer der Hauptplatine";
 "Both LENV blocks are empty: the store has been wiped or was never written. The board's serial number and UUID are not in this image." = "Beide LENV-Blöcke sind leer: Der Speicher wurde gelöscht oder nie beschrieben. Seriennummer und UUID der Platine sind in diesem Image nicht enthalten.";
 "Decoded from the file. Update in Parent encodes it again with the key in its header and recomputes the checksum." = "Aus der Datei dekodiert. Beim Aktualisieren in der Quelle wird der Block mit dem Schlüssel aus seinem Kopf wieder kodiert und die Prüfsumme neu berechnet.";
+"Open Encoded “%1$@”" = "„%1$@“ (kodiert) öffnen";
+"Open Encoded Body of “%1$@”" = "Rumpf von „%1$@“ (kodiert) öffnen";
+"Save Encoded “%1$@” as…" = "„%1$@“ (kodiert) sichern unter…";
+"Save Encoded Body of “%1$@” as…" = "Rumpf von „%1$@“ (kodiert) sichern unter…";
+"Open Decoded “%1$@”" = "„%1$@“ (dekodiert) öffnen";
+"Open “%1$@” in “%2$@”" = "„%1$@“ in „%2$@“ öffnen";
 "LENV block %1$@ has no signature where it should start." = "LENV-Block %1$@ trägt an seinem Anfang keine Signatur.";
 "LENV block %1$@ is erased: every byte is FF. The firmware reads the other copy." = "LENV-Block %1$@ ist gelöscht: alle Bytes sind FF. Die Firmware liest die andere Kopie.";
 "LENV block %1$@ is stored decoded. Whether the firmware accepts that is not known." = "LENV-Block %1$@ ist dekodiert gespeichert. Ob die Firmware ihn so annimmt, ist nicht bekannt.";
@@ -1210,6 +1218,7 @@
 "Configuration text" = "Konfigurationstext";
 "Copied." = "Kopiert.";
 "Copy the text above to the clipboard" = "Den Text oben in die Zwischenablage kopieren";
+"Log records" = "Ereignisse des Protokolls";
 "Could not start: %1$@" = "Start nicht möglich: %1$@";
 "Enter these parameters in the client's MCP server settings." = "Diese Parameter in den MCP-Servereinstellungen des Clients eintragen.";
 "Environment" = "Umgebung";
@@ -1623,6 +1632,7 @@
 
 /* UEFI Structure: the DMI badge, and HP's DMI on the HP_MUD entry. */
 "DMI" = "DMI";
+"DMI field" = "DMI-Feld";
 "HP DMI" = "HP DMI";
 "Serial number" = "Seriennummer";
 "SKU" = "SKU";

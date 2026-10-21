@@ -592,14 +592,20 @@ export function decodableBlockOf(
   node: UEFINode,
   parent: UEFINode | undefined,
   reader: ImageReader
-): { readonly range: readonly [number, number]; readonly name: string } | undefined {
+):
+  | {
+      readonly range: readonly [number, number];
+      readonly name: string;
+      readonly encoded: boolean;
+    }
+  | undefined {
   if (!isFileSpace(node.space)) return undefined;
   const row = node.kind === "lenvBlock" ? node : node.kind === "lenvEntry" ? parent : undefined;
   if (row === undefined || row.kind !== "lenvBlock") return undefined;
   const range = nodeRange(row);
   const block = blocksOf(reader.bytes(range), range.start);
   if (block === undefined || !LenovoDMIDecodedBlock.canOpen(block)) return undefined;
-  return { range: [range.start, range.end], name: row.name };
+  return { range: [range.start, range.end], name: row.name, encoded: block.encoding === "encoded" };
 }
 
 /**

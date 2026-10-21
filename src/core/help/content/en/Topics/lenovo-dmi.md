@@ -18,7 +18,7 @@ If the image holds no store, the tree has no such row and the title row has no *
 
 - **The store's row** sums the store up in its details: **Block in use** names the block the firmware reads and its generation, **Entries in use** lists what that block holds — the serial number, the UUID, the model and the Windows key first — and a click on an entry there opens its row. A **Problem** or a **Note** follows for an empty store, a checksum that does not match, an erased block or blocks that disagree.
 - **Under it**, the change log and both blocks. A block's row gives its generation, and its **Subtype** says whether it is **In use**. A lock on the row says the block is stored encoded; an open lock, on the row of a block opened decoded, that its entries are in the clear there. An entry's row gives its value beside its name; a record of the log gives its date, its operation and the entry.
-- **The details** of a block or an entry describe its fields; the `?` beside the name explains the term.
+- **The details** of the change log list its records under **Log records** — the time, the operation, the entry and the number of bytes — and a click on a record there opens its row. The details of a block or an entry describe its fields; the `?` beside the name explains the term.
 
 As everywhere in the tree, the row in focus is outlined in the dump, and the details' text can be selected and copied.
 
@@ -34,15 +34,17 @@ Whether the firmware passes over a block whose checksum does not match and reads
 
 The two blocks may hold different values. This is normal after a write: the older copy keeps the previous values. A value to be carried to another dump is therefore taken from the block in use, and the details of every entry state under **Other copy** whether the other block holds the same value.
 
-## Open Decoded Block
+## Opening a block decoded
 
-**Open Decoded Block**, on the context menu of a block's row or of any entry's row in it — and a double click on either row — opens the whole block as a [[topic:fragments|fragment panel]] with its entries decoded: the serial number and the machine type read as text in the hex view and can be edited there. The header stays as stored, so the key and the checksum are visible at their own addresses.
+On the context menu of a block's row, **Open Decoded …** — Open Decoded “LENV block 1”, for example — opens the whole block as a [[topic:fragments|fragment panel]] with its entries decoded: the serial number and the machine type read as text in the hex view and can be edited there. The header stays as stored, so the key and the checksum are visible at their own addresses. On an entry's row the item reads the same — Open Decoded “Baseboard serial number”: it opens the same block, and the panel shows that entry: its tree is open to the entry's row and selects it, and the panel's dump outlines the entry. A double click on either row does the same as these items.
+
+The items beside them, **Open Encoded …** and **Save Encoded … as…**, take out the bytes as the file stores them, still encoded with the key. A block stored in the clear has no encoded form to tell apart: its **Open …** item opens it as described here, and the item on an entry's row reads **Open … in …**.
 
 **Update in Parent** writes the block back encoded with the key in its header and with its checksum recomputed, as one undo step in the dump. The block keeps its length and its generation, and nothing is added to the change log. Only the block that was opened is written; to change both copies, open and update each. The fragment's header carries an **XOR** badge with the key, which says that its bytes are not the file's own.
 
 **Tools ▸ UEFI Structure** opened on that fragment shows the block as a row of its own, **LENV block**, with its entries under it, read the same way as in the dump. There is no change log and no second copy in a fragment, so the details do not say which copy the firmware reads. The checksum in the header is the one the block carries encoded, and the details report it valid as such. After an edit in the fragment it no longer matches and is shown in red with the value it should have; Update in Parent writes that value.
 
-The command is offered for a block that holds entries and whose encoding was recognised; it is not offered for an empty block or for the change log.
+These items are offered for a block that holds entries and whose encoding was recognised; they are not offered for an empty block or for the change log.
 
 ## The entries
 
@@ -75,6 +77,6 @@ The format was reverse-engineered from `LenovoVariableDxe` by the [[web:https://
 
 Not confirmed: what the write-protect bits of a block and of an entry cause the firmware to do, and what the unknown types and fields hold. The change log does not always share the blocks' key: on one dump examined the blocks are encoded with `A0` and the log with `88`. The log's free space is zeros encoded, so a run of one byte after its last record gives its key, and the tree takes the key from there.
 
-! The tree itself changes nothing in the store: an edit is made in a fragment opened with Open Decoded Block and written back with Update in Parent, and whether the board then boots with the new values has not been confirmed. A store that is empty on both blocks has been wiped or was never written: the board's serial number and UUID are not in this image, and they have to be taken from an earlier dump of this board, if one was kept, or from the sticker.
+! The tree itself changes nothing in the store: an edit is made in a fragment of the block opened decoded and written back with Update in Parent, and whether the board then boots with the new values has not been confirmed. A store that is empty on both blocks has been wiped or was never written: the board's serial number and UUID are not in this image, and they have to be taken from an earlier dump of this board, if one was kept, or from the sticker.
 
 See also: [[topic:recipe-board-data|Data Unique to a Board]], [[term:dmi|DMI]].

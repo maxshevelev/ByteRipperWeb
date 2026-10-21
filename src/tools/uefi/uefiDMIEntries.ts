@@ -70,7 +70,7 @@ export function dmiEntryRows(fields: readonly DMIField[], reader: ImageReader): 
   return fields.map((one) => {
     const bytes = reader.bytes(one.range);
     return {
-      name: L(one.name),
+      name: one.name.text,
       value: bytes === undefined ? undefined : dmiFieldText(bytes, one.encoding),
       source: one.range,
     };

@@ -15,6 +15,7 @@ import {
 import { useStore } from "@/state/useStore";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
+import { ChevronGlyph, ListGlyph } from "@/ui/search/findGlyphs";
 import { PatternQueryControls } from "@/ui/search/PatternQueryControls";
 import type { MenuSearch } from "@/ui/search/patternMenu";
 
@@ -249,33 +250,6 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
         onKept={(name) => showNotice("addedToFavorites", [L("Added to Favorites"), name])}
       />
     </search>
-  );
-}
-
-const glyphStroke = {
-  fill: "none",
-  stroke: "currentColor",
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-} as const;
-
-function ListGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" {...glyphStroke}>
-      <path d="M6 4h8.5M6 8h8.5M6 12h8.5" />
-      <circle cx="2.5" cy="4" r="0.6" />
-      <circle cx="2.5" cy="8" r="0.6" />
-      <circle cx="2.5" cy="12" r="0.6" />
-    </svg>
-  );
-}
-
-/** `chevron.left` / `chevron.right`. */
-function ChevronGlyph({ direction }: { readonly direction: "forward" | "backward" }) {
-  return (
-    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" {...glyphStroke}>
-      <path d={direction === "forward" ? "m6 3 5 5-5 5" : "M10 3 5 8l5 5"} />
-    </svg>
   );
 }
 

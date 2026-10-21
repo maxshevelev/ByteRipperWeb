@@ -1,4 +1,4 @@
-@source-sha 46e650a56c13db4861e73d106002c2eb735837e6f4e3faadbb54ef559cb56eef
+@source-sha 352699c166d7c07687c41ed0bb489279074a2386881f5f843713ffce6b7148d7
 # Lenovo DMI
 
 > Der Speicher, in dem die Firmware Lenovo InsydeH2O die Identität eines Geräts ablegt – Seriennummer, UUID, Maschinentyp und Modell, Windows-Schlüssel –, so wie der Baum der UEFI-Struktur ihn liest.
@@ -17,7 +17,7 @@ Enthält das Image keinen Speicher, hat der Baum keinen solchen Knoten, und in d
 
 - **Der Knoten des Speichers** fasst ihn in seinen Details zusammen: **Verwendeter Block** nennt den Block, den die Firmware liest, und seine Generation; **Einträge des verwendeten Blocks** führt auf, was dieser Block enthält – zuerst Seriennummer, UUID, Modell und Windows-Schlüssel –, und ein Klick auf einen Eintrag dort öffnet dessen Knoten. Darunter folgen **Problem** oder **Hinweis**: ein leerer Speicher, eine nicht stimmende Prüfsumme, ein gelöschter Block oder voneinander abweichende Blöcke.
 - **Darunter** liegen das Änderungsprotokoll und beide Blöcke. Der Knoten eines Blocks nennt seine Generation, und die Spalte **Subtype** sagt, ob er **Verwendet** wird. Ein Schloss in der Zeile zeigt, dass der Block kodiert gespeichert ist; ein offenes Schloss in der Zeile eines dekodiert geöffneten Blocks, dass seine Einträge dort im Klartext stehen. Beim Knoten eines Eintrags steht der Wert neben dem Namen; ein Ereignis des Protokolls nennt Datum, Vorgang und Eintrag.
-- **Die Details** eines Blocks oder Eintrags beschreiben seine Felder; das `?` neben dem Namen erklärt den Begriff.
+- **Die Details** des Änderungsprotokolls führen seine Ereignisse unter **Ereignisse des Protokolls** auf — Zeit, Vorgang, Eintrag und Anzahl der Bytes —, und ein Klick auf ein Ereignis öffnet dessen Knoten im Baum. Die Details eines Blocks oder Eintrags beschreiben seine Felder; das `?` neben dem Namen erklärt den Begriff.
 
 Wie überall im Baum wird der ausgewählte Knoten im Dump umrahmt, und der Text der Details lässt sich auswählen und kopieren.
 
@@ -33,15 +33,17 @@ Ob die Firmware auf den anderen Block ausweicht, wenn die Prüfsumme des aktiven
 
 Die beiden Blöcke können unterschiedliche Werte enthalten. Nach einem Schreibvorgang ist das normal: Die ältere Kopie behält die vorigen Werte. Ein Wert, der in einen anderen Dump übertragen werden soll, wird daher dem aktiven Block entnommen; die Details jedes Eintrags geben unter **Andere Kopie** an, ob der andere Block denselben Wert enthält.
 
-## Dekodierten Block öffnen
+## Einen Block dekodiert öffnen
 
-**Dekodierten Block öffnen** im Kontextmenü des Knotens eines Blocks oder eines seiner Einträge – ebenso ein Doppelklick auf einen solchen Knoten – öffnet den ganzen Block in einem [[topic:fragments|Fragment-Panel]], mit dekodierten Einträgen: Seriennummer und Maschinentyp stehen in der Hex-Ansicht als Text und lassen sich dort bearbeiten. Der Kopf bleibt so, wie er gespeichert ist; Schlüssel und Prüfsumme stehen an ihren eigenen Adressen.
+**„…“ (dekodiert) öffnen** im Kontextmenü des Knotens eines Blocks – zum Beispiel „„LENV block 1“ (dekodiert) öffnen“ – öffnet den ganzen Block in einem [[topic:fragments|Fragment-Panel]], mit dekodierten Einträgen: Seriennummer und Maschinentyp stehen in der Hex-Ansicht als Text und lassen sich dort bearbeiten. Der Kopf bleibt so, wie er gespeichert ist; Schlüssel und Prüfsumme stehen an ihren eigenen Adressen. Im Menü des Knotens eines Eintrags heißt der Befehl ebenso – zum Beispiel „„Baseboard serial number“ (dekodiert) öffnen“: Er öffnet denselben Block, und das Panel zeigt diesen Eintrag: Sein Baum ist bis zum Knoten des Eintrags aufgeklappt und wählt ihn aus, und der Dump des Panels umrandet den Eintrag. Ein Doppelklick auf den Knoten des Blocks oder eines Eintrags wirkt ebenso.
+
+Die Befehle daneben, **„…“ (kodiert) öffnen** und **„…“ (kodiert) sichern unter…**, entnehmen die Bytes so, wie die Datei sie speichert, also mit dem Schlüssel kodiert. Ein Block, der im Klartext gespeichert ist, hat keine kodierte Form, die zu unterscheiden wäre: Sein Befehl **„…“ öffnen** öffnet ihn wie hier beschrieben, und der Befehl im Menü eines Eintrags heißt **„…“ in „…“ öffnen**.
 
 **In der Quelle aktualisieren** schreibt den Block als einen Widerrufsschritt in den Dump zurück, kodiert mit dem Schlüssel aus seinem Kopf und mit neu berechneter Prüfsumme. Länge und Generation des Blocks bleiben unverändert, und dem Protokoll wird nichts hinzugefügt. Geschrieben wird nur der geöffnete Block; um beide Kopien zu ändern, öffnen und aktualisieren Sie jede einzeln. Die Kopfzeile des Fragments trägt ein Abzeichen **XOR** mit dem Schlüssel, das daran erinnert, dass seine Bytes nicht die der Datei sind.
 
 **Werkzeuge ▸ UEFI-Struktur**, auf diesem Fragment geöffnet, zeigt den Block als eigenen Knoten, **LENV-Block**, mit seinen Einträgen darunter, so gelesen wie im Dump. Ein Fragment enthält weder das Änderungsprotokoll noch die zweite Kopie; die Details sagen daher nicht, welche Kopie die Firmware liest. Die Prüfsumme im Kopf ist die des kodierten Blocks, und die Details werten sie als solche als gültig. Nach einer Änderung im Fragment stimmt sie nicht mehr und erscheint rot mit dem Wert, den sie haben müsste; **In der Quelle aktualisieren** schreibt diesen Wert.
 
-Der Befehl steht für einen Block zur Verfügung, der Einträge enthält und dessen Kodierung erkannt wurde; für einen leeren Block und für das Protokoll nicht.
+Diese Befehle stehen für einen Block zur Verfügung, der Einträge enthält und dessen Kodierung erkannt wurde; für einen leeren Block und für das Protokoll nicht.
 
 ## Die Einträge
 
@@ -74,6 +76,6 @@ Das Format hat das Projekt [[web:https://github.com/Shmurkio/LenovoDMIDecryptor|
 
 Nicht bestätigt ist, wie die Firmware auf die Schreibschutzbits eines Blocks und eines Eintrags reagiert, und was die unbekannten Typen und Felder enthalten. Das Änderungsprotokoll ist nicht immer mit dem Schlüssel der Blöcke kodiert: In einem der untersuchten Dumps sind die Blöcke mit `A0` und das Protokoll mit `88` kodiert. Der freie Platz des Protokolls besteht aus kodierten Nullen; das wiederholte Byte nach dem letzten Ereignis ist daher sein Schlüssel, und der Baum entnimmt ihn dort.
 
-! Der Baum selbst ändert nichts am Speicher: Bearbeitet wird in einem Fragment, das mit „Dekodierten Block öffnen“ geöffnet und mit „In der Quelle aktualisieren“ zurückgeschrieben wird; ob die Platine danach mit den neuen Werten startet, ist nicht bestätigt. Sind beide Blöcke leer, wurde der Speicher gelöscht oder nie beschrieben: Seriennummer und UUID der Platine sind in diesem Image nicht enthalten. Sie lassen sich dann nur einem früheren Dump derselben Platine, sofern einer aufbewahrt wurde, oder dem Typenschild entnehmen.
+! Der Baum selbst ändert nichts am Speicher: Bearbeitet wird in einem Fragment des dekodiert geöffneten Blocks, das mit „In der Quelle aktualisieren“ zurückgeschrieben wird; ob die Platine danach mit den neuen Werten startet, ist nicht bestätigt. Sind beide Blöcke leer, wurde der Speicher gelöscht oder nie beschrieben: Seriennummer und UUID der Platine sind in diesem Image nicht enthalten. Sie lassen sich dann nur einem früheren Dump derselben Platine, sofern einer aufbewahrt wurde, oder dem Typenschild entnehmen.
 
 Siehe auch: [[topic:recipe-board-data|Platinenspezifische Daten]], [[term:dmi|DMI]].

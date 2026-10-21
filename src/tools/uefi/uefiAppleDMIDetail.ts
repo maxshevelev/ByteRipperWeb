@@ -9,7 +9,7 @@ import {
 } from "@/firmware/uefi/appleDmiArea";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { displayName, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import type { DetailField, DetailTable } from "@/tools/toolDetail";
 import { dmiEntriesTable, dmiFindings } from "@/tools/uefi/uefiDMIEntries";
 
 /**
@@ -48,7 +48,7 @@ export function appleDMIDetail(
     appleFindings(area).map((finding) => ({ text: appleFindingText(finding), isProblem: false }))
   );
   const rows = appleValues(area).map((one) => ({
-    name: L(one.name),
+    name: one.name.text,
     value: one.value,
     source: one.entry,
   }));

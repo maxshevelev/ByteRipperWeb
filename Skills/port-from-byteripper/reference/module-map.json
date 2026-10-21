@@ -1004,6 +1004,7 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentContentSearch.swift": "src/tools/uefi/agent/uefiAgentFind.ts",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift": "src/tools/uefi/UefiContentResults.tsx",
         "Modules/UEFITool/Sources/UEFITool/UEFIAppleDMIDetail.swift": "src/tools/uefi/uefiAppleDMIDetail.ts",
+        "Modules/UEFITool/Sources/UEFITool/UEFIDMIEntries.swift": "src/tools/uefi/uefiDMIEntries.ts",
         "Modules/UEFITool/Tests/UEFIToolTests/UEFIAppleDMIDetailTests.swift": "src/tools/uefi/uefiVendorDMIDetail.test.ts"
       },
       "unported": {
@@ -1094,7 +1095,13 @@
         "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.query": "n/a — AppKit view wiring; the bar renders ToolPatternQueryControls from ToolContext.patternQuery",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIContentResultsView.swift#UEFIBadgedCell.*": "n/a — AppKit table, cells and badges; UefiContentResults is a React list over the panel's content-search state",
         "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onContentSearchDone": "n/a — a callback for an AppKit test; the hook's state says when the search is done",
-        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiButtonTitleForTesting": "n/a — a test seam; dmiButtonTitle is tested itself"
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.dmiButtonTitleForTesting": "n/a — a test seam; dmiButtonTitle is tested itself",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.publishToFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findNextMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.findPreviousMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFISearchBar.swift#UEFISearchBar.iconPointSize": "n/a — the glyphs are the Find bar's SVGs (findGlyphs.tsx), sized there",
+        "Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.nodeMenuTitlesForTesting": "n/a — a test seam"
       }
     },
     {
@@ -1524,7 +1531,9 @@
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onSubmit": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.text": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.reloadStandingChoices": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
-        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.pickedEncoding": "n/a — the encoding a picked row or a staged selection brought is the store's `encoding`, which Smart Search tries first (`attemptsFor`)"
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.pickedEncoding": "n/a — the encoding a picked row or a staged selection brought is the store's `encoding`, which Smart Search tries first (`attemptsFor`)",
+        "ByteRipperApp/Search/FindBarView.swift#FindBarView.requestForFindAgain": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       }
     },
     {
@@ -1953,7 +1962,9 @@
         "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onEdited": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
         "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onProblem": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
         "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.onSubmit": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
-        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.view": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`"
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.view": "n/a — AppKit host of the controls; a tool renders `ToolPatternQueryControls` and asks `toolPatternAttempts`",
+        "ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       }
     },
     {
@@ -4587,7 +4598,11 @@
         "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheComparisonSectionIsInTheGeneralTab": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testATabKeepsItsBookmarksOpen": "n/a — the app's window tabs; one workspace per browser tab",
         "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testClosingTheLastFileClosesTheTabWhenOthersAreOpen": "n/a — the app's window tabs; one workspace per browser tab",
-        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testTheLastTabStays": "n/a — the app's window tabs; one workspace per browser tab"
+        "ByteRipperTests/CloseFileTests.swift#CloseFileTests.testTheLastTabStays": "n/a — the app's window tabs; one workspace per browser tab",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testALinkInTheDetailsSelectsItsRowInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnEntryOpensItsBlockOnTheEntry": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheMenuStartsWithWhatADoubleClickOpens": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
+        "ByteRipperTests/FindPasteboardTests.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       }
     },
     {
@@ -5014,7 +5029,9 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop": "n/a — a fragment panel let go on a window's pane: what lets a part torn off into a tab of its own be compared with another (7a11bed). The web tears nothing off (the New Tab strip is excluded by the owner, one workspace per browser tab), so a part is never a window's file, and a panel's header drag is the fold",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.arriveFromNotes": "n/a — one history holds the panel as a place (`NOTES_PLACE`, `go` in navigationStore.ts), so there are no stacks of the panel's own and no arriving from it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.hasOtherTabs": "n/a — one workspace per browser tab; the app has no sibling tabs for an emptied one to close into",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findNextMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findPreviousMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",
@@ -5277,7 +5294,9 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.onSubmit": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.text": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternQuery.view": "n/a — the protocol of an AppKit view a tool hosts; ToolContext.patternQuery hands a tool the React controls and `toolPatternAttempts`",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.init": "n/a — a plain record, made as an object literal"
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolPatternQuery.swift#ToolPatternAttempt.init": "n/a — a plain record, made as an object literal",
+        "Packages/ToolModuleKit/Sources/ToolModuleKit/FindPasteboard.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "Packages/ToolModuleKit/Tests/ToolModuleKitTests/FindPasteboardTests.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       },
       "files": {
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift": "src/tools/zone.ts",

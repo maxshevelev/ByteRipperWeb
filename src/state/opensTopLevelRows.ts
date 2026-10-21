@@ -28,6 +28,14 @@ export function takeOpensTopLevelRows(pane: PaneId): boolean {
 export interface ShowItemWish {
   readonly start: number;
   readonly end: number | undefined;
+  /**
+   * The node put in focus as a click on its row would — selected, and its zone outlined in the
+   * dump — rather than only shown: an entry of a LENV block opened as the block decoded.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.focusItem
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.focusItem
+   */
+  readonly focus?: boolean | undefined;
 }
 
 /**
@@ -46,6 +54,13 @@ export const showItemWishes = createStore<ReadonlyMap<PaneId, ShowItemWish>>(new
 /** The panel on `pane` is to show the node at `start` — the one spanning to `end`, where given. */
 export function wishShowItemAt(pane: PaneId, start: number, end?: number): void {
   showItemWishes.update((wishes) => new Map(wishes).set(pane, { start, end }));
+}
+
+/** The panel on `pane` is to put the node at `offset` in focus. */
+export function wishFocusItemAt(pane: PaneId, offset: number): void {
+  showItemWishes.update((wishes) =>
+    new Map(wishes).set(pane, { start: offset, end: undefined, focus: true })
+  );
 }
 
 /** The node the panel on `pane` is to show now — given only the first time asked. */

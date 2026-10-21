@@ -1,4 +1,4 @@
-import { L } from "@/core/localization/localization";
+import { L, LocalizedText } from "@/core/localization/localization";
 import { decodeUtf8 } from "@/core/text/utf";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
@@ -66,21 +66,32 @@ export interface AppleDMIArea {
 }
 
 /**
- * The values, in the order a Mac's own tools list them, each with the entry it is read from. The
- * names are English keys, put into words where they are shown.
+ * The values, in the order a Mac's own tools list them, each with the entry it is read from.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift#AppleDMIArea.values
  */
 export function appleValues(area: AppleDMIArea): {
-  readonly name: string;
+  readonly name: LocalizedText;
   readonly value?: string | undefined;
   readonly entry?: ImageRange | undefined;
 }[] {
   return [
-    { name: "Serial number", value: area.serialNumber, entry: area.serialEntry },
-    { name: "Configuration code", value: area.configCode, entry: area.configCodeEntry },
-    { name: "Sales order number", value: area.orderNumber, entry: area.orderNumberEntry },
-    { name: "MLB (board serial)", value: area.boardSerial, entry: area.boardSerialEntry },
+    { name: LocalizedText.of("Serial number"), value: area.serialNumber, entry: area.serialEntry },
+    {
+      name: LocalizedText.of("Configuration code"),
+      value: area.configCode,
+      entry: area.configCodeEntry,
+    },
+    {
+      name: LocalizedText.of("Sales order number"),
+      value: area.orderNumber,
+      entry: area.orderNumberEntry,
+    },
+    {
+      name: LocalizedText.of("MLB (board serial)"),
+      value: area.boardSerial,
+      entry: area.boardSerialEntry,
+    },
   ];
 }
 

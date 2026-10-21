@@ -3235,6 +3235,12 @@ button.uefi-title {
   min-width: 0;
 }
 
+/* Done at the end of the bar's first line, whatever is between gives way. */
+.uefi-search-done {
+  flex: none;
+  margin-left: auto;
+}
+
 .uefi-search-field {
   flex: 1 1 auto;
   min-width: 0;
@@ -3246,7 +3252,6 @@ button.uefi-title {
   max-width: 45%;
 }
 
-.uefi-search-step,
 .uefi-search-stop {
   flex: none;
   width: 18px;
@@ -3260,14 +3265,8 @@ button.uefi-title {
   cursor: pointer;
 }
 
-.uefi-search-step:hover:not(:disabled),
 .uefi-search-stop:hover {
   color: var(--text);
-}
-
-.uefi-search-step:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .uefi-search-progress {

@@ -362,7 +362,11 @@ function lenovoWireFields(
 ): {
   valueRow?: string;
   encodingRole?: RowRole;
-  decodableBlock?: { readonly range: readonly [number, number]; readonly name: string };
+  decodableBlock?: {
+    readonly range: readonly [number, number];
+    readonly name: string;
+    readonly encoded: boolean;
+  };
 } {
   if (!readsLenovoDMI(node.kind)) return {};
   const reader = readerFor(node);

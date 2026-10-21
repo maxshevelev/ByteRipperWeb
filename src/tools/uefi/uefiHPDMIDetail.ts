@@ -14,7 +14,7 @@ import {
 } from "@/firmware/uefi/hpDmiArea";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { type DetailField, type DetailTable, } from "@/tools/toolDetail";
+import type { DetailField, DetailTable } from "@/tools/toolDetail";
 import {
   type DMIEntryRow,
   dmiEntriesTable,
