@@ -2593,7 +2593,6 @@
         "ByteRipperTests/ComparisonResizeTests.swift#ComparisonResizeTests.testStackedResizeKeepsHeightRatio": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests": "n/a — test scaffolding",
         "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testChoosingAnItemPersistsTheDistance": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheSettingsWindowHasAComparisonTab": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/ContentRedrawTests.swift#ContentRedrawTests": "n/a — test scaffolding",
         "ByteRipperTests/ContentRedrawTests.swift#ContentRedrawTests.makePane": "n/a — test scaffolding",
         "ByteRipperTests/ContentRedrawTests.swift#ContentRedrawTests.rows": "n/a — test scaffolding",
@@ -4544,7 +4543,8 @@
         "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testNoCalloutWhileAMarkIsDragged": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/HoverCalloutTests.swift#HoverCalloutTests.testTheCalloutGoesWithEveryEventThatWouldMakeItWrong": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testTheDashesStandStillWhateverIsRepainted": "later — reads the dump's pixels back, which the port has no canvas test for; the fold itself is tested (spanContour.test.ts)",
-        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note"
+        "ByteRipperTests/NoteOutlineTests.swift#NoteOutlineTests.testPaintingInsideAHugeNoteIsCheap": "later — a timing of the painted dump, which the port has no canvas test for; measured in Chrome instead: 16.7 ms frames scrolling inside an 8 MB note",
+        "ByteRipperTests/ComparisonSettingsTests.swift#ComparisonSettingsTests.testTheComparisonSectionIsInTheGeneralTab": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {
