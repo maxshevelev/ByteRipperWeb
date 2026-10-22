@@ -1,6 +1,6 @@
 import { type ReactNode, useRef } from "react";
 import { L } from "@/core/localization/localization";
-import { paneDragStore } from "@/state/paneDragStore";
+import { paneDragStore, type RemoteDraggedPane } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
 import type { PaneLayout, SlotId } from "@/state/workspaceStore";
 import { DropZoneView } from "@/ui/drag/DropZoneView";
@@ -60,6 +60,10 @@ export interface SingleFileDropProps {
    * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.onPaneDropped
    */
   readonly onPaneDropped: (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) => void;
+  /** Another window's pane was let go in a zone (`Design/DESKTOP_WINDOWS.md`, D5). */
+  readonly onRemotePaneDropped?:
+    | ((pane: RemoteDraggedPane, band: SingleFileDropTarget, copying: boolean) => void)
+    | undefined;
   /**
    * Files were let go in a zone.
    *
@@ -82,6 +86,7 @@ export function SingleFileDrop({
   layout,
   outcomeFor,
   onPaneDropped,
+  onRemotePaneDropped,
   onFilesDropped,
   children,
 }: SingleFileDropProps) {
@@ -100,6 +105,7 @@ export function SingleFileDrop({
     // target rather than three.
     fallbackBand: "addSecond",
     onPaneDropped,
+    onRemotePaneDropped,
     onFilesDropped,
   });
 

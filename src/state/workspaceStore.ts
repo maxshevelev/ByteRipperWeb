@@ -997,7 +997,7 @@ export async function duplicatePane(from: SlotId): Promise<void> {
  * @upstream ByteRipperApp/Documents/DuplicateName.swift#DuplicateName.next
  * @upstream-differs always "name copy.ext", without numbering a second copy
  */
-function copyName(name: string): string {
+export function copyName(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot <= 0
     ? L("%1$@ copy", name)

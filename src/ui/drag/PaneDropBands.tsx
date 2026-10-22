@@ -3,13 +3,16 @@ import { dragCarriesFiles } from "@/platform/files/dragDrop";
 import {
   beginFileDrag,
   draggedPaneId,
+  draggedRemotePane,
   endDrag,
   notePaneDragCopying,
   notePaneDragZone,
   paneDragIsCopying,
   paneDragStore,
+  type RemoteDraggedPane,
 } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
+import { followPaneDrag } from "@/state/workspace/paneTransfer";
 import type { SlotId } from "@/state/workspaceStore";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import {
@@ -21,6 +24,7 @@ import {
   type SingleFileDropTarget,
   singleFileDropTargetTitle,
 } from "@/ui/drag/dragDrop";
+import { newWindowStripInset, newWindowStripStore } from "@/ui/drag/NewWindowStrip";
 
 /**
  * A pane's drop overlay (§4.3, amended by §22.4): the three bands a drop on this
@@ -82,19 +86,22 @@ export function PaneDropBands({ outcomeFor }: PaneDropBandsProps) {
   const { inFlight, copying, zone } = useStore(paneDragStore);
   const ref = useRef<HTMLDivElement | null>(null);
   const height = useMeasuredHeight(ref, inFlight !== undefined);
+  // The New Window strip lies over the top of the panes it reaches: the bands share what is left.
+  useStore(newWindowStripStore);
+  const inset = newWindowStripInset(ref.current?.getBoundingClientRect().top ?? 0);
 
   // Never mounted while idle: a transparent overlay still takes the pointer, and
   // up to now these bands were what the two dashed `.join-band` strips did with
   // a click over a pane.
   if (inFlight === undefined) return null;
 
-  const layout = new DropBandLayout({ halfHeight: height });
+  const layout = new DropBandLayout({ halfHeight: height, topInset: inset });
   const strip = layout.stripHeight;
   // Top-down, as the layout rule is: the strips at either end, the middle band
   // between them, collapsing to nothing in a very short pane.
   const frames: Record<(typeof BANDS)[number], { top: number; height: number }> = {
-    insertAtStart: { top: 0, height: strip },
-    replace: { top: strip, height: Math.max(0, layout.bandHeight - 2 * strip) },
+    insertAtStart: { top: inset, height: strip },
+    replace: { top: inset + strip, height: Math.max(0, layout.bandHeight - 2 * strip) },
     appendAtEnd: { top: Math.max(0, height - strip), height: strip },
   };
 
@@ -191,6 +198,14 @@ export interface PaneDropRegionOptions {
    */
   readonly onPaneDropped: (paneId: SlotId, band: SingleFileDropTarget, copying: boolean) => void;
   /**
+   * Another window's pane was let go in a band (`Design/DESKTOP_WINDOWS.md`, D5).
+   *
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onPaneDropped
+   */
+  readonly onRemotePaneDropped?:
+    | ((pane: RemoteDraggedPane, band: SingleFileDropTarget, copying: boolean) => void)
+    | undefined;
+  /**
    * Files were let go on a band. The event is the only handle on them — a
    * browser hands a drop its data and nothing else.
    *
@@ -257,7 +272,8 @@ export interface PaneDropRegion {
  * equivalent to answer with
  */
 export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
-  const { bands, outcomeFor, fallbackBand, onPaneDropped, onFilesDropped } = options;
+  const { bands, outcomeFor, fallbackBand, onPaneDropped, onRemotePaneDropped, onFilesDropped } =
+    options;
 
   /**
    * The band under the pointer, or the region's fallback when the pointer is not
@@ -283,8 +299,10 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
       event.clientY >= rect.top &&
       event.clientY < rect.bottom;
     if (!inside) return fallbackBand;
+    const topInset = newWindowStripInset(rect.top);
     return (
-      new DropBandLayout({ halfHeight: rect.height }).band(event.clientY - rect.top) ?? fallbackBand
+      new DropBandLayout({ halfHeight: rect.height, topInset }).band(event.clientY - rect.top) ??
+      fallbackBand
     );
   };
 
@@ -305,6 +323,9 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
       // it was — so the cursor carries the + that says so.
       // @upstream ByteRipperApp/DragDrop/DragDrop.swift#NSDraggingInfo.isCopyRequested
       const copying = carried === "pane" && event.altKey;
+      // A pane from another window, or one of this window's own back after leaving it, is taken
+      // up here: its bands have to know what they are offered.
+      if (carried === "pane") followPaneDrag();
       if (carried === "pane") notePaneDragCopying(copying);
       const outcome = carried === "pane" ? outcomeFor(band, copying) : undefined;
       // Ours whichever way it goes: a region that cannot take what is carried
@@ -339,6 +360,7 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
       notePaneDragZone(undefined);
       if (carried === "pane") {
         const paneId = draggedPaneId();
+        const remote = draggedRemotePane();
         const copying = paneDragIsCopying();
         // Ended before the act, as upstream ends the session before routing it:
         // the act is a command that may be refused, and a refusal still has to
@@ -346,6 +368,7 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
         // @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.performDragOperation
         endDrag();
         if (paneId !== undefined) onPaneDropped(paneId, band, copying);
+        else if (remote !== undefined) onRemotePaneDropped?.(remote, band, copying);
         return;
       }
       onFilesDropped(band, event);

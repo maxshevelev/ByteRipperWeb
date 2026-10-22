@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   setMenu: (menus) => ipcRenderer.send("menu:set", menus),
   zoom: (step) => ipcRenderer.send("zoom", step),
   quit: () => ipcRenderer.send("quit"),
-  newWindow: () => ipcRenderer.send("window:new"),
+  newWindow: (handover) => ipcRenderer.send("window:new", handover),
   // The workspace this window's page is (Design/DESKTOP_WINDOWS.md, D2): what its launch restores,
   // asked once as the page starts, and the page's word back on which it is and whether it records.
   workspace: {

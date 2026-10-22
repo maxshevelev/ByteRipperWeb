@@ -42,6 +42,8 @@ Each pane header names its file and whether it has unsaved changes; the status l
 
 [[edition:||With nothing left open in a window, **File ▸ Close** closes the window itself; **File ▸ Close Window** ([[key:closeWindow]]) closes it whatever it holds. A window with unsaved changes asks before it closes. **File ▸ Exit** closes every window in turn, the one in front first, each asking about its own changes; choosing to stay keeps that window and the ones behind it open.]]
 
+[[edition:||A pane is carried between windows by its header. Let go on the middle of a pane in another window, it moves there; with Alt held (Option on a Mac) a copy is made there instead, and on the top or bottom band it is joined to that pane. While a pane is dragged, a strip along the top of every window offers **Move to New Window**, or with Alt held **Duplicate to New Window**; files dragged onto the strip open in a new window. In a comparison, the pane header's menu offers **Open in New Window**. A pane carried into a new window takes the bookmarks of the window it came from. A moved pane keeps its position, its segments and its unsaved changes; its undo history stays behind.]]
+
 ## If the file is already open
 
 [[edition:Nothing is refused here — a tab cannot tell whether a file is open elsewhere:||A file is open in one place in the program at a time, across all its windows; within one window, both panes may hold it:]]

@@ -21,6 +21,11 @@ export interface WindowLaunch {
   readonly adopt: boolean;
   /** The workspaces the app still holds, handed to one window: what any other record was is gone. */
   readonly keep?: readonly string[] | undefined;
+  /**
+   * What the window was opened to take up from the one it was torn off from (D5): a pane, or the
+   * files dropped on its New Window strip (`paneTransfer.ts`, `Handover`).
+   */
+  readonly handover?: unknown;
   /** The project the app has open, which this window is one of (D3). */
   readonly project?: ShellProject | undefined;
 }

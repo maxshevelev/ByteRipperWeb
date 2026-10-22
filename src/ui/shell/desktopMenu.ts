@@ -47,8 +47,11 @@ export interface DesktopBridge {
    * own unsaved work — and the app goes with the last.
    */
   quit(): void;
-  /** File ▸ New Window: another window, cascaded off this one (Design/DESKTOP_WINDOWS.md). */
-  newWindow(): void;
+  /**
+   * File ▸ New Window: another window, cascaded off this one (Design/DESKTOP_WINDOWS.md) — handed
+   * `handover` to take up as it comes up, when it is torn off with a pane or files (D5).
+   */
+  newWindow(handover?: unknown): void;
   /** File ▸ Close Window: this window, as its ✕ closes it. */
   closeWindow(): void;
   /**

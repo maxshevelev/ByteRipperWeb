@@ -221,6 +221,20 @@ async function sweep(): Promise<void> {
   }
 }
 
+/**
+ * Takes up another window's marks, into a window that has none yet: a pane torn off into a new
+ * window brings the list of the window it came from, which then goes its own way
+ * (`Design/DESKTOP_WINDOWS.md`, D5).
+ *
+ * @upstream ByteRipperApp/Bookmarks/BookmarkStore.swift#BookmarkStore.seed
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOff
+ */
+export function adoptBookmarks(marks: readonly Bookmark[]): void {
+  if (bookmarks.bookmarks.length > 0 || marks.length === 0) return;
+  bookmarks.seed(marks);
+  publish();
+}
+
 // MARK: - What the commands do
 
 /**

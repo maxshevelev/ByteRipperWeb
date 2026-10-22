@@ -37,7 +37,13 @@ import {
   recordJump,
 } from "@/state/navigationStore";
 import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
-import { beginFileDrag, draggedPaneId, endDrag } from "@/state/paneDragStore";
+import {
+  beginFileDrag,
+  draggedPaneId,
+  draggedRemotePane,
+  endDrag,
+  type RemoteDraggedPane,
+} from "@/state/paneDragStore";
 import {
   partsLinkedTo,
   strandingCloseButton,
@@ -79,6 +85,13 @@ import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import { openOnce, openOnceHooks } from "@/state/workspace/openOnce";
+import {
+  bringPane,
+  followPaneDrag,
+  panePeer,
+  receiveHandover,
+  startPaneTransfer,
+} from "@/state/workspace/paneTransfer";
 import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
 import { projectQuestionStore } from "@/state/workspace/projects";
 import { startShellWorkspace } from "@/state/workspace/shellWorkspace";
@@ -131,6 +144,7 @@ import { type PaneChoice, PaneChoiceDialog } from "@/ui/dialogs/PaneChoiceDialog
 import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import {
+  dragCarriesPane,
   isJoin,
   PANE_DROP_NONE,
   type PaneDropOutcome,
@@ -138,6 +152,7 @@ import {
   type SingleFileDropTarget,
   singleFilePaneDrop,
 } from "@/ui/drag/dragDrop";
+import { NewWindowStrip, type StripPane } from "@/ui/drag/NewWindowStrip";
 import {
   type PaneDropOutcomeResolver,
   type PaneDropRegion,
@@ -567,6 +582,12 @@ export function AppShell() {
 
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
+      // A pane from another window of the desktop shell, or one of this window's own back after
+      // leaving it: taken up, so the New Window strip comes up with it (D5).
+      if (event.dataTransfer !== null && dragCarriesPane(event.dataTransfer)) {
+        followPaneDrag();
+        return;
+      }
       if (!dragCarriesFiles(event.dataTransfer)) return;
       event.preventDefault();
       // The session is raised here as well as from a pane's own region, because
@@ -900,12 +921,20 @@ export function AppShell() {
     const stop = startWorkspaceRecorder();
     // One workspace over the shell's windows (`Design/DESKTOP_WINDOWS.md`, D2).
     const leave = startShellWorkspace();
-    void restoreWorkspace();
+    const stopTransfer = startPaneTransfer();
+    // A window torn off from another takes up what it was made for once it is up (D5).
+    void restoreWorkspace()
+      .then(() => receiveHandover())
+      .then((files) => {
+        if (files.length > 0) void accept([...files]);
+      });
     return () => {
+      stopTransfer();
       leave();
       stop();
     };
-  }, []);
+    // `accept` is stable: it is made once.
+  }, [accept]);
 
   // The find bar always searches the pane the commands act on — the part in
   // front of the dump, where one is up.
@@ -1849,6 +1878,118 @@ export function AppShell() {
   );
 
   /**
+   * What letting another window's pane go on `target`'s `band` would mean
+   * (`Design/DESKTOP_WINDOWS.md`, D5): upstream's rule with the pane from elsewhere — the middle
+   * band and the free half move it here, Option copies it, the ends join it — and the guards the
+   * rule cannot see, answered from what the other window announced.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.paneDropOutcome
+   */
+  const remoteDropOutcomeFor = useCallback(
+    (
+      remote: RemoteDraggedPane,
+      target: SlotId,
+      band: SingleFileDropTarget,
+      copying: boolean
+    ): PaneDropOutcome => {
+      const { panes } = workspaceStore.getSnapshot();
+      const outcome = paneDropOutcome(
+        remote.slot,
+        { kind: "pane", index: target, inOriginWindow: false, band },
+        copying
+      );
+      if (outcome.kind === "join" && panes[target] === undefined) return PANE_DROP_NONE;
+      // A copy needs bytes to copy; an empty pane moved is still a pane.
+      if (outcome.kind === "duplicate" && remote.size === 0) return PANE_DROP_NONE;
+      if (band === "addSecond" && panes[target] !== undefined) return PANE_DROP_NONE;
+      return outcome;
+    },
+    []
+  );
+
+  /**
+   * Another window's pane let go here: moved into the slot, copied into it, or joined onto it.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performPaneDrop
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.movePaneHere
+   * @upstream-differs the pane crosses as its workspace record (`paneTransfer.ts`), its undo history
+   * staying behind
+   */
+  const performRemotePaneDrop = useCallback(
+    async (
+      remote: RemoteDraggedPane,
+      target: SlotId,
+      band: SingleFileDropTarget,
+      copying: boolean
+    ) => {
+      const outcome = remoteDropOutcomeFor(remote, target, band, copying);
+      const { panes } = workspaceStore.getSnapshot();
+      if (outcome.kind === "join") {
+        const taken = await panePeer()?.take(remote.from, remote.slot, true);
+        if (taken?.kind !== "copy") return;
+        await joinInto(
+          target,
+          outcome.at,
+          new FileBackedStorage(taken.content, new ChunkCache()),
+          taken.name,
+          {
+            name: taken.name,
+            size: taken.content.size,
+            lastModified: Date.now(),
+            source: taken.content,
+          }
+        );
+        return;
+      }
+      if (outcome.kind !== "move" && outcome.kind !== "duplicate") return;
+      const occupant = panes[target];
+      if (occupant?.document.isDirty === true) {
+        if (
+          !window.confirm(
+            L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, remote.name)
+          )
+        ) {
+          return;
+        }
+      }
+      const taken = await bringPane(remote.from, remote.slot, target, outcome.kind === "duplicate");
+      if (taken.kind === "refused" && taken.reason === "parts") {
+        reportAlert(
+          L("“%1$@” could not be moved", remote.name),
+          L("Parts are open over it in its window. Close them there first.")
+        );
+      }
+    },
+    [remoteDropOutcomeFor, joinInto]
+  );
+
+  /**
+   * A pane, or files, let go on the New Window strip: a new window, cascaded off this one, that
+   * takes them up as it comes up.
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffPaneToNewTab
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFilesInNewTab
+   * @upstream-differs a window where upstream makes a tab
+   */
+  const paneToNewWindow = useCallback((pane: StripPane) => {
+    const peer = panePeer();
+    if (peer === undefined) return;
+    desktopBridge()?.newWindow({
+      kind: "pane",
+      from: pane.from ?? peer.me,
+      slot: pane.slot,
+      copy: pane.copy,
+    });
+  }, []);
+  const filesToNewWindow = useCallback((transfer: DataTransfer) => {
+    void filesFromDrop(transfer).then((files) => {
+      const peer = panePeer();
+      if (peer === undefined || files.length === 0) return;
+      desktopBridge()?.newWindow({ kind: "files", from: peer.me, ask: peer.offerFiles(files) });
+    });
+  }, []);
+
+  /**
    * The answer a region asks for, for the pane it stands for.
    *
    * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.paneDropOutcome
@@ -1856,10 +1997,12 @@ export function AppShell() {
   const outcomeResolverFor = useCallback(
     (target: SlotId) => (band: SingleFileDropTarget, copying: boolean) => {
       const dragging = draggedPaneId();
-      if (dragging === undefined) return PANE_DROP_NONE;
-      return paneDropOutcomeFor(dragging, target, band, copying);
+      if (dragging !== undefined) return paneDropOutcomeFor(dragging, target, band, copying);
+      const remote = draggedRemotePane();
+      if (remote !== undefined) return remoteDropOutcomeFor(remote, target, band, copying);
+      return PANE_DROP_NONE;
     },
-    [paneDropOutcomeFor]
+    [paneDropOutcomeFor, remoteDropOutcomeFor]
   );
 
   /**
@@ -2146,6 +2289,10 @@ export function AppShell() {
       onRename: (pane) => setRenamingPane(pane),
       onRevert: doRevert,
       onDuplicate: doDuplicate,
+      onOpenInNewWindow:
+        panePeer() === undefined
+          ? undefined
+          : (slot: SlotId) => paneToNewWindow({ from: undefined, slot, copy: false }),
       onClose: (pane) => void closeWithWarning(pane),
       onFill: () => setFillOpen(true),
       onDeleteBytes: doDeleteBytes,
@@ -2171,7 +2318,17 @@ export function AppShell() {
       onProblem: reportAlert,
       onMessage: showTransientMessage,
     }),
-    [open, doSave, doRevert, doDuplicate, closeWithWarning, doDeleteBytes, doJoin, revealIn]
+    [
+      open,
+      doSave,
+      doRevert,
+      doDuplicate,
+      closeWithWarning,
+      doDeleteBytes,
+      doJoin,
+      revealIn,
+      paneToNewWindow,
+    ]
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
@@ -2208,6 +2365,8 @@ export function AppShell() {
     paneDropRegion({
       outcomeFor: outcomeResolverFor(id),
       onPaneDropped: (paneId, band, copying) => performPaneDrop(paneId, id, band, copying),
+      onRemotePaneDropped: (remote, band, copying) =>
+        void performRemotePaneDrop(remote, id, band, copying),
       onFilesDropped: (band, event) => {
         if (event.dataTransfer === null) return;
         acceptDroppedFiles(event.dataTransfer, (files) =>
@@ -2601,6 +2760,9 @@ export function AppShell() {
             layout={state.layout}
             outcomeFor={singleFileOutcomeFor}
             onPaneDropped={handleSingleFilePaneDrop}
+            onRemotePaneDropped={(remote, band, copying) =>
+              void performRemotePaneDrop(remote, singleFileBandTarget(band), band, copying)
+            }
             onFilesDropped={handleSingleFileFilesDrop}
           >
             {paneElement(lone)}
@@ -2614,6 +2776,10 @@ export function AppShell() {
             fraction={state.splitFraction}
             onChange={setSplitFraction}
           />
+        ) : null}
+        {/* Last, so the panes stay the first of their kind for the grid's rules (D5). */}
+        {panes.length > 0 && panePeer() !== undefined ? (
+          <NewWindowStrip onPane={paneToNewWindow} onFiles={filesToNewWindow} />
         ) : null}
       </main>
       <MinimapPanel

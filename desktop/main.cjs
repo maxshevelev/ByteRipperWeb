@@ -385,8 +385,16 @@ app.whenReady().then(() => {
   });
   // File ▸ New Window and File ▸ Close Window.
   // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.newWindow
-  ipcMain.on("window:new", (event) => {
-    if (fromApp(event)) windows.makeWindow();
+  // A window torn off with a pane or files (D5) is told whom to take them from: the page's word,
+  // passed on as it is, which the new page answers only through the other windows.
+  ipcMain.on("window:new", (event, handover) => {
+    if (!fromApp(event)) return;
+    const valid =
+      handover !== null &&
+      typeof handover === "object" &&
+      (handover.kind === "pane" || handover.kind === "files") &&
+      typeof handover.from === "string";
+    windows.makeWindow(valid ? { handover } : undefined);
   });
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
   ipcMain.on("window:close", (event) => {

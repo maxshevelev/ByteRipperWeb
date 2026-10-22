@@ -50,13 +50,14 @@ import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
 // Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
 // for a selection, and the two must not be confused for each other.
-import { endDrag as endPaneDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
+import { beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
+import { endLocalPaneDrag } from "@/state/workspace/paneTransfer";
 import {
   activeDecoder,
   decoderFor,
@@ -1997,7 +1998,7 @@ export function HexPane({
         // threshold and the one-drag-per-press rule upstream keeps in code.
         draggable
         onDragStart={(event) => beginPaneDragFromEvent(event, paneId, name)}
-        onDragEnd={endPaneDrag}
+        onDragEnd={endLocalPaneDrag}
         onContextMenu={onHeaderMenu === undefined ? undefined : (event) => onHeaderMenu(event)}
         onDoubleClick={
           onHeaderDoubleClick === undefined

@@ -2,6 +2,14 @@ import { createStore } from "@/state/store";
 import type { SlotId } from "@/state/workspaceStore";
 import type { SingleFileDropTarget } from "@/ui/drag/dragDrop";
 
+/** A pane in flight from another window of the desktop shell, as that window announced it. */
+export interface RemoteDraggedPane {
+  readonly from: string;
+  readonly slot: SlotId;
+  readonly name: string;
+  readonly size: number;
+}
+
 /**
  * What is in flight over the workspace, and what it is asking for (§22.4).
  *
@@ -24,8 +32,14 @@ export type DragKind = "file" | "pane";
 export interface PaneDragState {
   /** `undefined` when nothing is being dragged over the workspace at all. */
   readonly inFlight: DragKind | undefined;
-  /** The pane being dragged, when one is. */
+  /** The pane being dragged, when one of this window's is. */
   readonly paneId: SlotId | undefined;
+  /**
+   * The pane being dragged, when it is another window's (`Design/DESKTOP_WINDOWS.md`, D5).
+   *
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#PaneDrop.Destination.pane
+   */
+  readonly remote?: RemoteDraggedPane | undefined;
   /**
    * Whether the drag in flight is asking to copy. Held between updates so the
    * captions can be recomputed without the event to hand.
@@ -73,6 +87,22 @@ export function beginFileDrag(): void {
  */
 export function beginPaneDrag(paneId: SlotId): void {
   paneDragStore.update(() => ({ ...IDLE, inFlight: "pane", paneId }));
+}
+
+/**
+ * A pane from another window of the desktop shell has come over this one.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.draggingEntered
+ * @upstream-differs the pane is known from the window it left, which announced it: the drag's
+ * own data is hidden until the drop
+ */
+export function beginRemotePaneDrag(remote: RemoteDraggedPane): void {
+  paneDragStore.update(() => ({ ...IDLE, inFlight: "pane", remote }));
+}
+
+/** The other window's pane in flight over this one, if that is what is dragged. */
+export function draggedRemotePane(): RemoteDraggedPane | undefined {
+  return paneDragStore.getSnapshot().remote;
 }
 
 /**

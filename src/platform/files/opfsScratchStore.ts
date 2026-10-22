@@ -37,6 +37,7 @@ export class OpfsScratchStore implements ScratchStore {
     prefix = `scratch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
   ) {
     this.prefix = prefix;
+    holdForThisPage(prefix);
   }
 
   /**
@@ -126,17 +127,47 @@ export class OpfsScratchStore implements ScratchStore {
 export async function sweepOrphanedScratch(): Promise<void> {
   if (!OpfsScratchStore.isAvailable()) return;
   try {
+    // Another page of this origin — another window of the desktop shell, another tab — may be
+    // reading its scratch right now: what a live page holds is not an orphan.
+    const held = await heldPrefixes();
     const root = await navigator.storage.getDirectory();
     const directory = root as FileSystemDirectoryHandle & {
       keys?: () => AsyncIterableIterator<string>;
     };
     if (directory.keys === undefined) return;
     for await (const name of directory.keys()) {
-      if (/^scratch-[0-9a-z]+-[0-9a-z]+-\d+\.bin$/.test(name)) {
+      const match = /^(scratch-[0-9a-z]+-[0-9a-z]+)-\d+\.bin$/.exec(name);
+      if (match !== null && !held.has(match[1] ?? "")) {
         await root.removeEntry(name).catch(() => undefined);
       }
     }
   } catch {
     // No origin-private filesystem, or no permission to enumerate it.
   }
+}
+
+const LOCK_PREFIX = "byteripper-scratch:";
+
+/**
+ * Holds `prefix` for as long as this page lives, so a sweep in another page leaves its files be.
+ * The browser lets the lock go with the page, however it ends.
+ *
+ * @web-only upstream's temporary directory is one process's; an origin's private storage is every
+ * page's of that origin at once
+ */
+function holdForThisPage(prefix: string): void {
+  const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+  void locks?.request(`${LOCK_PREFIX}${prefix}`, () => new Promise<void>(() => undefined));
+}
+
+/** The prefixes a live page of this origin holds. */
+async function heldPrefixes(): Promise<Set<string>> {
+  const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+  const state = await locks?.query().catch(() => undefined);
+  const names = [...(state?.held ?? []), ...(state?.pending ?? [])].map((one) => one.name ?? "");
+  return new Set(
+    names
+      .filter((name) => name.startsWith(LOCK_PREFIX))
+      .map((name) => name.slice(LOCK_PREFIX.length))
+  );
 }

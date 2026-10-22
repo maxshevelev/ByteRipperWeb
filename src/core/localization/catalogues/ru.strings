@@ -674,6 +674,10 @@
 "New File" = "Новый файл";
 "New Window" = "Новое окно";
 "Close Window" = "Закрыть окно";
+"Open in New Window" = "Открыть в новом окне";
+"Move to New Window" = "Перенести в новое окно";
+"Duplicate to New Window" = "Дублировать в новое окно";
+"The pane could not be moved" = "Панель перенести не удалось";
 "“%1$@” is already open" = "«%1$@» уже открыт";
 "A file is open in one place at a time, so it cannot be opened here as well. Show it where it is, or move that pane into this window." = "Файл может быть открыт только в одном месте, поэтому открыть его ещё и здесь нельзя. Покажите его там, где он открыт, или перенесите ту файловую панель в это окно.";
 "Show in Its Window" = "Показать в его окне";

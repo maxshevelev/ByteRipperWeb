@@ -548,10 +548,32 @@ export async function adoptMovedPane(
   saved: PaneState,
   edits: OverlayEdits | undefined
 ): Promise<void> {
-  pauseWorkspaceRecorder(true);
-  try {
+  await adoptMoved(slot, saved, () => {
     openInPane(slot, file);
     if (edits !== undefined) applyKeptEdits(slot, edits);
+  });
+}
+
+/**
+ * A document never saved, carried here from another window (`Design/DESKTOP_WINDOWS.md`, D5): its
+ * bytes, still unsaved, and its place and segments as they were there.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
+ */
+export async function adoptMovedUntitled(
+  slot: SlotId,
+  content: Blob,
+  name: string,
+  dirty: boolean,
+  saved: PaneState
+): Promise<void> {
+  await adoptMoved(slot, saved, () => openKeptUntitledInPane(slot, content, name, dirty));
+}
+
+async function adoptMoved(slot: SlotId, saved: PaneState, open: () => void): Promise<void> {
+  pauseWorkspaceRecorder(true);
+  try {
+    open();
     const linkFiles = new Map<string, OpenedFile>();
     for (const piece of saved.segments?.pieces ?? []) {
       if (piece.link === undefined) continue;

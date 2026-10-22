@@ -674,6 +674,10 @@
 "New File" = "Neue Datei";
 "New Window" = "Neues Fenster";
 "Close Window" = "Fenster schließen";
+"Open in New Window" = "In neuem Fenster öffnen";
+"Move to New Window" = "In neues Fenster verschieben";
+"Duplicate to New Window" = "In neues Fenster duplizieren";
+"The pane could not be moved" = "Der Bereich konnte nicht verschoben werden";
 "“%1$@” is already open" = "„%1$@“ ist bereits geöffnet";
 "A file is open in one place at a time, so it cannot be opened here as well. Show it where it is, or move that pane into this window." = "Eine Datei kann nur an einer Stelle geöffnet sein und lässt sich daher hier nicht zusätzlich öffnen. Zeigen Sie sie dort, wo sie geöffnet ist, oder verschieben Sie jenen Bereich in dieses Fenster.";
 "Show in Its Window" = "In ihrem Fenster zeigen";

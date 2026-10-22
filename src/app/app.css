@@ -105,6 +105,7 @@ textarea,
 }
 
 .app-workspace {
+  position: relative;
   display: grid;
   grid-row: 3;
   grid-column: 2;
@@ -1537,6 +1538,21 @@ textarea,
 }
 
 /* ── Dropping onto a pane (§4.3, §22.4) ───────────────────────────────── */
+
+/*
+ * The New Window strip of the desktop shell (D5): across the top of the panes while a pane or a
+ * file is dragged, above their bands, which start below it. It takes the drop itself, so it takes
+ * the pointer.
+ */
+.new-window-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  box-sizing: border-box;
+  padding: 4px;
+}
 
 /*
  * A pane's drop overlay: the three bands a file — or a pane carried by its

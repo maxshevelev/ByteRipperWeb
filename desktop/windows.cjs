@@ -248,6 +248,7 @@ function register({
       adopt: restored?.adopt === true,
       ...(restored?.keep === undefined ? {} : { keep: restored.keep }),
       ...(info === undefined ? {} : { project: info }),
+      ...(restored?.handover === undefined ? {} : { handover: restored.handover }),
     });
     if (restored?.seed !== undefined) projectSeeds.set(window, restored.seed);
     order.unshift(window);

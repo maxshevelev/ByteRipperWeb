@@ -105,6 +105,11 @@ export interface PaneMenuActions {
   readonly onRename: (pane: PaneId) => void;
   readonly onRevert: (pane: PaneId) => void;
   readonly onDuplicate: (pane: SlotId) => void;
+  /**
+   * Open in New Window, where there are windows to open one in: the desktop shell
+   * (`Design/DESKTOP_WINDOWS.md`, D5). Nothing in a browser, whose menu leaves the item out.
+   */
+  readonly onOpenInNewWindow?: ((pane: SlotId) => void) | undefined;
   /** Closes a pane, or a part with the panel it is in. */
   readonly onClose: (pane: PaneId) => void;
   readonly onFill: (pane: PaneId) => void;
@@ -197,6 +202,19 @@ export function paneFileMenu(
       { label: L("Append File…"), onSelect: () => actions.onJoin(slot, "end") },
       { kind: "separator" },
       { label: L("Duplicate"), onSelect: () => actions.onDuplicate(slot) },
+      // The same subject as Duplicate, pointing the other way: the document itself goes out to a
+      // window of its own, leaving the comparison behind as a single file — so only in one.
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPaneInNewTab
+      // @upstream-differs a window where upstream opens a tab
+      ...(actions.onOpenInNewWindow === undefined
+        ? []
+        : [
+            {
+              label: L("Open in New Window"),
+              disabled: !bothOpen,
+              onSelect: () => actions.onOpenInNewWindow?.(slot),
+            },
+          ]),
       { kind: "separator" },
     ]),
     // A part's way home, beside the saves: putting the bytes back where they

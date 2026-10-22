@@ -1,4 +1,4 @@
-@source-sha 8db1b52b596e62e48212976e4ea34c1f5b02cb7407782fa58812608c941e5a38
+@source-sha 6c9cce379d240f94cae849ce6827c61ee8f48002564fd1b50182f2e030b2823a
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -33,6 +33,8 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; die Größe steht in der Statuszeile darunter. Das ✕ im Kopf schließt diesen Bereich und lässt den anderen offen.
 
 [[edition:||Ist in einem Fenster nichts mehr offen, schließt **Ablage ▸ Schließen** das Fenster selbst; **Ablage ▸ Fenster schließen** ([[key:closeWindow]]) schließt es unabhängig davon, was es enthält. Ein Fenster mit ungesicherten Änderungen fragt vor dem Schließen nach. **Ablage ▸ Beenden** schließt alle Fenster der Reihe nach, das vordere zuerst, und jedes fragt nach seinen eigenen Änderungen; wer „Bleiben“ wählt, behält dieses Fenster und die dahinter offen.]]
+
+[[edition:||Ein Bereich wird an seinem Kopf zwischen Fenstern bewegt. Auf der Mitte eines Bereichs in einem anderen Fenster losgelassen, wandert er dorthin; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie, und auf dem oberen oder unteren Band wird er an jenen Bereich angefügt. Solange ein Bereich gezogen wird, bietet ein Streifen am oberen Rand jedes Fensters **In neues Fenster verschieben** an, mit gedrückter Alt-Taste **In neues Fenster duplizieren**; Dateien, die auf den Streifen gezogen werden, öffnen sich in einem neuen Fenster. Im Vergleich bietet das Menü des Bereichskopfs **In neuem Fenster öffnen** an. Ein Bereich, der in ein neues Fenster getragen wird, nimmt die Lesezeichen des Fensters mit, aus dem er kommt. Ein verschobener Bereich behält seine Position, seine Segmente und seine ungesicherten Änderungen; sein Widerrufen-Verlauf bleibt zurück.]]
 
 ## Wenn die Datei schon offen ist
 
