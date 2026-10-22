@@ -5,6 +5,7 @@ import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { PANE_IDS, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
+import type { CarriedHistory } from "@/state/workspace/carriedHistory";
 import { paneParcel } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedPane } from "@/state/workspace/workspaceRestorer";
 import { closePane, paneState, reportAlert, setActivePane } from "@/state/workspaceStore";
@@ -39,6 +40,8 @@ export interface MovedPane {
   readonly pane?: PaneState | undefined;
   /** Its unsaved changes. */
   readonly edits?: OverlayEdits | undefined;
+  /** Its undo history, written out to cross between the windows. */
+  readonly history?: CarriedHistory | undefined;
   /** Why the pane was not let go: `parts` for one with parts open over it. */
   readonly refused?: "parts" | "unanswered" | undefined;
   /** The file was no longer open there. */
@@ -243,6 +246,6 @@ export async function openOnce(slot: SlotId, file: OpenedFile): Promise<boolean>
     }
     return false;
   }
-  await adoptMovedPane(slot, file, moved.pane, moved.edits);
+  await adoptMovedPane(slot, file, moved.pane, moved.edits, moved.history);
   return false;
 }

@@ -1763,8 +1763,6 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.lastTypingMode": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.companion": "n/a — one workspace per browser tab (D11): no tabs or windows",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.dragID": "n/a — there is no pane registry: a pane's identity in a workspace is its slot's own name (paneDragStore)",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentUndoStack": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentRedoStack": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.pendingSegmentSnapshot": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.signalEdit": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",

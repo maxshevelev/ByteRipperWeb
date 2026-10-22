@@ -46,6 +46,7 @@ import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
 import { type RecordedAct, restoreActs } from "@/state/undoRouter";
+import { type CarriedHistory, putBackHistory } from "@/state/workspace/carriedHistory";
 import type { ContentKeeper } from "@/state/workspace/contentKeeper";
 import { fileSha256 } from "@/state/workspace/fileDigest";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
@@ -499,7 +500,7 @@ async function restoreFragments(
  * the whole of it shows in the pane's operation strip.
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#KeptFileCheck.isTheSameFile
- * @upstream ByteRipperApp/Workspace/WorkspaceRestorer.swift#WorkspaceRestorer.settleKeptFiles
+ * @upstream ByteRipperApp/Workspace/WorkspaceRestorer.swift#WorkspaceRestorer.keptFiles
  * @upstream-differs in the pane's operation strip, not a sheet: the app shows no modal of its own
  */
 async function isTheSameFile(
@@ -652,12 +653,25 @@ export async function adoptMovedPane(
   slot: SlotId,
   file: OpenedFile,
   saved: PaneState,
-  edits: OverlayEdits | undefined
+  edits: OverlayEdits | undefined,
+  history?: CarriedHistory | undefined
 ): Promise<void> {
   await adoptMoved(slot, saved, () => {
     openInPane(slot, file);
     if (edits !== undefined) applyKeptEdits(slot, edits);
+    putBackCarried(slot, history);
   });
+}
+
+/**
+ * The undo history a pane brought from its window, put back over the content it came with.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
+ */
+function putBackCarried(slot: SlotId, history: CarriedHistory | undefined): void {
+  const document = paneState(slot)?.document;
+  if (history === undefined || document === undefined) return;
+  if (putBackHistory(document.undoHistory, history)) document.contentReplaced();
 }
 
 /**
@@ -671,9 +685,13 @@ export async function adoptMovedUntitled(
   content: Blob,
   name: string,
   dirty: boolean,
-  saved: PaneState
+  saved: PaneState,
+  history?: CarriedHistory | undefined
 ): Promise<void> {
-  await adoptMoved(slot, saved, () => openKeptUntitledInPane(slot, content, name, dirty));
+  await adoptMoved(slot, saved, () => {
+    openKeptUntitledInPane(slot, content, name, dirty);
+    putBackCarried(slot, history);
+  });
 }
 
 async function adoptMoved(slot: SlotId, saved: PaneState, open: () => void): Promise<void> {

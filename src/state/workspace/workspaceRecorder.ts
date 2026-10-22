@@ -40,6 +40,7 @@ import { cutHistoryOf, segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
 import { actsFor, type RecordedAct } from "@/state/undoRouter";
+import { type CarriedHistory, carryHistory } from "@/state/workspace/carriedHistory";
 import { ContentKeeper, type KeptPane } from "@/state/workspace/contentKeeper";
 import { partCodecState } from "@/state/workspace/partCodecState";
 import { currentProject, switchToProject } from "@/state/workspace/projectRecords";
@@ -470,14 +471,27 @@ function undoSnapshot(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releasePane
  * @upstream-differs a record of the pane rather than the pane itself, two windows sharing no objects
  */
-export async function paneParcel(
-  slot: SlotId
-): Promise<{ readonly pane: PaneState; readonly edits?: OverlayEdits | undefined } | undefined> {
-  const pane = await paneSnapshot(slot, {}, undefined);
-  if (pane === undefined) return undefined;
-  const edits =
-    paneState(slot)?.document.isDirty === true ? await exportKeptEdits(slot) : undefined;
-  return { pane, ...(edits === undefined ? {} : { edits }) };
+export async function paneParcel(slot: SlotId): Promise<
+  | {
+      readonly pane: PaneState;
+      readonly edits?: OverlayEdits | undefined;
+      readonly history?: CarriedHistory | undefined;
+    }
+  | undefined
+> {
+  const snapshot = await paneSnapshot(slot, {}, undefined);
+  const document = paneState(slot)?.document;
+  if (snapshot === undefined || document === undefined) return undefined;
+  const edits = document.isDirty ? await exportKeptEdits(slot) : undefined;
+  // The undo history goes with the pane, and with it what Undo takes back and the cuts it restores.
+  const history = await carryHistory(document.undoHistory);
+  const undo = history === undefined ? undefined : undoSnapshot(slot, {});
+  const pane = undo === undefined ? snapshot : { ...snapshot, undo };
+  return {
+    pane,
+    ...(edits === undefined ? {} : { edits }),
+    ...(history === undefined ? {} : { history }),
+  };
 }
 
 /**

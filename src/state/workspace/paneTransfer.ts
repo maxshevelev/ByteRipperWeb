@@ -14,6 +14,7 @@ import {
 } from "@/state/paneDragStore";
 import { isSlot, type PaneId, type PartId, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
+import type { CarriedHistory } from "@/state/workspace/carriedHistory";
 import { paneParcel } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedPane, adoptMovedUntitled } from "@/state/workspace/workspaceRestorer";
 import {
@@ -63,6 +64,8 @@ export type TakenPane =
       readonly pane?: PaneState | undefined;
       readonly file?: OpenedFile | undefined;
       readonly edits?: OverlayEdits | undefined;
+      /** Its undo history, written out to cross between the windows. */
+      readonly history?: CarriedHistory | undefined;
       readonly untitled?:
         | { readonly content: Blob; readonly name: string; readonly dirty: boolean }
         | undefined;
@@ -279,11 +282,19 @@ export const thisWindow: PaneHolder = {
         kind: "pane",
         pane: parcel.pane,
         untitled: { content, name: pane.name, dirty: pane.document.isDirty },
+        history: parcel.history,
         marks,
       };
     }
     closePane(slot);
-    return { kind: "pane", pane: parcel.pane, file: pane.file, edits: parcel.edits, marks };
+    return {
+      kind: "pane",
+      pane: parcel.pane,
+      file: pane.file,
+      edits: parcel.edits,
+      history: parcel.history,
+      marks,
+    };
   },
   marks: () => bookmarksStore.getSnapshot().bookmarks,
 };
@@ -440,9 +451,9 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
       if (taken.pane === undefined) {
         openKeptUntitledInPane(slot, content, name, dirty);
         setActivePane(slot);
-      } else await adoptMovedUntitled(slot, content, name, dirty, taken.pane);
+      } else await adoptMovedUntitled(slot, content, name, dirty, taken.pane, taken.history);
     } else if (taken.file !== undefined && taken.pane !== undefined) {
-      await adoptMovedPane(slot, taken.file, taken.pane, taken.edits);
+      await adoptMovedPane(slot, taken.file, taken.pane, taken.edits, taken.history);
     }
   }
 }

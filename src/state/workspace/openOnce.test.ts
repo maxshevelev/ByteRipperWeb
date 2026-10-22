@@ -141,7 +141,7 @@ describe("a file open in another window", () => {
     const opened = file({ path: "/d/bios.bin" });
     expect(await openOnce("b", opened)).toBe(false);
     expect(holding.seen.released).toEqual(["a"]);
-    expect(adopted).toEqual([["b", opened, pane, edits]]);
+    expect(adopted).toEqual([["b", opened, pane, edits, undefined]]);
     other.close();
   });
 
