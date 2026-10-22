@@ -67,7 +67,11 @@ Important rules:
 - The hex grid draws through a glyph atlas and repaints dirty regions only. When
   drawing lags, fix what is repainted; do not cache what was painted.
 - One workspace per browser tab. No in-app tabs, no window management, no pane
-  dragging — that was a deliberate decision, not an omission. **The desktop
+  dragging — that was a deliberate decision, not an omission. The file sessions
+  under the panes are not the page's, though: every document lives in the
+  session host, one `SharedWorker` for every tab and every window of the app,
+  and a pane is a view of one (`Design/FILE_SESSIONS.md`). Nothing in the page
+  holds a `BinaryDocument`; an edit is a request, a host-side job an operation. **The desktop
   shell is the exception** (the owner's decision, 2026-10-22): one process,
   several windows, one workspace, panes and panels carried between windows
   (`Design/DESKTOP_WINDOWS.md`); its tabs are issue #1.

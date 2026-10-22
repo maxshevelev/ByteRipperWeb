@@ -74,24 +74,21 @@ From upstream's `TABS_PLAN.md`, `PANE_DRAG_PLAN.md`, `WORKSPACE_PLAN.md` and
 ## How a pane crosses from one window to another
 
 Upstream moves the `PaneViewModel` object itself, so the edits, the undo
-history, the segments and the file watcher go with it. Two renderers share no
-objects, so here a pane is **carried as what the workspace already knows how to
-write and read back**: its `PaneState` (caret, selection, segments, tool
-state), its file's handle and path, its unsaved bytes (the W4 kept edits, or an
-untitled document's bytes) and its bookmarks. The source writes that parcel,
-the target restores it with the W2–W6 restorer, and only once the target
-says it has it does the source let the pane go — a failure on the way leaves
-the pane where it was.
+history, the segments and the file watcher go with it. Here the documents are
+not the windows' at all: every file session — the file, its changes, their
+history, its cuts — lives in the session host, one `SharedWorker` every window
+connects to (`Design/FILE_SESSIONS.md`). A pane crossing to another window is
+therefore **a view moving**: the window it leaves names the pane's session and
+hands over the pane's own record — its file, where the reader was, the files
+its pieces' links name — over `BroadcastChannel`; the window it reaches shows
+the same session. Nothing of the document is written out or rebuilt, so
+nothing can be left behind: Undo in the window a pane went to takes back what
+was done in the window it came from. Only once the target has the session does
+the source let the pane go, and its going does not end the session.
 
 A `FileSystemFileHandle`, a `File` and a `Blob` cross between same-origin
 windows over `BroadcastChannel` without a copy through the main process; the
 main process only says which window is the target.
-
-**The undo history** does not cross until persistent undo is in (P3–P6 of
-`PORT_WINDOW_07A3928_21A2889.md`): the journal then lives in OPFS, which every
-window of the app reads, and the history's skeleton travels in the parcel.
-Until then a moved pane arrives without its history, and the help says so —
-a `later` gap, not a decision.
 
 **Parts linked across windows.** Upstream's links from a part to its parent
 reach across windows (Update in Parent, Show Parent). Here a link holds within

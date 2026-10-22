@@ -308,10 +308,17 @@ the renderer's chunk cache as it is.
   a tool naming two documents in two windows is still refused, though the host
   reaches both; running tools in the host rather than in a window would lift
   that.
-- [ ] **S10 — the browser edition** on the same host: tabs as windows of one
-  workspace — a pane carried between tabs, a file open once across them — and
-  the docs: `DESKTOP_WINDOWS.md`, `WORKSPACE.md`, `IMPLEMENTATION_PLAN.md`,
-  `ANALYSIS.md`, CLAUDE.md (the one-workspace-per-tab rule).
+- [x] **S10 — the browser edition, and the docs.** The browser runs the same
+  host: its tabs share one `SharedWorker`, and a session opened in one tab is
+  reachable from another (checked: an edit in one undone in the other). What a
+  person sees is unchanged — each tab is still a workspace of its own, its
+  panes its own; carrying a pane between tabs and asking about a file open in
+  another tab are left, since a page cannot bring another tab to the front,
+  and Show in Its Window has nothing to show. Docs: `DESKTOP_WINDOWS.md` (how a
+  pane crosses), `IMPLEMENTATION_PLAN.md` (D16), `GAPS.md` (G106, G102),
+  CLAUDE.md (the rule on browser tabs, and where documents live), and the help
+  in en, ru, de (a moved pane keeps its undo history). Firefox is still not
+  run: the probe in `Design/probes/session-host/` runs there unchanged.
 
 ## Risks
 
