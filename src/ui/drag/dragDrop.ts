@@ -278,6 +278,32 @@ export function paneDropOutcome(
 }
 
 /**
+ * What letting a fragment panel go on a window's pane `onto` would do (`Design/DESKTOP_WINDOWS.md`,
+ * D6).
+ *
+ * A panel let go on a pane stops being a panel: it becomes that pane, which is what lets a part be
+ * compared with another — the second let go on a window's free half. Option copies it instead, as
+ * for a pane. The join bands take nothing from a panel: a part's bytes belong in its parent, which
+ * Update in Parent already puts them in. The free half is on screen only while that pane is free.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome
+ * @upstream-differs the facts are handed in — whether the pane is open, how big the panel's
+ * document is — rather than looked up, which keeps it a rule
+ */
+export function fragmentDropOutcome(
+  onto: SlotId,
+  band: SingleFileDropTarget,
+  ontoIsOpen: boolean,
+  sourceSize: number,
+  copying: boolean
+): PaneDropOutcome {
+  if (isJoin(band)) return PANE_DROP_NONE;
+  if (band === "addSecond" && ontoIsOpen) return PANE_DROP_NONE;
+  if (copying) return sourceSize > 0 ? { kind: "duplicate", intoPane: onto } : PANE_DROP_NONE;
+  return { kind: "move", intoPane: onto };
+}
+
+/**
  * Which pane a band on the overlay of a single-file workspace acts on, and under
  * which band's rules — the free second half acts on the empty pane, the three
  * bands over the open file act on that file's own pane.

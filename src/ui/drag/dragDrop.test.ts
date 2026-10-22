@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DropBandLayout,
+  fragmentDropOutcome,
   isDuplicate,
   isJoin,
+  PANE_DROP_NONE,
   type PaneDropDestination,
   paneBandTitle,
   paneDropOutcome,
@@ -326,5 +328,36 @@ describe("the single-file zones", () => {
     const arrangement = { open: "b", free: "a" } as const;
     expect(singleFilePaneDrop("replace", arrangement)).toEqual({ pane: "b", band: "replace" });
     expect(singleFilePaneDrop("addSecond", arrangement)).toEqual({ pane: "a", band: "addSecond" });
+  });
+});
+
+// `Design/DESKTOP_WINDOWS.md`, D6: a fragment panel let go on a pane becomes that pane.
+describe("a fragment panel let go on a pane", () => {
+  it("moves into the pane it is let go on, through the middle or onto the free half", () => {
+    expect(fragmentDropOutcome("a", "replace", true, 16, false)).toEqual({
+      kind: "move",
+      intoPane: "a",
+    });
+    expect(fragmentDropOutcome("b", "addSecond", false, 16, false)).toEqual({
+      kind: "move",
+      intoPane: "b",
+    });
+  });
+
+  it("is copied there with Option, when it has bytes to copy", () => {
+    expect(fragmentDropOutcome("b", "addSecond", false, 16, true)).toEqual({
+      kind: "duplicate",
+      intoPane: "b",
+    });
+    expect(fragmentDropOutcome("b", "addSecond", false, 0, true)).toEqual(PANE_DROP_NONE);
+  });
+
+  it("is never joined: its bytes belong in its parent, which Update in Parent puts them in", () => {
+    expect(fragmentDropOutcome("a", "insertAtStart", true, 16, false)).toEqual(PANE_DROP_NONE);
+    expect(fragmentDropOutcome("a", "appendAtEnd", true, 16, true)).toEqual(PANE_DROP_NONE);
+  });
+
+  it("finds no free half where the pane is open", () => {
+    expect(fragmentDropOutcome("b", "addSecond", true, 16, false)).toEqual(PANE_DROP_NONE);
   });
 });

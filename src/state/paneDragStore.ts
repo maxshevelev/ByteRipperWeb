@@ -1,11 +1,12 @@
 import { createStore } from "@/state/store";
-import type { SlotId } from "@/state/workspaceStore";
+import type { PaneId, PartId, SlotId } from "@/state/workspaceStore";
 import type { SingleFileDropTarget } from "@/ui/drag/dragDrop";
 
 /** A pane in flight from another window of the desktop shell, as that window announced it. */
 export interface RemoteDraggedPane {
   readonly from: string;
-  readonly slot: SlotId;
+  /** The pane there: one of its two, or a fragment panel (D6). */
+  readonly slot: PaneId;
   readonly name: string;
   readonly size: number;
 }
@@ -34,6 +35,13 @@ export interface PaneDragState {
   readonly inFlight: DragKind | undefined;
   /** The pane being dragged, when one of this window's is. */
   readonly paneId: SlotId | undefined;
+  /**
+   * The fragment panel being dragged by its pill, when one of this window's is
+   * (`Design/DESKTOP_WINDOWS.md`, D6).
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fragmentDropOutcome
+   */
+  readonly partId?: PartId | undefined;
   /**
    * The pane being dragged, when it is another window's (`Design/DESKTOP_WINDOWS.md`, D5).
    *
@@ -98,6 +106,21 @@ export function beginPaneDrag(paneId: SlotId): void {
  */
 export function beginRemotePaneDrag(remote: RemoteDraggedPane): void {
   paneDragStore.update(() => ({ ...IDLE, inFlight: "pane", remote }));
+}
+
+/**
+ * A fragment panel of this window picked up by its pill.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.beginPaneDrag
+ * @upstream-differs by the pill, the panel's header being where a pull folds it
+ */
+export function beginPartDrag(partId: PartId): void {
+  paneDragStore.update(() => ({ ...IDLE, inFlight: "pane", partId }));
+}
+
+/** This window's fragment panel in flight, if that is what is dragged. */
+export function draggedPartId(): PartId | undefined {
+  return paneDragStore.getSnapshot().partId;
 }
 
 /** The other window's pane in flight over this one, if that is what is dragged. */

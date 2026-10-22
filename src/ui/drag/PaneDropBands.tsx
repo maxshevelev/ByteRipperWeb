@@ -3,6 +3,7 @@ import { dragCarriesFiles } from "@/platform/files/dragDrop";
 import {
   beginFileDrag,
   draggedPaneId,
+  draggedPartId,
   draggedRemotePane,
   endDrag,
   notePaneDragCopying,
@@ -13,7 +14,7 @@ import {
 } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
 import { followPaneDrag } from "@/state/workspace/paneTransfer";
-import type { SlotId } from "@/state/workspaceStore";
+import type { PartId, SlotId } from "@/state/workspaceStore";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import {
   DropBandLayout,
@@ -205,6 +206,10 @@ export interface PaneDropRegionOptions {
   readonly onRemotePaneDropped?:
     | ((pane: RemoteDraggedPane, band: SingleFileDropTarget, copying: boolean) => void)
     | undefined;
+  /** One of this window's fragment panels was let go here, carried by its pill (D6). */
+  readonly onPartDropped?:
+    | ((part: PartId, band: SingleFileDropTarget, copying: boolean) => void)
+    | undefined;
   /**
    * Files were let go on a band. The event is the only handle on them — a
    * browser hands a drop its data and nothing else.
@@ -272,8 +277,15 @@ export interface PaneDropRegion {
  * equivalent to answer with
  */
 export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
-  const { bands, outcomeFor, fallbackBand, onPaneDropped, onRemotePaneDropped, onFilesDropped } =
-    options;
+  const {
+    bands,
+    outcomeFor,
+    fallbackBand,
+    onPaneDropped,
+    onRemotePaneDropped,
+    onPartDropped,
+    onFilesDropped,
+  } = options;
 
   /**
    * The band under the pointer, or the region's fallback when the pointer is not
@@ -361,6 +373,7 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
       if (carried === "pane") {
         const paneId = draggedPaneId();
         const remote = draggedRemotePane();
+        const part = draggedPartId();
         const copying = paneDragIsCopying();
         // Ended before the act, as upstream ends the session before routing it:
         // the act is a command that may be refused, and a refusal still has to
@@ -369,6 +382,7 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
         endDrag();
         if (paneId !== undefined) onPaneDropped(paneId, band, copying);
         else if (remote !== undefined) onRemotePaneDropped?.(remote, band, copying);
+        else if (part !== undefined) onPartDropped?.(part, band, copying);
         return;
       }
       onFilesDropped(band, event);

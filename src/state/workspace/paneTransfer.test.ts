@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
 import type { PaneState } from "@/core/workspace/workspace";
 import type { OpenedFile } from "@/platform/files/openedFile";
-import type { SlotId } from "@/state/paneId";
+import type { PaneId } from "@/state/paneId";
 import {
   type PaneChannel,
   type PaneHolder,
@@ -41,8 +41,8 @@ function bus(): () => PaneChannel {
 const marks: Bookmark[] = [{ row: 0x40, name: "Boot block" }];
 
 /** A window whose panes answer as `answers` says, recording what it was asked. */
-function holder(answers: Partial<Record<SlotId, TakenPane>> = {}) {
-  const asked: [SlotId, boolean][] = [];
+function holder(answers: Partial<Record<PaneId, TakenPane>> = {}) {
+  const asked: [PaneId, boolean][] = [];
   const own: PaneHolder = {
     async take(slot, copy) {
       asked.push([slot, copy]);

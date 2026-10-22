@@ -1,9 +1,11 @@
 import { L } from "@/core/localization/localization";
 import type { PanelId } from "@/state/fragmentDock";
+import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { PartBadge } from "@/ui/parts/PartBadge";
 import { CloseButton } from "@/ui/shell/CloseButton";
+import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
 
 /**
@@ -21,8 +23,8 @@ import { AgentGlyph } from "@/ui/shell/ToolbarIcons";
  * What the dock shows, in the dock's own order.
  *
  * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.Item
- * @upstream-differs no `canTearOff`: one workspace per browser tab (D11) leaves
- * a torn-off panel nowhere to go, so the pill has no such item to dim
+ * @upstream-differs no `canTearOff` on the item: a browser tab (D11) has nowhere to tear a panel off
+ * to, and the desktop shell always has — the strip is handed `onTearOff` or not
  */
 export interface DockItem {
   /**
@@ -108,19 +110,50 @@ function FragmentPill({
   item,
   onSelect,
   onClose,
+  carry,
 }: {
   readonly item: DockItem;
   /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.onSelect */
   readonly onSelect: () => void;
   /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.onClose */
   readonly onClose: () => void;
+  /** How a part's pill is carried to another window, where there are windows (D6). */
+  readonly carry?: PillCarry | undefined;
 }) {
+  const carried = item.kind === "part" || item.kind === undefined ? carry : undefined;
   return (
     <li className="fragment-pill" data-pill={item.id} data-up={item.isUp ? "" : undefined}>
       <button
         type="button"
         className="fragment-pill-face"
         onClick={onSelect}
+        // The pill is how a panel is carried to another window, or onto a pane: its header is where
+        // a pull folds it, so it is not picked up by that, as upstream's is (D6).
+        draggable={carried === undefined ? undefined : true}
+        onDragStart={
+          carried === undefined
+            ? undefined
+            : (event) => {
+                event.dataTransfer.setData(PANE_DRAG_TYPE, String(item.id));
+                event.dataTransfer.effectAllowed = "copyMove";
+                carried.onDragStart(item.id);
+              }
+        }
+        onDragEnd={carried?.onDragEnd}
+        // @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.menu
+        onContextMenu={
+          carried === undefined
+            ? undefined
+            : (event) =>
+                openContextMenu(event, [
+                  {
+                    label: L("Open in New Window"),
+                    onSelect: () => carried.onTearOff(item.id),
+                  },
+                  { kind: "separator" },
+                  { label: L("Close “%1$@”", item.title), onSelect: onClose },
+                ])
+        }
         title={item.title}
         aria-pressed={item.isUp}
       >
@@ -192,11 +225,26 @@ function FragmentPill({
   );
 }
 
+/** How a part's pill carries its panel to another window (`Design/DESKTOP_WINDOWS.md`, D6). */
+export interface PillCarry {
+  /**
+   * The pill's Open in New Window.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onTearOff
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.onTearOff
+   * @upstream-differs a window where upstream opens a tab
+   */
+  readonly onTearOff: (id: PanelId) => void;
+  readonly onDragStart: (id: PanelId) => void;
+  readonly onDragEnd: () => void;
+}
+
 /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.setItems */
 export function FragmentDockStrip({
   items,
   onSelect,
   onClose,
+  carry,
 }: {
   readonly items: readonly DockItem[];
   /**
@@ -207,6 +255,8 @@ export function FragmentDockStrip({
   readonly onSelect: (id: PanelId) => void;
   /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onClose */
   readonly onClose: (id: PanelId) => void;
+  /** Where a panel can be carried to another window: the desktop shell (D6). */
+  readonly carry?: PillCarry | undefined;
 }) {
   // help: shell.fragment-dock
   return (
@@ -217,6 +267,7 @@ export function FragmentDockStrip({
           item={item}
           onSelect={() => onSelect(item.id)}
           onClose={() => onClose(item.id)}
+          carry={carry}
         />
       ))}
     </ul>

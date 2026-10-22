@@ -120,7 +120,7 @@ export async function askToSaveSession(): Promise<"save" | "discard" | "cancel">
  * Don't Save: each document with unsaved changes in this window asked about, one by one. Answers
  * whether every one may go.
  *
- * @upstream ByteRipperApp/Workspace/AppDelegate.swift#AppDelegate.askToClose
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.askToClose
  */
 export function confirmDiscardingSession(): boolean {
   for (const one of unsavedPanes()) {

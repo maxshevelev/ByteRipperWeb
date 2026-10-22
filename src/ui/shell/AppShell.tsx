@@ -40,6 +40,7 @@ import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlac
 import {
   beginFileDrag,
   draggedPaneId,
+  draggedPartId,
   draggedRemotePane,
   endDrag,
   type RemoteDraggedPane,
@@ -90,6 +91,7 @@ import {
   followPaneDrag,
   panePeer,
   receiveHandover,
+  reportRefusal,
   startPaneTransfer,
 } from "@/state/workspace/paneTransfer";
 import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
@@ -145,6 +147,7 @@ import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import {
   dragCarriesPane,
+  fragmentDropOutcome,
   isJoin,
   PANE_DROP_NONE,
   type PaneDropOutcome,
@@ -1893,6 +1896,10 @@ export function AppShell() {
       copying: boolean
     ): PaneDropOutcome => {
       const { panes } = workspaceStore.getSnapshot();
+      // A fragment panel from there becomes the pane it is let go on, by the panels' own rule.
+      if (!isSlot(remote.slot)) {
+        return fragmentDropOutcome(target, band, panes[target] !== undefined, remote.size, copying);
+      }
       const outcome = paneDropOutcome(
         remote.slot,
         { kind: "pane", index: target, inOriginWindow: false, band },
@@ -1953,14 +1960,46 @@ export function AppShell() {
         }
       }
       const taken = await bringPane(remote.from, remote.slot, target, outcome.kind === "duplicate");
-      if (taken.kind === "refused" && taken.reason === "parts") {
-        reportAlert(
-          L("“%1$@” could not be moved", remote.name),
-          L("Parts are open over it in its window. Close them there first.")
-        );
-      }
+      reportRefusal(taken, remote.name);
     },
     [remoteDropOutcomeFor, joinInto]
+  );
+
+  /**
+   * One of this window's fragment panels let go on one of its panes: the panel becomes that pane,
+   * or with Option a copy of it is made there (`7a11bed`).
+   *
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.performFragmentDrop
+   * @upstream-differs the part becomes a document of its own, its way home staying behind
+   * (`paneTransfer.ts`, `releasePart`)
+   */
+  const performPartDrop = useCallback(
+    async (part: PartId, target: SlotId, band: SingleFileDropTarget, copying: boolean) => {
+      const { panes, parts } = workspaceStore.getSnapshot();
+      const source = parts[part];
+      if (source === undefined) return;
+      const outcome = fragmentDropOutcome(
+        target,
+        band,
+        panes[target] !== undefined,
+        source.document.size,
+        copying
+      );
+      if (outcome.kind !== "move" && outcome.kind !== "duplicate") return;
+      const occupant = panes[target];
+      if (occupant?.document.isDirty === true) {
+        if (
+          !window.confirm(
+            L("%1$@ has unsaved edits. Replace it with %2$@?", occupant.name, source.name)
+          )
+        ) {
+          return;
+        }
+      }
+      const taken = await bringPane(undefined, part, target, outcome.kind === "duplicate");
+      reportRefusal(taken, source.name);
+    },
+    []
   );
 
   /**
@@ -1998,6 +2037,18 @@ export function AppShell() {
     (target: SlotId) => (band: SingleFileDropTarget, copying: boolean) => {
       const dragging = draggedPaneId();
       if (dragging !== undefined) return paneDropOutcomeFor(dragging, target, band, copying);
+      // One of this window's fragment panels, carried by its pill (D6).
+      const part = draggedPartId();
+      if (part !== undefined) {
+        const { panes, parts } = workspaceStore.getSnapshot();
+        return fragmentDropOutcome(
+          target,
+          band,
+          panes[target] !== undefined,
+          parts[part]?.document.size ?? 0,
+          copying
+        );
+      }
       const remote = draggedRemotePane();
       if (remote !== undefined) return remoteDropOutcomeFor(remote, target, band, copying);
       return PANE_DROP_NONE;
@@ -2367,6 +2418,7 @@ export function AppShell() {
       onPaneDropped: (paneId, band, copying) => performPaneDrop(paneId, id, band, copying),
       onRemotePaneDropped: (remote, band, copying) =>
         void performRemotePaneDrop(remote, id, band, copying),
+      onPartDropped: (part, band, copying) => void performPartDrop(part, id, band, copying),
       onFilesDropped: (band, event) => {
         if (event.dataTransfer === null) return;
         acceptDroppedFiles(event.dataTransfer, (files) =>
@@ -2763,6 +2815,9 @@ export function AppShell() {
             onRemotePaneDropped={(remote, band, copying) =>
               void performRemotePaneDrop(remote, singleFileBandTarget(band), band, copying)
             }
+            onPartDropped={(part, band, copying) =>
+              void performPartDrop(part, singleFileBandTarget(band), band, copying)
+            }
             onFilesDropped={handleSingleFileFilesDrop}
           >
             {paneElement(lone)}
@@ -2793,6 +2848,14 @@ export function AppShell() {
       <FragmentPanels
         renderPane={partElement}
         onClose={(pane) => void closeWithWarning(pane)}
+        // A part's panel into a window of its own, from its pill (D6).
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffFragment
+        // @upstream-differs a window where upstream opens a tab
+        onTearOff={
+          panePeer() === undefined
+            ? undefined
+            : (pane) => paneToNewWindow({ from: undefined, slot: pane, copy: false })
+        }
         // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
         // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent
         // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.agent

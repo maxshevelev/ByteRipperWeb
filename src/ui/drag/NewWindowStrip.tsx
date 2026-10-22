@@ -3,13 +3,14 @@ import { L } from "@/core/localization/localization";
 import { dragCarriesFiles } from "@/platform/files/dragDrop";
 import {
   draggedPaneId,
+  draggedPartId,
   draggedRemotePane,
   endDrag,
   notePaneDragCopying,
   paneDragIsCopying,
   paneDragStore,
 } from "@/state/paneDragStore";
-import type { SlotId } from "@/state/paneId";
+import type { PaneId } from "@/state/paneId";
 import { createStore } from "@/state/store";
 import { useStore } from "@/state/useStore";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
@@ -53,7 +54,8 @@ export function newWindowStripInset(top: number): number {
 export interface StripPane {
   /** The window it is in; nothing for this one. */
   readonly from: string | undefined;
-  readonly slot: SlotId;
+  /** One of the window's two panes, or one of its fragment panels (D6). */
+  readonly slot: PaneId;
   readonly copy: boolean;
 }
 
@@ -119,7 +121,7 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
         event.preventDefault();
         event.stopPropagation();
         setHovered(false);
-        const local = draggedPaneId();
+        const local = draggedPaneId() ?? draggedPartId();
         const remote = draggedRemotePane();
         const copy = paneDragIsCopying();
         endDrag();

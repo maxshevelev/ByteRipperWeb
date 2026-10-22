@@ -1,4 +1,4 @@
-@source-sha 076142211856ebdabe18027fba7e662a8fdd24c7938db7b27445e34a42cff0dd
+@source-sha 7e7a37083a7df6cddf029a73d1d53197acb80856f5f83ae2f183077be8161ec6
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -17,6 +17,8 @@ Es ist immer nur ein Panel oben. Ein anderes hochzuholen klappt das bisherige ei
 - Bearbeiten.
 - **In der Quelle aktualisieren**, im Kopfmenü des Bereichs selbst, schreibt die geänderten Bytes zurück in den Bereich, aus dem sie stammen, als einen einzigen Widerrufsschritt im Quelldokument. Klappen Sie den Bereich ein, und die Änderung steht schon da, im Dump dahinter. Sobald sich das Fragment von dem unterscheidet, mit dem es geöffnet wurde, zeigt seine Kopfzeile unmittelbar hinter dem Namen der Quelle die Schaltfläche **Geändert** mit einem Pfeil-nach-unten-Symbol, die dasselbe tut; ein Dialog meldet dann, was geschrieben wurde und dass „Widerrufen“ im Quelldokument es zurücknimmt.
 - Sichern als eigene Datei, wenn der entnommene Teil gebraucht wird und nicht die geänderte Quelle. Was das in diesem Browser heißt, steht in [[topic:saving|Sichern]].
+
+[[edition:||Ein Fragment kann sein Panel auch verlassen und zu einem Bereich eines Fensters werden. Ziehen Sie seine Pille aus dem Dock auf die freie Hälfte eines Fensters – dieses oder eines anderen – oder auf die Mitte eines Bereichs, und das Fragment wird zu diesem Bereich; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie. Das Menü der Pille selbst bietet **In neuem Fenster öffnen** an, und eine Pille, die auf dem Streifen am oberen Rand der Bereiche losgelassen wird, tut dasselbe. Ein Fragment, das zu einem Bereich geworden ist, ist ein eigenes Dokument und kann nicht mehr in das Dokument zurückgeschrieben werden, aus dem es stammt. Ein Fragment mit Änderungen, die noch nicht zurückgeschrieben sind, wird daher nicht verschoben: Schreiben Sie sie zuerst zurück, oder halten Sie die Alt-Taste gedrückt, um eine Kopie anzulegen.]]
 
 ## Eigene Minimap, eigener Werkzeugbereich
 

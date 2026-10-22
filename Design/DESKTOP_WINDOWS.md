@@ -152,7 +152,7 @@ the module map moved.
 - [x] **D5 — a pane carried between windows.** The parcel; pane drop on
   another window (move, swap, join, duplicate); Open in New Window from the
   pane header in a comparison; the New Window strip while dragging; bookmarks.
-- [ ] **D6 — a fragment panel carried.** Open in New Window on the pill, the
+- [x] **D6 — a fragment panel carried.** Open in New Window on the pill, the
   strip, a panel let go on another window's free half.
 - [ ] **D7 — app-wide state.** The agent's desk over every window (the main
   process routing), the annotations, the find string and the settings kept in

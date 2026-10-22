@@ -23,6 +23,8 @@ Only one panel is up at a time. Raising another folds the one that was up, which
 - **Update in Parent**, in the panel's own header menu, which writes the edited bytes back into the range they came from as a single undo step in the parent document. Fold the panel down and the change is there in the dump behind it. Once the fragment differs from what it was opened with, its header shows a **Modified** button, with a download-arrow icon, right after the parent's name, that does the same; a dialog then says what was written and that Undo in the parent takes it back.
 - Saving as a file of its own, where the extracted part is what is required rather than an edited parent. What that means in this browser is in [[topic:saving|Saving]].
 
+[[edition:||A fragment can also leave its panel and become a pane of a window. Drag its pill out of the dock onto the free half of a window — this one or another — or onto the middle of a pane, and the fragment becomes that pane; with Alt held (Option on a Mac) a copy is made there instead. The pill's own menu offers **Open in New Window**, and a pill dropped on the strip along the top of the panes does the same. A fragment that has become a pane is a document of its own and no longer has a way back into the document it came out of. A fragment holding changes not yet put back is therefore not moved: put them back first, or hold Alt to make a copy.]]
+
 ## The panel's own minimap and tool panel
 
 A fragment panel is a reading surface in its own right rather than a second view of the parent's, and it carries the same two instruments the workspace carries:

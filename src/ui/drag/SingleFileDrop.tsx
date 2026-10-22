@@ -2,7 +2,7 @@ import { type ReactNode, useRef } from "react";
 import { L } from "@/core/localization/localization";
 import { paneDragStore, type RemoteDraggedPane } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
-import type { PaneLayout, SlotId } from "@/state/workspaceStore";
+import type { PaneLayout, PartId, SlotId } from "@/state/workspaceStore";
 import { DropZoneView } from "@/ui/drag/DropZoneView";
 import {
   isDuplicate,
@@ -64,6 +64,10 @@ export interface SingleFileDropProps {
   readonly onRemotePaneDropped?:
     | ((pane: RemoteDraggedPane, band: SingleFileDropTarget, copying: boolean) => void)
     | undefined;
+  /** One of this window's fragment panels was let go here, carried by its pill (D6). */
+  readonly onPartDropped?:
+    | ((part: PartId, band: SingleFileDropTarget, copying: boolean) => void)
+    | undefined;
   /**
    * Files were let go in a zone.
    *
@@ -87,6 +91,7 @@ export function SingleFileDrop({
   outcomeFor,
   onPaneDropped,
   onRemotePaneDropped,
+  onPartDropped,
   onFilesDropped,
   children,
 }: SingleFileDropProps) {
@@ -106,6 +111,7 @@ export function SingleFileDrop({
     fallbackBand: "addSecond",
     onPaneDropped,
     onRemotePaneDropped,
+    onPartDropped,
     onFilesDropped,
   });
 

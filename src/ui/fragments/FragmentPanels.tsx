@@ -4,7 +4,9 @@ import { L } from "@/core/localization/localization";
 import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { closeHelp } from "@/state/helpStore";
+import { beginPartDrag } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
+import { endLocalPaneDrag } from "@/state/workspace/paneTransfer";
 import {
   foldParts,
   type PaneState,
@@ -57,6 +59,7 @@ export function FragmentPanels({
   renderPane,
   onClose,
   onAgentSettings,
+  onTearOff,
 }: {
   /** The dump for a part, wired by the shell. */
   readonly renderPane: (pane: PartId, part: PaneState) => React.ReactNode;
@@ -64,6 +67,8 @@ export function FragmentPanels({
   readonly onClose: (pane: PartId) => void;
   /** The Agent panel's link to Settings ▸ Agent. */
   readonly onAgentSettings: () => void;
+  /** A part's panel into a window of its own: the desktop shell's (D6). */
+  readonly onTearOff?: ((pane: PartId) => void) | undefined;
 }) {
   const state = useStore(workspaceStore);
   const agent = useStore(agentService.store);
@@ -216,6 +221,20 @@ export function FragmentPanels({
             : id === state.agentPanel
               ? agentService.setWindowOpen(false)
               : onClose(partPane(id))
+        }
+        carry={
+          onTearOff === undefined
+            ? undefined
+            : {
+                onTearOff: (id) => onTearOff(partPane(id)),
+                // The panel up over the panes folds as its pill is picked up: what it is carried
+                // to may be one of the panes it covers.
+                onDragStart: (id) => {
+                  if (workspaceStore.getSnapshot().dock.expanded !== undefined) foldParts();
+                  beginPartDrag(partPane(id));
+                },
+                onDragEnd: endLocalPaneDrag,
+              }
         }
       />
     </>
