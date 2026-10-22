@@ -1,4 +1,4 @@
-@source-sha 115cc9a835f018a7a1c3181c060fb665ab1f3c1ee92629a14f8647e269715655
+@source-sha 0859c51378d8525f68a4f034010d5a2c03e3b66b193b6d25ad082675ba3d6df3
 # Projekte
 
 > Ein Projekt ist ein Arbeitsbereich in einem eigenen Ordner: alles, was für einen Auftrag geöffnet ist, wird als Ganzes wieder geöffnet, und zwischen Projekten lässt sich wechseln.
@@ -7,17 +7,16 @@
 @covers menu.file.save-as-project
 @covers menu.file.open-recent-project
 @covers menu.file.close-project
-@covers projects.open-elsewhere
 
 [[edition:**Diese Seite handelt von der Windows-Anwendung.** Eine Seite im Browser kann die Dateien eines Projekts nicht von selbst wieder öffnen; die Browser-Ausgabe hat daher keine Projekte, und nichts hier Beschriebene gibt es dort.||]]
 
-Ein Projekt enthält dasselbe wie der [[topic:workspace|Arbeitsbereich]] — die Dateien, die Position in jedem Bereich, die Lesezeichen, die Segmente, die Fragment-Bereiche, die Werkzeugbereiche und den Bereich **Anmerkungen** — einschließlich jeder noch nicht gesicherten Änderung: unbenannte Dokumente, Änderungen in Teilen, die noch nicht zurückgeschrieben sind, und die geänderten Bytes von Dateien, die rot zurückkehren, wie sie waren. Anders als der Arbeitsbereich wird ein Projekt unabhängig von der Einstellung **Arbeitsbereich beim Start wiederherstellen** aufbewahrt.
+Ein Projekt enthält dasselbe wie der [[topic:workspace|Arbeitsbereich]] — alle Fenster und in jedem die Dateien, die Position in jedem Bereich, die Lesezeichen, die Segmente, die Fragment-Bereiche, die Werkzeugbereiche und den Bereich **Anmerkungen** — einschließlich jeder noch nicht gesicherten Änderung: unbenannte Dokumente, Änderungen in Teilen, die noch nicht zurückgeschrieben sind, und die geänderten Bytes von Dateien, die rot zurückkehren, wie sie waren. Anders als der Arbeitsbereich wird ein Projekt unabhängig von der Einstellung **Arbeitsbereich beim Start wiederherstellen** aufbewahrt.
 
 ## Ein Projekt anlegen
 
-**Ablage ▸ Als Projekt sichern…** fragt nach einem Ordner und schreibt alles, was gerade geöffnet ist, als Projekt hinein. Der gewählte Ordner wird unverändert verwendet, wenn er leer ist, wenn sein Name auf `.brw` endet oder wenn er bereits ein Projekt enthält, das dann ersetzt wird. In jedem anderen Ordner — etwa dem Ordner eines Auftrags mit seinen Dumps — wird für das Projekt ein neuer Ordner `Project.brw` angelegt. Danach ist das Projekt das geöffnete und wird fortlaufend geschrieben, alle paar Sekunden und bei jedem Wechsel; einen eigenen Befehl zum Sichern gibt es nicht. Der Name des Projekts steht hinter dem Titel des Fensters.
+**Ablage ▸ Als Projekt sichern…** fragt, wo und unter welchem Namen das Projekt aufbewahrt werden soll, und schreibt alle geöffneten Fenster hinein. Ein neuer Name wird zum Ordner des Projekts. Ein bereits vorhandener Ordner wird unverändert verwendet, wenn er leer ist, wenn sein Name auf `.brw` endet oder wenn er bereits ein Projekt enthält, das dann ersetzt wird. In jedem anderen Ordner — etwa dem Ordner eines Auftrags mit seinen Dumps — wird für das Projekt ein neuer Ordner `Project.brw` angelegt. Danach ist das Projekt das geöffnete und wird fortlaufend geschrieben, alle paar Sekunden und bei jedem Wechsel; einen eigenen Befehl zum Sichern gibt es nicht. Der Name des Projekts steht hinter dem Titel des Fensters.
 
-Projekte dieser Anwendung und von ByteRipper für macOS sind nicht kompatibel: Keine der beiden Anwendungen öffnet die Projekte der anderen. Die macOS-Anwendung speichert in einem Projekt mehrere Fenster, diese Anwendung arbeitet mit einem einzigen Fenster. Der Projektordner trägt hier deshalb die Endung `.brw`, nicht `.brp`.
+Projekte dieser Anwendung und von ByteRipper für macOS sind nicht kompatibel: Keine der beiden Anwendungen öffnet die Projekte der anderen. Die macOS-Anwendung speichert in einem Projekt Fenster mit Tabs, diese Anwendung Fenster ohne Tabs. Der Projektordner trägt hier deshalb die Endung `.brw`, nicht `.brp`.
 
 Die Dateien selbst bleiben, wo sie sind; das Projekt verweist auf sie. Es merkt sich den vollständigen Pfad jeder Datei und öffnet die Dateien darüber wieder.
 
@@ -25,10 +24,10 @@ Die Dateien selbst bleiben, wo sie sind; das Projekt verweist auf sie. Es merkt 
 
 - **Ablage ▸ Projekt öffnen…** fragt nach dem Ordner eines Projekts — oder nach einem Ordner, der genau ein Projekt enthält — und öffnet es.
 - **Ablage ▸ Benutzte Projekte** nennt die zuletzt geöffneten Projekte; **Menü löschen** leert die Liste.
-- Das Öffnen eines Projekts ersetzt alles Geöffnete. Das verlassene Projekt bleibt erhalten, wie es ist, ungesicherte Änderungen eingeschlossen, und es wird nichts gefragt.
-- Ist kein Projekt geöffnet, aber etwas anderes, bietet das Programm vor dem Öffnen eines Projekts an, die aktuelle Sitzung als Projekt zu sichern. **Nicht sichern** schließt sie und fragt dabei zu jedem Dokument mit ungesicherten Änderungen nach.
-- **Ablage ▸ Projekt schließen** lässt das Projekt, wie es ist, und kehrt zu einem leeren Fenster zurück.
-- Ein Projekt ist jeweils nur in einem Fenster geöffnet. Ein Projekt, das ein anderes Fenster bereits geöffnet hat, wird mit der Meldung **Das Projekt ist in einem anderen Tab geöffnet.** abgewiesen.
+- Das Öffnen eines Projekts schließt alle geöffneten Fenster und öffnet an ihrer Stelle die Fenster des Projekts. Das verlassene Projekt bleibt erhalten, wie es ist, ungesicherte Änderungen eingeschlossen, und es wird nichts gefragt.
+- Ist kein Projekt geöffnet, aber etwas anderes, bietet das Programm vor dem Öffnen eines Projekts an, die aktuelle Sitzung als Projekt zu sichern. **Nicht sichern** schließt sie und fragt dabei in jedem Fenster zu jedem Dokument mit ungesicherten Änderungen nach.
+- **Ablage ▸ Projekt schließen** lässt das Projekt, wie es ist, und kehrt zu einem einzigen leeren Fenster zurück.
+- Es ist jeweils ein Projekt geöffnet, und es umfasst alle Fenster: **Ablage ▸ Neues Fenster** fügt ihm ein Fenster hinzu, und ein Fenster zu schließen, während andere offen bleiben, nimmt dieses Fenster aus dem Projekt.
 
 Ist [[topic:workspace|Arbeitsbereich beim Start wiederherstellen]] eingeschaltet, wird das Projekt, das beim Beenden von ByteRipper geöffnet war, beim nächsten Start wieder geöffnet.
 

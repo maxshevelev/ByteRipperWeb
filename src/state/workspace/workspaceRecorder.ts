@@ -34,11 +34,7 @@ import { segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
 import { partCodecState } from "@/state/workspace/partCodecState";
-import {
-  currentProject,
-  recordProjectHandles,
-  switchToProject,
-} from "@/state/workspace/projectRecords";
+import { currentProject, switchToProject } from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   readWorkspaceRecord,
@@ -374,7 +370,7 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
   const restores = settingsStore.getSnapshot().restoresWorkspace;
   const project = currentProject();
   // A project waiting for a click to reach its files is not written over with the empty tab.
-  if (project !== undefined) return keepsWaiting ? false : recordProject(project, restores);
+  if (project !== undefined) return keepsWaiting ? false : recordProject(project);
   if (!restores) return false;
   const { workspace, handles, keeps } = await snapshotWorkspace();
   if (keepsWaiting) {
@@ -401,18 +397,18 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
 }
 
 /**
- * Writes the tab into the open project — always, whatever the switch says: it is a folder the
- * person made to keep. With the switch on, the tab's own record says which project it had open,
- * for a reload to open it again. Answers whether the project's file was written.
+ * Writes the window into the open project — always, whatever the switch says: it is a folder the
+ * person made to keep. The shell writes the project's file from every window's record and says
+ * which project a launch opens again. Answers whether the window was recorded.
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.record
- * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.isProject
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.isProject
  */
-async function recordProject(
-  project: { readonly id: string; readonly folder: ProjectFolder },
-  restores: boolean
-): Promise<boolean> {
-  const { workspace, handles, keeps } = await snapshotWorkspace();
+async function recordProject(project: {
+  readonly id: string;
+  readonly folder: ProjectFolder;
+}): Promise<boolean> {
+  const { workspace, keeps } = await snapshotWorkspace();
   try {
     const due = keeps.filter((one) => projectVersions.get(one.key) !== one.version);
     for (const one of due) {
@@ -421,19 +417,10 @@ async function recordProject(
       await project.folder.writeKept(one.key, value);
       projectVersions.set(one.key, one.version);
     }
-    const wrote = await project.folder.write(workspace);
-    if (wrote) await recordProjectHandles(project.id, handles);
+    await project.folder.write(workspace);
     await project.folder.removeKeptExcept(new Set(keeps.map((one) => one.key)));
   } catch {
     return false;
-  }
-  if (restores) {
-    await writeWorkspaceRecord(workspaceId(), {
-      workspace,
-      leftAt: Date.now(),
-      handles,
-      project: project.id,
-    });
   }
   return true;
 }

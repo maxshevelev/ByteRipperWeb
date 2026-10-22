@@ -1342,7 +1342,6 @@
 "The library is read-only until its conflicting changes are answered — Resolve… first." = "Библиотека только для чтения, пока на расхождения нет ответа, — сначала «Разрешить конфликты…».";
 "The pattern library already in “%1$@” cannot be read yet — if it is still downloading, wait for it and try again." = "Библиотеку шаблонов, уже лежащую в «%1$@», пока не прочитать — если она ещё загружается, дождитесь загрузки и повторите.";
 "The pattern library could not be exported: %1$@" = "Библиотеку шаблонов не удалось экспортировать: %1$@";
-"The project is open in another tab." = "Проект открыт в другой вкладке.";
 "This Was Me" = "Это был я";
 "This browser can read a folder but not keep one. Get Patterns from a Folder… takes the patterns your other machines keep in their library folder; Export… saves this browser's list as a file you can put in that folder by hand." = "Этот браузер может прочитать папку, но не держать в ней библиотеку. «Взять шаблоны из папки…» берёт шаблоны, которые другие машины держат в своей папке библиотеки; «Экспортировать…» сохраняет список этого браузера файлом, который можно положить в ту папку вручную.";
 "This browser carries on writing “%1$@”." = "Этот браузер продолжает писать в «%1$@».";

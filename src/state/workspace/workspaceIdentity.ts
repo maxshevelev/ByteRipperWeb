@@ -83,10 +83,7 @@ export async function settleWorkspaceIdentity(restores: boolean): Promise<string
   if (!hasOwnId() && restores && (launch === undefined || launch.adopt)) {
     const [records, busy] = await Promise.all([allWorkspaceRecords(), heldElsewhere()]);
     const free = records
-      .filter(
-        ({ id, record }) =>
-          !busy.has(id) && (record.project !== undefined || !workspaceIsEmpty(record.workspace))
-      )
+      .filter(({ id, record }) => !busy.has(id) && !workspaceIsEmpty(record.workspace))
       .sort((left, right) => right.record.leftAt - left.record.leftAt)[0];
     if (free !== undefined) {
       try {

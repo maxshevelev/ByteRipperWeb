@@ -87,6 +87,13 @@ its position only — upstream's `PaneRestore`.
 
 ## Projects
 
+> **Superseded in the shell (2026-10-22, D3 of `Design/DESKTOP_WINDOWS.md`).** A project is
+> the app's and holds every window; the main process keeps its folder and writes `Project.json`
+> (version 2, every window) and the kept bytes by path (`desktop/projects.cjs`), picked through
+> Electron's own panels; the recent projects are its list. What follows about directory handles,
+> IndexedDB entries, Web Locks and a switch being a reload described the browser-era design and
+> is kept for its history only.
+
 `.brw` folders (W7), where a page can write a folder: a Chromium browser and
 the desktop shell, both through `showDirectoryPicker`. Not offered in Firefox
 and Safari, as save in place is not.

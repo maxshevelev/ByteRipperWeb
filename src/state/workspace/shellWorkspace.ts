@@ -1,6 +1,17 @@
-import { desktopWorkspace, windowLaunch } from "@/platform/desktop/desktopWindows";
+import {
+  desktopWorkspace,
+  type ShellProject,
+  windowLaunch,
+} from "@/platform/desktop/desktopWindows";
 import { settingsStore } from "@/state/settingsStore";
 import { unsavedPanesLostToLeaving } from "@/state/unsavedWork";
+import {
+  askToSaveSession,
+  confirmDiscardingSession,
+  discardSessionForProject,
+  followProject,
+  sessionHoldsAnything,
+} from "@/state/workspace/projects";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import { recordWorkspace } from "@/state/workspace/workspaceRecorder";
 import {
@@ -22,10 +33,15 @@ import {
  * @web-only a browser tab is one workspace of its own; the shell's windows are one
  */
 
-/** What the shell calls on the page's window. */
-interface ShellHooks {
-  __byteripperQuit?: () => Promise<{ readonly asks: boolean }>;
-  __byteripperForgetWorkspace?: (id: string) => Promise<void>;
+/** What the shell calls on the page's window (`desktop/windows.cjs`, `call`). */
+interface ShellAnswers {
+  quit(): Promise<{ readonly asks: boolean }>;
+  forget(id: string): Promise<void>;
+  holdsAnything(): boolean;
+  askSaveSession(): Promise<"save" | "discard" | "cancel">;
+  confirmDiscard(): boolean;
+  discard(): Promise<void>;
+  projectChanged(project: ShellProject | null, fromSession: boolean): Promise<boolean>;
 }
 
 /**
@@ -56,9 +72,8 @@ export async function forgetWorkspace(id: string): Promise<void> {
 /** The records of windows the app no longer holds, gone: the launch said which it still does. */
 export async function forgetWorkspacesExcept(keep: readonly string[]): Promise<void> {
   const held = new Set([...keep, workspaceId()]);
-  for (const { id, record } of await allWorkspaceRecords()) {
-    // A project's record is the project's way back, which Open Recent Project still offers.
-    if (!held.has(id) && record.project === undefined) await forgetWorkspace(id);
+  for (const { id } of await allWorkspaceRecords()) {
+    if (!held.has(id)) await forgetWorkspace(id);
   }
 }
 
@@ -66,9 +81,16 @@ export async function forgetWorkspacesExcept(keep: readonly string[]): Promise<v
 export function startShellWorkspace(): () => void {
   const bridge = desktopWorkspace();
   if (bridge === undefined) return () => {};
-  const hooks = window as typeof window & ShellHooks;
-  hooks.__byteripperQuit = answerQuit;
-  hooks.__byteripperForgetWorkspace = forgetWorkspace;
+  const hooks = window as typeof window & { __byteripperShell?: ShellAnswers };
+  hooks.__byteripperShell = {
+    quit: answerQuit,
+    forget: forgetWorkspace,
+    holdsAnything: sessionHoldsAnything,
+    askSaveSession: askToSaveSession,
+    confirmDiscard: confirmDiscardingSession,
+    discard: discardSessionForProject,
+    projectChanged: followProject,
+  };
   let restores = settingsStore.getSnapshot().restoresWorkspace;
   bridge.hold(workspaceId(), restores);
   const stop = settingsStore.subscribe(() => {
@@ -81,7 +103,6 @@ export function startShellWorkspace(): () => void {
   if (keep !== undefined && restores) void forgetWorkspacesExcept(keep);
   return () => {
     stop();
-    delete hooks.__byteripperQuit;
-    delete hooks.__byteripperForgetWorkspace;
+    delete hooks.__byteripperShell;
   };
 }

@@ -2288,7 +2288,7 @@
         "ByteRipperApp/App/MainWindowController.swift#MainWindowController.syncNotesBadge": "n/a — the pill reads the store's unseen count",
         "ByteRipperApp/App/MainWindowController.swift#NSToolbarItem.Identifier.notes": "n/a — no toolbar button: the Annotations pill is in the dock",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.askToClose": "n/a — the desktop shell's main process asks every window before any goes (desktop/windows.cjs, quit), outside src/, which the anchor check reads; the page answers through shellWorkspace.answerQuit; a browser tab leaving is asked by the browser (unsavedWork)",
-        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.isSwitchingProjects": "n/a — a switch between projects reloads the tab: no window closes under it to be told apart from a quit",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.isSwitchingProjects": "n/a — the desktop shell's main process (desktop/windows.cjs, `switching`), outside src/, which the anchor check reads: every window closed for a project's is not a quit",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.lastRestoreIssues": "n/a — a test seam; the issues are reported as the restore ends (reportRestoreIssues)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.restoringParts": "n/a — parts torn off into windows of their own, put back after the tabs; a part here is a panel of its tab, restored with it",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.workspaceRecorder": "n/a — the recorder is module state of the page (workspaceRecorder.ts), not an object the app holds"

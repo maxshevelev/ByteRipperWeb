@@ -14,12 +14,14 @@ import {
   stampIsUnchanged,
   type ToolState,
   WORKSPACE_VERSION,
+  type Workspace,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
+import { desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
-import { ProjectFolder } from "@/platform/files/projectFolder";
+import { decodeEdits } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
@@ -41,18 +43,12 @@ import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
-import {
-  holdProject,
-  readProjectEntry,
-  recordOpenedProject,
-  takeProjectHandoff,
-} from "@/state/workspace/projectRecords";
+import { enterProject } from "@/state/workspace/projects";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   keepWaitingWorkspace,
   pauseWorkspaceRecorder,
   readOwnWorkspace,
-  recordInto,
 } from "@/state/workspace/workspaceRecorder";
 import type { KeptReader, WorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import { readKeptBytes } from "@/state/workspace/workspaceRecords";
@@ -176,11 +172,8 @@ async function reach(
   return { kind: "issue", issue: { kind: "unreachable", name: stamp.name } };
 }
 
-/** What this restore works from, kept while it waits for a click: a record, or a project. */
-let waiting:
-  | { readonly record: WorkspaceRecord; readonly kept: KeptReader }
-  | { readonly project: string }
-  | undefined;
+/** What this restore works from, kept while it waits for a click. */
+let waiting: { readonly record: WorkspaceRecord; readonly kept: KeptReader } | undefined;
 
 /** The bytes the tab's own session keeps beside itself. */
 const sessionKept: KeptReader = (key) => readKeptBytes(workspaceId(), key);
@@ -200,21 +193,28 @@ export function restoreWorkspace(): Promise<void> {
 let restoring: Promise<void> | undefined;
 
 async function restoreOnce(): Promise<void> {
-  // A switch between projects is a reload, which says what it switched to.
-  const handoff = takeProjectHandoff();
-  if (handoff !== undefined) {
-    if (handoff !== "") await openProjectAtLoad(handoff, false);
+  // Nothing is recorded until the restore is through: a snapshot of the window still empty would
+  // be written over what it is about to restore — and, in a project, would say the window keeps
+  // none of the bytes it is about to read back.
+  pauseWorkspaceRecorder(true);
+  try {
+    await restoreKept();
+  } finally {
+    pauseWorkspaceRecorder(false);
+  }
+}
+
+async function restoreKept(): Promise<void> {
+  // A window of the project the app has open restores what the project holds of it, whatever the
+  // switch says: a project is kept as long as it is open (`Design/DESKTOP_WINDOWS.md`, D3).
+  const project = windowLaunch()?.project;
+  if (project !== undefined) {
+    await openProjectWindow();
     return;
   }
   if (!settingsStore.getSnapshot().restoresWorkspace) return;
   const record = await readOwnWorkspace();
   if (record === undefined || record.workspace.version !== WORKSPACE_VERSION) return;
-  // The project the tab had open, opened again.
-  // @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.lastProject
-  if (record.project !== undefined) {
-    await openProjectAtLoad(record.project, false);
-    return;
-  }
   if (workspaceIsEmpty(record.workspace)) return;
   // A file opened before the restore got here — dropped on the page while it loaded — is the
   // reader's answer: nothing is put back over it.
@@ -229,68 +229,44 @@ async function restoreOnce(): Promise<void> {
 export async function reopenWaitingWorkspace(): Promise<void> {
   const held = waiting;
   if (held === undefined) return;
-  if ("project" in held) await openProjectAtLoad(held.project, true);
-  else await restoreFrom(held.record, true, held.kept);
+  await restoreFrom(held.record, true, held.kept);
 }
 
 /**
- * Opens the project this browser knows by `id` into the empty tab: its folder reached — asking
- * for it only when `asking`, which is inside a click — its workspace read, and the recorder
- * writing into it from then on.
+ * This window of the project the app has open: recorded into the project from now on, and put
+ * back as the project's file holds it, its kept bytes read through the shell.
  *
  * @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.openProject
  * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.rebuild
  */
-export async function openProjectAtLoad(id: string, asking: boolean): Promise<void> {
-  const entry = await readProjectEntry(id);
-  if (entry === undefined) return;
-  const access = await folderAccess(entry.folder, asking);
-  if (access === "asks") {
-    waiting = { project: id };
-    keepWaitingWorkspace(true);
-    workspaceRestoreStore.update(() => ({ waiting: [entry.name] }));
-    return;
-  }
-  waiting = undefined;
-  keepWaitingWorkspace(false);
-  workspaceRestoreStore.update(() => ({ waiting: undefined }));
-  const folder = new ProjectFolder(entry.folder);
-  const workspace = access === "granted" ? await folder.read() : undefined;
-  if (workspace === undefined) {
-    reportAlert(L("The project could not be read."), entry.name);
-    return;
-  }
-  if (!(await holdProject(id))) {
-    // help: projects.open-elsewhere
-    reportAlert(L("The project is open in another tab."), entry.name);
-    return;
-  }
-  recordInto({ id, folder });
-  await recordOpenedProject(id, entry.folder);
-  await restoreFrom({ workspace, leftAt: 0, handles: entry.handles, project: id }, asking, (key) =>
-    folder.readKept(key)
-  );
+async function openProjectWindow(): Promise<void> {
+  const bridge = desktopProject();
+  const project = windowLaunch()?.project;
+  if (bridge === undefined || project === undefined) return;
+  enterProject(project);
+  const written = await bridge.window().catch(() => undefined);
+  if (written === undefined || written.version !== WORKSPACE_VERSION) return;
+  const workspace = fromProjectFile(written);
+  const read = (key: string) =>
+    bridge
+      .readKept(key)
+      .then((kept) => {
+        if (kept === undefined || kept === null) return undefined;
+        return kept.kind === "untitled" ? new Blob([kept.bytes.slice()]) : decodeEdits(kept.bytes);
+      })
+      .catch(() => undefined);
+  await restoreFrom({ workspace, leftAt: 0, handles: {} }, false, read as KeptReader);
 }
 
-/** Whether the page may write the folder, or a click must ask first. */
-async function folderAccess(
-  folder: FileSystemDirectoryHandle,
-  asking: boolean
-): Promise<"granted" | "asks" | "denied"> {
-  const permissions = folder as HandlePermissions;
-  if (permissions.queryPermission === undefined) return "granted";
-  let state = await permissions.queryPermission({ mode: "readwrite" }).catch(() => "prompt");
-  if (state !== "granted" && asking && permissions.requestPermission !== undefined) {
-    try {
-      state = await permissions.requestPermission({ mode: "readwrite" });
-    } catch {
-      // The click the question needs has passed: the next one asks again.
-      return "asks";
-    }
-  }
-  if (state === "granted") return "granted";
-  // Not granted yet, or refused before: a click on the empty window asks again.
-  return asking ? "denied" : "asks";
+/**
+ * A window's workspace as the project's file gives it back: written as JSON, a slot with nothing
+ * open came back as `null`, which is a pane of nothing here as `undefined` is.
+ */
+export function fromProjectFile(workspace: Workspace): Workspace {
+  return {
+    ...workspace,
+    tab: { ...workspace.tab, panes: workspace.tab.panes.map((pane) => pane ?? undefined) },
+  };
 }
 
 /**

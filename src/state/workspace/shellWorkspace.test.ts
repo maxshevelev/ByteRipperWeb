@@ -16,6 +16,7 @@ import {
   writeKeptBytes,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
+import { fromProjectFile } from "@/state/workspace/workspaceRestorer";
 
 // `Design/DESKTOP_WINDOWS.md`, D2: a window of the desktop shell is the workspace its launch names,
 // and the record of a window closed for good goes.
@@ -118,18 +119,23 @@ describe("a window closed for good", () => {
     expect((await allWorkspaceRecords()).some((one) => one.id === "w-kept")).toBe(true);
   });
 
-  it("is every record a launch did not name, bar a project's", async () => {
+  it("is every record a launch did not name", async () => {
     await recordFor("w-restored", Date.now());
     await recordFor("w-closed", Date.now());
-    await writeWorkspaceRecord("w-project", {
-      workspace: { version: 1, tab } as never,
-      leftAt: Date.now(),
-      handles: {},
-      project: "p-1",
-    });
     await forgetWorkspacesExcept(["w-restored"]);
     const ids = (await allWorkspaceRecords()).map((one) => one.id).sort();
-    expect(ids.filter((id) => id !== "w-kept")).toEqual(["w-project", "w-restored"]);
-    await forgetWorkspace("w-project");
+    expect(ids.filter((id) => id !== "w-kept")).toEqual(["w-restored"]);
+  });
+});
+
+describe("a window's workspace read back from a project's file", () => {
+  it("has a slot with nothing open as a pane of nothing, not null", () => {
+    const written = JSON.parse(
+      JSON.stringify({ version: 1, tab: { ...tab, panes: [tab.panes[0], undefined] } })
+    );
+    expect(written.tab.panes[1]).toBeNull();
+    const workspace = fromProjectFile(written);
+    expect(workspace.tab.panes[1]).toBeUndefined();
+    expect(workspace.tab.panes[0]).toEqual(tab.panes[0]);
   });
 });

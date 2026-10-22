@@ -20,13 +20,6 @@ export interface WorkspaceRecord {
   readonly leftAt: number;
   /** The handles of its files, by the key its `FileStamp.handle` names. */
   readonly handles: Readonly<Record<string, FileSystemFileHandle>>;
-  /**
-   * The project the tab had open, by the id this browser knows it by: what a reload opens again.
-   *
-   * @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.lastProject
-   * @upstream-differs per tab, as the workspace is, where upstream has one for the app
-   */
-  readonly project?: string | undefined;
 }
 
 /** Where a restore reads the bytes a workspace keeps beside itself: the tab's, or a project's. */

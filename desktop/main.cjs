@@ -24,6 +24,7 @@ const { pathToFileURL } = require("node:url");
 const agent = require("./agent.cjs");
 const updates = require("./update.cjs");
 const appWindows = require("./windows.cjs");
+const projects = require("./projects.cjs");
 
 const SCHEME = "app";
 const HOST = "byteripper";
@@ -173,6 +174,11 @@ const structureStore = {
   },
 };
 
+/** The projects opened lately, kept beside the structure. */
+const recentProjects = projects.recentStore(() =>
+  path.join(app.getPath("userData"), "Workspace", "RecentProjects.json")
+);
+
 /** What each window's page settles its workspace by, as its launch handed it. */
 const launches = new WeakMap();
 
@@ -249,6 +255,21 @@ app.whenReady().then(() => {
     app,
     create: createWindow,
     store: structureStore,
+    projects: { ...projects, recent: recentProjects },
+    // A project is a folder: the system's own panel picks one, and gives its path.
+    pickProjectToOpen: async (window) => {
+      const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+        properties: ["openDirectory"],
+      });
+      return canceled ? undefined : filePaths[0];
+    },
+    pickProjectToSave: async (window, name) => {
+      const { canceled, filePath } = await dialog.showSaveDialog(window, {
+        defaultPath: path.join(app.getPath("documents"), name),
+        properties: ["createDirectory", "showOverwriteConfirmation"],
+      });
+      return canceled || !filePath ? undefined : filePath;
+    },
     confirmLeave: async (window) => confirmLeave(window),
     onStayed: () => updates.stayed(),
   });
@@ -370,6 +391,56 @@ app.whenReady().then(() => {
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
   ipcMain.on("window:close", (event) => {
     if (fromApp(event)) BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+
+  // Projects (D3): every window's, written by this process into the folder of the one open. A page
+  // names a key to keep bytes under, never a path to write; the one path it may name is a recent
+  // project's, to open it.
+  const sender = (event) => (fromApp(event) ? BrowserWindow.fromWebContents(event.sender) : null);
+  const openFolder = () => {
+    const folder = windows.currentProject();
+    if (folder === undefined) throw new Error("No project is open.");
+    return folder;
+  };
+  ipcMain.handle("project:window", (event) => {
+    const window = sender(event);
+    return window ? windows.projectWindow(window) : undefined;
+  });
+  ipcMain.handle("project:record", (event, workspace) => {
+    const window = sender(event);
+    if (window) windows.projectRecorded(window, workspace);
+  });
+  ipcMain.handle("project:keeps", (event, keys) => {
+    const window = sender(event);
+    if (window && Array.isArray(keys)) windows.projectKeeps(window, keys);
+  });
+  ipcMain.handle("project:kept-write", (event, key, kind, bytes) => {
+    if (!sender(event)) throw new Error("Not the app's page.");
+    projects.writeKept(openFolder(), key, kind === "untitled" ? "untitled" : "edits", bytes);
+  });
+  ipcMain.handle("project:kept-read", (event, key) =>
+    sender(event) ? projects.readKept(openFolder(), key) : undefined
+  );
+  ipcMain.handle("project:open", (event, given, suggestedName) => {
+    const window = sender(event);
+    return window
+      ? windows.openProject(
+          window,
+          typeof given === "string" ? given : undefined,
+          String(suggestedName)
+        )
+      : {};
+  });
+  ipcMain.handle("project:save-as", (event, suggestedName) => {
+    const window = sender(event);
+    return window ? windows.saveAsProject(window, String(suggestedName)) : { ok: false };
+  });
+  ipcMain.handle("project:close", (event) => {
+    if (sender(event)) return windows.closeProject();
+  });
+  ipcMain.handle("project:recent", (event) => (sender(event) ? recentProjects.list() : []));
+  ipcMain.handle("project:clear-recent", (event) => {
+    if (sender(event)) recentProjects.clear();
   });
 
   updates.register(ipcMain, BrowserWindow, fromApp, () => void windows.quit());

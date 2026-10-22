@@ -144,7 +144,7 @@ the module map moved.
   window before any goes and has each write its last snapshot. The browser keeps
   its IndexedDB record of one tab — it has no workspace at all since
   `04d9d31`, so nothing there changes.
-- [ ] **D3 — projects of every window.** Open / Save as / Close Project at
+- [x] **D3 — projects of every window.** Open / Save as / Close Project at
   the app's level, a project replacing every window, the folder chosen by
   path.
 - [ ] **D4 — a file open once in the app.** The registry in the main process,

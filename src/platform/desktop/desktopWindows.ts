@@ -1,3 +1,6 @@
+import type { Workspace } from "@/core/workspace/workspace";
+import type { ProjectBridge } from "@/platform/files/projectFolder";
+
 /**
  * The desktop shell's windows, as the page in one of them sees them (`Design/DESKTOP_WINDOWS.md`):
  * which workspace this window's launch hands it, and the page's word back on which it is. The
@@ -18,6 +21,50 @@ export interface WindowLaunch {
   readonly adopt: boolean;
   /** The workspaces the app still holds, handed to one window: what any other record was is gone. */
   readonly keep?: readonly string[] | undefined;
+  /** The project the app has open, which this window is one of (D3). */
+  readonly project?: ShellProject | undefined;
+}
+
+/** A project as the shell names it: its folder's path, and its name. */
+export interface ShellProject {
+  readonly path: string;
+  readonly name: string;
+}
+
+/** Why the shell could not do what a project command asked. */
+export interface ProjectRefusal {
+  readonly error?: "unreadable" | "unwritable" | undefined;
+  readonly name?: string | undefined;
+}
+
+/**
+ * The shell's projects (`Design/DESKTOP_WINDOWS.md`, D3): the folder of the one the app has open,
+ * kept by the main process, and the commands that open, save and close one — each replacing or
+ * re-recording every window.
+ */
+export interface DesktopProjectBridge extends ProjectBridge {
+  /** The workspace this window restores from the project it was opened with, once. */
+  window(): Promise<Workspace | undefined>;
+  open(path: string | undefined, suggestedName: string): Promise<ProjectRefusal>;
+  saveAs(suggestedName: string): Promise<{ readonly ok: boolean } & ProjectRefusal>;
+  close(): Promise<void>;
+  recent(): Promise<readonly ShellProject[]>;
+  clearRecent(): Promise<void>;
+}
+
+let installedProject: { readonly bridge: DesktopProjectBridge | undefined } | undefined;
+
+/** The shell's projects, where the page runs in it; nothing in a browser. */
+export function desktopProject(): DesktopProjectBridge | undefined {
+  if (installedProject !== undefined) return installedProject.bridge;
+  if (typeof window === "undefined") return undefined;
+  return (window as { byteripperDesktop?: { project?: DesktopProjectBridge } }).byteripperDesktop
+    ?.project;
+}
+
+/** Stands `bridge` in for the shell's projects, or with nothing puts the shell's back. */
+export function installDesktopProjectForTesting(bridge?: DesktopProjectBridge | null): void {
+  installedProject = bridge === undefined ? undefined : { bridge: bridge ?? undefined };
 }
 
 /** What the shell's preload script exposes for this. */
