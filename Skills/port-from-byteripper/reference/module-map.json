@@ -336,11 +336,7 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.init": "n/a — a TypeScript object literal",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion) rather than naming the undo history's state",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.epoch": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.serial": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.version": "n/a — the workspace counts a document's content changes (workspaceRecorder.contentVersion)",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — UndoHistory.Version is not ported: the workspace counts content changes"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — the version is checked where the keeper uses it (src/state/workspace/contentKeeper.test.ts)"
       }
     },
     {

@@ -329,6 +329,9 @@ export class UndoHistory {
    *
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.version
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.epoch
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version.serial
+   * @upstream-differs the version is a plain object the getter makes, not a type of its own
    */
   get version(): { readonly epoch: number; readonly serial: number } {
     return { epoch: this.epoch, serial: this.currentSerial };
