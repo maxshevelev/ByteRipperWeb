@@ -11,7 +11,10 @@ The switch is **Reopen the workspace at launch** in [[topic:settings|Settings �
 
 ## Which workspace is reopened
 
-A workspace belongs to a window. Opening the program again brings back the workspace of the window that was closed last.
+The workspace is every window the program has open. Opening the program again brings back each window in its place and at its size, with the window that was in front in front again; what each window held comes back in it.
+
+- **Quitting** — **File ▸ Exit**, or closing the last window — keeps every window as it is. Each window writes its last state before the program exits, and only work the workspace could not keep is asked about.
+- **Closing a window while others stay open** removes it from the workspace, together with what it held; it asks first about every unsaved change in it.
 
 ## What is restored
 
@@ -33,7 +36,7 @@ A workspace belongs to a window. Opening the program again brings back the works
 
 ## When the workspace is written
 
-Continuously: every few seconds while the program is in front, and when it is left. Switching the setting off deletes every stored workspace.
+Continuously: every few seconds while the program is in front, when it is left, and once more by each window as the program quits. Switching the setting off deletes every stored workspace.
 
 The workspace is stored in this installation, on this machine, and does not leave it.
 

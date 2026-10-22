@@ -234,9 +234,9 @@ function stayed() {
  * @param BrowserWindow Electron's
  * @param fromApp whether an IPC message came from the app's own page; nothing
  *   else is answered
- * @param closeAll closes every window, front to back, as File ▸ Exit does
+ * @param quit quits as File ▸ Exit does: every window asked first, then all of them closed
  */
-function register(ipcMain, BrowserWindow, fromApp, closeAll) {
+function register(ipcMain, BrowserWindow, fromApp, quit) {
   ipcMain.on("update:installable", (event) => {
     event.returnValue = fromApp(event) && canInstall();
   });
@@ -278,7 +278,7 @@ function register(ipcMain, BrowserWindow, fromApp, closeAll) {
     // answers.
     return new Promise((resolve) => {
       cancelRequest = resolve;
-      closeAll();
+      quit();
     });
   });
 

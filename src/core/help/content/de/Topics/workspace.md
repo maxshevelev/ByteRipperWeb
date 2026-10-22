@@ -1,4 +1,4 @@
-@source-sha 2cba16a920e618af4fbc544fe9568e5783b035b22fe500a61d9c8c8e66ba3827
+@source-sha 538c81f0d37e9679cd51cb734d31c2144353e8e371251d2de079d750322e0dd4
 # Der Arbeitsbereich
 
 > Bei eingeschalteter Einstellung öffnet ByteRipper beim Start, was beim Beenden geöffnet war.
@@ -9,7 +9,10 @@ Die Option heißt **Arbeitsbereich beim Start wiederherstellen** und steht unter
 
 ## Welcher Arbeitsbereich wieder geöffnet wird
 
-Ein Arbeitsbereich gehört zu einem Fenster. Ein erneuter Start des Programms bringt den Arbeitsbereich des zuletzt geschlossenen Fensters zurück.
+Der Arbeitsbereich umfasst alle Fenster, die das Programm geöffnet hat. Ein erneuter Start bringt jedes Fenster an seiner Stelle und in seiner Größe zurück, das vordere Fenster wieder vorn; was jedes Fenster enthielt, kommt in ihm zurück.
+
+- **Beenden** — **Ablage ▸ Beenden** oder das Schließen des letzten Fensters — behält alle Fenster, wie sie sind. Jedes Fenster schreibt vor dem Beenden seinen letzten Stand; nachgefragt wird nur bei Arbeit, die der Arbeitsbereich nicht aufbewahren konnte.
+- **Ein Fenster schließen, während andere offen bleiben,** entfernt es mit seinem Inhalt aus dem Arbeitsbereich; zuvor fragt es nach jeder ungesicherten Änderung darin.
 
 ## Was wiederhergestellt wird
 
@@ -31,7 +34,7 @@ Ein Arbeitsbereich gehört zu einem Fenster. Ein erneuter Start des Programms br
 
 ## Wann der Arbeitsbereich geschrieben wird
 
-Laufend: alle paar Sekunden, solange das Programm vorn ist, und beim Verlassen. Wird die Option ausgeschaltet, werden alle gespeicherten Arbeitsbereiche gelöscht.
+Laufend: alle paar Sekunden, solange das Programm vorn ist, beim Verlassen und beim Beenden noch einmal durch jedes Fenster. Wird die Option ausgeschaltet, werden alle gespeicherten Arbeitsbereiche gelöscht.
 
 Der Arbeitsbereich wird in dieser Installation, auf diesem Rechner gespeichert und verlässt ihn nicht.
 

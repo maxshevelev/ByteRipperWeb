@@ -1,4 +1,5 @@
 import { workspaceIsEmpty } from "@/core/workspace/workspace";
+import { windowLaunch } from "@/platform/desktop/desktopWindows";
 import { allWorkspaceRecords } from "@/state/workspace/workspaceRecords";
 
 /**
@@ -68,7 +69,18 @@ async function heldElsewhere(): Promise<Set<string>> {
  * open tab holds and that holds something; otherwise it starts a workspace of its own.
  */
 export async function settleWorkspaceIdentity(restores: boolean): Promise<string> {
-  if (!hasOwnId() && restores) {
+  // A window of the desktop shell is the workspace its launch names, or a fresh one — only the
+  // one window a launch opens when the shell's structure names none may take one up, as a fresh
+  // browser tab does (`Design/DESKTOP_WINDOWS.md`, D2).
+  const launch = windowLaunch();
+  if (!hasOwnId() && launch?.id !== undefined) {
+    try {
+      sessionStorage.setItem(WORKSPACE_KEY, launch.id);
+    } catch {
+      // Storage refused: the window is a workspace of its own after all.
+    }
+  }
+  if (!hasOwnId() && restores && (launch === undefined || launch.adopt)) {
     const [records, busy] = await Promise.all([allWorkspaceRecords(), heldElsewhere()]);
     const free = records
       .filter(

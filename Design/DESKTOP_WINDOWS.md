@@ -99,24 +99,30 @@ all (D5 asks), and the cross-window link is a `later` gap.
 
 ## Where the workspace is written
 
-Today the page writes its workspace into IndexedDB, keyed by the tab's id, and
-a project into its folder through a directory handle. With several windows
-that does not hold: one `Project.json` names every window, and two pages
-tidying one `Kept/` through handles would delete each other's files.
+The owner's split (2026-10-22): **the session's workspace in the browser's own
+storage, a project in its folder through IPC.**
 
-So in the shell the **main process writes the workspace**, in upstream's own
-layout — `userData/Workspace/Workspace.json` and `Kept/`, a project's
-`Project.json` and `Kept/` — by path, through Node. A page sends its window's
-`TabState` and its kept bytes over IPC; the main process assembles the
-`Workspace` and writes it when it changed. This is the same file bridge the
-persistent-undo port needs for its journals (decision 1 of
-`PORT_WINDOW_07A3928_21A2889.md`), taken up here first. A project folder is
-picked through Electron's dialog, which gives a path; the shell's projects
-no longer go through `showDirectoryPicker`.
-
-The bridge is the page's only way to write to the disk by path, so it is
-fenced: it writes inside the workspace folder and the open project's folder
-and nowhere else, normalises every path, and refuses `..` and links out.
+- **A window's tab** — panes, carets, segments, tool panels — stays its page's
+  record in IndexedDB under the window's workspace id, as a browser tab's is.
+  Two windows have two ids, so their records and their kept bytes never meet.
+- **The session's kept content** — an untitled document's bytes, a file's
+  unsaved changes, and with persistent undo the journals — moves to **OPFS**
+  (P3–P6 of `PORT_WINDOW_07A3928_21A2889.md`): a file there is appended in place
+  from a worker, and every window of the app reads it, which is also what lets
+  a pane carried into another window take its history along. Today it is whole
+  values in IndexedDB.
+- **The structure** — the windows front to back, each one's id and frame — is
+  the main process's own, `userData/Workspace/Windows.json`, written by Node
+  when it changes (D2). Nothing of the page's crosses to be written there.
+- **A project** (`.brw`) is a folder holding everything — `Project.json` with
+  every window, `Kept/`, the journals — and is written **by the main process,
+  by path, over IPC** (D3): one `Project.json` names every window, which no one
+  page can write, and appending a journal through a directory handle would copy
+  the whole file each time. The folder is picked through Electron's dialog,
+  which gives a path; the shell's projects no longer go through
+  `showDirectoryPicker`. That bridge is the page's only way to write to the
+  disk by path, so it is fenced: inside the open project's folder and nowhere
+  else, every path normalised, `..` and links out refused.
 
 ## Phases
 
@@ -131,9 +137,11 @@ the module map moved.
   the agent endpoint served by one window and handed on when it closes,
   the zoom kept app-wide. Help: `opening-files.md` (`menu.file.new-window`)
   with an edition phrase, in en/ru/de.
-- [ ] **D2 — one workspace.** The model's `windows[]` (version up), the main
-  process's writer by path, restore of every window with its frame and the
-  front one last, the last window closing keeping it. The browser keeps
+- [x] **D2 — one workspace.** The structure in the main process
+  (`Windows.json`), each window's tab its page's record as now, restore of
+  every window with its frame and the front one last, the last window closing
+  keeping it, a window closed for good forgotten, and a quit that asks every
+  window before any goes and has each write its last snapshot. The browser keeps
   its IndexedDB record of one tab — it has no workspace at all since
   `04d9d31`, so nothing there changes.
 - [ ] **D3 — projects of every window.** Open / Save as / Close Project at

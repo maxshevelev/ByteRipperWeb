@@ -40,6 +40,12 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   zoom: (step) => ipcRenderer.send("zoom", step),
   quit: () => ipcRenderer.send("quit"),
   newWindow: () => ipcRenderer.send("window:new"),
+  // The workspace this window's page is (Design/DESKTOP_WINDOWS.md, D2): what its launch restores,
+  // asked once as the page starts, and the page's word back on which it is and whether it records.
+  workspace: {
+    launch: () => ipcRenderer.sendSync("window:launch"),
+    hold: (id, restores) => ipcRenderer.send("workspace:hold", id, restores),
+  },
   closeWindow: () => ipcRenderer.send("window:close"),
   canInstallUpdate: ipcRenderer.sendSync("update:installable"),
   installUpdate: (version) => ipcRenderer.invoke("update:install", version),

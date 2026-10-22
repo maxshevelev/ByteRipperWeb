@@ -212,7 +212,7 @@ test("the endpoint passes to the next window when the one it served closes", asy
       name,
       sent: [],
       isDestroyed: () => destroyed,
-      send: (channel, ...args) => one.sent.push(channel),
+      send: (channel) => one.sent.push(channel),
       destroy: () => {
         destroyed = true;
         one.emit("destroyed");

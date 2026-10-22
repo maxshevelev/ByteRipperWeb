@@ -80,6 +80,7 @@ import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
 import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
 import { projectQuestionStore } from "@/state/workspace/projects";
+import { startShellWorkspace } from "@/state/workspace/shellWorkspace";
 import { startWorkspaceRecorder } from "@/state/workspace/workspaceRecorder";
 import { restoreWorkspace } from "@/state/workspace/workspaceRestorer";
 import {
@@ -869,8 +870,13 @@ export function AppShell() {
   useEffect(() => {
     if (!inDesktopShell()) return;
     const stop = startWorkspaceRecorder();
+    // One workspace over the shell's windows (`Design/DESKTOP_WINDOWS.md`, D2).
+    const leave = startShellWorkspace();
     void restoreWorkspace();
-    return stop;
+    return () => {
+      leave();
+      stop();
+    };
   }, []);
 
   // The find bar always searches the pane the commands act on — the part in

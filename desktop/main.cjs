@@ -148,8 +148,50 @@ function launchHeight(standard) {
   return Math.min(standard, screen.getPrimaryDisplay().workAreaSize.height);
 }
 
+/**
+ * Where the workspace's structure is written — the windows front to back, each one's workspace id
+ * and frame (Design/DESKTOP_WINDOWS.md, D2) — beside the profile, as upstream keeps its
+ * `Workspace.json` in Application Support. Each window's tab is its page's own record.
+ */
+const structureFile = () => path.join(app.getPath("userData"), "Workspace", "Windows.json");
+
+const structureStore = {
+  read() {
+    try {
+      return JSON.parse(fs.readFileSync(structureFile(), "utf8"));
+    } catch {
+      return undefined;
+    }
+  },
+  write(value) {
+    const file = structureFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    // Whole or not at all: a quit half-way through a write leaves the last one.
+    const temporary = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(value, null, 2));
+    fs.renameSync(temporary, file);
+  },
+};
+
+/** What each window's page settles its workspace by, as its launch handed it. */
+const launches = new WeakMap();
+
+/** Asks over `window` whether to leave its unsaved work, in the system's language. */
+function confirmLeave(window) {
+  const words = LEAVE_PROMPT[app.getLocale().slice(0, 2)] ?? LEAVE_PROMPT.en;
+  const choice = dialog.showMessageBoxSync(window, {
+    type: "warning",
+    buttons: [words.leave, words.stay],
+    defaultId: 1,
+    cancelId: 1,
+    message: words.message,
+    detail: words.detail,
+  });
+  return choice === 0;
+}
+
 /** A window holding the page: at the bounds given, or the launch size where the system puts it. */
-function createWindow(bounds) {
+function createWindow(bounds, launch) {
   const window = new BrowserWindow({
     ...(bounds ?? { width: 1400, height: launchHeight(900) }),
     title: "ByteRipper",
@@ -184,24 +226,13 @@ function createWindow(bounds) {
   // and the window's ✕ would do nothing. So the shell asks, in the system's
   // language, and lets the window go when the answer is to leave.
   window.webContents.on("will-prevent-unload", (event) => {
-    const words = LEAVE_PROMPT[app.getLocale().slice(0, 2)] ?? LEAVE_PROMPT.en;
-    const choice = dialog.showMessageBoxSync(window, {
-      type: "warning",
-      buttons: [words.leave, words.stay],
-      defaultId: 1,
-      cancelId: 1,
-      message: words.message,
-      detail: words.detail,
-    });
-    if (choice === 0) event.preventDefault();
-    else {
-      windows.stayed();
-      updates.stayed();
-    }
+    if (confirmLeave(window)) event.preventDefault();
+    else updates.stayed();
   });
   // Electron does not keep a page's zoom between runs. It is set again once the
   // page is up, which is when the zoom of its origin exists to be set.
   window.webContents.once("did-finish-load", () => window.webContents.setZoomLevel(savedZoom()));
+  launches.set(window.webContents, launch ?? { adopt: false });
   void window.loadURL(`${SCHEME}://${HOST}${BASE}index.html`);
   return window;
 }
@@ -211,7 +242,16 @@ let windows;
 
 app.whenReady().then(() => {
   if (!primary) return;
-  windows = appWindows.register({ BrowserWindow, Menu, screen, app, create: createWindow });
+  windows = appWindows.register({
+    BrowserWindow,
+    Menu,
+    screen,
+    app,
+    create: createWindow,
+    store: structureStore,
+    confirmLeave: async (window) => confirmLeave(window),
+    onStayed: () => updates.stayed(),
+  });
   protocol.handle(SCHEME, (request) => {
     const file = fileFor(request.url);
     if (file === undefined) return new Response("Not found", { status: 404 });
@@ -307,10 +347,20 @@ app.whenReady().then(() => {
     rememberZoom(level);
   });
 
-  // File ▸ Exit: every window closes as its ✕ would, front to back, so each asks about its own
-  // unsaved work on the way out; the last one closing quits the app.
+  // File ▸ Exit: every window writes its last snapshot and asks about what it cannot keep, front
+  // to back, and only then do they all go.
   ipcMain.on("quit", (event) => {
-    if (fromApp(event)) windows.closeAll();
+    if (fromApp(event)) void windows.quit();
+  });
+  // Which workspace a window's page is to be (D2): the one its launch restores, or a fresh one.
+  ipcMain.on("window:launch", (event) => {
+    event.returnValue = fromApp(event) ? (launches.get(event.sender) ?? { adopt: false }) : null;
+  });
+  // The page says which workspace it is, and whether it records it.
+  ipcMain.on("workspace:hold", (event, id, restores) => {
+    if (!fromApp(event) || typeof id !== "string") return;
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window) windows.hold(window, id, restores === true);
   });
   // File ▸ New Window and File ▸ Close Window.
   // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.newWindow
@@ -322,10 +372,10 @@ app.whenReady().then(() => {
     if (fromApp(event)) BrowserWindow.fromWebContents(event.sender)?.close();
   });
 
-  updates.register(ipcMain, BrowserWindow, fromApp, () => windows.closeAll());
+  updates.register(ipcMain, BrowserWindow, fromApp, () => void windows.quit());
   agent.register(ipcMain, fromApp, app);
 
-  windows.makeWindow();
+  windows.launch();
 });
 
 app.on("second-instance", () => windows?.bringForward());

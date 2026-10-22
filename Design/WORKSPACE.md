@@ -12,6 +12,15 @@ the windows of an app and restores them at its launch; a web page has a tab,
 and "launch" has to be said in a tab's words. What follows is what the owner
 decided (2026-10-20) and what it comes to in code.
 
+> **Several windows in the shell (2026-10-22).** The shell is one process with
+> several windows, and its workspace is every window (`Design/DESKTOP_WINDOWS.md`,
+> D2): each window is a workspace id as a tab is here, recording its own tab as
+> below, and the main process keeps the windows front to back with their ids and
+> frames in `userData/Workspace/Windows.json`, opening them all again at launch.
+> What follows about a tab is what each window does; "a fresh tab takes up the
+> workspace left most recently" holds only for the one window a launch opens
+> when the structure names none.
+
 ## What "launch" is
 
 - **A reload restores the tab's own workspace.** The tab's identity is the

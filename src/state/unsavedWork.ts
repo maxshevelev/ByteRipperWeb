@@ -1,3 +1,4 @@
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { workspaceHolds } from "@/state/workspace/workspaceRecorder";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 
@@ -51,15 +52,10 @@ export function unsavedPanes(): UnsavedPane[] {
 export function watchForUnsavedWork(): () => void {
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
     if (leaving) return;
-    // With the workspace kept, what it holds as it is now comes back unsaved, so leaving does not
-    // ask about it (`Design/WORKSPACE.md`); only what it could not write down yet is asked about.
-    const { panes, parts } = workspaceStore.getSnapshot();
-    const lost = unsavedPanes().filter((one) => {
-      const document = (
-        one.pane in panes ? panes[one.pane as "a" | "b"] : parts[one.pane as keyof typeof parts]
-      )?.document;
-      return document === undefined || !workspaceHolds(document);
-    });
+    // A window of the desktop shell that closes on its own leaves the workspace, and what it held
+    // goes with it, so everything unsaved is asked about; a quit keeps it and asks in
+    // `unsavedPanesLostToLeaving` before any window goes (`Design/DESKTOP_WINDOWS.md`, D2).
+    const lost = inDesktopShell() ? unsavedPanes() : unsavedPanesLostToLeaving();
     if (lost.length === 0) return;
     event.preventDefault();
     // Assigning returnValue is the older spelling, still required by some
@@ -69,6 +65,23 @@ export function watchForUnsavedWork(): () => void {
 
   window.addEventListener("beforeunload", onBeforeUnload);
   return () => window.removeEventListener("beforeunload", onBeforeUnload);
+}
+
+/**
+ * The unsaved panes leaving would lose. With the workspace kept, what it holds as it is now comes
+ * back unsaved, so leaving does not ask about it (`Design/WORKSPACE.md`); only what it could not
+ * write down yet is asked about.
+ *
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.holdsCurrentBytes
+ */
+export function unsavedPanesLostToLeaving(): UnsavedPane[] {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  return unsavedPanes().filter((one) => {
+    const document = (
+      one.pane in panes ? panes[one.pane as "a" | "b"] : parts[one.pane as keyof typeof parts]
+    )?.document;
+    return document === undefined || !workspaceHolds(document);
+  });
 }
 
 /** Set once the page has asked about everything itself and is going. */
