@@ -325,16 +325,21 @@ function register({
   /**
    * Opens the app's window of `kind`, or brings forward the one there is, and has it show
    * `message` (the help's page, an annotation): what a page asks for with Help ▸ …, Window ▸ …
+   * With `shown` false the window is made, when it is not there, without coming on screen: the
+   * Agent window's page is where the agent service runs, whether or not anyone looks at it.
+   * Answers the window.
    */
-  function openOwn(kind, message) {
-    if (!OWN_KINDS.includes(kind)) return;
+  function openOwn(kind, message, shown = true) {
+    if (!OWN_KINDS.includes(kind)) return undefined;
     const there = own.get(kind);
     if (there !== undefined && !there.isDestroyed()) {
-      if (there.isMinimized()) there.restore();
-      there.show();
-      there.focus();
+      if (shown) {
+        if (there.isMinimized()) there.restore();
+        there.show();
+        there.focus();
+      }
       if (message !== undefined) there.webContents.send("own:show", message);
-      return;
+      return there;
     }
     const kept = framesOfOwn()[kind];
     const bounds =
@@ -344,8 +349,18 @@ function register({
             kept,
             screen.getAllDisplays().map((display) => display.workArea)
           );
-    const window = createOwn(kind, bounds, message);
+    const window = createOwn(kind, bounds, message, shown);
     own.set(kind, window);
+    // The agent service runs in the Agent window's page: closing the window puts it out of sight,
+    // and the service goes on. Only the app's quit, which destroys it, ends it.
+    if (kind === "agent") {
+      window.on("close", (event) => {
+        if (leaving) return;
+        event.preventDefault();
+        rememberOwnFrame(kind, window);
+        window.hide();
+      });
+    }
     window.on("focus", () => {
       // A Mac's one menu bar stays the workspace window's in front, whose commands it runs.
       if (process.platform === "darwin") {
@@ -355,7 +370,7 @@ function register({
     });
     window.on("moved", () => rememberOwnFrame(kind, window));
     window.on("resized", () => rememberOwnFrame(kind, window));
-    window.on("close", () => rememberOwnFrame(kind, window));
+    if (kind !== "agent") window.on("close", () => rememberOwnFrame(kind, window));
     window.on("closed", () => {
       if (own.get(kind) === window) own.delete(kind);
     });

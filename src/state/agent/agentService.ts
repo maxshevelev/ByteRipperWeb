@@ -2,7 +2,13 @@ import type { AgentArguments } from "@/core/agent/agentArguments";
 import type { RelayCommand } from "@/core/agent/agentClientConfiguration";
 import { AgentConnection } from "@/core/agent/agentConnection";
 import { type AgentCallRecord, AgentServer, isRunning } from "@/core/agent/agentServer";
-import { type AgentTool, AgentToolError, jsonAnswer } from "@/core/agent/agentTool";
+import {
+  type AgentAnswer,
+  type AgentCall,
+  type AgentTool,
+  AgentToolError,
+  jsonAnswer,
+} from "@/core/agent/agentTool";
 import {
   type AgentToolEntry,
   type AgentToolGroup,
@@ -13,6 +19,7 @@ import {
 } from "@/core/agent/agentToolCatalogue";
 import { isObject } from "@/core/agent/json";
 import { type AgentBridge, agentBridge } from "@/platform/desktop/agentBridge";
+import { desktopOwnWindows, ownWindowKind } from "@/platform/desktop/desktopWindows";
 import { AgentAnnotationTools } from "@/state/agent/agentAnnotationTools";
 import {
   AGENT_BACKGROUND_LIMITS,
@@ -284,6 +291,35 @@ export class AgentService {
   }
 
   /**
+   * Where this page's service stands among the desktop shell's windows (D7d): the Agent window's
+   * page holds the endpoint, the connections and the log, and has each call run by a window of
+   * the workspace — the one holding the document it names, or the one in front — which runs it
+   * against its own documents. A page outside the shell, a test's, is all of it at once.
+   *
+   * @web-only upstream's service and documents are in one process
+   */
+  get role(): "host" | "runner" | "whole" {
+    if (ownWindowKind() === "agent") return "host";
+    return desktopOwnWindows() !== undefined && ownWindowKind() === undefined ? "runner" : "whole";
+  }
+
+  /**
+   * How the Agent window's page has a call run by the window that is to run it; nothing until
+   * `agentWindows.ts` says, and nothing outside the shell.
+   */
+  route: ((tool: string, call: AgentCall) => Promise<AgentAnswer>) | undefined;
+
+  /**
+   * Runs the call here, against this window's documents, as the service would — what a window of
+   * the workspace does for the Agent window's page.
+   */
+  runHere(tool: string, call: AgentCall): Promise<AgentAnswer> {
+    const found = this.allTools().find((one) => one.name === tool);
+    if (found === undefined) throw new AgentToolError(`Unknown tool: ${tool}`);
+    return this.trimming(this.labelling(this.noted(found))).run(call);
+  }
+
+  /**
    * Every tool, in the order `tools/list` gives them.
    *
    * @web-only the catalogue's tools alone; upstream's `server` lists the catalogue
@@ -376,9 +412,17 @@ export class AgentService {
       // @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.appVersion
       info: { name: "byteripper", version: appVersionText(), title: "ByteRipper" },
       instructions: AGENT_INSTRUCTIONS,
-      tools: this.allTools().map((tool) => this.trimming(this.labelling(this.noted(tool)))),
+      tools: this.allTools().map((tool) =>
+        this.role === "host"
+          ? { ...tool, run: (call) => this.routed(tool.name, call) }
+          : this.trimming(this.labelling(this.noted(tool)))
+      ),
     });
     return this.builtServer;
+  }
+
+  private routed(tool: string, call: AgentCall): Promise<AgentAnswer> {
+    return this.route === undefined ? this.runHere(tool, call) : this.route(tool, call);
   }
 
   /**
@@ -600,6 +644,12 @@ export class AgentService {
 
   private async open(): Promise<void> {
     const bridge = this.bridge;
+    // A window of the workspace has the Agent window's page made, which opens the endpoint; what
+    // the service is doing it is told from there (`agentWindows.ts`).
+    if (this.role === "runner") {
+      await bridge?.setEnabled(true);
+      return;
+    }
     if (bridge === undefined || this.store.getSnapshot().running) return;
     const outcome = await bridge.setEnabled(true);
     if (!outcome.ok) {
@@ -626,6 +676,10 @@ export class AgentService {
    * @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.stop
    */
   stop(): void {
+    if (this.role === "runner") {
+      if (this.store.getSnapshot().running) void this.bridge?.setEnabled(false);
+      return;
+    }
     for (const off of this.unsubscribe) off();
     this.unsubscribe = [];
     for (const connection of this.connections.values()) connection.close();
@@ -771,6 +825,12 @@ export class AgentService {
 
   /** Shows or hides the Agent window. @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentWindow */
   setWindowOpen(open: boolean): void {
+    // The desktop shell's Agent window is a window of its own (D7d), closed by its title bar.
+    const own = desktopOwnWindows();
+    if (own !== undefined) {
+      if (open) own.open("agent");
+      return;
+    }
     // The window is a pill in the dock and a panel over the panes (`Design/HELP.md`, "Where the
     // book is shown"): open raises it, closed takes the pill away.
     if (open) openAgentPanel();
@@ -779,6 +839,10 @@ export class AgentService {
 
   /** The menu item's and the button's click: the panel that is up goes, any other comes. */
   toggleWindow(): void {
+    if (desktopOwnWindows() !== undefined) {
+      this.setWindowOpen(true);
+      return;
+    }
     this.setWindowOpen(!agentPanelIsUp(workspaceStore.getSnapshot()));
   }
 

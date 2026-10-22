@@ -34,16 +34,18 @@ function relayScript(app) {
  * @param ipcMain Electron's
  * @param fromApp whether an IPC message came from the app's own page
  * @param app Electron's
+ * @param host.host makes the Agent window's page, out of sight, if it is not there
+ * @param host.isHost whether a page is the Agent window's, which alone serves the endpoint
  */
-function register(ipcMain, fromApp, app) {
+function register(ipcMain, fromApp, app, { host, isHost } = {}) {
   let server;
   let address;
   let page;
   let enabled = false;
   /**
-   * The windows that have the service on, in the order they asked. One of them is served — the
-   * first still open — and when it closes the next takes the endpoint over (Design/DESKTOP_WINDOWS.md:
-   * each window holds its own documents until the agent's desk spans every window, D7).
+   * The pages that opened the endpoint, in the order they asked. One of them is served — the
+   * first still open — and when it goes the next takes the endpoint over. In the app that is the
+   * Agent window's page alone, which runs every window's calls (Design/DESKTOP_WINDOWS.md, D7d).
    */
   const wanting = [];
   const connections = new Map();
@@ -166,11 +168,26 @@ function register(ipcMain, fromApp, app) {
   }
 
   // The switch: the page says whether the service is on, and is told whether the endpoint opened.
+  // A window of the workspace turning it on has the Agent window's page made, which opens the
+  // endpoint (Design/DESKTOP_WINDOWS.md, D7d); the service runs there, whatever window is open.
   ipcMain.handle("agent:enable", async (event, on) => {
     if (!fromApp(event)) return { ok: false, error: "Not the app's page." };
-    if (on === true) return start(event.sender);
+    if (on === true) {
+      if (host !== undefined && !isHost(event.sender)) {
+        host();
+        return { ok: true, hosted: true };
+      }
+      return start(event.sender);
+    }
     stop();
     return { ok: true };
+  });
+
+  // A document's id for the agent, one counter for every window: `d1`, `d2`… named once in the
+  // app, so an id says which window holds it.
+  let nextDocument = 1;
+  ipcMain.on("agent:mint", (event) => {
+    event.returnValue = fromApp(event) ? nextDocument++ : 0;
   });
 
   ipcMain.on("agent:send", (event, id, bytes) => {

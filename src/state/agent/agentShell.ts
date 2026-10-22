@@ -38,4 +38,11 @@ export const agentShell: {
    * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
    */
   choosePaneToReplace?: ((incoming: string) => Promise<SlotId | undefined>) | undefined;
+  /**
+   * Settings at the Agent tab, in this window: what the Agent window's Settings button asks the
+   * window of the workspace in front for, in the desktop shell (D7d).
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
+   */
+  openSettings?: (() => void) | undefined;
 } = {};

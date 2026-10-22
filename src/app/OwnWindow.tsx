@@ -6,10 +6,13 @@ import {
   windowLaunch,
 } from "@/platform/desktop/desktopWindows";
 import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
+import { agentService } from "@/state/agent/agentService";
+import { hostAgentForWindows, openAgentSettingsInFront } from "@/state/agent/agentWindows";
 import { shareAnnotationsAcrossWindows, startNotesWindow } from "@/state/agent/annotationWindows";
 import { startHelpWindow } from "@/state/helpStore";
 import { languageStore } from "@/state/settingsStore";
 import { useStore } from "@/state/useStore";
+import { AgentWindow } from "@/ui/agent/AgentWindow";
 import { HelpPanel } from "@/ui/help/HelpPanel";
 import { NoteFormDialog } from "@/ui/notes/NoteFormDialog";
 import { NotesPanel } from "@/ui/notes/NotesPanel";
@@ -33,13 +36,18 @@ export function OwnWindow({ kind }: { readonly kind: OwnWindowKind }) {
       void restoreAnnotations().then(shareAnnotationsAcrossWindows);
       return startNotesWindow(windowLaunch()?.show);
     }
+    if (kind === "agent") {
+      // The service itself runs here, for the whole app, whether the window is shown or not.
+      hostAgentForWindows();
+      void agentService.start();
+    }
     return undefined;
   }, [kind]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the title is words, which the language changes
   useEffect(() => {
     document.title =
-      kind === "help" ? L("ByteRipper Help") : kind === "notes" ? L("Annotations") : "ByteRipper";
+      kind === "help" ? L("ByteRipper Help") : kind === "notes" ? L("Annotations") : L("Agent");
   }, [kind, language]);
 
   // ⌘W / Ctrl+W closes the window, as File ▸ Close Window does a window of the workspace: the menu
@@ -58,6 +66,7 @@ export function OwnWindow({ kind }: { readonly kind: OwnWindowKind }) {
   return (
     <div className="own-window" key={language}>
       {kind === "help" ? <HelpPanel /> : null}
+      {kind === "agent" ? <AgentWindow onSettings={openAgentSettingsInFront} /> : null}
       {kind === "notes" ? (
         <>
           <NotesPanel />

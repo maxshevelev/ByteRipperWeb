@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     send: (id, bytes) => ipcRenderer.send("agent:send", id, bytes),
     end: (id) => ipcRenderer.send("agent:end", id),
     file: (request) => ipcRenderer.invoke("agent:file", request),
+    mint: () => ipcRenderer.sendSync("agent:mint"),
   },
   // The full path of a file the person opened — through the picker, the file input or a drop —
   // which a page is never told; and that file read again by it.

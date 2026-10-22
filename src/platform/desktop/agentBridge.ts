@@ -67,6 +67,11 @@ export interface AgentBridge {
     readonly offset: number;
     readonly length: number;
   }): Promise<Uint8Array>;
+  /**
+   * The next number of a document's id, from one counter for every window of the app
+   * (`Design/DESKTOP_WINDOWS.md`, D7d); an older shell has none, and the page counts on its own.
+   */
+  mint?(): number;
 }
 
 /** The bridge, where the page runs in the desktop shell; nothing in a browser. */

@@ -58,7 +58,15 @@ export class AgentDesk {
     };
   }
 
+  /**
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.mint
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.nextID
+   * @upstream-differs in the desktop shell the number comes from the main process, one counter for
+   * every window, so an id names the document in the app and so the window holding it (D7d)
+   */
   private mint(): string {
+    const shared = this.bridge()?.mint?.();
+    if (shared !== undefined && shared > 0) return `d${shared}`;
     const id = `d${this.nextId}`;
     this.nextId += 1;
     return id;

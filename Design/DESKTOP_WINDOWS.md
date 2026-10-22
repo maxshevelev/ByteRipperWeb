@@ -155,7 +155,7 @@ the module map moved.
   pane header in a comparison; the New Window strip while dragging; bookmarks.
 - [x] **D6 — a fragment panel carried.** Open in New Window on the pill, the
   strip, a panel let go on another window's free half.
-- [ ] **D7 — app-wide state.** The owner's decision on 2026-10-22: the
+- [x] **D7 — app-wide state.** The owner's decision on 2026-10-22: the
   annotations, the agent and the help are the app's, so in the shell each is a
   window of its own, as upstream's are, rather than a panel of every window's
   dock. In four steps:
@@ -191,10 +191,19 @@ the module map moved.
     Annotations and the toolbar's Annotations button after Segments open it,
     the button carrying the count of the agent's notes not yet seen; the window
     counts as up while it is in front. It is not reopened at launch.
-  - [ ] **D7d — the Agent window and the desk over every window.** One service
-    for the app; a document's id names its window, a call is run by the window
-    holding its document, `documents` lists every window front to back, and the
-    Agent window shows the log of all of them.
+  - [x] **D7d — the Agent window and the desk over every window.** One service
+    for the app, in the Agent window's page: the main process makes that page,
+    out of sight, when a window turns the service on, and only it opens the
+    endpoint; closing the window puts it out of sight and the service goes on.
+    A document's id comes from one counter in the main process (`agent:mint`),
+    so it names its window. Each call is run by a window of the workspace
+    (`agentWindows.ts`, BroadcastChannel "byteripper-agent"): the one holding
+    the document it names, or the one in front; `documents` asks every window
+    and lists them front to back, each a `tab`; two documents in two windows
+    are refused. The Agent window holds the log of every call, tells the
+    windows' buttons and settings what the service is doing, and its Agent
+    Settings… opens Settings in the window in front; a place shown brings its
+    window forward.
 
 Then persistent undo (P3–P8 of the port window) lands on top of D2's writer,
 and a moved pane carries its history.

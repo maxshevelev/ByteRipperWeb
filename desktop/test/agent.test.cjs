@@ -262,3 +262,29 @@ test("the endpoint passes to the next window when the one it served closes", asy
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+// D7d: the service runs in the Agent window's page; a window of the workspace has it made.
+test("a window of the workspace turning the service on has the Agent window's page made", async () => {
+  const ipc = new EventEmitter();
+  const handlers = new Map();
+  ipc.handle = (channel, handler) => handlers.set(channel, handler);
+  const app = Object.assign(new EventEmitter(), { isPackaged: false });
+  let made = 0;
+  register(ipc, () => true, app, { host: () => made++, isHost: () => false });
+  const answer = await handlers.get("agent:enable")({ sender: {} }, true);
+  assert.deepEqual(answer, { ok: true, hosted: true });
+  assert.equal(made, 1);
+});
+
+test("a document's id comes from one counter for every window", () => {
+  const minted = [];
+  const ipc = new EventEmitter();
+  ipc.handle = () => undefined;
+  register(ipc, () => true, Object.assign(new EventEmitter(), { isPackaged: false }));
+  for (let i = 0; i < 3; i++) {
+    const event = { sender: {} };
+    ipc.emit("agent:mint", event);
+    minted.push(event.returnValue);
+  }
+  assert.deepEqual(minted, [1, 2, 3]);
+});

@@ -236,9 +236,10 @@ function confirmLeave(window) {
 }
 
 /** A window holding the page: at the bounds given, or the launch size where the system puts it. */
-function createWindow(bounds, launch) {
+function createWindow(bounds, launch, shown = true) {
   const window = new BrowserWindow({
     ...(bounds ?? { width: 1400, height: launchHeight(900) }),
+    show: shown,
     title: "ByteRipper",
     backgroundColor: "#ffffff",
     webPreferences: {
@@ -311,12 +312,12 @@ app.whenReady().then(() => {
     },
     confirmLeave: async (window) => confirmLeave(window),
     onStayed: () => updates.stayed(),
-    createOwn: (kind, bounds, message) =>
-      createWindow(bounds ?? OWN_SIZES[kind], {
-        adopt: false,
-        own: kind,
-        ...(message === undefined ? {} : { show: message }),
-      }),
+    createOwn: (kind, bounds, message, shown) =>
+      createWindow(
+        bounds ?? OWN_SIZES[kind],
+        { adopt: false, own: kind, ...(message === undefined ? {} : { show: message }) },
+        shown
+      ),
     ownFrames: ownFramesStore,
   });
   protocol.handle(SCHEME, (request) => {
@@ -513,7 +514,12 @@ app.whenReady().then(() => {
   });
 
   updates.register(ipcMain, BrowserWindow, fromApp, () => void windows.quit());
-  agent.register(ipcMain, fromApp, app);
+  // The agent service runs in the Agent window's page (D7d): it is made, out of sight, when a
+  // window turns the service on, and only that page holds the endpoint.
+  agent.register(ipcMain, fromApp, app, {
+    host: () => windows.openOwn("agent", undefined, false)?.webContents,
+    isHost: (contents) => windows.ownKindOf(BrowserWindow.fromWebContents(contents)) === "agent",
+  });
 
   windows.launch();
 });

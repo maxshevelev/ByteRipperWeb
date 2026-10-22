@@ -73,7 +73,11 @@ function harness({ saved, toOpen, toSave, ownFrames } = {}) {
     },
     pickProjectToOpen: async () => toOpen,
     pickProjectToSave: async () => toSave,
-    createOwn: (kind, bounds, message) => deps.create(bounds, { own: kind, show: message }),
+    createOwn: (kind, bounds, message, shown) => {
+      const window = deps.create(bounds, { own: kind, show: message });
+      window.visible = shown;
+      return window;
+    },
     ownFrames: {
       read: () => ownFrames,
       write: (value) => framesWritten.push(JSON.parse(JSON.stringify(value))),
@@ -92,7 +96,13 @@ function harness({ saved, toOpen, toSave, ownFrames } = {}) {
         answers: {},
         isDestroyed: () => destroyed,
         isMinimized: () => false,
-        show: () => undefined,
+        visible: true,
+        show: () => {
+          window.visible = true;
+        },
+        hide: () => {
+          window.visible = false;
+        },
         focus: () => window.emit("focus"),
         getBounds: () => window.bounds,
         destroy: () => {
@@ -530,14 +540,14 @@ test("the app's own windows are not the workspace's", () => {
 
 test("an own window opens where it stood when it was closed", () => {
   const { made, windows, framesWritten } = harness({
-    ownFrames: { agent: { x: 300, y: 200, width: 700, height: 600 } },
+    ownFrames: { notes: { x: 300, y: 200, width: 700, height: 600 } },
   });
-  windows.openOwn("agent");
+  windows.openOwn("notes");
   assert.deepEqual(made[0].bounds, { x: 300, y: 200, width: 700, height: 600 });
   made[0].bounds = { x: 320, y: 220, width: 700, height: 600 };
   made[0].close();
-  assert.deepEqual(framesWritten.at(-1), { agent: { x: 320, y: 220, width: 700, height: 600 } });
-  windows.openOwn("agent");
+  assert.deepEqual(framesWritten.at(-1), { notes: { x: 320, y: 220, width: 700, height: 600 } });
+  windows.openOwn("notes");
   assert.equal(made.length, 2, "made again once closed");
 });
 
@@ -549,4 +559,25 @@ test("closing the last window of the workspace quits, taking the app's own windo
   await settle();
   assert.equal(app.quitCalled, 1);
   assert.equal(made[1].isDestroyed(), true);
+});
+
+// D7d: the agent service runs in the Agent window's page.
+test("the Agent window can be made out of sight, and shown when asked for", () => {
+  const { made, windows } = harness();
+  windows.openOwn("agent", undefined, false);
+  assert.equal(made[0].visible, false);
+  windows.openOwn("agent", undefined, false);
+  assert.equal(made.length, 1);
+  windows.openOwn("agent");
+  assert.equal(made[0].visible, true);
+});
+
+test("closing the Agent window puts it out of sight: the service in its page goes on", () => {
+  const { made, windows } = harness();
+  windows.openOwn("agent");
+  made[0].close();
+  assert.equal(made[0].isDestroyed(), false);
+  assert.equal(made[0].visible, false);
+  windows.openOwn("agent");
+  assert.equal(made.length, 1, "the same window comes back");
 });

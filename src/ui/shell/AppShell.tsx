@@ -8,6 +8,7 @@ import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
+import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -15,6 +16,7 @@ import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScr
 import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
+import { runAgentCallsForHost } from "@/state/agent/agentWindows";
 import { shareAnnotationsAcrossWindows } from "@/state/agent/annotationWindows";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
@@ -1588,6 +1590,8 @@ export function AppShell() {
     // One of a comparison's two panes becomes the active one, as `activateOwnPane` does.
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.activateOwnPane
     const bringForward = (pane: PaneId) => {
+      // In the desktop shell the window holding the pane comes to the front with it (D7d).
+      desktopWindowFocus()?.();
       if (isSlot(pane)) {
         foldParts();
         setActivePane(pane);
@@ -1605,18 +1609,28 @@ export function AppShell() {
       revealIn(pane, start, !select);
     };
     agentShell.choosePaneToReplace = choosePaneToReplace;
+    agentShell.openSettings = () => {
+      setSettingsTab("agent");
+      setSettingsOpen(true);
+    };
     return () => {
       agentShell.reveal = undefined;
       agentShell.bringForward = undefined;
       agentShell.busy = undefined;
       agentShell.choosePaneToReplace = undefined;
+      agentShell.openSettings = undefined;
     };
   }, [revealIn, choosePaneToReplace]);
 
   // The agent service reads its switches and opens its endpoint if it was on, where there is a shell
   // to serve through.
   useEffect(() => {
-    if (agentService.isAvailable) void agentService.start();
+    if (agentService.isAvailable) {
+      void agentService.start();
+      // The desktop shell's service runs in the Agent window's page, and its calls on this
+      // window's documents are run here (D7d).
+      if (agentService.role === "runner") runAgentCallsForHost();
+    }
   }, []);
 
   const showOrigin = useCallback(
