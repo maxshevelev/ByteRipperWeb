@@ -136,7 +136,7 @@ export async function sweepOrphanedScratch(): Promise<void> {
     };
     if (directory.keys === undefined) return;
     for await (const name of directory.keys()) {
-      const match = /^(scratch-[0-9a-z]+-[0-9a-z]+)-\d+\.bin$/.exec(name);
+      const match = /^(scratch-[0-9a-z]+-[0-9a-z]+)-\d+(?:-[0-9a-f]+)?\.bin$/.exec(name);
       if (match !== null && !held.has(match[1] ?? "")) {
         await root.removeEntry(name).catch(() => undefined);
       }

@@ -264,9 +264,23 @@ the renderer's chunk cache as it is.
   The kept folders stay where they were — the workspace's in OPFS per window,
   a project's through the shell — until S7, where one host keeps one workspace
   and the folder moves into the profile through the main process.
-- [ ] **S7 — the host in a `SharedWorker`.** The same host, moved; the shell's
-  port from the main process; a window's Web Lock, so the host knows a window
-  went. Panes in two windows can show one session from here on.
+- [x] **S7 — the host in a `SharedWorker`.** `src/workers/sessionHost.worker.ts`
+  is the host every window of the app connects to; the page runs it itself
+  only where there is no such worker (the single-file build, a test), by the
+  same `makeSessionHost` (`state/sessions/hostSetup.ts`). A window opens a
+  session by naming its source (`DocumentSource`: a file's `Blob`, or
+  nothing) under an id it chose, and the host makes the storage; a join from a
+  file names the `Blob`. The host's undo journals are a write per file in OPFS
+  (`OpfsRecordJournalStore`); in the shell its kept content — the
+  workspace's, now under the profile (`Workspace/Windows/kept-<id>/Kept/`), and
+  the open project's — is written by the main process through a port a window
+  hands over (`desktop/hostDisk.cjs`, `platform/sessions/shellDisk.ts`). A
+  window holds a Web Lock while it lives; the host waits on it and, when it is
+  let go, ends the sessions only that window showed. Checked: two tabs of
+  Chromium show one session, an edit in one is undone in the other; in the
+  shell a file typed into, the process killed, came back and undid.
+  Still one keeper folder per window, as before: one workspace across windows
+  is S8's, with the panes.
 - [ ] **S8 — panes between windows are views.** D5, D6 and D4 on the host;
   `paneParcel`, `carriedHistory`, the parcels' edits and the main process's
   registry removed.

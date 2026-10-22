@@ -13,6 +13,11 @@ const listen = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, listener);
 };
 
+// A port crosses into the page as a message, which is the one way a port reaches the main world.
+ipcRenderer.on("host:port", (event) =>
+  window.postMessage("byteripper:host-port", "*", event.ports)
+);
+
 contextBridge.exposeInMainWorld("byteripperDesktop", {
   agent: {
     setEnabled: (on) => ipcRenderer.invoke("agent:enable", on),
@@ -59,6 +64,9 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     recent: () => ipcRenderer.invoke("project:recent"),
     clearRecent: () => ipcRenderer.invoke("project:clear-recent"),
   },
+  // The session host's disk (Design/FILE_SESSIONS.md, S7): a port to the shell, handed to the
+  // page as a message, which the page hands on to the host in its worker.
+  askHostPort: () => ipcRenderer.send("host:port"),
   closeWindow: () => ipcRenderer.send("window:close"),
   // The app's own windows (D7): the help, the annotations, the agent — one of each, opened or
   // brought forward at what is named, and in such a window, the next thing it is asked to show.

@@ -1,62 +1,116 @@
-import { SessionHost } from "@/core/session/sessionHost";
 import type {
   HostMessage,
   JoinSource,
   SessionId,
+  SessionLine,
   ViewMessage,
 } from "@/core/session/sessionProtocol";
 import { SessionStorage } from "@/core/session/sessionStorage";
 import { SessionClient, type SessionView } from "@/core/session/sessionView";
 import type { ByteStorage } from "@/core/storage/byteStorage";
+import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
-import { type DocumentSource, sizeOf, storageOf } from "@/platform/sessions/documentSource";
+import { type DocumentSource, sizeOf } from "@/platform/sessions/documentSource";
 import { portLine } from "@/platform/sessions/portLine";
-import { installSessionOperations } from "@/platform/sessions/sessionOperations";
-import { installKeeperOperations } from "@/state/sessions/keeperOperations";
+import { makeSessionHost } from "@/state/sessions/hostSetup";
 import { currentProject } from "@/state/workspace/projectRecords";
 
 /**
- * The file sessions of this window, and the host they live in (`Design/FILE_SESSIONS.md`).
+ * This window's line to the session host, and the sessions it shows (`Design/FILE_SESSIONS.md`).
  *
- * The host runs in the page for now, over a `MessageChannel`, so that everything the panes do with
- * their documents already goes through a `SessionView` — requests, operations, the mirror —
- * before the host moves to a `SharedWorker` (S7) and a second window can show the same session.
- * Nothing in the page reaches the host's documents but through the line.
+ * The host is one `SharedWorker` for every window of the app — the shell's windows, a browser's
+ * tabs — so a session is the same object whichever window shows it. Where there is no such worker
+ * — the single-file build opened from disk, whose page has no origin; a test — the host runs in the
+ * page itself, over a `MessageChannel`, and the page's sessions are its own.
  *
  * @web-only upstream's panes hold their documents
  */
 
 /**
- * The bytes of joins from outside the sessions — a file picked or dropped — by the number a join
- * names them by. A storage does not cross a port, and the host shares this page's realm for now,
- * so it takes them from here; in a `SharedWorker` a join will name the `File` itself (S7).
+ * The bytes of joins from outside the sessions that are not a `Blob` — what a test hands in — by
+ * the number a join names them by; only a host in this page can take them.
  */
 const externals = new Map<number, ByteStorage>();
 let externalCount = 0;
 
-const host = new SessionHost({
-  storage: storageOf,
-  external: async (reference) => {
-    const storage = externals.get(reference as number);
-    externals.delete(reference as number);
-    if (storage === undefined) throw new Error("The bytes to join are gone.");
-    return storage;
-  },
-});
-const channel = new MessageChannel();
-host.connect(portLine<HostMessage, ViewMessage>(channel.port2));
-installSessionOperations(host);
-installKeeperOperations(host, (ref) => {
-  if (ref.kind === "session") {
-    return OpfsKeptFolder.isAvailable() ? new OpfsKeptFolder(ref.workspace) : undefined;
-  }
-  const project = currentProject();
-  return project?.id === ref.project ? project.folder.kept : undefined;
-});
-const client = new SessionClient(portLine<ViewMessage, HostMessage>(channel.port1));
-
 /** What tells this window's sessions from another's: their ids are chosen here. */
-const windowTag = Math.random().toString(36).slice(2, 10);
+const windowTag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+/** Whether the host lives in a `SharedWorker`, rather than in this page. */
+let shared = false;
+
+function connect(): SessionLine<ViewMessage, HostMessage> {
+  const canShare =
+    typeof SharedWorker !== "undefined" &&
+    globalThis.origin !== "null" &&
+    typeof navigator !== "undefined";
+  if (canShare) {
+    try {
+      const worker = new SharedWorker(
+        new URL("../../workers/sessionHost.worker.ts", import.meta.url),
+        { type: "module", name: "byteripper-sessions" }
+      );
+      shared = true;
+      holdWhileAlive(worker.port);
+      handShellPort(worker.port);
+      return portLine<ViewMessage, HostMessage>(worker.port);
+    } catch {
+      // No worker after all: the host runs here.
+    }
+  }
+  const host = makeSessionHost({
+    folderOf: (ref) => {
+      if (ref.kind === "session") {
+        return OpfsKeptFolder.isAvailable() ? new OpfsKeptFolder(ref.workspace) : undefined;
+      }
+      const project = currentProject();
+      return project?.id === ref.project ? project.folder.kept : undefined;
+    },
+    removeAllKept: () => OpfsKeptFolder.removeAll(),
+    otherExternal: (reference) => {
+      const storage = externals.get(reference as number);
+      externals.delete(reference as number);
+      return storage;
+    },
+  });
+  const channel = new MessageChannel();
+  host.connect(portLine<HostMessage, ViewMessage>(channel.port2));
+  return portLine<ViewMessage, HostMessage>(channel.port1);
+}
+
+/**
+ * Holds a Web Lock for as long as this window lives, and tells the host its name once held: the
+ * host waits on it, and hears that the window went when the browser lets it go.
+ */
+function holdWhileAlive(port: MessagePort): void {
+  const lock = `byteripper-window:${windowTag}`;
+  void navigator.locks?.request(
+    lock,
+    () =>
+      new Promise<void>(() => {
+        port.postMessage({ kind: "alive", lock });
+      })
+  );
+}
+
+/**
+ * In the shell, a port to the main process for the host's disk: asked of the preload, which hands
+ * it to the page as a message, and handed on to the host on this window's line.
+ */
+function handShellPort(port: MessagePort): void {
+  const bridge = (globalThis as { byteripperDesktop?: { askHostPort?: () => void } })
+    .byteripperDesktop;
+  if (bridge?.askHostPort === undefined || typeof window === "undefined") return;
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (event.source !== window || event.data !== "byteripper:host-port") return;
+    const shell = event.ports[0];
+    if (shell !== undefined) port.postMessage({ kind: "shellPort", port: shell }, [shell]);
+  });
+  bridge.askHostPort();
+}
+
+const client = new SessionClient(connect());
+
 let opened = 0;
 
 /** Asks the host for something it does on no one session's account — the kept content. */
@@ -70,17 +124,16 @@ export function openSession(source: DocumentSource): SessionView {
   return client.open(id, source, sizeOf(source));
 }
 
-/** What a join names its bytes by: a session's own, or bytes from outside them. */
+/** What a join names its bytes by: a session's own, a file's, or bytes this page holds. */
 export function joinSourceOf(source: ByteStorage): JoinSource {
-  return source instanceof SessionStorage
-    ? { kind: "session", session: source.session }
-    : { kind: "external", reference: externalOf(source) };
-}
-
-function externalOf(source: ByteStorage): number {
+  if (source instanceof SessionStorage) return { kind: "session", session: source.session };
+  if (source instanceof FileBackedStorage && source.byteSource instanceof Blob) {
+    return { kind: "external", reference: source.byteSource };
+  }
+  if (shared) throw new Error("Those bytes cannot reach the session host.");
   const reference = ++externalCount;
   externals.set(reference, source);
-  return reference;
+  return { kind: "external", reference };
 }
 
 const closedListeners = new Set<(session: SessionId) => void>();
@@ -91,9 +144,11 @@ export function onSessionClosed(listener: (session: SessionId) => void): () => v
   return () => closedListeners.delete(listener);
 }
 
-/** Ends a session no pane shows any more. */
+/**
+ * Ends a session no pane here shows any more. The host ends it once no window shows it.
+ */
 export function closeSession(view: SessionView): void {
   client.hide(view.id);
-  host.close(view.id);
+  void client.operate("session.closeUnshown", { session: view.id });
   for (const listener of closedListeners) listener(view.id);
 }

@@ -22,7 +22,6 @@ import {
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
 import type { OpenedFile } from "@/platform/files/openedFile";
-import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
 import type { ProjectFolder } from "@/platform/files/projectFolder";
 import { actFrom, operate } from "@/platform/sessions/sessionOperations";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
@@ -42,6 +41,7 @@ import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import { KeptContentClient } from "@/state/sessions/keptContent";
+import { operateHost } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
 import { partCodecState } from "@/state/workspace/partCodecState";
@@ -514,8 +514,11 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
   // A project waiting for a click to reach its files is not written over with the empty tab.
   if (project !== undefined) return keepsWaiting ? false : recordProject(project);
   if (!restores) return false;
-  const keeper = sessionKeeper();
-  await keeper?.beginSnapshot();
+  // Where the host cannot keep content — no disk it can write — the record goes without it.
+  let keeper = sessionKeeper();
+  await keeper?.beginSnapshot().catch(() => {
+    keeper = undefined;
+  });
   const { workspace, handles } = await snapshotWorkspace(keeper);
   if (keepsWaiting) {
     if (workspaceIsEmpty(workspace)) return false;
@@ -542,7 +545,6 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
  */
 function sessionKeeper(): KeptContentClient | undefined {
-  if (!OpfsKeptFolder.isAvailable()) return undefined;
   const id = workspaceId();
   if (session?.id !== id) {
     session = { id, keeper: new KeptContentClient({ kind: "session", workspace: id }) };
@@ -631,7 +633,14 @@ export async function discardSession(): Promise<void> {
   void session?.keeper.forget();
   session = undefined;
   await removeWorkspaceRecord(id);
-  if (OpfsKeptFolder.isAvailable()) await new OpfsKeptFolder(id).remove().catch(() => undefined);
+  await removeKeptFolder(id);
+}
+
+/** A window's kept folder, gone with the workspace it kept. */
+export async function removeKeptFolder(id: string): Promise<void> {
+  await operateHost("keeper.removeFolder", { folder: { kind: "session", workspace: id } }).catch(
+    () => undefined
+  );
 }
 
 /**
@@ -660,7 +669,7 @@ export function startWorkspaceRecorder(): () => void {
     if (!now) {
       void removeAllWorkspaceRecords();
       session = undefined;
-      void OpfsKeptFolder.removeAll();
+      void operateHost("keeper.removeAll", undefined).catch(() => undefined);
     } else void recordWorkspace(true);
   });
   return () => {

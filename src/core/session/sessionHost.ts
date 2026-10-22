@@ -156,6 +156,12 @@ export class SessionHost {
     return done;
   }
 
+  /** Ends every session no window shows: what a window that went leaves behind. */
+  closeUnshown(): void {
+    const shown = this.shownSessions();
+    for (const id of [...this.sessions.keys()]) if (!shown.has(id)) this.close(id);
+  }
+
   document(id: SessionId): BinaryDocument | undefined {
     return this.sessions.get(id)?.document;
   }

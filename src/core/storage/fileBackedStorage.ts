@@ -50,6 +50,16 @@ export class FileBackedStorage implements ByteStorage {
     this.cache = cache;
   }
 
+  /**
+   * The bytes it reads, as they were handed in: what a join names when it crosses to the session
+   * host, which reads them itself.
+   *
+   * @web-only a `Blob` crosses to a worker as itself; a storage does not
+   */
+  get byteSource(): ByteSource {
+    return this.source;
+  }
+
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileBackedStorage.swift#FileBackedStorage.read */
   async read(at: number, length: number): Promise<Bytes> {
     const span = this.clamp(at, length);

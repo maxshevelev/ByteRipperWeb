@@ -12,6 +12,7 @@ const {
   dialog,
   ipcMain,
   Menu,
+  MessageChannelMain,
   net,
   protocol,
   screen,
@@ -25,6 +26,7 @@ const agent = require("./agent.cjs");
 const updates = require("./update.cjs");
 const appWindows = require("./windows.cjs");
 const projects = require("./projects.cjs");
+const hostDisk = require("./hostDisk.cjs");
 
 const SCHEME = "app";
 const HOST = "byteripper";
@@ -476,6 +478,14 @@ app.whenReady().then(() => {
   });
   // A kept document's content (P5–P6 of the persistent-undo port): its log, its base, written,
   // read, cut back and put on the disk by name, under the open project's `Kept/` and nowhere else.
+  // The session host's disk (Design/FILE_SESSIONS.md, S7): a port for the page to hand to the
+  // host, answered here. Every window asks for one; the host keeps whichever is still there.
+  ipcMain.on("host:port", (event) => {
+    if (!fromApp(event)) return;
+    const { port1, port2 } = new MessageChannelMain();
+    hostDisk.serve(port1, app.getPath("userData"), () => windows.currentProject());
+    event.sender.postMessage("host:port", null, [port2]);
+  });
   ipcMain.handle("project:kept", (event, request) => {
     if (!sender(event)) throw new Error("Not the app's page.");
     const folder = openFolder();
