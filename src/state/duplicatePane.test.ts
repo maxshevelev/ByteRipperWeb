@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { hostDocument } from "@/state/sessions/pageSessions";
 
 /**
  * Whether the browser grants the origin-private file system the snapshot is
@@ -15,6 +14,12 @@ vi.mock("@/platform/files/opfsScratchStore", async () => {
     OpfsScratchStore: class extends RecordingScratchStore {
       static isAvailable(): boolean {
         return opfs.available;
+      }
+
+      // A `Blob`, as the browser's is: the copy crosses from the session host to the page.
+      override async write(content: AsyncIterable<Uint8Array>) {
+        const written = await super.write(content);
+        return new Blob([await written.slice(0, written.size).arrayBuffer()]);
       }
     },
   };
@@ -122,7 +127,7 @@ describe("Duplicate", () => {
     await source.overwrite(0, new Uint8Array([0xaa]));
     const before = workspaceStore.getSnapshot().panes.a;
     const dirtyBefore = source.isDirty;
-    const depthBefore = hostDocument(source).undoHistory.undoDepth;
+    const historyBefore = source.historyVersion;
 
     await duplicatePane("a");
 
@@ -132,7 +137,7 @@ describe("Duplicate", () => {
     expect(after?.untitled).toBe(before?.untitled);
     expect(source.isDirty).toBe(dirtyBefore);
     // A duplicate is not an edit: it records no undo step.
-    expect(hostDocument(source).undoHistory.undoDepth).toBe(depthBefore);
+    expect(source.historyVersion).toEqual(historyBefore);
     expect(await readAll("a")).toEqual([0xaa, 0x01, 0x02]);
   });
 

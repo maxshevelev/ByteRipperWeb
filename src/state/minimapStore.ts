@@ -1,6 +1,6 @@
 import type { MatchSet } from "@/core/search/matchSet";
 import { NO_BASELINE } from "@/core/segments/baseline";
-import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
+import { operate } from "@/platform/sessions/sessionOperations";
 import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
 import {
   DETAIL_PREFERRED_MAX_SIZE,
@@ -15,7 +15,6 @@ import { copySharedRows, shareOverviewRows } from "@/render/minimap/overviewShar
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
-import { hostDocument } from "@/state/sessions/pageSessions";
 import { createStore } from "@/state/store";
 import {
   frontSurface,
@@ -644,14 +643,13 @@ async function refreshMasksOnce(surface: SurfaceId): Promise<void> {
     const built = density[pane];
     if (slot === undefined || built === undefined) continue;
 
-    const overlay = hostDocument(slot.document).storage;
     const source: OverviewSource = {
       size: slot.document.size,
       storage: slot.document,
       // What the bytes are painted modified against (§21.7): the saved file,
       // or — an image with no file of its own — the files its pieces came from.
       baseline: baselineFor(pane),
-      edited: overlay instanceof EditOverlayStorage ? overlay.changedRanges : [],
+      edited: await operate(slot.document, "changedRanges"),
       differences:
         differences === undefined ? undefined : (start, end) => differences.blocksIn(start, end),
     };

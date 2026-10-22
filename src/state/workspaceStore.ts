@@ -19,9 +19,10 @@ import type { KeptJoin } from "@/core/workspace/workspace";
 import { desktopOwnWindows } from "@/platform/desktop/desktopWindows";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
 import { downloadBlob } from "@/platform/files/download";
-import { contentBlob, type SaveOutcome, saveTarget, writeTo } from "@/platform/files/fileSink";
+import { type SaveOutcome, saveTarget } from "@/platform/files/fileSink";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
+import { operate } from "@/platform/sessions/sessionOperations";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { noteDocumentChanged } from "@/state/editStore";
@@ -55,13 +56,7 @@ import {
   sourceWriteConflict,
 } from "@/state/segmentSources";
 import { applySegments, resetSegments, showSegmentsOf } from "@/state/segmentsStore";
-import {
-  closeSession,
-  contentSnapshot,
-  joinSourceOf,
-  onHostDocument,
-  openSession,
-} from "@/state/sessions/pageSessions";
+import { closeSession, joinSourceOf, openSession } from "@/state/sessions/pageSessions";
 import {
   applyLanguage,
   DEFAULT_GROUPING_GAP,
@@ -958,29 +953,11 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   );
   if (target.kind === "cancelled") return { kind: "cancelled" };
   if (target.kind === "download") {
-    downloadBlob(
-      await onHostDocument(slot.document, (document) => contentBlob(document.storage)),
-      name
-    );
+    downloadBlob(await operate(slot.document, "contentBlob"), name);
     return { kind: "downloaded", name };
   }
 
-  const outcome = await onHostDocument(slot.document, async (document) => {
-    const overlay = document.storage as EditOverlayStorage;
-    const written = await writeTo(target, {
-      storage: overlay,
-      name,
-      baseSize: overlay.baseSize,
-      // Patching writes only what changed, and only when writing back to the very file those
-      // offsets were measured against.
-      changedRanges: overlay.canPatchInPlace ? overlay.changedRanges : undefined,
-    });
-    // The file on disk now holds the document, so the overlay starts again over it: nothing is a
-    // change any more.
-    overlay.rebase(new FileBackedStorage(written.file.source, new ChunkCache()));
-    document.markSaved();
-    return written;
-  });
+  const outcome = await operate(slot.document, "save", { target, name });
   noteDocumentChanged();
   // The file is known again by what the save made of it: an annotation on it, and its handle,
   // follow a save in place; a Save As is a file of its own, opened again by its own handle.
@@ -1028,7 +1005,7 @@ export async function duplicatePane(from: SlotId): Promise<void> {
 
   const into: SlotId = from === "a" ? "b" : "a";
   const scratch = new OpfsScratchStore();
-  const source = await contentSnapshot(slot.document, scratch);
+  const source = await operate(slot.document, "snapshot");
   const { document, typing } = makeDocument(
     new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), { scratch }),
     into
@@ -1172,13 +1149,9 @@ export async function openKeptUntitledInPane(
 export async function applyKeptEdits(pane: PaneId, edits: OverlayEdits): Promise<void> {
   const slot = paneState(pane);
   if (slot === undefined) return;
-  await onHostDocument(slot.document, (document) => {
-    (document.storage as EditOverlayStorage).applyEdits(edits);
-    // Changes nobody saved, with no history to undo them by: the state a join leaves a document
-    // in, and what makes a close ask.
-    document.undoHistory.clearKeepingDirty();
-    document.contentReplaced();
-  });
+  // Changes nobody saved, with no history to undo them by: the state a join leaves a document in,
+  // and what makes a close ask.
+  await operate(slot.document, "layEdits", edits);
   resetSegments(pane, slot.document.size);
   signalFullInvalidation(pane);
 }
@@ -1192,8 +1165,7 @@ export async function applyKeptEdits(pane: PaneId, edits: OverlayEdits): Promise
 export async function exportKeptEdits(pane: SlotId): Promise<OverlayEdits | undefined> {
   const slot = paneState(pane);
   if (slot === undefined || slot.untitled || !slot.document.isDirty) return undefined;
-  const storage = await onHostDocument(slot.document, (document) => document.storage);
-  return storage instanceof EditOverlayStorage ? storage.exportEdits() : undefined;
+  return await operate(slot.document, "exportEdits");
 }
 
 /**
@@ -1588,11 +1560,7 @@ export async function revertPane(pane: PaneId): Promise<void> {
   const handle = slot.file.handle;
   const source = handle === undefined ? slot.file.source : await handle.getFile();
   const caret = slot.document.selection.start;
-  await onHostDocument(slot.document, (document) =>
-    document.revert(
-      new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), scratchOptions())
-    )
-  );
+  await operate(slot.document, "revert", { source });
   // A reload is not a navigation: the reader asked for the bytes back, not to be
   // taken somewhere, so the caret stays where it was as far as the file now
   // reaches — and nothing scrolls.
@@ -1762,7 +1730,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
 /** The joined content as a file the workers can read, or the old one if it cannot be written. */
 async function snapshotOf(slot: PaneState, name: string): Promise<OpenedFile> {
   if (!OpfsScratchStore.isAvailable()) return { ...slot.file, name };
-  const source = await contentSnapshot(slot.document, new OpfsScratchStore());
+  const source = await operate(slot.document, "snapshot");
   return { name, size: source.size, lastModified: Date.now(), source };
 }
 
@@ -1931,7 +1899,7 @@ export function restoreJoinMarks(
 export async function keptContentLaid(pane: PaneId): Promise<void> {
   const slot = paneState(pane);
   if (slot === undefined) return;
-  await onHostDocument(slot.document, (document) => document.contentReplaced());
+  await operate(slot.document, "contentReplaced");
   resetSegments(pane, slot.document.size);
   signalFullInvalidation(pane);
 }

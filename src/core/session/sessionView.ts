@@ -105,6 +105,17 @@ export class SessionClient {
     this.line.close();
   }
 
+  /** Asks the host for something it does on no one session's account; its answer. */
+  async operate(name: string, args: unknown): Promise<unknown> {
+    const seq = ++this.seq;
+    const answer = new Promise<SessionResult | undefined>((resolve, reject) =>
+      this.waiting.set(seq, { resolve, reject })
+    );
+    this.line.post({ kind: "operate", seq, name, args });
+    const result = await answer;
+    return result?.kind === "value" ? result.value : undefined;
+  }
+
   /** @internal Sends a request; the number it went under, and its answer. */
   send(
     session: SessionId,
@@ -193,6 +204,7 @@ export class SessionView {
       selection: caretAt(0, 0),
       contentGeneration: 0,
       baseSerial: 0,
+      historyVersion: { epoch: 0, serial: 0 },
       cuts: { version: -1, partition: { contentSize: 0, pieces: [{ start: 0, name: "" }] } },
     };
   }
@@ -251,6 +263,11 @@ export class SessionView {
   onCutsChanged(listener: (partition: Segmentation) => void): Unsubscribe {
     this.cutsListeners.add(listener);
     return () => this.cutsListeners.delete(listener);
+  }
+
+  /** Where the session's history stands. */
+  get historyVersion(): { readonly epoch: number; readonly serial: number } {
+    return this.state.historyVersion;
   }
 
   get baseSerial(): number {
@@ -422,6 +439,15 @@ export class SessionView {
 
   clearKeepingDirty(): Promise<void> {
     return this.tellHost({ kind: "clearKeepingDirty" });
+  }
+
+  /**
+   * Asks the host to do what the platform taught it under `name` to this session, in its turn
+   * among the requests; its answer.
+   */
+  async operate(name: string, args: unknown): Promise<unknown> {
+    const result = await this.ask({ kind: "operate", name, args });
+    return result?.kind === "value" ? result.value : undefined;
   }
 
   /** Waits until the host has applied everything this window has told it so far. */

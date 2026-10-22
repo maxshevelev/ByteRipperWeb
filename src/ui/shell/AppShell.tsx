@@ -12,6 +12,7 @@ import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
+import { operate } from "@/platform/sessions/sessionOperations";
 import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
@@ -73,7 +74,6 @@ import {
   useSelectionForFind,
 } from "@/state/searchStore";
 import { segmentsFor } from "@/state/segmentsStore";
-import { contentSnapshot } from "@/state/sessions/pageSessions";
 import { languageStore } from "@/state/settingsStore";
 import { isTextEntry } from "@/state/textFocusStore";
 import {
@@ -1822,7 +1822,7 @@ export function AppShell() {
       let sourceFile: OpenedFile | undefined;
       if (OpfsScratchStore.isAvailable()) {
         try {
-          const snapshot = await contentSnapshot(source.document, new OpfsScratchStore());
+          const snapshot = await operate(source.document, "snapshot");
           sourceFile = {
             name: source.name,
             size: snapshot.size,

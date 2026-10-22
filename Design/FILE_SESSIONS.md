@@ -242,11 +242,28 @@ the renderer's chunk cache as it is.
   lands between the bytes going out and the state that says they are saved. A
   download is a blob the host makes (`contentBlob`) and the page downloads. A
   revert runs in the session's turn since S2.
-- [ ] **S6 — kept content in the host.** `ContentKeeper` and `KeptWriter` per
-  session; the workspace's `Kept/` and journals in the profile through the
-  shell, one `KeptFolder` for workspace and project; the window records name
-  sessions; restore opens sessions, then the windows that show them. With it
-  `hostDocument(id)` has no caller left in the page, and goes.
+- [x] **S6 — no door left: everything the page did to a document is a request
+  or an operation of the host.** `SessionHost` learns named operations — per
+  session, in its turn (`defineSessionOperation`), and host-wide
+  (`defineHostOperation`) — and the platform teaches them:
+  `platform/sessions/sessionOperations.ts` (snapshot, save, revert, kept
+  changes laid over, a carried history put back, the undo state written down
+  and put back, the cuts restored) and `state/sessions/keeperOperations.ts`
+  (the keepers, one per kept folder, in the host). A window's
+  `KeptContentClient` names the folder and the sessions: a snapshot asks the
+  host to keep each pane's session, the host writes the kept files and hands
+  back the workspace with their hashes, the window writes its record, and only
+  then does the host remove what no record names; it also answers which
+  sessions it holds as they are, which is what leaving asks about. The page
+  has no `hostDocument` any more; the one thing left is a join from outside
+  the sessions naming its bytes by a number the page keeps, which S7 replaces
+  with the `File`. (Found on the way: since S2 a file's kept changes were not
+  laid back over it at restore — the restore asked the view for an overlay it
+  does not have. Now the host lays them; checked in the shell: a file typed
+  into, the process killed, came back with its bytes and undid them.)
+  The kept folders stay where they were — the workspace's in OPFS per window,
+  a project's through the shell — until S7, where one host keeps one workspace
+  and the folder moves into the profile through the main process.
 - [ ] **S7 — the host in a `SharedWorker`.** The same host, moved; the shell's
   port from the main process; a window's Web Lock, so the host knows a window
   went. Panes in two windows can show one session from here on.

@@ -1,5 +1,25 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { openInPane, savePane, workspaceStore } from "@/state/workspaceStore";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// A handle a test can make is an object of functions, which no port clones; the browser's own
+// crosses to a worker as itself. The page's line to its host carries them here without cloning.
+vi.stubGlobal(
+  "MessageChannel",
+  class {
+    readonly port1: { onmessage?: (event: { data: unknown }) => void } & Record<string, unknown>;
+    readonly port2: { onmessage?: (event: { data: unknown }) => void } & Record<string, unknown>;
+    constructor() {
+      const end = () => ({}) as { onmessage?: (event: { data: unknown }) => void };
+      const one = end();
+      const two = end();
+      const to = (other: typeof one) => (data: unknown) =>
+        setTimeout(() => other.onmessage?.({ data }));
+      this.port1 = Object.assign(one, { postMessage: to(two), close: () => undefined });
+      this.port2 = Object.assign(two, { postMessage: to(one), close: () => undefined });
+    }
+  }
+);
+
+const { openInPane, savePane, workspaceStore } = await import("@/state/workspaceStore");
 
 /**
  * A save is the session's: the page asks where it goes, and the host writes the bytes and takes

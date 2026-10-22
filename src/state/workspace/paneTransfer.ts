@@ -1,5 +1,6 @@
 import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
 import { L } from "@/core/localization/localization";
+import type { CarriedHistory } from "@/core/session/carriedHistory";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import type { PaneState } from "@/core/workspace/workspace";
 import { desktopWindowFocus, windowLaunch } from "@/platform/desktop/desktopWindows";
@@ -14,7 +15,6 @@ import {
 } from "@/state/paneDragStore";
 import { isSlot, type PaneId, type PartId, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
-import type { CarriedHistory } from "@/state/workspace/carriedHistory";
 import { paneParcel } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedPane, adoptMovedUntitled } from "@/state/workspace/workspaceRestorer";
 import {

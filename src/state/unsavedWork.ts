@@ -1,5 +1,4 @@
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
-import { hostDocument } from "@/state/sessions/pageSessions";
 import { workspaceHolds } from "@/state/workspace/workspaceRecorder";
 import { type PaneId, workspaceStore } from "@/state/workspaceStore";
 
@@ -81,7 +80,7 @@ export function unsavedPanesLostToLeaving(): UnsavedPane[] {
     const document = (
       one.pane in panes ? panes[one.pane as "a" | "b"] : parts[one.pane as keyof typeof parts]
     )?.document;
-    return document === undefined || !workspaceHolds(hostDocument(document));
+    return document === undefined || !workspaceHolds(document);
   });
 }
 

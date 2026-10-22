@@ -8,6 +8,7 @@ import type {
   JoinSource,
   OperationSpan,
   SessionEvent,
+  SessionFailure,
   SessionId,
   SessionLine,
   SessionRequest,
@@ -33,6 +34,7 @@ interface Connection {
  * @web-only see {@link SessionHost}
  */
 export interface SessionParts {
+  readonly id: SessionId;
   readonly document: BinaryDocument;
   readonly cuts: CutHistory;
   readonly acts: SessionActs;
@@ -62,6 +64,8 @@ export class SessionHost {
    * edit's answer even when the news waits for its bytes to be read out of the journal.
    */
   private outbox: Promise<void> = Promise.resolve();
+  private readonly sessionOperations = new Map<string, SessionOperation>();
+  private readonly hostOperations = new Map<string, HostOperation>();
   /** The bytes of a join from outside the host's sessions: a `File`, a path, by the platform. */
   private readonly external: (reference: unknown) => Promise<ByteStorage>;
 
@@ -70,6 +74,20 @@ export class SessionHost {
   ) {
     this.external =
       options.external ?? (() => Promise.reject(new Error("No outside source can be read here.")));
+  }
+
+  /**
+   * Teaches the host something the platform does to a session in its turn: a save written, a
+   * history put back. `operation` is handed the session and the request's data, and answers plain
+   * data.
+   */
+  defineSessionOperation(name: string, operation: SessionOperation): void {
+    this.sessionOperations.set(name, operation);
+  }
+
+  /** Teaches the host something it does on no one session's account. */
+  defineHostOperation(name: string, operation: HostOperation): void {
+    this.hostOperations.set(name, operation);
   }
 
   /** Makes `document` the session `id`. */
@@ -90,6 +108,7 @@ export class SessionHost {
       }),
     ];
     this.sessions.set(id, {
+      id,
       document,
       cuts,
       acts,
@@ -168,6 +187,29 @@ export class SessionHost {
       case "request":
         this.enqueue(connection, message.seq, message.session, message.request);
         return;
+      case "operate":
+        void this.operate(connection, message.seq, message.name, message.args);
+        return;
+    }
+  }
+
+  private async operate(
+    connection: Connection,
+    seq: number,
+    name: string,
+    args: unknown
+  ): Promise<void> {
+    try {
+      const operation = this.hostOperations.get(name);
+      if (operation === undefined) throw new Error(`The host does not know “${name}”.`);
+      const value = await operation(args, this);
+      this.send(() =>
+        connection.line.post({ kind: "answer", seq, session: "", result: { kind: "value", value } })
+      );
+    } catch (error) {
+      this.send(() =>
+        connection.line.post({ kind: "answer", seq, session: "", failure: failureOf(error) })
+      );
     }
   }
 
@@ -206,10 +248,7 @@ export class SessionHost {
             seq,
             session: id,
             state,
-            failure: {
-              name: error instanceof Error ? error.name : "Error",
-              message: error instanceof Error ? error.message : String(error),
-            },
+            failure: failureOf(error),
           })
         );
       }
@@ -273,6 +312,14 @@ export class SessionHost {
       case "endActs":
         acts.endGroup();
         return none;
+      case "operate": {
+        const operation = this.sessionOperations.get(request.name);
+        if (operation === undefined) throw new Error(`The host does not know “${request.name}”.`);
+        const value = await operation(session, request.args, this);
+        // What an operation did is not an edit the document told of: the state goes out anyway.
+        this.tell(session.id, { kind: "state" });
+        return { kind: "value", value };
+      }
       case "beginEditGroup":
         document.beginEditGroup(request.label);
         return none;
@@ -375,6 +422,7 @@ export function stateOf(session: SessionParts): SessionState {
     contentGeneration: document.contentGeneration,
     lastCommittedSerial: history.lastCommittedSerial,
     baseSerial: history.baseSerial,
+    historyVersion: history.version,
     cuts: { version: cuts.version, partition: partitionData(cuts.partition) },
   };
 }
@@ -433,4 +481,21 @@ async function spansWithBytes(ops: readonly UndoOperation[]): Promise<OperationS
     spans.push(span);
   }
   return spans;
+}
+
+/** @web-only see {@link SessionHost.defineSessionOperation} */
+export type SessionOperation = (
+  session: SessionParts,
+  args: unknown,
+  host: SessionHost
+) => unknown | Promise<unknown>;
+
+/** @web-only see {@link SessionHost.defineHostOperation} */
+export type HostOperation = (args: unknown, host: SessionHost) => unknown | Promise<unknown>;
+
+function failureOf(error: unknown): SessionFailure {
+  return {
+    name: error instanceof Error ? error.name : "Error",
+    message: error instanceof Error ? error.message : String(error),
+  };
 }

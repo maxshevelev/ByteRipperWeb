@@ -1,9 +1,8 @@
 import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
-import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { operate } from "@/platform/sessions/sessionOperations";
 import { closeFirmware, heldFirmwareBytes } from "@/state/firmwareStore";
-import { hostDocument } from "@/state/sessions/pageSessions";
 import {
   closeBackgroundPane,
   openBackgroundPane,
@@ -232,8 +231,7 @@ export class AgentBackgroundDocuments {
    */
   async heldBytesOf(entry: BackgroundEntry): Promise<number> {
     const view = paneState(entry.pane)?.document;
-    const storage = view === undefined ? undefined : hostDocument(view).storage;
-    const resident = storage instanceof EditOverlayStorage ? storage.residentByteCount : 0;
+    const resident = view === undefined ? 0 : await operate(view, "residentBytes");
     return entry.size + resident + (await heldFirmwareBytes(entry.pane));
   }
 

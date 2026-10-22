@@ -1,11 +1,11 @@
 import { L } from "@/core/localization/localization";
+import type { CarriedHistory } from "@/core/session/carriedHistory";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import type { PaneState } from "@/core/workspace/workspace";
 import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { PANE_IDS, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
-import type { CarriedHistory } from "@/state/workspace/carriedHistory";
 import { paneParcel } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedPane } from "@/state/workspace/workspaceRestorer";
 import { closePane, paneState, reportAlert, setActivePane } from "@/state/workspaceStore";

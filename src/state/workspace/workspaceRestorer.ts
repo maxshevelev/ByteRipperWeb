@@ -1,8 +1,9 @@
 import { L } from "@/core/localization/localization";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
-import type { RecordedAct } from "@/core/session/sessionActs";
-import { EditOverlayStorage, type OverlayEdits } from "@/core/storage/editOverlayStorage";
+import type { CarriedHistory } from "@/core/session/carriedHistory";
+import { partitionData } from "@/core/session/sessionCuts";
+import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type FileStamp,
   type KeptContent,
@@ -25,6 +26,7 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { desktopOwnWindows, desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
+import { operate, type RecordedActData } from "@/platform/sessions/sessionOperations";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
@@ -42,12 +44,10 @@ import {
 import { parkToolState } from "@/state/parkedToolState";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
-import { onHostDocument, onHostSession } from "@/state/sessions/pageSessions";
+import type { KeptContentClient } from "@/state/sessions/keptContent";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
-import { type CarriedHistory, putBackHistory } from "@/state/workspace/carriedHistory";
-import type { ContentKeeper } from "@/state/workspace/contentKeeper";
 import { fileSha256 } from "@/state/workspace/fileDigest";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { enterProject } from "@/state/workspace/projects";
@@ -182,7 +182,7 @@ async function reach(
 
 /** What this restore works from, kept while it waits for a click. */
 let waiting:
-  | { readonly record: WorkspaceRecord; readonly keeper: ContentKeeper | undefined }
+  | { readonly record: WorkspaceRecord; readonly keeper: KeptContentClient | undefined }
   | undefined;
 
 /**
@@ -276,7 +276,7 @@ export function fromProjectFile(workspace: Workspace): Workspace {
 export async function restoreFrom(
   record: WorkspaceRecord,
   asking: boolean,
-  keeper: ContentKeeper | undefined
+  keeper: KeptContentClient | undefined
 ): Promise<void> {
   pauseWorkspaceRecorder(true);
   try {
@@ -353,7 +353,7 @@ export async function restoreFrom(
       // @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.apply
       const kept = saved.kept;
       if (unchanged && kept !== undefined && keeper !== undefined) {
-        const storage = paneState(slot)?.document.storage;
+        const view = paneState(slot)?.document;
         // help: workspace.restore-check
         const reading = new BackgroundOperation(
           L("Reading the changes kept for “%1$@”", one.file.name),
@@ -362,8 +362,8 @@ export async function restoreFrom(
         );
         beginOperation(slot, reading);
         try {
-          if (!(storage instanceof EditOverlayStorage)) throw new Error("No overlay to lay it on.");
-          await keeper.apply(kept, storage);
+          if (view === undefined) throw new Error("No pane to lay it on.");
+          await keeper.apply(view, kept);
           await adoptKept(slot, kept, one.file.name, true, keeper, record);
         } catch {
           issues.push({ kind: "keptUnreadable", name: one.file.path ?? one.file.name });
@@ -395,8 +395,8 @@ export async function restoreFrom(
     }
     await restoreFragments(record, opened, issues, keeper);
     await restoreNotes(record.workspace.notes);
-    keeper?.forgetReadBacks();
-    for (const name of keeper?.takeHistoriesLost() ?? [])
+    await keeper?.forgetReadBacks();
+    for (const name of (await keeper?.takeHistoriesLost()) ?? [])
       issues.push({ kind: "historyLost", name });
     reportRestoreIssues(issues);
   } finally {
@@ -421,7 +421,7 @@ async function restoreFragments(
   record: WorkspaceRecord,
   opened: readonly { slot: SlotId; saved: PaneState; unchanged: boolean }[],
   issues: RestoreIssue[],
-  keeper: ContentKeeper | undefined
+  keeper: KeptContentClient | undefined
 ): Promise<void> {
   const { tab } = record.workspace;
   if (tab.fragments.length === 0) return;
@@ -546,14 +546,12 @@ async function adoptKept(
   content: KeptContent,
   name: string,
   dirty: boolean,
-  keeper: ContentKeeper | undefined,
+  keeper: KeptContentClient | undefined,
   record: WorkspaceRecord
 ): Promise<void> {
   const document = paneState(pane)?.document;
   if (document === undefined || keeper === undefined) return;
-  const { joins, undoneJoins } = await onHostDocument(document, (held) =>
-    keeper.adopt(held, content, name, dirty)
-  );
+  const { joins, undoneJoins } = await keeper.adopt(document, content, name, dirty);
   if (joins.length > 0 || undoneJoins.length > 0) {
     const files = async (kept: readonly KeptJoin[]) => {
       const found: { kept: KeptJoin; file: OpenedFile }[] = [];
@@ -607,8 +605,8 @@ async function applyPane(
   const undo = saved.undo;
   if (undo !== undefined && unchanged && (pane.document.canUndo || pane.document.canRedo)) {
     const partition = (state: SegmentationState | undefined) =>
-      state === undefined ? undefined : partitionOf(slot, state, linkFiles);
-    const act = (one: UndoActState): RecordedAct =>
+      state === undefined ? undefined : partitionData(partitionOf(slot, state, linkFiles));
+    const act = (one: UndoActState): RecordedActData =>
       one.kind === "group"
         ? {
             kind: "group",
@@ -617,11 +615,12 @@ async function applyPane(
             after: partition(one.after),
           }
         : { kind: one.kind, after: partition(one.after) };
-    const cutsPast = undo.cutsPast.map((one) => partitionOf(slot, one, linkFiles));
-    const cutsFuture = undo.cutsFuture.map((one) => partitionOf(slot, one, linkFiles));
-    await onHostSession(pane.document, (session) => {
-      session.acts.restore(undo.past.map(act), undo.future.map(act));
-      session.cuts.restoreHistory(cutsPast, cutsFuture);
+    const whole = (one: SegmentationState) => partitionData(partitionOf(slot, one, linkFiles));
+    await operate(pane.document, "restoreUndo", {
+      past: undo.past.map(act),
+      future: undo.future.map(act),
+      cutsPast: undo.cutsPast.map(whole),
+      cutsFuture: undo.cutsFuture.map(whole),
     });
   }
   // Queued behind whatever the pane's typing is doing as it mounts, and never waited on for long:
@@ -673,9 +672,7 @@ export async function adoptMovedPane(
 async function putBackCarried(slot: SlotId, history: CarriedHistory | undefined): Promise<void> {
   const document = paneState(slot)?.document;
   if (history === undefined || document === undefined) return;
-  await onHostDocument(document, (held) => {
-    if (putBackHistory(held.undoHistory, history)) held.contentReplaced();
-  });
+  await operate(document, "putBackHistory", history);
 }
 
 /**
@@ -751,8 +748,7 @@ async function restoreSegments(
 ): Promise<void> {
   const view = paneState(slot)?.document;
   if (view === undefined) return;
-  const partition = partitionOf(slot, state, linkFiles);
-  await onHostSession(view, (session) => session.cuts.restore(partition));
+  await operate(view, "restoreCuts", partitionData(partitionOf(slot, state, linkFiles)));
 }
 
 /** A partition as the workspace wrote it, its links to the files reached for them. */

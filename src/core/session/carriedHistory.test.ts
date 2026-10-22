@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { BinaryDocument } from "@/core/document/binaryDocument";
+import { carryHistory, putBackHistory } from "@/core/session/carriedHistory";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
+import { crossed } from "@/core/testing/sessionLines";
 import { asArray, readAll, storageOver } from "@/core/testing/support";
-import { carryHistory, putBackHistory } from "@/state/workspace/carriedHistory";
 
 /**
  * A pane carried to another window takes its undo history with it: written out as plain data —
@@ -29,10 +30,10 @@ describe("an undo history carried to another window", () => {
 
     const carried = await carryHistory(doc.undoHistory);
     if (carried === undefined) throw new Error("nothing carried");
-    const crossed = structuredClone(carried);
+    const crossedHistory = crossed(carried);
 
     const there = documentOf(await content(doc));
-    expect(putBackHistory(there.undoHistory, crossed)).toBe(true);
+    expect(putBackHistory(there.undoHistory, crossedHistory)).toBe(true);
     expect(there.isDirty).toBe(true);
     expect(there.undoHistory.redoLabel).toBe("Add Microcode");
     await there.redo();

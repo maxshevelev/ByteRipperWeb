@@ -34,6 +34,8 @@ export interface SessionState {
   readonly lastCommittedSerial?: number | undefined;
   /** The serial the history stands on below its oldest step — what a dropped step leaves. */
   readonly baseSerial: number;
+  /** Where the history stands — what a kept snapshot is compared with. */
+  readonly historyVersion: { readonly epoch: number; readonly serial: number };
   /** The partition the session's cuts make, and how many times it has changed. */
   readonly cuts: { readonly version: number; readonly partition: PartitionData };
 }
@@ -121,7 +123,12 @@ export type SessionRequest =
   | { readonly kind: "resetCuts" }
   /** Everything until `endActs` is one act — a join, which inserts bytes and cuts the seam. */
   | { readonly kind: "beginActs" }
-  | { readonly kind: "endActs" };
+  | { readonly kind: "endActs" }
+  /**
+   * Something the platform around the host does to a session in its turn — a save written, a kept
+   * history put back — by the name it was defined under, with plain data both ways.
+   */
+  | { readonly kind: "operate"; readonly name: string; readonly args: unknown };
 
 /**
  * What a request gives back beyond the state: the bytes read, the stretches an undo or a redo
@@ -134,7 +141,8 @@ export type SessionResult =
   | { readonly kind: "bytes"; readonly bytes: Bytes; readonly generation: number }
   | { readonly kind: "applied"; readonly spans?: readonly OperationSpan[] | undefined }
   | { readonly kind: "serial"; readonly serial?: number | undefined }
-  | { readonly kind: "changed"; readonly changed: boolean };
+  | { readonly kind: "changed"; readonly changed: boolean }
+  | { readonly kind: "value"; readonly value: unknown };
 
 /**
  * A request that failed, as it crosses: its error's name and message, so the window throws what
@@ -175,7 +183,14 @@ export type ViewMessage =
       readonly request: SessionRequest;
     }
   | { readonly kind: "show"; readonly session: SessionId }
-  | { readonly kind: "hide"; readonly session: SessionId };
+  | { readonly kind: "hide"; readonly session: SessionId }
+  /** Something the host does on no one session's account — the workspace's kept content. */
+  | {
+      readonly kind: "operate";
+      readonly seq: number;
+      readonly name: string;
+      readonly args: unknown;
+    };
 
 /**
  * The host's side. Every message about a session carries its state as it stands after the

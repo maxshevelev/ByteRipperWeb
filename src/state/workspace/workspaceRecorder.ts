@@ -1,6 +1,8 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { Segmentation } from "@/core/segments/segmentation";
+import type { CarriedHistory } from "@/core/session/carriedHistory";
 import type { RecordedAct } from "@/core/session/sessionActs";
+import { partitionFrom } from "@/core/session/sessionCuts";
+import type { SessionView } from "@/core/session/sessionView";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type DocumentSource,
@@ -22,6 +24,7 @@ import {
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
 import type { ProjectFolder } from "@/platform/files/projectFolder";
+import { actFrom, operate } from "@/platform/sessions/sessionOperations";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
 import { mapOn, minimapStore } from "@/state/minimapStore";
@@ -38,11 +41,9 @@ import { sessionParkedStateOn } from "@/state/parkedToolState";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
-import { hostDocument, hostSession, onHostDocument } from "@/state/sessions/pageSessions";
+import { KeptContentClient } from "@/state/sessions/keptContent";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
-import { type CarriedHistory, carryHistory } from "@/state/workspace/carriedHistory";
-import { ContentKeeper, type KeptPane } from "@/state/workspace/contentKeeper";
 import { partCodecState } from "@/state/workspace/partCodecState";
 import { currentProject, switchToProject } from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
@@ -108,7 +109,7 @@ export function keepWaitingWorkspace(on: boolean): void {
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.snapshot
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTab
  */
-export async function snapshotWorkspace(keeper?: ContentKeeper): Promise<{
+export async function snapshotWorkspace(keeper?: KeptContentClient): Promise<{
   readonly workspace: Workspace;
   readonly handles: Record<string, FileSystemFileHandle>;
 }> {
@@ -149,18 +150,13 @@ export async function snapshotWorkspace(keeper?: ContentKeeper): Promise<{
  *
  * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keep
  */
-function keptPane(pane: PaneId, isUntitled: boolean): KeptPane | undefined {
+function keptPane(
+  pane: PaneId,
+  isUntitled: boolean
+): Parameters<KeptContentClient["keep"]>[0] | undefined {
   const held = paneState(pane);
   if (held === undefined) return undefined;
-  return {
-    document: hostDocument(held.document),
-    isUntitled,
-    exportKeptEdits: () =>
-      PANE_IDS.includes(pane as SlotId)
-        ? exportKeptEdits(pane as SlotId)
-        : Promise.resolve(undefined),
-    joins: () => keptJoinsOf(pane),
-  };
+  return { view: held.document, isUntitled, joins: keptJoinsOf(pane) };
 }
 
 /**
@@ -184,7 +180,7 @@ const UNKEPT: KeptContent = { id: "", base: { kind: "file", serial: 0 }, head: 0
  */
 async function fragmentsSnapshot(
   written: Set<PaneId>,
-  keeper: ContentKeeper | undefined
+  keeper: KeptContentClient | undefined
 ): Promise<{ fragments: FragmentState[]; expandedFragment: number | undefined }> {
   const state = workspaceStore.getSnapshot();
   const fragments: FragmentState[] = [];
@@ -375,7 +371,7 @@ function partitionState(
 async function paneSnapshot(
   slot: SlotId,
   handles: Record<string, FileSystemFileHandle>,
-  keeper: ContentKeeper | undefined
+  keeper: KeptContentClient | undefined
 ): Promise<PaneState | undefined> {
   const pane = paneState(slot);
   if (pane === undefined) return undefined;
@@ -387,7 +383,7 @@ async function paneSnapshot(
   // @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.stamp
   const shape = keptPane(slot, pane.untitled);
   const kept = shape === undefined ? undefined : await keeper?.keep(shape);
-  const undo = kept === undefined ? undefined : undoSnapshot(slot, handles);
+  const undo = kept === undefined ? undefined : await undoSnapshot(slot, handles);
   return {
     id: slot,
     document: pane.untitled
@@ -400,7 +396,10 @@ async function paneSnapshot(
             dirty: document.isDirty,
           },
         }
-      : { kind: "file", file: keptStamp(stampOf(file, slot, handles), kept, file, keeper) },
+      : {
+          kind: "file",
+          file: await keptStamp(stampOf(file, slot, handles), kept, file, keeper),
+        },
     ...(!pane.untitled && kept !== undefined ? { kept } : {}),
     ...(undo === undefined ? {} : { undo }),
     ...(segments === undefined ? {} : { segments }),
@@ -418,14 +417,14 @@ async function paneSnapshot(
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspacePane
  */
-function keptStamp(
+async function keptStamp(
   stamp: FileStamp,
   kept: KeptContent | undefined,
   file: OpenedFile,
-  keeper: ContentKeeper | undefined
-): FileStamp {
+  keeper: KeptContentClient | undefined
+): Promise<FileStamp> {
   if (kept === undefined || keeper === undefined) return stamp;
-  const sha256 = keeper.fileHash(file);
+  const sha256 = await keeper.fileHash(file);
   return sha256 === undefined ? stamp : { ...stamp, sha256 };
 }
 
@@ -437,15 +436,19 @@ function keptStamp(
  * @upstream-differs the router's acts and the cuts' own history, not snapshots paired with the
  * document's steps in its log
  */
-function undoSnapshot(
+async function undoSnapshot(
   slot: SlotId,
   handles: Record<string, FileSystemFileHandle>
-): PaneUndoState | undefined {
+): Promise<PaneUndoState | undefined> {
   const view = paneState(slot)?.document;
   if (view === undefined) return undefined;
-  const session = hostSession(view);
-  const { past, future } = session.acts.recorded;
-  const cuts = { past: session.cuts.past, future: session.cuts.future };
+  const held = await operate(view, "undoState");
+  const past = held.past.map(actFrom);
+  const future = held.future.map(actFrom);
+  const cuts = {
+    past: held.cutsPast.map(partitionFrom),
+    future: held.cutsFuture.map(partitionFrom),
+  };
   if (past.length + future.length + cuts.past.length + cuts.future.length === 0) return undefined;
   const state = (partition: Segmentation | undefined) =>
     partition === undefined ? undefined : partitionState(slot, partition, handles);
@@ -488,8 +491,8 @@ export async function paneParcel(slot: SlotId): Promise<
   if (snapshot === undefined || document === undefined) return undefined;
   const edits = document.isDirty ? await exportKeptEdits(slot) : undefined;
   // The undo history goes with the pane, and with it what Undo takes back and the cuts it restores.
-  const history = await onHostDocument(document, (held) => carryHistory(held.undoHistory));
-  const undo = history === undefined ? undefined : undoSnapshot(slot, {});
+  const history = await operate(document, "carryHistory");
+  const undo = history === undefined ? undefined : await undoSnapshot(slot, {});
   const pane = undo === undefined ? snapshot : { ...snapshot, undo };
   return {
     pane,
@@ -512,7 +515,7 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
   if (project !== undefined) return keepsWaiting ? false : recordProject(project);
   if (!restores) return false;
   const keeper = sessionKeeper();
-  keeper?.beginSnapshot();
+  await keeper?.beginSnapshot();
   const { workspace, handles } = await snapshotWorkspace(keeper);
   if (keepsWaiting) {
     if (workspaceIsEmpty(workspace)) return false;
@@ -521,14 +524,14 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
   }
   const id = workspaceId();
   const text = JSON.stringify(workspace);
-  if (text === lastWritten && !leaving && keeper?.hasPending !== true) return true;
+  if (text === lastWritten && !leaving && (await keeper?.hasPending()) !== true) return true;
   lastWritten = text;
   // The kept content first, then the record that names it: a record never points at bytes not
   // there. Then what no record names goes.
   const record = (filled: Workspace) =>
     writeWorkspaceRecord(id, { workspace: filled, leftAt: Date.now(), handles });
   if (keeper === undefined) await record(workspace);
-  else await keeper.commit(workspace, record).catch(() => undefined);
+  else await keeper.commit(workspace, record, shownSessions()).catch(() => undefined);
   return true;
 }
 
@@ -538,14 +541,16 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
  */
-function sessionKeeper(): ContentKeeper | undefined {
+function sessionKeeper(): KeptContentClient | undefined {
   if (!OpfsKeptFolder.isAvailable()) return undefined;
   const id = workspaceId();
-  if (session?.id !== id) session = { id, keeper: new ContentKeeper(new OpfsKeptFolder(id)) };
+  if (session?.id !== id) {
+    session = { id, keeper: new KeptContentClient({ kind: "session", workspace: id }) };
+  }
   return session.keeper;
 }
 
-let session: { readonly id: string; readonly keeper: ContentKeeper } | undefined;
+let session: { readonly id: string; readonly keeper: KeptContentClient } | undefined;
 
 /**
  * Writes the window into the open project — always, whatever the switch says: it is a folder the
@@ -560,15 +565,22 @@ async function recordProject(project: {
   readonly folder: ProjectFolder;
 }): Promise<boolean> {
   if (projectKeeper?.id !== project.id) {
-    projectKeeper = { id: project.id, keeper: new ContentKeeper(project.folder.kept) };
+    projectKeeper = {
+      id: project.id,
+      keeper: new KeptContentClient({ kind: "project", project: project.id }),
+    };
   }
   const keeper = projectKeeper.keeper;
-  keeper.beginSnapshot();
+  await keeper.beginSnapshot();
   const { workspace } = await snapshotWorkspace(keeper);
   try {
-    await keeper.commit(workspace, async (filled) => {
-      await project.folder.write(filled);
-    });
+    await keeper.commit(
+      workspace,
+      async (filled) => {
+        await project.folder.write(filled);
+      },
+      shownSessions()
+    );
   } catch {
     return false;
   }
@@ -581,14 +593,17 @@ async function recordProject(project: {
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
  */
-let projectKeeper: { readonly id: string; readonly keeper: ContentKeeper } | undefined;
+let projectKeeper: { readonly id: string; readonly keeper: KeptContentClient } | undefined;
 
 /** The keeper of what this window records into now, for the restore to put content back through. */
-export function currentKeeper(): ContentKeeper | undefined {
+export function currentKeeper(): KeptContentClient | undefined {
   const project = currentProject();
   if (project === undefined) return sessionKeeper();
   if (projectKeeper?.id !== project.id) {
-    projectKeeper = { id: project.id, keeper: new ContentKeeper(project.folder.kept) };
+    projectKeeper = {
+      id: project.id,
+      keeper: new KeptContentClient({ kind: "project", project: project.id }),
+    };
   }
   return projectKeeper.keeper;
 }
@@ -600,6 +615,7 @@ export function currentKeeper(): ContentKeeper | undefined {
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.switchTo
  */
 export function recordInto(project: { id: string; folder: ProjectFolder } | undefined): void {
+  void projectKeeper?.keeper.forget();
   projectKeeper = undefined;
   switchToProject(project);
 }
@@ -612,6 +628,7 @@ export function recordInto(project: { id: string; folder: ProjectFolder } | unde
 export async function discardSession(): Promise<void> {
   const id = workspaceId();
   lastWritten = undefined;
+  void session?.keeper.forget();
   session = undefined;
   await removeWorkspaceRecord(id);
   if (OpfsKeptFolder.isAvailable()) await new OpfsKeptFolder(id).remove().catch(() => undefined);
@@ -664,11 +681,19 @@ export const readOwnWorkspace = () => readWorkspaceRecord(workspaceId());
  *
  * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.holdsCurrentBytes
  */
-export function workspaceHolds(document: BinaryDocument): boolean {
+export function workspaceHolds(document: SessionView): boolean {
   if (paused || keepsWaiting) return false;
   // A project holds what it has written whatever the switch says.
   if (currentProject() === undefined && !settingsStore.getSnapshot().restoresWorkspace) {
     return false;
   }
   return currentKeeper()?.holdsCurrentBytes(document) === true;
+}
+
+/** The sessions this window shows: what a snapshot asks the keeper which it holds. */
+function shownSessions(): SessionView[] {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  return [...Object.values(panes), ...Object.values(parts)].flatMap((pane) =>
+    pane === undefined ? [] : [pane.document]
+  );
 }
