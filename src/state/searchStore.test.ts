@@ -94,8 +94,12 @@ beforeEach(() => {
 
 /** Waits for the pass to settle: each attempt costs a microtask and a turn. */
 async function settle(): Promise<void> {
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  // A pane's bytes are read from the session host, a message there and one back, each a task of
+  // its own: a few rounds of tasks, not one.
+  for (let round = 0; round < 8; round++) {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 test("a miss on an early encoding does not end the pass", async () => {
@@ -181,8 +185,8 @@ test("an edit ends the search rather than running it again", async () => {
     await slot.document.overwrite(8, new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
 
     startSearch({ query: "DEADBEEF", encoding: "hex", from: 0 });
-    await vi.advanceTimersByTimeAsync(50);
-    expect(paneResults().current).toEqual({ start: 8, end: 12 });
+    // The search reads the pane's bytes from the session host, whose answers are not timers.
+    await vi.waitFor(() => expect(paneResults().current).toEqual({ start: 8, end: 12 }));
 
     await slot.document.overwrite(10, new Uint8Array([0x00, 0x00]));
     noteSearchEdit("a", { kind: "overwrite", start: 10, end: 12 });

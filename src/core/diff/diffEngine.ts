@@ -5,6 +5,7 @@ import {
   type DiffKind,
 } from "@/core/diff/diffBlock";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { type OperationSpan, spanOf } from "@/core/session/sessionProtocol";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 
 /**
@@ -125,30 +126,18 @@ export function collapseEdits(edits: readonly DiffEdit[]): DiffEdit[] {
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/DiffEngine.swift#DiffEdit.netDiffEdit
  */
-export function netDiffEdit(ops: readonly UndoOperation[]): DiffEdit | undefined {
+export function netDiffEdit(ops: readonly (UndoOperation | OperationSpan)[]): DiffEdit | undefined {
   if (ops.length === 0) return undefined;
 
   let from = Number.POSITIVE_INFINITY;
   let maxEnd = 0;
   let netDelta = 0;
 
-  for (const op of ops) {
-    switch (op.kind) {
-      case "overwrite":
-        from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.after.count);
-        break;
-      case "insert":
-        from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.bytes.count);
-        netDelta += op.bytes.count;
-        break;
-      case "delete":
-        from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.bytes.count);
-        netDelta -= op.bytes.count;
-        break;
-    }
+  for (const op of ops.map(spanOf)) {
+    from = Math.min(from, op.at);
+    maxEnd = Math.max(maxEnd, op.at + op.count);
+    if (op.kind === "insert") netDelta += op.count;
+    else if (op.kind === "delete") netDelta -= op.count;
   }
 
   if (netDelta > 0) return { kind: "insert", at: from, length: netDelta };

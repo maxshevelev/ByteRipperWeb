@@ -1,6 +1,6 @@
-import type { UndoOperation } from "@/core/edit/undoHistory";
 import { currentCatalogue, L, LocalizedText } from "@/core/localization/localization";
 import { type MaskedPattern, maskedToWire } from "@/core/search/maskedSearch";
+import type { OperationSpan } from "@/core/session/sessionProtocol";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { DellSetupCatalogue } from "@/firmware/uefi/dellSetupForms";
@@ -1061,7 +1061,7 @@ export async function fixFirmwareChecksum(
 
   slot.document.beginEditGroup(L("Fix Checksum"));
   for (const write of writes) await slot.document.overwrite(write.offset, write.bytes);
-  slot.document.endEditGroup();
+  await slot.document.endEditGroup();
   await parsePaneFirmware(pane);
   return writes.length;
 }
@@ -1773,7 +1773,7 @@ export async function settleFirmwareChanges(pane: PaneId): Promise<void> {
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneEdited
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneReloaded
  */
-export function noteFirmwareOperations(pane: PaneId, operations: readonly UndoOperation[]): void {
+export function noteFirmwareOperations(pane: PaneId, operations: readonly OperationSpan[]): void {
   noteFirmwareContentChange(pane, changeOfOperations(operations) ?? { kind: "reloaded" });
 }
 

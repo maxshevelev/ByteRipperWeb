@@ -1,5 +1,5 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { L } from "@/core/localization/localization";
+import type { SessionView } from "@/core/session/sessionView";
 
 /**
  * What tells a file on disk apart from another, as far as a page can tell: its name, size and date
@@ -53,7 +53,7 @@ export type AnnotationFile =
    */
   | {
       readonly kind: "document";
-      readonly document: WeakRef<BinaryDocument>;
+      readonly document: WeakRef<SessionView>;
       readonly name: string;
     }
   /**

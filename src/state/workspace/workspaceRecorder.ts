@@ -37,6 +37,7 @@ import { sessionParkedStateOn } from "@/state/parkedToolState";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { cutHistoryOf, segmentsFor } from "@/state/segmentsStore";
+import { hostDocument, onHostDocument } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
 import { actsFor, type RecordedAct } from "@/state/undoRouter";
@@ -152,7 +153,7 @@ function keptPane(pane: PaneId, isUntitled: boolean): KeptPane | undefined {
   const held = paneState(pane);
   if (held === undefined) return undefined;
   return {
-    document: held.document,
+    document: hostDocument(held.document),
     isUntitled,
     exportKeptEdits: () =>
       PANE_IDS.includes(pane as SlotId)
@@ -484,7 +485,7 @@ export async function paneParcel(slot: SlotId): Promise<
   if (snapshot === undefined || document === undefined) return undefined;
   const edits = document.isDirty ? await exportKeptEdits(slot) : undefined;
   // The undo history goes with the pane, and with it what Undo takes back and the cuts it restores.
-  const history = await carryHistory(document.undoHistory);
+  const history = await onHostDocument(document, (held) => carryHistory(held.undoHistory));
   const undo = history === undefined ? undefined : undoSnapshot(slot, {});
   const pane = undo === undefined ? snapshot : { ...snapshot, undo };
   return {

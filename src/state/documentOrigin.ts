@@ -1,6 +1,6 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { L, LocalizedText } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCodec";
+import type { SessionView } from "@/core/session/sessionView";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
@@ -78,7 +78,7 @@ const snapshotOf = (bytes: Uint8Array): Blob => new Blob([bytes.slice()]);
 
 /** The bytes of a stretch of a document, or nothing where they cannot be read. */
 async function readRange(
-  document: BinaryDocument,
+  document: SessionView,
   start: number,
   end: number
 ): Promise<Uint8Array | undefined> {
@@ -100,7 +100,7 @@ async function readRange(
  * first next time.
  */
 async function same(
-  document: BinaryDocument,
+  document: SessionView,
   start: number,
   end: number,
   held: Blob | undefined,
@@ -174,7 +174,7 @@ export class DocumentOrigin {
   readonly layout: UEFIRootLayout;
 
   /** The document the parent pane held when the part was taken out of it. */
-  private readonly parentDocument: BinaryDocument;
+  private readonly parentDocument: SessionView;
   /**
    * The source's bytes as last taken out or put back; nothing where they could
    * not be read at all.
@@ -209,7 +209,7 @@ export class DocumentOrigin {
 
   private constructor(
     parent: PaneId,
-    parentDocument: BinaryDocument,
+    parentDocument: SessionView,
     parentName: string,
     source: readonly [number, number],
     partName: string,
@@ -334,7 +334,7 @@ export class DocumentOrigin {
    *
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.hasChanges
    */
-  async hasChanges(child: BinaryDocument): Promise<boolean> {
+  async hasChanges(child: SessionView): Promise<boolean> {
     const generation = child.contentGeneration;
     const checked = this.childChecked;
     if (checked !== undefined && checked.generation === generation) return checked.changed;
@@ -350,7 +350,7 @@ export class DocumentOrigin {
    *
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.planUpdate
    */
-  async planUpdate(child: BinaryDocument): Promise<OriginUpdate> {
+  async planUpdate(child: SessionView): Promise<OriginUpdate> {
     const state = await this.state();
     const slot = this.livingParent();
     if (slot === undefined || state === "parentClosed") {

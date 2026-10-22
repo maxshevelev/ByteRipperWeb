@@ -12,11 +12,11 @@ import { createPortal } from "react-dom";
 import { annotationTitles, drawnHover } from "@/core/agent/agentAnnotation";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
 import { L } from "@/core/localization/localization";
 import type { MatchSet } from "@/core/search/matchSet";
 import { segmentReadout } from "@/core/segments/segmentation";
+import type { SessionView } from "@/core/session/sessionView";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { formatHex } from "@/core/text/hexText";
 import { bytesFromClipboardData, readBytes, writeBytes } from "@/platform/clipboard/byteClipboard";
@@ -119,7 +119,7 @@ import { observeHexColors, readHexColors, readSegmentTints } from "@/ui/theme/he
 
 export interface HexPaneProps {
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.dataSource */
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   readonly wordSize: WordSize;
   /**
    * The file's name, shown in the pane's own header.
@@ -407,7 +407,7 @@ const COPY_LIMIT = 1024 * 1024;
  * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexHasPendingInsert
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCaretVisible
  */
-function rendererCaret(doc: BinaryDocument, typing: TypingController): HexGridCaret {
+function rendererCaret(doc: SessionView, typing: TypingController): HexGridCaret {
   const current = doc.selection;
   return {
     offset: current.start,
@@ -944,9 +944,9 @@ export function HexPane({
      */
     const stopContent = doc.onContentChanged((change) => {
       const renderer = rendererRef.current;
-      for (const op of change.ops) {
-        if (op.kind === "overwrite") renderer?.invalidateBytes(op.at, op.at + op.after.count);
-        else renderer?.invalidateBytes(op.at, doc.size);
+      for (const span of change.spans) {
+        if (span.kind === "overwrite") renderer?.invalidateBytes(span.at, span.at + span.count);
+        else renderer?.invalidateBytes(span.at, doc.size);
       }
       apply();
     });

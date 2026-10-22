@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hostDocument } from "@/state/sessions/pageSessions";
 
 /**
  * Whether the browser grants the origin-private file system the snapshot is
@@ -121,7 +122,7 @@ describe("Duplicate", () => {
     await source.overwrite(0, new Uint8Array([0xaa]));
     const before = workspaceStore.getSnapshot().panes.a;
     const dirtyBefore = source.isDirty;
-    const depthBefore = source.undoHistory.undoDepth;
+    const depthBefore = hostDocument(source).undoHistory.undoDepth;
 
     await duplicatePane("a");
 
@@ -131,7 +132,7 @@ describe("Duplicate", () => {
     expect(after?.untitled).toBe(before?.untitled);
     expect(source.isDirty).toBe(dirtyBefore);
     // A duplicate is not an edit: it records no undo step.
-    expect(source.undoHistory.undoDepth).toBe(depthBefore);
+    expect(hostDocument(source).undoHistory.undoDepth).toBe(depthBefore);
     expect(await readAll("a")).toEqual([0xaa, 0x01, 0x02]);
   });
 

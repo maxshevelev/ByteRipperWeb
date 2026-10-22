@@ -45,7 +45,12 @@ describe("a session two windows show", () => {
     await a.overwrite(1, new Uint8Array([7, 8]));
     await quiet();
 
-    expect(heard).toEqual([{ spans: [{ kind: "overwrite", at: 1, count: 2 }], restoring: false }]);
+    expect(heard).toEqual([
+      {
+        spans: [{ kind: "overwrite", at: 1, count: 2, bytes: Uint8Array.of(7, 8) }],
+        restoring: false,
+      },
+    ]);
     expect(b.isDirty).toBe(true);
     expect(b.canUndo).toBe(true);
     expect(b.contentGeneration).toBe(a.contentGeneration);
@@ -213,7 +218,7 @@ describe("what crosses and what fails", () => {
 });
 
 describe("the bytes a window reads", () => {
-  it("are peeked once prefetched, and forgotten where another window's edit changed them", async () => {
+  it("are peeked once prefetched, and kept true through another window's edits without a read", async () => {
     const bytes = Array.from({ length: 200_000 }, (_, at) => at & 0xff);
     const { window } = hostWith({ s: bytes });
     const a = await window().show("s");
@@ -224,16 +229,17 @@ describe("the bytes a window reads", () => {
 
     await b.overwrite(70_001, new Uint8Array([0xee]));
     await quiet();
-    expect(a.peek(70_000, 4), "the chunk the edit touched is gone").toBeUndefined();
-    expect(a.peek(0, 4), "the others stay").toBeDefined();
-    expect(asArray(await a.read(70_000, 4))).toEqual([0x70, 0xee, 0x72, 0x73]);
+    expect(asArray(a.peek(70_000, 4) ?? new Uint8Array()), "laid over from the news").toEqual([
+      0x70, 0xee, 0x72, 0x73,
+    ]);
 
-    await a.prefetch(0, 200_000);
     await b.insert(100_000, new Uint8Array([1]));
     await quiet();
-    expect(a.peek(0, 4), "a chunk before the insert stays").toBeDefined();
-    expect(a.peek(131_072, 4), "after it, everything moved").toBeUndefined();
-    expect(asArray(await a.read(100_000, 2))).toEqual([1, 100_000 & 0xff]);
+    expect(asArray(a.peek(100_000, 2) ?? new Uint8Array()), "shifted, from the news").toEqual([
+      1,
+      100_000 & 0xff,
+    ]);
+    expect(asArray(a.peek(150_001, 1) ?? new Uint8Array())).toEqual([150_000 & 0xff]);
   });
 
   it("does not keep a chunk read before an edit it then heard of", async () => {

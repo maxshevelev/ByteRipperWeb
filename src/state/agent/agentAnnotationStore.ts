@@ -7,7 +7,7 @@ import {
   sameFile,
 } from "@/core/agent/agentAnnotation";
 import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { SessionView } from "@/core/session/sessionView";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { desktopOwnWindows, ownWindowKind } from "@/platform/desktop/desktopWindows";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
@@ -86,7 +86,7 @@ export function claimAnnotationId(): string {
 }
 
 /** Whether `document` is still held by a pane — what an annotation on a document lives as long as. */
-function documentIsOpen(document: BinaryDocument): boolean {
+function documentIsOpen(document: SessionView): boolean {
   const state = workspaceStore.getSnapshot();
   return (
     Object.values(state.panes).some((one) => one?.document === document) ||

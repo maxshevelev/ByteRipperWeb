@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { type Bookmark, rowContaining } from "@/core/bookmarks/bookmarkStore";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
+import type { SessionView } from "@/core/session/sessionView";
 import { hexAddress } from "@/core/text/hexText";
 import { parseOffset } from "@/core/text/offsetParser";
 import {
@@ -57,7 +57,7 @@ export interface GoToDialogProps {
   readonly pane: PaneId;
   readonly fileSize: number;
   /** The active pane's bytes, for describing a bookmark that has no name. */
-  readonly document?: BinaryDocument | undefined;
+  readonly document?: SessionView | undefined;
   /**
    * Which half the keyboard starts in: ⌘L types, the bookmark command picks.
    *
@@ -618,7 +618,7 @@ function RowPreview({
   fileSize,
 }: {
   readonly row: number;
-  readonly document: BinaryDocument | undefined;
+  readonly document: SessionView | undefined;
   readonly fileSize: number;
 }) {
   const [preview, setPreview] = useState("");

@@ -1,6 +1,6 @@
 import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { SessionView } from "@/core/session/sessionView";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { AgentBackgroundDocuments } from "@/state/agent/agentBackgroundDocuments";
 import {
@@ -24,7 +24,7 @@ import {
  * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk
  */
 export class AgentDesk {
-  private readonly ids = new WeakMap<BinaryDocument, string>();
+  private readonly ids = new WeakMap<SessionView, string>();
   private nextId = 1;
   /**
    * The files an agent opened by path, with no window. Their ids are the entry's, not the
@@ -78,7 +78,7 @@ export class AgentDesk {
    *
    * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.id
    */
-  id(document: BinaryDocument): string {
+  id(document: SessionView): string {
     const held = this.ids.get(document);
     if (held !== undefined) return held;
     const id = this.mint();
@@ -116,7 +116,7 @@ export class AgentDesk {
     return labelled(result);
   }
 
-  private place(pane: PaneId, document: BinaryDocument, name: string, slot: AgentSlot): AgentPlace {
+  private place(pane: PaneId, document: SessionView, name: string, slot: AgentSlot): AgentPlace {
     return new AgentPlace(this.id(document), slot, pane, document, name);
   }
 
@@ -235,7 +235,7 @@ export class AgentPlace {
   readonly slot: AgentSlot;
   /** The pane that holds it; none for a background document. */
   readonly pane: PaneId | undefined;
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   readonly name: string;
   /**
    * What to call it to the person (`labelled`): the file's name, told apart from another of the
@@ -251,7 +251,7 @@ export class AgentPlace {
     id: string,
     slot: AgentSlot,
     pane: PaneId | undefined,
-    document: BinaryDocument,
+    document: SessionView,
     name: string
   ) {
     this.id = id;

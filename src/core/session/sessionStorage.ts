@@ -1,4 +1,4 @@
-import type { OperationSpan } from "@/core/session/sessionProtocol";
+import type { OperationSpan, SessionId } from "@/core/session/sessionProtocol";
 import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 
@@ -25,11 +25,14 @@ export interface SessionReader {
  * @web-only upstream's window reads the document's storage itself
  */
 export class SessionStorage implements ByteStorage {
+  /** The session these are the bytes of — what a join from them names, rather than the bytes. */
+  readonly session: SessionId;
   private readonly reader: SessionReader;
   private readonly cache: ChunkCache;
   private readonly inFlight = new Map<number, Promise<void>>();
 
-  constructor(reader: SessionReader, cache: ChunkCache = new ChunkCache()) {
+  constructor(session: SessionId, reader: SessionReader, cache: ChunkCache = new ChunkCache()) {
+    this.session = session;
     this.reader = reader;
     this.cache = cache;
   }
@@ -60,29 +63,132 @@ export class SessionStorage implements ByteStorage {
     await this.residency(span.first, span.last);
   }
 
-  /** Forgets what the operations changed: an overwrite its own bytes, a shift everything after. */
-  invalidate(spans: readonly OperationSpan[]): void {
+  /**
+   * Brings what this window has read up to date with an edit the host made: an overwrite's bytes
+   * laid over the chunks they fall in, an insert's or a delete's shift applied to every chunk after
+   * it — so what is on screen is painted from the news of the edit, not read again. What the news
+   * did not carry the bytes of is forgotten and read again when asked for. No operations at all
+   * is the content replaced outright: everything goes.
+   *
+   * `sizeAfter` is the size once every operation is applied, which is what the mirror holds by
+   * the time the news is heard.
+   */
+  apply(spans: readonly OperationSpan[], sizeAfter: number): void {
     if (spans.length === 0) {
       this.cache.removeAll();
       return;
     }
-    const { chunkSize } = this.cache.config;
+    let size = sizeAfter;
     for (const span of spans) {
-      const first = Math.floor(span.at / chunkSize);
-      if (span.kind !== "overwrite") {
-        this.forgetFrom(first);
+      if (span.kind === "insert") size -= span.count;
+      else if (span.kind === "delete") size += span.count;
+    }
+    for (const span of spans) {
+      if (span.kind === "overwrite") {
+        this.overwritten(span);
         continue;
       }
-      const last = Math.floor((span.at + Math.max(span.count, 1) - 1) / chunkSize);
-      for (let index = first; index <= last; index++) this.cache.remove(index);
+      const delta = span.kind === "insert" ? span.count : -span.count;
+      this.shifted(span, size);
+      size += delta;
     }
   }
 
-  private forgetFrom(first: number): void {
+  private overwritten(span: OperationSpan): void {
     const { chunkSize } = this.cache.config;
-    // The size before a shift may be larger than after it; the cache holds nothing past either.
-    const last = Math.ceil((this.size + chunkSize * 2) / chunkSize);
-    for (let index = first; index <= last; index++) this.cache.remove(index);
+    const end = span.at + span.count;
+    const bytes =
+      span.bytes !== undefined && span.bytes.length === span.count ? span.bytes : undefined;
+    for (const index of this.cache.indices()) {
+      const start = index * chunkSize;
+      const chunk = this.cache.get(index);
+      if (chunk === undefined || start + chunk.length <= span.at || start >= end) continue;
+      if (bytes === undefined) {
+        this.cache.remove(index);
+        continue;
+      }
+      const from = Math.max(start, span.at);
+      const to = Math.min(start + chunk.length, end);
+      const patched = chunk.slice();
+      patched.set(bytes.subarray(from - span.at, to - span.at), from - start);
+      this.cache.set(index, patched);
+    }
+  }
+
+  /**
+   * An insert or a delete at `span.at`: every chunk from the one it falls in onwards is taken out,
+   * runs of neighbouring chunks are put together, the edit is applied to them, and they go back
+   * at their new offsets — whole chunks only, and the last part of one only where it is the end of
+   * the content.
+   */
+  private shifted(span: OperationSpan, sizeBefore: number): void {
+    const { chunkSize } = this.cache.config;
+    const at = span.at;
+    const count = span.count;
+    const sizeAfter = span.kind === "insert" ? sizeBefore + count : sizeBefore - count;
+    const first = Math.floor(at / chunkSize);
+
+    const taken = this.cache
+      .indices()
+      .filter((index) => index >= first)
+      .sort((left, right) => left - right);
+    const runs: { start: number; parts: Uint8Array[]; length: number }[] = [];
+    for (const index of taken) {
+      const chunk = this.cache.get(index);
+      this.cache.remove(index);
+      if (chunk === undefined) continue;
+      const start = index * chunkSize;
+      const last = runs.at(-1);
+      if (last !== undefined && last.start + last.length === start) {
+        last.parts.push(chunk);
+        last.length += chunk.length;
+      } else runs.push({ start, parts: [chunk], length: chunk.length });
+    }
+
+    for (const run of runs) {
+      const old = concat(run.parts, run.length);
+      const start = run.start;
+      const end = start + old.length;
+      const reachesEnd = end === sizeBefore;
+      let placed: { start: number; bytes: Uint8Array; complete: boolean } | undefined;
+      if (span.kind === "insert") {
+        if (start <= at) {
+          const prefix = old.subarray(0, at - start);
+          const suffix = old.subarray(at - start);
+          placed =
+            span.bytes !== undefined && span.bytes.length === count
+              ? { start, bytes: concat([prefix, span.bytes, suffix]), complete: reachesEnd }
+              : { start, bytes: prefix, complete: false };
+        } else placed = { start: start + count, bytes: old, complete: reachesEnd };
+      } else {
+        const gone = at + count;
+        if (start <= at) {
+          const prefix = old.subarray(0, at - start);
+          placed =
+            gone <= end
+              ? { start, bytes: concat([prefix, old.subarray(gone - start)]), complete: reachesEnd }
+              : { start, bytes: prefix, complete: false };
+        } else if (end > gone) {
+          const kept = Math.max(start, gone);
+          placed = { start: kept - count, bytes: old.subarray(kept - start), complete: reachesEnd };
+        }
+      }
+      if (placed !== undefined) this.place(placed.start, placed.bytes, placed.complete, sizeAfter);
+    }
+  }
+
+  /** Puts bytes found at `start` back as chunks: whole ones, and the content's last one. */
+  private place(start: number, bytes: Uint8Array, complete: boolean, size: number): void {
+    const { chunkSize } = this.cache.config;
+    const end = start + bytes.length;
+    for (let index = Math.ceil(start / chunkSize); index * chunkSize < end; index++) {
+      const chunkStart = index * chunkSize;
+      const chunkEnd = Math.min(chunkStart + chunkSize, size);
+      if (chunkEnd > end || (chunkEnd < chunkStart + chunkSize && !(complete && end === size))) {
+        break;
+      }
+      this.cache.set(index, bytes.slice(chunkStart - start, chunkEnd - start));
+    }
   }
 
   private clamp(
@@ -145,4 +251,14 @@ export class SessionStorage implements ByteStorage {
     }
     return out;
   }
+}
+
+function concat(parts: readonly Uint8Array[], length?: number): Uint8Array {
+  const out = new Uint8Array(length ?? parts.reduce((sum, part) => sum + part.length, 0));
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
 }

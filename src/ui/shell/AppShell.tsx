@@ -4,7 +4,6 @@ import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
 import { L } from "@/core/localization/localization";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
-import type { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
@@ -74,6 +73,7 @@ import {
   useSelectionForFind,
 } from "@/state/searchStore";
 import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
+import { contentSnapshot } from "@/state/sessions/pageSessions";
 import { languageStore } from "@/state/settingsStore";
 import { isTextEntry } from "@/state/textFocusStore";
 import {
@@ -1825,9 +1825,7 @@ export function AppShell() {
       let sourceFile: OpenedFile | undefined;
       if (OpfsScratchStore.isAvailable()) {
         try {
-          const snapshot = await (source.document.storage as EditOverlayStorage).contentSnapshot(
-            new OpfsScratchStore()
-          );
+          const snapshot = await contentSnapshot(source.document, new OpfsScratchStore());
           sourceFile = {
             name: source.name,
             size: snapshot.size,

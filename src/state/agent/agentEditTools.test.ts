@@ -154,7 +154,7 @@ describe("write", () => {
     expect(member(written, "before")).toBe("11 12");
     expect(member(written, "end")).toBe("0x3");
     const document = paneState("a")?.document;
-    expect(document?.undoHistory.undoLabel).toBe("Agent: Patch the flag");
+    expect(document?.undoLabel).toBe("Agent: Patch the flag");
     expect(document?.isDirty).toBe(true);
 
     await document?.undo();
@@ -239,7 +239,7 @@ describe("copy_to_other_pane", () => {
     expect(member(answer, "to")).toBe(idOf("b"));
     expect(member(answer, "end")).toBe("0x5");
     expect(member(answer, "undo")).toBe("Agent: Copy to Other Pane");
-    expect(paneState("b")?.document.undoHistory.undoLabel).toBe("Agent: Copy to Other Pane");
+    expect(paneState("b")?.document.undoLabel).toBe("Agent: Copy to Other Pane");
     expect(paneState("a")?.document.isDirty).toBe(false);
     await paneState("b")?.document.undo();
     expect(await read("b")).toEqual([1, 9, 3, 9, 9, 6]);
@@ -252,7 +252,7 @@ describe("copy_to_other_pane", () => {
       label: "Take B's header",
     });
     expect([...((await paneState("a")?.document.read(0, 2)) ?? [])]).toEqual([1, 9]);
-    expect(paneState("a")?.document.undoHistory.undoLabel).toBe("Agent: Take B's header");
+    expect(paneState("a")?.document.undoLabel).toBe("Agent: Take B's header");
   });
 
   // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyOverIdenticalBytesWritesNothing
@@ -373,7 +373,7 @@ describe("update_in_parent", () => {
     await call("write", { document: id, offset: "0x0", bytes: "22", label: "t" });
     const updated = (await call("update_in_parent", { document: id })).json;
     expect(String(member(updated, "undo")).startsWith("Обновить из")).toBe(true);
-    expect(paneState("a")?.document.undoHistory.undoLabel?.startsWith("Обновить из")).toBe(true);
+    expect(paneState("a")?.document.undoLabel?.startsWith("Обновить из")).toBe(true);
 
     await call("write", { document: id, offset: "0x0", bytes: "33", label: "t" });
     workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));

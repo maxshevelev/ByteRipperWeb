@@ -96,6 +96,16 @@ export class ChunkCache {
     this.evictWhileOverBudget();
   }
 
+  /**
+   * The indices of the chunks held, without disturbing the recency order.
+   *
+   * @web-only a window's cache of a session's bytes moves its chunks when an edit shifts them
+   * (`src/core/session/sessionStorage.ts`); upstream's caches are of files, which never shift
+   */
+  indices(): number[] {
+    return [...this.entries.keys()];
+  }
+
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ChunkCache.swift#ChunkCache.remove */
   remove(index: number): void {
     const found = this.entries.get(index);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { SessionView } from "@/core/session/sessionView";
 import { addAnnotation, discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import {
@@ -101,7 +101,7 @@ afterEach(() => {
 });
 
 /** A jump the way Go To makes one: the place it leaves is recorded, then the caret moves. */
-function goTo(document: BinaryDocument, pane: "a" | "b", offset: number) {
+function goTo(document: SessionView, pane: "a" | "b", offset: number) {
   recordJump(pane);
   document.setSelection({ start: offset, end: offset, fileSize: document.size });
 }
@@ -330,7 +330,7 @@ describe("a tool's choice in the history", () => {
  * @upstream-differs one history holds the panel, where upstream's window keeps its own stacks
  */
 describe("the Annotations panel", () => {
-  const noteOn = (id: string, document: BinaryDocument) => ({
+  const noteOn = (id: string, document: SessionView) => ({
     id,
     file: { kind: "document" as const, document: new WeakRef(document), name: "dump.bin" },
     range: [0, 4] as [number, number],

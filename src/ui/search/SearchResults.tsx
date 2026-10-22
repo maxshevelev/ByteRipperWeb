@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { L } from "@/core/localization/localization";
 import type { MatchSet } from "@/core/search/matchSet";
+import type { SessionView } from "@/core/session/sessionView";
 import { formatHex } from "@/core/text/hexText";
 import { hideSearchResults, type SearchStatus, selectMatch } from "@/state/searchStore";
 import { createTimeSlicer } from "@/state/timeSlice";
@@ -67,7 +67,7 @@ export interface SearchResultsProps {
   readonly matches: MatchSet | undefined;
   /** How far the pane's search has got. */
   readonly status: SearchStatus;
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   readonly current: { readonly start: number; readonly end: number } | undefined;
   /** @upstream ByteRipperApp/Search/SearchResultsViewController.swift#SearchResultsViewController.onSelect */
   readonly onGo: (offset: number) => void;
@@ -113,7 +113,7 @@ export function SearchResults({
    * the interface. A different document, pattern or decoder starts afresh.
    */
   const built = useRef<{
-    readonly doc: BinaryDocument;
+    readonly doc: SessionView;
     readonly pattern: MatchSet["pattern"];
     readonly decoder: ReturnType<typeof activeDecoder>;
     readonly rows: Map<number, Row>;

@@ -31,6 +31,8 @@ export interface SessionState {
   readonly selection: Selection;
   readonly contentGeneration: number;
   readonly lastCommittedSerial?: number | undefined;
+  /** The serial the history stands on below its oldest step — what a dropped step leaves. */
+  readonly baseSerial: number;
 }
 
 /**
@@ -43,6 +45,16 @@ export interface OperationSpan {
   readonly kind: UndoOperation["kind"];
   readonly at: number;
   readonly count: number;
+  /**
+   * What an overwrite or an insert left at `at`, when the host sent it: the window lays it over
+   * what it has read. Absent for a delete, and for an edit too large to send.
+   */
+  readonly bytes?: Bytes | undefined;
+}
+
+/** The stretch an operation touched, or the stretch itself. @web-only see {@link OperationSpan} */
+export function spanOf(applied: UndoOperation | OperationSpan): OperationSpan {
+  return "count" in applied ? applied : operationSpan(applied);
 }
 
 /** @web-only see {@link OperationSpan} */
@@ -139,6 +151,8 @@ export type SessionEvent =
     }
   | { readonly kind: "selection" }
   | { readonly kind: "committed" }
+  /** The state changed without an edit: the history put back or emptied, the file saved. */
+  | { readonly kind: "state" }
   | { readonly kind: "closed" };
 
 /** @web-only see {@link SessionId} */

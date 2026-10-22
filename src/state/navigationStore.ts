@@ -1,7 +1,7 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { selection as makeSelection } from "@/core/document/selectionModel";
 import { NavigationHistory } from "@/core/navigation/navigationHistory";
+import type { SessionView } from "@/core/session/sessionView";
 import { createStore } from "@/state/store";
 import {
   focusToolChoice,
@@ -49,7 +49,7 @@ import { scrollLink } from "@/ui/pane/scrollLink";
 export interface NavigationSpot {
   /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.pane */
   readonly pane: PaneId;
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.start */
   readonly start: number;
   /** @upstream ByteRipperApp/Navigation/NavigationPlace.swift#NavigationPlace.Spot.end */
@@ -412,7 +412,7 @@ export function noteCaretIfOnScreen(pane: PaneId): void {
 
 /** The caret past the last byte sits at the end of the visible range. */
 const caretIsOnScreen = (
-  document: BinaryDocument,
+  document: SessionView,
   range: { readonly start: number; readonly end: number }
 ): boolean => {
   const caret = document.caret;

@@ -1,7 +1,9 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { UndoOperation } from "@/core/edit/undoHistory";
 import type {
   HostMessage,
   JoinSource,
+  OperationSpan,
   SessionEvent,
   SessionId,
   SessionLine,
@@ -41,6 +43,11 @@ interface Session {
 export class SessionHost {
   private readonly sessions = new Map<SessionId, Session>();
   private readonly connections = new Set<Connection>();
+  /**
+   * Everything the host says, in the order it happened: an edit's news reaches a window before the
+   * edit's answer even when the news waits for its bytes to be read out of the journal.
+   */
+  private outbox: Promise<void> = Promise.resolve();
   /** The bytes of a join from outside the host's sessions: a `File`, a path, by the platform. */
   private readonly external: (reference: unknown) => Promise<ByteStorage>;
 
@@ -56,9 +63,7 @@ export class SessionHost {
     if (this.sessions.has(id)) throw new Error(`Session ${id} is already open.`);
     const tell = (event: SessionEvent) => this.tell(id, event);
     const stops = [
-      document.onContentChanged((change) =>
-        tell({ kind: "content", spans: change.ops.map(operationSpan), restoring: change.restoring })
-      ),
+      document.onContentChanged((change) => this.tellContent(id, change.ops, change.restoring)),
       document.onSelectionChanged(() => tell({ kind: "selection" })),
       document.onTransactionCommitted(() => tell({ kind: "committed" })),
     ];
@@ -79,6 +84,22 @@ export class SessionHost {
     session.stop();
     this.sessions.delete(id);
     for (const connection of this.connections) connection.shown.delete(id);
+  }
+
+  /**
+   * Runs `work` on a session's document in its turn — after every request already sent, before
+   * any sent later — and tells the windows how the session stands after it. For what the host
+   * does to a session on its own account: a kept history put back, a save's checkpoint.
+   */
+  run<T>(id: SessionId, work: (document: BinaryDocument) => T | Promise<T>): Promise<T> {
+    const session = this.sessions.get(id);
+    if (session === undefined) return Promise.reject(new Error(`Session ${id} is not open.`));
+    const done = session.queue.then(() => work(session.document));
+    session.queue = done.then(
+      () => this.tell(id, { kind: "state" }),
+      () => this.tell(id, { kind: "state" })
+    );
+    return done;
   }
 
   document(id: SessionId): BinaryDocument | undefined {
@@ -129,12 +150,14 @@ export class SessionHost {
   ): void {
     const session = this.sessions.get(id);
     if (session === undefined) {
-      connection.line.post({
-        kind: "answer",
-        seq,
-        session: id,
-        failure: { name: "SessionClosed", message: `Session ${id} is not open.` },
-      });
+      this.send(() =>
+        connection.line.post({
+          kind: "answer",
+          seq,
+          session: id,
+          failure: { name: "SessionClosed", message: `Session ${id} is not open.` },
+        })
+      );
       return;
     }
     session.queue = session.queue.then(async () => {
@@ -142,22 +165,27 @@ export class SessionHost {
       try {
         const result = await this.apply(session.document, request);
         const transfer = result.kind === "bytes" ? [result.bytes.buffer] : [];
-        connection.line.post(
-          { kind: "answer", seq, session: id, state: stateOf(session.document), result },
-          transfer
+        const state = stateOf(session.document);
+        this.send(() =>
+          connection.line.post({ kind: "answer", seq, session: id, state, result }, transfer)
         );
       } catch (error) {
-        connection.line.post({
-          kind: "answer",
-          seq,
-          session: id,
-          state: stateOf(session.document),
-          failure: {
-            name: error instanceof Error ? error.name : "Error",
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
+        const state = stateOf(session.document);
+        this.send(() =>
+          connection.line.post({
+            kind: "answer",
+            seq,
+            session: id,
+            state,
+            failure: {
+              name: error instanceof Error ? error.name : "Error",
+              message: error instanceof Error ? error.message : String(error),
+            },
+          })
+        );
       }
+      // The request is done when what it says has gone: the next one's news comes after it.
+      await this.outbox;
     });
   }
 
@@ -237,14 +265,53 @@ export class SessionHost {
     return document.storage;
   }
 
+  /** Says something once everything said before it has gone. */
+  private send(post: () => void | Promise<void>): void {
+    this.outbox = this.outbox.then(post).catch(() => undefined);
+  }
+
   private tell(id: SessionId, event: SessionEvent): void {
     const document = this.sessions.get(id)?.document;
     if (document === undefined) return;
     const state = stateOf(document);
-    for (const connection of this.connections) {
-      if (!connection.shown.has(id)) continue;
-      connection.line.post({ kind: "event", session: id, event, state, acked: connection.acked });
-    }
+    const heard = [...this.connections].filter((connection) => connection.shown.has(id));
+    const acked = heard.map((connection) => connection.acked);
+    this.send(() => {
+      heard.forEach((connection, index) => {
+        connection.line.post({
+          kind: "event",
+          session: id,
+          event,
+          state,
+          acked: acked[index] ?? 0,
+        });
+      });
+    });
+  }
+
+  /**
+   * An edit's news, with the bytes it left where they are few enough to send: a window lays them
+   * over what it has read rather than reading again, so a typed byte is painted from the news of
+   * it and not after a second round trip.
+   */
+  private tellContent(id: SessionId, ops: readonly UndoOperation[], restoring: boolean): void {
+    const document = this.sessions.get(id)?.document;
+    if (document === undefined) return;
+    const state = stateOf(document);
+    const heard = [...this.connections].filter((connection) => connection.shown.has(id));
+    const acked = heard.map((connection) => connection.acked);
+    this.send(async () => {
+      const spans = await spansWithBytes(ops);
+      heard.forEach((connection, index) => {
+        connection.line.post({
+          kind: "event",
+          session: id,
+          event: { kind: "content", spans, restoring },
+          state,
+          acked: acked[index] ?? 0,
+        });
+      });
+    });
   }
 }
 
@@ -261,5 +328,36 @@ export function stateOf(document: BinaryDocument): SessionState {
     selection: document.selection,
     contentGeneration: document.contentGeneration,
     lastCommittedSerial: history.lastCommittedSerial,
+    baseSerial: history.baseSerial,
   };
+}
+
+/**
+ * How many bytes of an edit its news carries. A typed byte, a paste, a patch: carried. A fill of a
+ * region, a join: the window reads again what it shows.
+ */
+const NEWS_BYTES = 256 * 1024;
+
+/** The operations as stretches, the first of them carrying what they wrote while it stays small. */
+async function spansWithBytes(ops: readonly UndoOperation[]): Promise<OperationSpan[]> {
+  let budget = NEWS_BYTES;
+  const spans: OperationSpan[] = [];
+  for (const op of ops) {
+    const span = operationSpan(op);
+    const written =
+      op.kind === "overwrite" ? op.after : op.kind === "insert" ? op.bytes : undefined;
+    if (written !== undefined && written.count <= budget) {
+      try {
+        const bytes = (await written.load()).slice();
+        budget -= bytes.length;
+        spans.push({ ...span, bytes });
+        continue;
+      } catch {
+        // Not readable now: the window reads the stretch again instead.
+      }
+    }
+    if (written !== undefined) budget = 0;
+    spans.push(span);
+  }
+  return spans;
 }

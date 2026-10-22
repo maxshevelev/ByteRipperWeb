@@ -45,7 +45,7 @@ export async function applyTransaction(
   for (const write of checked.transaction.writes) {
     await slot.document.overwrite(write.offset, write.bytes);
   }
-  slot.document.endEditGroup();
+  await slot.document.endEditGroup();
   // Told as a typed byte is: the comparison, the search, the map and the cuts
   // all hold claims about these bytes. Without it a copy into the other pane
   // left its bytes marked as differing — the two panes repainted what they

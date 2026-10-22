@@ -1,5 +1,5 @@
 import { type DiffEdit, netDiffEdit } from "@/core/diff/diffEngine";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { EditableDocument } from "@/core/document/editableDocument";
 import {
   caretAt,
   selection as makeSelection,
@@ -123,7 +123,7 @@ export class TypingController {
    */
   revealHandler: ((offset: number, centre: boolean) => void) | undefined;
 
-  private readonly doc: BinaryDocument;
+  private readonly doc: EditableDocument;
   private readonly now: () => number;
   private readonly options: TypingControllerOptions;
 
@@ -179,7 +179,7 @@ export class TypingController {
   /** Edits run in the order the keys were pressed — see the class comment. */
   private queue: Promise<void> = Promise.resolve();
 
-  constructor(doc: BinaryDocument, options: TypingControllerOptions = {}) {
+  constructor(doc: EditableDocument, options: TypingControllerOptions = {}) {
     this.doc = doc;
     this.now = options.now ?? (() => Date.now());
     this.options = options;
@@ -698,7 +698,7 @@ export class TypingController {
           this.doc.beginEditGroup();
           await this.doc.delete(selection.start, selection.end);
           await this.doc.insert(at, bytes);
-          this.doc.endEditGroup();
+          await this.doc.endEditGroup();
         } else {
           await this.doc.insert(at, bytes);
         }
@@ -1012,9 +1012,8 @@ export class TypingController {
 
   private async closeGroup(): Promise<void> {
     if (!this.groupOpen) return;
-    this.doc.endEditGroup();
     this.groupOpen = false;
-    await Promise.resolve();
+    await this.doc.endEditGroup();
   }
 
   /**

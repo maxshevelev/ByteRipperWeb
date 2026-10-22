@@ -428,7 +428,7 @@ export async function segmentLinkState(
   const link = piece.link;
   if (link === undefined) return undefined;
   const slot = paneState(pane);
-  const generation = slot?.document.undoHistory.lastCommittedSerial ?? 0;
+  const generation = slot?.document.lastCommittedSerial ?? 0;
   const key = `${piece.start}:${piece.end - piece.start}:${link.start}:${link.end}`;
   const registry = registries.get(pane);
   const cached = registry?.linkCache.get(key);

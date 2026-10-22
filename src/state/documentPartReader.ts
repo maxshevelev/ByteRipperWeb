@@ -1,5 +1,5 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { PartReader } from "@/core/parts/partCodec";
+import type { SessionView } from "@/core/session/sessionView";
 
 /**
  * A document's content, unsaved edits included, for a part's codec to decode
@@ -16,7 +16,7 @@ import type { PartReader } from "@/core/parts/partCodec";
  * on the main thread it reads before writing, and whether the parent moved
  * under a slow one is the content generation's to say
  */
-export function documentPartReader(document: BinaryDocument): PartReader {
+export function documentPartReader(document: SessionView): PartReader {
   return {
     get size() {
       return document.size;

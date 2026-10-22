@@ -1,4 +1,3 @@
-import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { appLanguage, L, LIn, LocalizedText } from "@/core/localization/localization";
 import {
   type PartCodec,
@@ -7,6 +6,7 @@ import {
   PartRefusal,
   type PartUpdate,
 } from "@/core/parts/partCodec";
+import type { SessionView } from "@/core/session/sessionView";
 import { agentShell } from "@/state/agent/agentShell";
 import type { DocumentOrigin } from "@/state/documentOrigin";
 import { documentPartReader } from "@/state/documentPartReader";
@@ -454,7 +454,7 @@ async function updateInParentQuietlyNow(
  * wait before it
  */
 interface ParentAsAsked {
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   readonly generation: number;
 }
 
@@ -485,7 +485,7 @@ function stillAsAsked(origin: DocumentOrigin, asked: ParentAsAsked): boolean {
  *
  * @web-only upstream's main actor is the queue
  */
-const updatesUnderWay = new WeakMap<BinaryDocument, Promise<void>>();
+const updatesUnderWay = new WeakMap<SessionView, Promise<void>>();
 
 /** `work` once every update already under way into `pane`'s parent has finished. */
 function oneUpdateAtATime<T>(pane: PartId, work: () => Promise<T>): Promise<T> {

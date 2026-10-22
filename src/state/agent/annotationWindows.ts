@@ -6,7 +6,7 @@ import {
   type SharedAnnotation,
   type SharedAnnotations,
 } from "@/core/agent/annotationMerge";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { SessionView } from "@/core/session/sessionView";
 import {
   desktopOwnWindows,
   desktopWindowFocus,
@@ -71,7 +71,7 @@ const windows = new Map<string, WindowInfo>();
 let focusedAt = 0;
 
 /** The pane holding `document` in this window, if any does. */
-function paneOf(document: BinaryDocument): PaneId | undefined {
+function paneOf(document: SessionView): PaneId | undefined {
   const state = workspaceStore.getSnapshot();
   for (const slot of PANE_IDS) if (state.panes[slot]?.document === document) return slot;
   for (const [part, held] of Object.entries(state.parts)) {

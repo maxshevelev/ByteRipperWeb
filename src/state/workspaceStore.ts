@@ -1,10 +1,11 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
-import { BinaryDocument, type JoinPosition } from "@/core/document/binaryDocument";
+import type { JoinPosition } from "@/core/document/binaryDocument";
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
-import type { UndoOperation } from "@/core/edit/undoHistory";
 import { L } from "@/core/localization/localization";
 import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
+import type { OperationSpan } from "@/core/session/sessionProtocol";
+import type { SessionView } from "@/core/session/sessionView";
 import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
@@ -59,6 +60,13 @@ import {
 } from "@/state/segmentSources";
 import { applySegments, clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
 import {
+  closeSession,
+  contentSnapshot,
+  joinSourceOf,
+  onHostDocument,
+  openSession,
+} from "@/state/sessions/pageSessions";
+import {
   applyLanguage,
   DEFAULT_GROUPING_GAP,
   DEFAULT_TEXT_DECODING,
@@ -108,7 +116,7 @@ export interface PaneState {
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.byteStorage
    * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.fileSize
    */
-  readonly document: BinaryDocument;
+  readonly document: SessionView;
   /**
    * The editing state machine for this document. It lives here rather than in
    * the component because it holds a half-typed nibble and an open undo group,
@@ -164,7 +172,7 @@ export const editingHooks: {
    * Any pane's: a tool open on a part has to hear that the bytes under it
    * changed, exactly as one open on a file does.
    */
-  onContentChange?: ((pane: PaneId, operations: readonly UndoOperation[]) => void) | undefined;
+  onContentChange?: ((pane: PaneId, operations: readonly OperationSpan[]) => void) | undefined;
   /**
    * The shell's answer to a shifting edit's warning (§7.2). The edit is handed
    * over because the warning names it — see {@link ShiftingEdit}.
@@ -190,7 +198,7 @@ function scratchOptions(): { scratch?: OpfsScratchStore } {
 }
 
 function makeDocument(storage: EditableByteStorage, pane: PaneId) {
-  const document = new BinaryDocument(storage);
+  const document = openSession(storage);
   const typing = new TypingController(document, {
     // The comparison is between the workspace's two panes: an edit in a part
     // is not a difference between files.
@@ -206,7 +214,7 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   document.onContentChanged(noteDocumentChanged);
   // A tool's tree is told of the same change, whole: an undo of six writes is
   // one transaction and one stretch of the file that is no longer what it read.
-  document.onContentChanged((change) => editingHooks.onContentChange?.(pane, change.ops));
+  document.onContentChanged((change) => editingHooks.onContentChange?.(pane, change.spans));
   document.onTransactionCommitted(noteDocumentChanged);
   // The order the two histories are undone in — an edit and a cut are both
   // undoable and Cmd/Ctrl+Z has to take back whichever came last.
@@ -425,6 +433,31 @@ export const workspaceStore = createStore<WorkspaceState>({
   groupingGap: DEFAULT_GROUPING_GAP,
   confirmShiftingEdits: true,
   alert: undefined,
+});
+
+/**
+ * A session no pane or part shows any more is ended (`Design/FILE_SESSIONS.md`): a pane closed, a
+ * file opened over another, a part closed, a pane carried to another window. Looked at once the
+ * update that let it go has run its course, so a document moved from one place to another within
+ * one step is not ended on the way.
+ *
+ * @web-only upstream's document goes with the last object holding it
+ */
+let shownSessions = new Set<SessionView>();
+let lookingAtSessions = false;
+workspaceStore.subscribe(() => {
+  if (lookingAtSessions) return;
+  lookingAtSessions = true;
+  queueMicrotask(() => {
+    lookingAtSessions = false;
+    const { panes, parts } = workspaceStore.getSnapshot();
+    const shown = new Set<SessionView>();
+    for (const pane of [...Object.values(panes), ...Object.values(parts)]) {
+      if (pane !== undefined) shown.add(pane.document);
+    }
+    for (const view of shownSessions) if (!shown.has(view)) closeSession(view);
+    shownSessions = shown;
+  });
 });
 
 /**
@@ -891,7 +924,10 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const slot = paneIn(state, pane);
   if (slot === undefined) return { kind: "cancelled" };
 
-  const overlay = slot.document.storage as EditOverlayStorage;
+  const overlay = await onHostDocument(
+    slot.document,
+    (document) => document.storage as EditOverlayStorage
+  );
   const request = {
     storage: slot.document.storage,
     name: saveAsName(slot),
@@ -920,8 +956,10 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
     // The file on disk now holds the document, so the overlay starts again over
     // it: nothing is a change any more.
     const base = new FileBackedStorage(outcome.file.source, new ChunkCache());
-    overlay.rebase(base);
-    slot.document.markSaved();
+    await onHostDocument(slot.document, (document) => {
+      overlay.rebase(base);
+      document.markSaved();
+    });
     noteDocumentChanged();
     // The file is known again by what the save made of it: an annotation on it, and its handle,
     // follow a save in place; a Save As is a file of its own, opened again by its own handle.
@@ -970,14 +1008,14 @@ export async function duplicatePane(from: SlotId): Promise<void> {
 
   const into: SlotId = from === "a" ? "b" : "a";
   const scratch = new OpfsScratchStore();
-  const source = await (slot.document.storage as EditOverlayStorage).contentSnapshot(scratch);
+  const source = await contentSnapshot(slot.document, scratch);
   const { document, typing } = makeDocument(
     new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), { scratch }),
     into
   );
   // Never-saved content with nothing behind it to undo to — the state a join
   // leaves upstream, and what makes a close warn.
-  document.undoHistory.clearKeepingDirty();
+  await document.clearKeepingDirty();
 
   workspaceStore.update((state) => ({
     ...state,
@@ -1070,18 +1108,18 @@ export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openBytes
  */
-export function openKeptUntitledInPane(
+export async function openKeptUntitledInPane(
   pane: SlotId,
   bytes: Blob,
   name: string,
   dirty: boolean
-): void {
+): Promise<void> {
   const { document, typing } = makeDocument(
     new EditOverlayStorage(new FileBackedStorage(bytes, new ChunkCache())),
     pane
   );
   // Work nobody saved, with no history to undo it by: what a join leaves a document in.
-  if (dirty) document.undoHistory.clearKeepingDirty();
+  if (dirty) await document.clearKeepingDirty();
   workspaceStore.update((state) => ({
     ...state,
     panes: {
@@ -1111,13 +1149,16 @@ export function openKeptUntitledInPane(
  * @web-only a pane crosses between windows as a record and its changes, where upstream hands over
  * the pane itself; a workspace's kept content is laid over by the keeper (`contentKeeper.ts`)
  */
-export function applyKeptEdits(pane: PaneId, edits: OverlayEdits): void {
+export async function applyKeptEdits(pane: PaneId, edits: OverlayEdits): Promise<void> {
   const slot = paneState(pane);
   if (slot === undefined) return;
-  (slot.document.storage as EditOverlayStorage).applyEdits(edits);
-  // Changes nobody saved, with no history to undo them by: the state a join leaves a document in,
-  // and what makes a close ask.
-  slot.document.undoHistory.clearKeepingDirty();
+  await onHostDocument(slot.document, (document) => {
+    (document.storage as EditOverlayStorage).applyEdits(edits);
+    // Changes nobody saved, with no history to undo them by: the state a join leaves a document
+    // in, and what makes a close ask.
+    document.undoHistory.clearKeepingDirty();
+    document.contentReplaced();
+  });
   resetSegments(pane, slot.document.size);
   signalFullInvalidation(pane);
 }
@@ -1131,7 +1172,7 @@ export function applyKeptEdits(pane: PaneId, edits: OverlayEdits): void {
 export async function exportKeptEdits(pane: SlotId): Promise<OverlayEdits | undefined> {
   const slot = paneState(pane);
   if (slot === undefined || slot.untitled || !slot.document.isDirty) return undefined;
-  const storage = slot.document.storage;
+  const storage = await onHostDocument(slot.document, (document) => document.storage);
   return storage instanceof EditOverlayStorage ? storage.exportEdits() : undefined;
 }
 
@@ -1529,8 +1570,10 @@ export async function revertPane(pane: PaneId): Promise<void> {
   const handle = slot.file.handle;
   const source = handle === undefined ? slot.file.source : await handle.getFile();
   const caret = slot.document.selection.start;
-  slot.document.revert(
-    new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), scratchOptions())
+  await onHostDocument(slot.document, (document) =>
+    document.revert(
+      new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), scratchOptions())
+    )
   );
   // A reload is not a navigation: the reader asked for the bytes back, not to be
   // taken somewhere, so the caret stays where it was as far as the file now
@@ -1662,7 +1705,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
   const joinedSource =
     request.sourceFile === undefined ? undefined : sourceIDForFile(pane, request.sourceFile);
 
-  const serial = await slot.document.join(source, position);
+  const serial = await slot.document.join(joinSourceOf(source), position);
 
   // The base every worker reads is the file the pane was opened from, and after
   // a join it is not what the pane holds any more. A snapshot of the joined
@@ -1701,9 +1744,7 @@ async function performJoin(request: JoinRequest): Promise<void> {
 /** The joined content as a file the workers can read, or the old one if it cannot be written. */
 async function snapshotOf(slot: PaneState, name: string): Promise<OpenedFile> {
   if (!OpfsScratchStore.isAvailable()) return { ...slot.file, name };
-  const source = await (slot.document.storage as EditOverlayStorage).contentSnapshot(
-    new OpfsScratchStore()
-  );
+  const source = await contentSnapshot(slot.document, new OpfsScratchStore());
   return { name, size: source.size, lastModified: Date.now(), source };
 }
 
@@ -1767,7 +1808,7 @@ function seamCut(options: {
 export function syncJoinAttachment(pane: SlotId): void {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
-  const history = slot.document.undoHistory;
+  const history = slot.document;
   // A join whose step the history's bounds dropped can no longer be undone, so nothing is left
   // to re-attach: with nothing to undo, the history stands on the newest dropped step.
   // @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.dropMarksOfDroppedSteps
@@ -1869,11 +1910,11 @@ export function restoreJoinMarks(
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptContent
  */
-export function keptContentLaid(pane: PaneId): void {
+export async function keptContentLaid(pane: PaneId): Promise<void> {
   const slot = paneState(pane);
   if (slot === undefined) return;
+  await onHostDocument(slot.document, (document) => document.contentReplaced());
   resetSegments(pane, slot.document.size);
-  slot.document.contentReplaced();
   signalFullInvalidation(pane);
 }
 

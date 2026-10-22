@@ -21,7 +21,7 @@
  * unchanged, so the partition's boundaries do not shift.
  */
 
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { EditableDocument } from "@/core/document/editableDocument";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { CONTENT_CHUNK_SIZE, rangeStream } from "@/core/storage/contentStream";
 
@@ -63,7 +63,7 @@ export type SegmentReplaceOutcome =
   | { readonly kind: "deleted"; readonly start: number; readonly end: number };
 
 export interface SegmentReplaceRequest {
-  readonly document: BinaryDocument;
+  readonly document: EditableDocument;
   /** The piece, half-open `[start, end)`. Clamped to what the document holds. */
   readonly start: number;
   readonly end: number;
@@ -137,6 +137,6 @@ export async function replaceSegment(
     await document.cancelEditGroup();
     throw error;
   }
-  document.endEditGroup();
+  await document.endEditGroup();
   return outcome;
 }

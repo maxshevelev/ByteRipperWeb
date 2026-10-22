@@ -245,8 +245,8 @@ type Slot = NonNullable<ReturnType<typeof paneState>>;
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undoLabel
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redoLabel
  */
-const documentUndoLabel = (slot: Slot) => slot.document.undoHistory.undoLabel;
-const documentRedoLabel = (slot: Slot) => slot.document.undoHistory.redoLabel;
+const documentUndoLabel = (slot: Slot) => slot.document.undoLabel;
+const documentRedoLabel = (slot: Slot) => slot.document.redoLabel;
 
 /**
  * The newest act on `pane` that still has something left in it, or — where this

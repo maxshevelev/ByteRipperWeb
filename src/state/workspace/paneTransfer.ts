@@ -443,13 +443,13 @@ export async function bringPane(
 /** What `taken` holds, put into `slot`. */
 export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> {
   if (taken.kind === "copy") {
-    openKeptUntitledInPane(slot, taken.content, copyName(taken.name), true);
+    await openKeptUntitledInPane(slot, taken.content, copyName(taken.name), true);
     setActivePane(slot);
   } else if (taken.kind === "pane") {
     if (taken.untitled !== undefined) {
       const { content, name, dirty } = taken.untitled;
       if (taken.pane === undefined) {
-        openKeptUntitledInPane(slot, content, name, dirty);
+        await openKeptUntitledInPane(slot, content, name, dirty);
         setActivePane(slot);
       } else await adoptMovedUntitled(slot, content, name, dirty, taken.pane, taken.history);
     } else if (taken.file !== undefined && taken.pane !== undefined) {

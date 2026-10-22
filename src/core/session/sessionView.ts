@@ -76,6 +76,20 @@ export class SessionClient {
     return view;
   }
 
+  /**
+   * Shows a session whose state the caller already knows — one it has just opened — without
+   * waiting for the host to say it.
+   */
+  adopt(id: SessionId, state: SessionState): SessionView {
+    const shown = this.views.get(id);
+    if (shown !== undefined) return shown;
+    this.line.post({ kind: "show", session: id });
+    const view = new SessionView(this, id);
+    view.answered(state, 0);
+    this.views.set(id, view);
+    return view;
+  }
+
   /** Stops showing a session here; the view hears nothing more. */
   hide(id: SessionId): void {
     if (!this.views.delete(id)) return;
@@ -154,7 +168,7 @@ export class SessionView {
     this.client = client;
     this.id = id;
     const mirror = () => this.state;
-    this.storage = new SessionStorage({
+    this.storage = new SessionStorage(id, {
       get size() {
         return mirror().size;
       },
@@ -170,6 +184,7 @@ export class SessionView {
       canRedo: false,
       selection: caretAt(0, 0),
       contentGeneration: 0,
+      baseSerial: 0,
     };
   }
 
@@ -217,6 +232,10 @@ export class SessionView {
 
   get lastCommittedSerial(): number | undefined {
     return this.state.lastCommittedSerial;
+  }
+
+  get baseSerial(): number {
+    return this.state.baseSerial;
   }
 
   /** Whether the host has ended the session. */
@@ -319,8 +338,9 @@ export class SessionView {
     this.tellHost({ kind: "beginEditGroup", label });
   }
 
-  endEditGroup(): void {
-    this.tellHost({ kind: "endEditGroup" });
+  /** Settles once the host has closed the group — when its step is in the history. */
+  endEditGroup(): Promise<void> {
+    return this.tellHost({ kind: "endEditGroup" });
   }
 
   async cancelEditGroup(): Promise<void> {
@@ -339,12 +359,12 @@ export class SessionView {
     this.tellHost({ kind: "noteSelectionAfterEdit" });
   }
 
-  markSaved(): void {
-    this.tellHost({ kind: "markSaved" });
+  markSaved(): Promise<void> {
+    return this.tellHost({ kind: "markSaved" });
   }
 
-  clearKeepingDirty(): void {
-    this.tellHost({ kind: "clearKeepingDirty" });
+  clearKeepingDirty(): Promise<void> {
+    return this.tellHost({ kind: "clearKeepingDirty" });
   }
 
   /** Waits until the host has applied everything this window has told it so far. */
@@ -381,7 +401,7 @@ export class SessionView {
     this.take(state, acked);
     switch (event.kind) {
       case "content":
-        this.storage.invalidate(event.spans);
+        this.storage.apply(event.spans, this.state.size);
         for (const listener of this.contentListeners)
           listener({ spans: event.spans, restoring: event.restoring });
         return;
@@ -395,8 +415,16 @@ export class SessionView {
     }
   }
 
-  private tellHost(request: SessionRequest): void {
-    this.ask(request).catch(() => undefined);
+  /**
+   * Sends a request whose order matters and whose answer seldom does: the promise settles once the
+   * host has applied it, for the caller that reads its effect, and a failure is not thrown at one
+   * that did not wait.
+   */
+  private tellHost(request: SessionRequest): Promise<void> {
+    return this.ask(request).then(
+      () => undefined,
+      () => undefined
+    );
   }
 
   private take(state: SessionState, acked: number): void {

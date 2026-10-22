@@ -88,7 +88,10 @@ const parentBytes = async (start: number, end: number): Promise<number[]> => [
 ];
 
 /** Lets every wait that can settle, settle. */
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+/** A few rounds of tasks: a pane's bytes are read from the session host, a message each way. */
+const settle = async () => {
+  for (let round = 0; round < 8; round++) await new Promise<void>((r) => setTimeout(r, 0));
+};
 
 describe("two updates of the same part asked at once", () => {
   it("write once: the second is worked out over what the first left, and has nothing to put back", async () => {
@@ -96,7 +99,7 @@ describe("two updates of the same part asked at once", () => {
     const part = await editedPart(codec);
     const parent = paneState("a")?.document;
     const generation = parent?.contentGeneration;
-    const stepBefore = parent?.undoHistory.undoLabel;
+    const stepBefore = parent?.undoLabel;
 
     const first = updateInParentQuietly(part, false);
     const second = updateInParentQuietly(part, false);
@@ -111,10 +114,10 @@ describe("two updates of the same part asked at once", () => {
     expect(await parentBytes(0x10, 0x12)).toEqual([0xaa, 0xbb]);
     // One write, one undo step.
     expect(parent?.contentGeneration).toBe((generation ?? 0) + 1);
-    expect(parent?.undoHistory.undoLabel).toBe("Update from zone");
+    expect(parent?.undoLabel).toBe("Update from zone");
     await parent?.undo();
     expect(await parentBytes(0x10, 0x12)).toEqual([0x10, 0x11]);
-    expect(parent?.undoHistory.undoLabel).toBe(stepBefore);
+    expect(parent?.undoLabel).toBe(stepBefore);
   });
 });
 

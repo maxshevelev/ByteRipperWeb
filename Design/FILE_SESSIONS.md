@@ -178,7 +178,7 @@ the renderer's chunk cache as it is.
   its state, and an event reaches the window that caused it before its answer.
   Left for S2: a port says nothing when its page goes, so a window will hold a
   Web Lock the host waits on, and hand its sessions back when it is released.
-- [ ] **S2 — the panes show sessions, the host still in the page.** A
+- [x] **S2 — the panes show sessions, the host still in the page.** A
   `SessionHost` runs in the window itself, over a `MessageChannel`, and every
   pane holds a `SessionView` where it held a `BinaryDocument`: opening a file
   opens a session, closing a pane closes it, and everything that edited or read
@@ -191,6 +191,28 @@ the renderer's chunk cache as it is.
   cut history, the undo router — does it through one named door,
   `hostDocument(id)`, which S3–S6 close. (S2–S4 of the first draft, folded:
   a pane cannot show a session it edits another way.)
+  Done: `src/state/sessions/pageSessions.ts` holds the host and the window's
+  client; `PaneState.document` is a `SessionView`; the typing controller and
+  the segment replacer drive an `EditableDocument`, which both a document and a
+  view are. What it settled:
+  an edit's news carries the bytes it left, up to 256 KiB, and a window lays
+  them over the chunks it has read and shifts the chunks after an insert or a
+  delete (`SessionStorage.apply`), so a typed byte is painted from the news,
+  not read again; everything the host says leaves in the order it happened,
+  an edit's news before its answer even while its bytes are read from the
+  journal; `endEditGroup`, `markSaved` and `clearKeepingDirty` settle once the
+  host has applied them, for the callers that read their effect; a session no
+  pane or part shows any more is ended. The door is two functions:
+  `hostDocument(view)` to read the document (the keeper's checks, the
+  minimap's edited ranges, the background documents' count) and
+  `onHostDocument(view, work)` to work on it in its turn among the requests
+  (a snapshot, a save's rebase, a revert, kept changes laid over, a history put
+  back) — and a join from outside the sessions names its bytes by a number the
+  page keeps. Measured in the page: a nibble typed is answered in 5.5 ms at the
+  median, nearly all of it the page's own listeners, which ran inside the edit
+  before; a round trip alone is under 0.1 ms. In the shell, an untitled
+  document typed into, the process killed, came back with its bytes and undid
+  its last byte.
 - [ ] **S3 — the undo router's acts in the session.** The order of edits and
   cuts is the session's, so Cmd/Ctrl+Z in any window takes back the last act
   whichever window did it.

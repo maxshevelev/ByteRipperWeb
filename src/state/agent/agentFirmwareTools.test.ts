@@ -225,7 +225,7 @@ describe("the checksums an agent puts right", () => {
     const fixed = await answer("uefi_fix_checksum", { node: "0" });
     expect(await bytes(0x32, 2)).toEqual([...good.slice(0x32, 0x34)]);
     expect(member(fixed, "undo")).toBe("Agent: Fix Checksum");
-    expect(paneState("a")?.document.undoHistory.undoLabel).toBe("Agent: Fix Checksum");
+    expect(paneState("a")?.document.undoLabel).toBe("Agent: Fix Checksum");
 
     const again = await call("uefi_fix_checksum", { node: "0" });
     expect(again.text).toBe("The checksums of 0 already check out; nothing to write.");

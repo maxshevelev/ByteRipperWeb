@@ -15,6 +15,7 @@ import { copySharedRows, shareOverviewRows } from "@/render/minimap/overviewShar
 import { diffStore } from "@/state/diffStore";
 import { resultsFor, searchStore } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
+import { hostDocument } from "@/state/sessions/pageSessions";
 import { createStore } from "@/state/store";
 import {
   frontSurface,
@@ -643,7 +644,7 @@ async function refreshMasksOnce(surface: SurfaceId): Promise<void> {
     const built = density[pane];
     if (slot === undefined || built === undefined) continue;
 
-    const overlay = slot.document.storage;
+    const overlay = hostDocument(slot.document).storage;
     const source: OverviewSource = {
       size: slot.document.size,
       storage: slot.document,

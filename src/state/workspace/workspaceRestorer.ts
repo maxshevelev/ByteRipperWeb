@@ -42,6 +42,7 @@ import { parkToolState } from "@/state/parkedToolState";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
 import { restoreCutHistory, restorePartition } from "@/state/segmentsStore";
+import { onHostDocument } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
@@ -333,7 +334,7 @@ export async function restoreFrom(
           issues.push({ kind: "keptUnreadable", name });
           continue;
         }
-        openKeptUntitledInPane(slot, new Blob([bytes.slice()]), name, stamp.dirty);
+        await openKeptUntitledInPane(slot, new Blob([bytes.slice()]), name, stamp.dirty);
         await adoptKept(slot, stamp.content, name, stamp.dirty, keeper, record);
         opened.push({ slot, saved, unchanged: true });
         continue;
@@ -478,7 +479,7 @@ async function restoreFragments(
       const bytes = await keeper?.bytesOf(source.untitled.content).catch(() => undefined);
       if (bytes !== undefined) {
         part = openPart(bytes, name);
-        if (source.untitled.dirty) paneState(part)?.document.undoHistory.clearKeepingDirty();
+        if (source.untitled.dirty) await paneState(part)?.document.clearKeepingDirty();
         await adoptKept(part, source.untitled.content, name, source.untitled.dirty, keeper, record);
       } else issues.push({ kind: "keptUnreadable", name });
     }
@@ -528,7 +529,7 @@ async function isTheSameFile(
 
 /** A part's changes, kept as its whole content, laid over what its parent gives. */
 async function layOver(part: PartId, added: Uint8Array): Promise<void> {
-  applyKeptEdits(part, {
+  await applyKeptEdits(part, {
     baseSize: 0,
     runs: added.length === 0 ? [] : [{ kind: "added", start: 0, end: added.length }],
     added,
@@ -551,7 +552,9 @@ async function adoptKept(
 ): Promise<void> {
   const document = paneState(pane)?.document;
   if (document === undefined || keeper === undefined) return;
-  const { joins, undoneJoins } = await keeper.adopt(document, content, name, dirty);
+  const { joins, undoneJoins } = await onHostDocument(document, (held) =>
+    keeper.adopt(held, content, name, dirty)
+  );
   if (joins.length > 0 || undoneJoins.length > 0) {
     const files = async (kept: readonly KeptJoin[]) => {
       const found: { kept: KeptJoin; file: OpenedFile }[] = [];
@@ -568,7 +571,7 @@ async function adoptKept(
     };
     restoreJoinMarks(pane, await files(joins), await files(undoneJoins));
   }
-  keptContentLaid(pane);
+  await keptContentLaid(pane);
 }
 
 const parsed = <T>(text: string | undefined): T | undefined => {
@@ -656,10 +659,10 @@ export async function adoptMovedPane(
   edits: OverlayEdits | undefined,
   history?: CarriedHistory | undefined
 ): Promise<void> {
-  await adoptMoved(slot, saved, () => {
+  await adoptMoved(slot, saved, async () => {
     openInPane(slot, file);
-    if (edits !== undefined) applyKeptEdits(slot, edits);
-    putBackCarried(slot, history);
+    if (edits !== undefined) await applyKeptEdits(slot, edits);
+    await putBackCarried(slot, history);
   });
 }
 
@@ -668,10 +671,12 @@ export async function adoptMovedPane(
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
  */
-function putBackCarried(slot: SlotId, history: CarriedHistory | undefined): void {
+async function putBackCarried(slot: SlotId, history: CarriedHistory | undefined): Promise<void> {
   const document = paneState(slot)?.document;
   if (history === undefined || document === undefined) return;
-  if (putBackHistory(document.undoHistory, history)) document.contentReplaced();
+  await onHostDocument(document, (held) => {
+    if (putBackHistory(held.undoHistory, history)) held.contentReplaced();
+  });
 }
 
 /**
@@ -688,16 +693,20 @@ export async function adoptMovedUntitled(
   saved: PaneState,
   history?: CarriedHistory | undefined
 ): Promise<void> {
-  await adoptMoved(slot, saved, () => {
-    openKeptUntitledInPane(slot, content, name, dirty);
-    putBackCarried(slot, history);
+  await adoptMoved(slot, saved, async () => {
+    await openKeptUntitledInPane(slot, content, name, dirty);
+    await putBackCarried(slot, history);
   });
 }
 
-async function adoptMoved(slot: SlotId, saved: PaneState, open: () => void): Promise<void> {
+async function adoptMoved(
+  slot: SlotId,
+  saved: PaneState,
+  open: () => Promise<void>
+): Promise<void> {
   pauseWorkspaceRecorder(true);
   try {
-    open();
+    await open();
     const linkFiles = new Map<string, OpenedFile>();
     for (const piece of saved.segments?.pieces ?? []) {
       if (piece.link === undefined) continue;

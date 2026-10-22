@@ -3,6 +3,7 @@ import { AgentToolError } from "@/core/agent/agentTool";
 import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { closeFirmware, heldFirmwareBytes } from "@/state/firmwareStore";
+import { hostDocument } from "@/state/sessions/pageSessions";
 import {
   closeBackgroundPane,
   openBackgroundPane,
@@ -230,7 +231,8 @@ export class AgentBackgroundDocuments {
    * bridge filled; and the decompressed buffers are asked of the firmware worker that holds them
    */
   async heldBytesOf(entry: BackgroundEntry): Promise<number> {
-    const storage = paneState(entry.pane)?.document.storage;
+    const view = paneState(entry.pane)?.document;
+    const storage = view === undefined ? undefined : hostDocument(view).storage;
     const resident = storage instanceof EditOverlayStorage ? storage.residentByteCount : 0;
     return entry.size + resident + (await heldFirmwareBytes(entry.pane));
   }

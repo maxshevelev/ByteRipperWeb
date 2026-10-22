@@ -1,5 +1,6 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { type OperationSpan, spanOf } from "@/core/session/sessionProtocol";
 
 /**
  * Why what a session read is no longer what the file holds.
@@ -111,28 +112,24 @@ export function changeOfEdit(edit: DiffEdit): ToolContentChange {
  * @upstream ByteRipperApp/Tools/ToolController.swift#ToolController.paneEdited
  */
 export function changeOfOperations(
-  operations: readonly UndoOperation[]
+  operations: readonly (UndoOperation | OperationSpan)[]
 ): ToolContentChange | undefined {
   let change: ToolContentChange | undefined;
   for (const operation of operations) {
-    const one = changeOfEdit(operationAsEdit(operation));
+    const one = changeOfEdit(operationAsEdit(spanOf(operation)));
     change = change === undefined ? one : mergedWith(change, one);
   }
   return change;
 }
 
-/** An undo operation read as an edit of the same kind, for the mapping above. */
-function operationAsEdit(operation: UndoOperation): DiffEdit {
-  switch (operation.kind) {
+/** An operation's stretch read as an edit of the same kind, for the mapping above. */
+function operationAsEdit(span: OperationSpan): DiffEdit {
+  switch (span.kind) {
     case "overwrite":
-      return {
-        kind: "overwrite",
-        start: operation.at,
-        end: operation.at + operation.before.count,
-      };
+      return { kind: "overwrite", start: span.at, end: span.at + span.count };
     case "insert":
-      return { kind: "insert", at: operation.at, length: operation.bytes.count };
+      return { kind: "insert", at: span.at, length: span.count };
     case "delete":
-      return { kind: "delete", start: operation.at, end: operation.at + operation.bytes.count };
+      return { kind: "delete", start: span.at, end: span.at + span.count };
   }
 }
