@@ -21,7 +21,9 @@ import {
   type KeptJoin,
   keptFiles,
 } from "@/core/workspace/workspace";
+import type { OpenedFile } from "@/platform/files/openedFile";
 import { decodeEdits, encodeEdits } from "@/platform/files/projectFolder";
+import { fileSha256 } from "@/state/workspace/fileDigest";
 import { type KeptWrite, KeptWriter, type PendingBase } from "@/state/workspace/keptWriter";
 
 /**
@@ -98,6 +100,32 @@ export class ContentKeeper {
   constructor(folder: KeptFolder) {
     this.folder = folder;
     this.writer = new KeptWriter(folder);
+  }
+
+  /** SHA-256 of files on disk, by what they were like when hashed. */
+  private fileHashes = new Map<string, string>();
+  private hashing = new Set<string>();
+
+  /**
+   * The SHA-256 of the file `file` is, when it is known. The first time it is asked for, it is made
+   * in the background and the snapshot goes without it; the next one has it.
+   *
+   * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.fileHash
+   * @upstream-differs no hash taken from a save: a page's save writes through a stream it does not
+   * read back
+   */
+  fileHash(
+    file: Pick<OpenedFile, "path" | "source" | "size" | "lastModified" | "name">
+  ): string | undefined {
+    const key = `${file.path ?? file.name}|${file.size}|${file.lastModified}`;
+    const known = this.fileHashes.get(key);
+    if (known !== undefined || this.hashing.has(key)) return known;
+    this.hashing.add(key);
+    void fileSha256(file)
+      .then((hash) => this.fileHashes.set(key, hash))
+      .catch(() => undefined)
+      .finally(() => this.hashing.delete(key));
+    return undefined;
   }
 
   /** Whether the snapshot being taken has anything for the writer. */

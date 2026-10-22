@@ -28,6 +28,7 @@ import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
+import { BackgroundOperation, beginOperation } from "@/state/operationStore";
 import {
   PANE_IDS,
   type PaneId,
@@ -46,6 +47,7 @@ import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
 import { type RecordedAct, restoreActs } from "@/state/undoRouter";
 import type { ContentKeeper } from "@/state/workspace/contentKeeper";
+import { fileSha256 } from "@/state/workspace/fileDigest";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { enterProject } from "@/state/workspace/projects";
 import {
@@ -343,10 +345,7 @@ export async function restoreFrom(
       }
       if (one.kind !== "opened" || saved.document.kind !== "file") continue;
       openInPane(slot, one.file);
-      const unchanged = stampIsUnchanged(saved.document.file, {
-        size: one.file.size,
-        modified: one.file.lastModified,
-      });
+      const unchanged = await isTheSameFile(slot, saved.document.file, saved.kept, one.file);
       if (!unchanged) issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
       // Its unsaved changes and the history that made them, laid over it only when it is the file
       // they were made on; kept changes that cannot be read leave it as it is on disk.
@@ -354,12 +353,21 @@ export async function restoreFrom(
       const kept = saved.kept;
       if (unchanged && kept !== undefined && keeper !== undefined) {
         const storage = paneState(slot)?.document.storage;
+        // help: workspace.restore-check
+        const reading = new BackgroundOperation(
+          L("Reading the changes kept for “%1$@”", one.file.name),
+          () => undefined,
+          true
+        );
+        beginOperation(slot, reading);
         try {
           if (!(storage instanceof EditOverlayStorage)) throw new Error("No overlay to lay it on.");
           await keeper.apply(kept, storage);
           await adoptKept(slot, kept, one.file.name, true, keeper, record);
         } catch {
           issues.push({ kind: "keptUnreadable", name: one.file.path ?? one.file.name });
+        } finally {
+          reading.finish();
         }
       }
       opened.push({ slot, saved, unchanged });
@@ -483,6 +491,38 @@ async function restoreFragments(
   }
   if (expanded !== undefined) raisePart(expanded);
   else foldParts();
+}
+
+/**
+ * Whether the file opened is the one written down: by its SHA-256 when the workspace has it — a
+ * moved date alone does not make another file — and by its size and date when it has not. Reading
+ * the whole of it shows in the pane's operation strip.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#KeptFileCheck.isTheSameFile
+ * @upstream ByteRipperApp/Workspace/WorkspaceRestorer.swift#WorkspaceRestorer.settleKeptFiles
+ * @upstream-differs in the pane's operation strip, not a sheet: the app shows no modal of its own
+ */
+async function isTheSameFile(
+  slot: PaneId,
+  stamp: FileStamp,
+  kept: KeptContent | undefined,
+  file: OpenedFile
+): Promise<boolean> {
+  const expected = stamp.sha256;
+  if (kept === undefined || expected === undefined) {
+    return stampIsUnchanged(stamp, { size: file.size, modified: file.lastModified });
+  }
+  if (file.size !== stamp.size) return false;
+  // help: workspace.restore-check
+  const operation = new BackgroundOperation(L("Checking “%1$@”", file.name), () => undefined);
+  beginOperation(slot, operation);
+  try {
+    return (await fileSha256(file, (fraction) => operation.report(fraction))) === expected;
+  } catch {
+    return false;
+  } finally {
+    operation.finish();
+  }
 }
 
 /** A part's changes, kept as its whole content, laid over what its parent gives. */

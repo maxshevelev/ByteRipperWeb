@@ -1,4 +1,4 @@
-@source-sha 538c81f0d37e9679cd51cb734d31c2144353e8e371251d2de079d750322e0dd4
+@source-sha e04e94fddf5575e05cc4f06291a25e9107a62c9097d81ee8d62bcd509be8f7de
 # Der Arbeitsbereich
 
 > Bei eingeschalteter Einstellung öffnet ByteRipper beim Start, was beim Beenden geöffnet war.
@@ -25,16 +25,16 @@ Der Arbeitsbereich umfasst alle Fenster, die das Programm geöffnet hat. Ein ern
 - Die [[topic:fragments|Fragment-Bereiche]] samt dem, der vorn lag. Ein Teil wird nicht als Bytes gespeichert, sondern erneut aus seiner Datei entnommen; er zeigt daher deren aktuellen Inhalt und lässt sich weiterhin zurückschreiben.
 - **Nie gesicherte Dokumente** — eine neue Datei, ein Zusammenfügen, ein Duplikat, auch wenn es einen Namen erhalten hat — mit ihren Bytes und weiterhin ungesichert, sowie Teile mit Änderungen, die noch nicht in ihre Datei zurückgeschrieben sind, samt diesen Änderungen. Sie werden während der Arbeit neben dem Arbeitsbereich aufbewahrt, gehen daher auch bei einem unplanmäßigen Ende nicht verloren, und beim Beenden fragt das Programm nicht nach ihnen.
 - **Ungesicherte Änderungen an Dateien auf dem Datenträger**, die rot und weiterhin ungesichert zurückkehren, wie sie waren. Neben dem Arbeitsbereich werden nur die geänderten Bytes aufbewahrt, keine Kopie der Datei. Wie nie gesicherte Dokumente gehen sie bei einem unplanmäßigen Ende nicht verloren, und beim Beenden fragt das Programm nicht nach ihnen. Die Änderungen werden nur dann wieder auf die Datei gelegt, wenn es dieselbe Datei ist, an der sie vorgenommen wurden (siehe unten).
+- **Der Widerrufsverlauf** jedes Dokuments — Dateien auf dem Datenträger, nie gesicherte Dokumente, Teile — mit dem, was sich noch wiederholen lässt. Nach einem Neustart widerruft [[key:undo]] die Änderungen von davor: Die Schnitte der Segmente kehren mit ihnen zurück, das Widerrufen eines Zusammenfügens verbindet das Dokument wieder mit seiner Datei, und das Widerrufen bis zum auf dem Datenträger gesicherten Stand macht eine Datei wieder ungeändert. Der Verlauf hält sich an die Grenzen, die unter [[topic:editing|Bytes bearbeiten]] festgelegt sind. Der Name eines Schritts im Menü „Bearbeiten“ bleibt in der Sprache, in der das Programm lief, als die Änderung vorgenommen wurde.
 
 ## Was nicht wiederhergestellt wird
 
-- **Der Widerrufverlauf.** Er gehört zu der Sitzung, in der die Änderungen gemacht wurden.
 - Der Verlauf „Zurück / Vorwärts“ und die Ergebnisse der Suche in allen Dateien.
 - Einstellungen wie Schrift, Wortbreite und Anordnung der Bereiche. Sie werden getrennt gespeichert und gelten ohnehin.
 
 ## Wann der Arbeitsbereich geschrieben wird
 
-Laufend: alle paar Sekunden, solange das Programm vorn ist, beim Verlassen und beim Beenden noch einmal durch jedes Fenster. Wird die Option ausgeschaltet, werden alle gespeicherten Arbeitsbereiche gelöscht.
+Laufend: alle paar Sekunden, solange das Programm vorn ist, beim Verlassen und beim Beenden noch einmal durch jedes Fenster. Wird die Option ausgeschaltet, werden alle gespeicherten Arbeitsbereiche gelöscht. Das Schreiben geschieht im Hintergrund und hält das Programm nie auf; das Beenden erfolgt, sobald der Arbeitsbereich jedes Fensters geschrieben ist.
 
 Der Arbeitsbereich wird in dieser Installation, auf diesem Rechner gespeichert und verlässt ihn nicht.
 
@@ -44,9 +44,11 @@ Jede Datei wird über ihren vollständigen Pfad wieder geöffnet.
 
 ## Geänderte und fehlende Dateien
 
-Jede Datei wird mit ihrer Größe und ihrem Änderungsdatum zum Zeitpunkt des Schreibens verglichen.
+Jede Datei wird mit ihrer Größe und ihrem Änderungsdatum zum Zeitpunkt des Schreibens verglichen. Eine Datei, über der ungesicherte Änderungen aufbewahrt werden, wird zusätzlich nach ihrem Inhalt verglichen (SHA-256): Ein Kopieren oder eine Datensicherung ändert das Datum einer Datei, ohne ein Byte zu ändern. Eine Datei, bei der sich nur das Datum geändert hat, behält daher ihre Änderungen, und eine Datei mit anderen Bytes gilt als geändert, auch wenn ihr Datum gleich geblieben ist. Das Lesen einer Datei von mehreren Gigabyte dauert einige Sekunden, ebenso das Zurücklesen eines langen Verlaufs, der für sie aufbewahrt wird; währenddessen zeigt die Statuszeile des Bereichs den Fortschritt der Arbeit, und die Änderungen werden erst auf die Datei gelegt, wenn sie geprüft ist.
 
 - Eine Datei, die nicht mehr da ist, wird nicht geöffnet.
 - Eine geänderte Datei wird geöffnet. Ist sie kürzer geworden, gehen Cursor und Bildschirm zu ihrer letzten Adresse. Ihre ungesicherten Änderungen, ihre Segmente, ihre Teile und die Auswahl im Werkzeugbereich werden nicht wiederhergestellt: Sie bezogen sich auf andere Bytes und zeigten an falsche Stellen.
 
 Tritt einer dieser Fälle ein oder ließ sich eine Datei nicht erreichen, nennt eine einzige Meldung nach der Wiederherstellung die betroffenen Dateien.
+
+Ebenso werden die Änderungen geprüft, die ByteRipper neben dem Arbeitsbereich aufbewahrt. Änderungen, die sich nicht genau so zurücklesen lassen, wie sie geschrieben wurden – die Dateien neben dem Arbeitsbereich sind beschädigt –, werden nicht angewendet: Die Datei öffnet sich so, wie sie auf dem Datenträger liegt, ein Teil so, wie seine Datei ihn enthält, und ein Dokument ohne Datei wird nicht geöffnet. Die Meldung nach der Wiederherstellung nennt sie. Führt der aufbewahrte Verlauf nicht mehr bis zu seinem Anfang zurück, kehrt der Inhalt so zurück, wie er war, jedoch ohne die Schritte, ihn zu widerrufen, und auch das sagt die Meldung.

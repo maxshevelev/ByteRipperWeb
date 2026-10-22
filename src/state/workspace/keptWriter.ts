@@ -2,7 +2,7 @@ import { Sha256 } from "@/core/crypto/sha256";
 import type { Selection } from "@/core/document/selectionModel";
 import { HistoryLogWriter } from "@/core/edit/historyLog";
 import type { KeptTransaction } from "@/core/edit/undoHistory";
-import type { UndoJournal } from "@/core/edit/undoJournal";
+import { liveJournalNames, type UndoJournal } from "@/core/edit/undoJournal";
 import type { KeptFolder } from "@/core/workspace/keptFolder";
 import {
   type KeptBase,
@@ -157,11 +157,21 @@ export class KeptWriter {
   ): Promise<void> {
     const done = this.queue.then(async () => {
       this.lastWritten = false;
-      for (const write of writes) await this.perform(write);
+      let whole = true;
+      for (const write of writes) whole = (await this.perform(write)) && whole;
+      // A record never names what was not written: one write that failed leaves the last record
+      // standing, and the next snapshot begins that content anew.
+      if (!whole) return;
       const filled = await this.filled(workspace);
       await record(filled);
-      await this.folder.removeExcept(named).catch(() => undefined);
-      this.lastWritten = this.failed.size === 0;
+      // Documents no longer kept let go of their journals first; a journal an open document still
+      // writes stays, named yet or not.
+      const ids = new Set(writes.map((one) => one.id));
+      for (const id of [...this.held.keys()])
+        if (!ids.has(id) && !this.named(id, filled)) this.held.delete(id);
+      const keep = new Set([...named, ...liveJournalNames(this.folder.id)]);
+      await this.folder.removeExcept(keep).catch(() => undefined);
+      this.lastWritten = true;
     });
     this.queue = done.catch(() => undefined);
     return done;
@@ -198,7 +208,17 @@ export class KeptWriter {
     });
   }
 
-  private async perform(write: KeptWrite): Promise<void> {
+  /** Whether `workspace` names the content `id`. */
+  private named(id: string, workspace: Workspace): boolean {
+    let found = false;
+    updatingKept(workspace, (content) => {
+      if (content.id === id) found = true;
+      return content;
+    });
+    return found;
+  }
+
+  private async perform(write: KeptWrite): Promise<boolean> {
     try {
       switch (write.kind) {
         case "rebase": {
@@ -224,8 +244,10 @@ export class KeptWriter {
           });
           break;
       }
+      return true;
     } catch {
       this.failed.add(write.id);
+      return false;
     }
   }
 

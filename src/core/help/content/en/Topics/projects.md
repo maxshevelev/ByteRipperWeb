@@ -9,7 +9,7 @@
 
 [[edition:**This page is about the Windows application.** A page in a browser cannot open a project's files again by itself, so the browser edition has no projects; nothing below exists there.||]]
 
-A project holds what the [[topic:workspace|workspace]] holds — every window, and in each the files, where each pane was, the bookmarks, the segments, the fragment panels, the tool panels and the **Annotations** panel — every change not yet saved included: untitled documents, changes in parts not yet put back, and the changed bytes of files, which come back red as they were. Unlike the workspace, a project is kept whatever the setting **Reopen the workspace at launch** says.
+A project holds what the [[topic:workspace|workspace]] holds — every window, and in each the files, where each pane was, the bookmarks, the segments, the fragment panels, the tool panels and the **Annotations** panel — every change not yet saved included: untitled documents, changes in parts not yet put back, and the changed bytes of files, which come back red as they were — and the undo history of each document. Unlike the workspace, a project is kept whatever the setting **Reopen the workspace at launch** says.
 
 ## Making a project
 

@@ -1685,3 +1685,9 @@
 "How many bytes of changes each document's undo history keeps" = "Сколько байтов правок хранит история отмены каждого документа";
 "How many changes each document's undo history keeps" = "Сколько правок хранит история отмены каждого документа";
 "Each open document keeps an undo history of its own. The bytes of its changes are kept in a temporary file, not in memory, before and after alike: overwriting 1 GB keeps 2 GB. Past either limit the oldest changes can no longer be undone. A lower limit takes effect at the next change; a single change larger than the limit is still kept, so it can be undone." = "Каждый открытый документ ведёт собственную историю отмены. Байты его правок — и прежние, и новые — хранятся во временном файле, а не в памяти: перезапись 1 ГБ занимает 2 ГБ. Сверх любого из пределов самые старые правки отменить уже нельзя. Уменьшенный предел действует со следующей правки; одна правка, превышающая предел, всё равно сохраняется и может быть отменена.";
+
+/* Restoring a workspace: the check of the files kept changes are laid over */
+"Checking “%1$@”" = "Проверяется «%1$@»";
+"Reading the changes kept for “%1$@”" = "Читаются правки, сохранённые для «%1$@»";
+"Their changes came back, but not the steps to undo them: the kept history no longer led back:" = "Правки восстановлены, но шаги для их отмены — нет: сохранённая история больше не ведёт назад:";
+"Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:" = "Сохранённые правки прочитать не удалось. Файлы открыты в том виде, в каком они записаны на диске, а части — в том виде, в каком их содержит исходный файл; документы без файла не открыты:";

@@ -195,7 +195,7 @@ describe("the content a workspace keeps", () => {
     expect(await content(reopened)).toEqual(file);
   });
 
-  it("removes what no written workspace names: a log begun anew leaves the old one behind", async () => {
+  it("removes what no written workspace names, but not a journal a document still writes", async () => {
     const folder = memoryFolder();
     const keeper = new ContentKeeper(folder);
     const doc = documentOf([0, 0, 0, 0]);
@@ -207,12 +207,10 @@ describe("the content a workspace keeps", () => {
     await doc.overwrite(1, new Uint8Array([2]));
     const second = await snapshot(keeper, pane);
     expect(second.base).not.toEqual(first.base);
-    const named = new Set(
-      [second.base, second.log].flatMap((one) =>
-        one === undefined || !("file" in one) ? [] : [one.file]
-      )
-    );
-    expect(folder.names()).toEqual([...named].sort());
+    const fileOf = (one: KeptContent) => (one.base.kind === "file" ? "" : one.base.file);
+    expect(folder.names()).not.toContain(fileOf(first));
+    expect(folder.names()).toContain(fileOf(second));
+    expect(folder.names()).toContain(second.log?.file);
   });
 
   it("keeps nothing of a clean file", async () => {

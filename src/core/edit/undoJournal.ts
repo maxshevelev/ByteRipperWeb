@@ -314,9 +314,10 @@ export class UndoJournal {
   ) {
     this.files = store;
     this.place = place;
+    if (place !== undefined) registerLive(place);
     this.end = pinned?.length ?? 0;
     this.chain = pinned?.hash ?? EMPTY_HASH;
-    released?.register(this, store);
+    released?.register(this, { store, place });
   }
 
   /**
@@ -519,7 +520,41 @@ export function concat(...pieces: readonly Uint8Array[]): Uint8Array {
 const released =
   typeof FinalizationRegistry === "undefined"
     ? undefined
-    : new FinalizationRegistry<JournalStore>((store) => store.close());
+    : new FinalizationRegistry<{
+        readonly store: JournalStore;
+        readonly place: { readonly folder: string; readonly file: string } | undefined;
+      }>(({ store, place }) => {
+        if (place !== undefined) unregisterLive(place);
+        store.close();
+      });
+
+/** By folder, the journals open documents write there, each with how many hold it. */
+const live = new Map<string, Map<string, number>>();
+
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.register */
+function registerLive(place: { readonly folder: string; readonly file: string }): void {
+  const files = live.get(place.folder) ?? new Map<string, number>();
+  files.set(place.file, (files.get(place.file) ?? 0) + 1);
+  live.set(place.folder, files);
+}
+
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.unregister */
+function unregisterLive(place: { readonly folder: string; readonly file: string }): void {
+  const files = live.get(place.folder);
+  const count = (files?.get(place.file) ?? 1) - 1;
+  if (count > 0) files?.set(place.file, count);
+  else files?.delete(place.file);
+}
+
+/**
+ * The names of the journals in `folder` an open document writes — files a workspace that does not
+ * name them yet must not remove.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.liveNames
+ */
+export function liveJournalNames(folder: string): Set<string> {
+  return new Set(live.get(folder)?.keys() ?? []);
+}
 
 /**
  * The slice a copy reads and writes at a time.

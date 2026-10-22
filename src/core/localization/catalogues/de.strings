@@ -1686,3 +1686,9 @@
 "How many bytes of changes each document's undo history keeps" = "Wie viele Bytes an Änderungen der Widerrufsverlauf jedes Dokuments aufbewahrt";
 "How many changes each document's undo history keeps" = "Wie viele Änderungen der Widerrufsverlauf jedes Dokuments aufbewahrt";
 "Each open document keeps an undo history of its own. The bytes of its changes are kept in a temporary file, not in memory, before and after alike: overwriting 1 GB keeps 2 GB. Past either limit the oldest changes can no longer be undone. A lower limit takes effect at the next change; a single change larger than the limit is still kept, so it can be undone." = "Jedes geöffnete Dokument führt einen eigenen Widerrufsverlauf. Die Bytes seiner Änderungen, der vorherige wie der neue Inhalt, werden in einer temporären Datei aufbewahrt, nicht im Arbeitsspeicher: Das Überschreiben von 1 GB belegt 2 GB. Jenseits einer der beiden Grenzen lassen sich die ältesten Änderungen nicht mehr widerrufen. Eine niedrigere Grenze gilt ab der nächsten Änderung; eine einzelne Änderung, die größer ist als die Grenze, bleibt dennoch erhalten und kann widerrufen werden.";
+
+/* Restoring a workspace: the check of the files kept changes are laid over */
+"Checking “%1$@”" = "„%1$@“ wird geprüft";
+"Reading the changes kept for “%1$@”" = "Die für „%1$@“ aufbewahrten Änderungen werden gelesen";
+"Their changes came back, but not the steps to undo them: the kept history no longer led back:" = "Die Änderungen wurden wiederhergestellt, nicht aber die Schritte, sie zu widerrufen: Der aufbewahrte Verlauf führte nicht mehr zurück:";
+"Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:" = "Die aufbewahrten Änderungen ließen sich nicht lesen. Dateien wurden so geöffnet, wie sie auf dem Datenträger liegen, und Teile so, wie ihre Datei sie enthält; Dokumente ohne Datei wurden nicht geöffnet:";

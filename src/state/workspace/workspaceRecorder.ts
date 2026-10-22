@@ -398,7 +398,7 @@ async function paneSnapshot(
             dirty: document.isDirty,
           },
         }
-      : { kind: "file", file: stampOf(file, slot, handles) },
+      : { kind: "file", file: keptStamp(stampOf(file, slot, handles), kept, file, keeper) },
     ...(!pane.untitled && kept !== undefined ? { kept } : {}),
     ...(undo === undefined ? {} : { undo }),
     ...(segments === undefined ? {} : { segments }),
@@ -408,6 +408,23 @@ async function paneSnapshot(
     insertMode: typing.isInsertMode,
     topOffset: scrollLink.visibleRange(slot, BYTES_PER_ROW)?.start ?? start,
   };
+}
+
+/**
+ * A file's stamp, with its SHA-256 where content is kept over it: what decides at restore whether
+ * it is still the file — a copy or a `touch` moves the date, not the bytes.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspacePane
+ */
+function keptStamp(
+  stamp: FileStamp,
+  kept: KeptContent | undefined,
+  file: OpenedFile,
+  keeper: ContentKeeper | undefined
+): FileStamp {
+  if (kept === undefined || keeper === undefined) return stamp;
+  const sha256 = keeper.fileHash(file);
+  return sha256 === undefined ? stamp : { ...stamp, sha256 };
 }
 
 /**
