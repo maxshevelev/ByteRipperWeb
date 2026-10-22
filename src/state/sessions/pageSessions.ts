@@ -1,5 +1,5 @@
 import { BinaryDocument } from "@/core/document/binaryDocument";
-import { SessionHost, stateOf } from "@/core/session/sessionHost";
+import { SessionHost, type SessionParts, stateOf } from "@/core/session/sessionHost";
 import type {
   HostMessage,
   JoinSource,
@@ -49,7 +49,9 @@ export function openSession(storage: EditableByteStorage): SessionView {
   const id: SessionId = `s${++opened}`;
   const document = new BinaryDocument(storage);
   host.open(id, document);
-  return client.adopt(id, stateOf(document));
+  const parts = host.session(id);
+  if (parts === undefined) throw new Error(`Session ${id} did not open.`);
+  return client.adopt(id, stateOf(parts));
 }
 
 /** What a join names its bytes by: a session's own, or bytes from outside them. */
@@ -82,6 +84,19 @@ export function onHostDocument<T>(
   view: SessionView,
   work: (document: BinaryDocument) => T | Promise<T>
 ): Promise<T> {
+  return onHostSession(view, (session) => work(session.document));
+}
+
+/**
+ * The same over the whole session — its cuts and the order of its acts with the document: what
+ * the workspace's record puts back.
+ *
+ * @web-only see the module's comment
+ */
+export function onHostSession<T>(
+  view: SessionView,
+  work: (session: SessionParts) => T | Promise<T>
+): Promise<T> {
   // Settled once this window has heard how the session stands after it, as an edit is.
   return host.run(view.id, work).then(async (done) => {
     await view.settled();
@@ -105,7 +120,12 @@ export function contentSnapshot(view: SessionView, scratch: ScratchStore): Promi
  * @web-only see the module's comment
  */
 export function hostDocument(view: SessionView): BinaryDocument {
-  const document = host.document(view.id);
-  if (document === undefined) throw new Error(`Session ${view.id} is not open.`);
-  return document;
+  return hostSession(view).document;
+}
+
+/** The session behind a view, for what the workspace writes down of its cuts and acts. */
+export function hostSession(view: SessionView): SessionParts {
+  const session = host.session(view.id);
+  if (session === undefined) throw new Error(`Session ${view.id} is not open.`);
+  return session;
 }

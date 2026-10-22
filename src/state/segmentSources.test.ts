@@ -28,8 +28,8 @@ import {
   segmentSource,
   sourceWriteConflict,
 } from "@/state/segmentSources";
-import { applySegments, noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { forgetActs, undoLast } from "@/state/undoRouter";
+import { applySegments, segmentsFor } from "@/state/segmentsStore";
+import { undoLast } from "@/state/undoRouter";
 import {
   editingHooks,
   joinIntoPane,
@@ -72,18 +72,12 @@ const modifiedAt = async (offset: number): Promise<boolean> => {
   return mine[0] !== theirs[0];
 };
 
-beforeEach(() => {
-  editingHooks.onEdit = (pane, edit) => {
-    noteSegmentEdit(pane, edit, paneState(pane)?.document.size ?? 0);
-  };
-});
+beforeEach(() => {});
 
 afterEach(() => {
   editingHooks.onEdit = undefined;
   clearSources("a");
   clearSources("b");
-  forgetActs("a");
-  forgetActs("b");
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: undefined, b: undefined },
@@ -262,7 +256,6 @@ describe("what the bytes are painted against", () => {
     // The bytes go in as the shell would put them: one edit, the partition moved
     // with it.
     await document.insert(0, new Uint8Array(16).fill(0xaa));
-    noteSegmentEdit("a", { kind: "insert", at: 0, length: 16 }, 16);
 
     const donor = file("chip2.bin", new Uint8Array(8).fill(0xbb));
     await joinIntoPane({

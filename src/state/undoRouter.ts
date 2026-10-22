@@ -1,279 +1,56 @@
-import type { Segmentation } from "@/core/segments/segmentation";
-import {
-  canRedoSegments,
-  canUndoSegments,
-  redoSegments,
-  restorePartition,
-  segmentsFor,
-  undoSegments,
-} from "@/state/segmentsStore";
 import { isSlot, type PaneId, paneState, syncJoinAttachment } from "@/state/workspaceStore";
 
 /**
- * Which of a pane's histories `Cmd/Ctrl+Z` should take back.
- *
- * A pane has two kinds of undoable act: edits to its bytes, kept by the
- * document's own history, and changes to its partition — a cut, a merge, a
- * rename — kept by the segments store. They cannot be one history: the
- * document's dirty state is a function of its history, and a cut changes no
- * byte and must not make a file look unsaved.
- *
- * So there are two, and this decides between them. It keeps only the *order*
- * the acts happened in, and asks each history to do its own work.
- *
- * **Some acts are both.** A join inserts bytes *and* cuts the seam, and it is
- * one thing the user did, so it is one press to take back: {@link groupActs}
- * folds everything recorded inside it into a single entry.
- *
- * **The order can drift, and it is made to correct itself.** A fast repeat of
- * undo takes back a whole typing series as one batch, which is one press for
- * several recorded transactions — after that this stack holds document entries
- * the document no longer has. So an entry whose history has nothing left to
- * undo is dropped and the next one tried, which brings the two back into step
- * rather than leaving a press that does nothing.
- *
- * **The partition comes back by snapshot, not by inverse edit.** An edit moves
- * the cuts, and so does its undo — but a delete that swallowed a cut cannot give
- * it back, and the partitions waiting in the segments' own redo history went
- * through that delete too. So each act remembers the partition it left, taken
- * the moment it is undone, and a redo ends on exactly that; a group remembers
- * the one it started from, and an undo of it ends there. Upstream keeps a
- * snapshot per transaction beside the document's history for the same reason.
+ * Which of a pane's histories `Cmd/Ctrl+Z` takes back is the session's to decide
+ * (`src/core/session/sessionActs.ts`): it keeps the order the edits and the cuts happened in,
+ * whichever window made them. What is left here is the window's side of a press — the typing it
+ * closes first, the comparison it tells after, the file a join gives back, the caret it reveals.
  */
 
-/** @upstream-differs upstream's segmentUndoStack and segmentRedoStack become a partition on each act */
-interface SimpleAct {
-  readonly kind: "document" | "segments";
-  readonly pane: PaneId;
-  /** The partition this act left, taken when it was undone. */
-  after?: Segmentation | undefined;
-}
-
-interface GroupAct {
-  readonly kind: "group";
-  readonly pane: PaneId;
-  readonly parts: readonly Act[];
-  /** The partition from before the group's first part. */
-  readonly before: Segmentation | undefined;
-  after?: Segmentation | undefined;
-}
-
-type Act = SimpleAct | GroupAct;
-
 /**
- * A pane's acts, the oldest first, and those undone, in the order a redo takes them back — what a
- * workspace writes down so a press of Undo after a relaunch takes back what it did before it.
+ * Runs `act` with everything it records folded into one undo step.
  *
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentUndoStack
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentRedoStack
- * @upstream-differs the snapshots are on the router's acts rather than paired with the document's
- * steps
- */
-export function actsFor(pane: PaneId): {
-  readonly past: readonly RecordedAct[];
-  readonly future: readonly RecordedAct[];
-} {
-  return {
-    past: past.filter((act) => act.pane === pane),
-    future: future.filter((act) => act.pane === pane),
-  };
-}
-
-/**
- * Puts a pane's acts back as a workspace kept them, after whatever the router holds of other panes.
- *
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.restoreSegmentSnapshots
- */
-export function restoreActs(
-  pane: PaneId,
-  restoredPast: readonly RecordedAct[],
-  restoredFuture: readonly RecordedAct[]
-): void {
-  forgetActs(pane);
-  const own = (act: RecordedAct): Act =>
-    act.kind === "group"
-      ? { kind: "group", pane, parts: act.parts.map(own), before: act.before, after: act.after }
-      : { kind: act.kind, pane, after: act.after };
-  past.push(...restoredPast.map(own));
-  future.push(...restoredFuture.map(own));
-}
-
-/** An act as it is written down and put back: the same, with nothing of the pane in it. */
-export type RecordedAct =
-  | { readonly kind: "document" | "segments"; readonly after?: Segmentation | undefined }
-  | {
-      readonly kind: "group";
-      readonly parts: readonly RecordedAct[];
-      readonly before: Segmentation | undefined;
-      readonly after?: Segmentation | undefined;
-    };
-
-const past: Act[] = [];
-const future: Act[] = [];
-
-/** How far back this remembers. Beyond it the two histories answer for themselves. */
-const LIMIT = 256;
-
-/** The acts recorded inside an open group, or nothing when none is open. */
-let grouping: { pane: PaneId; parts: Act[] } | undefined;
-
-function push(act: Act): void {
-  if (grouping !== undefined && grouping.pane === act.pane) {
-    grouping.parts.push(act);
-    return;
-  }
-  past.push(act);
-  if (past.length > LIMIT) past.shift();
-  // A new act is a new future: what was undone is no longer reachable.
-  future.length = 0;
-}
-
-export function noteDocumentAct(pane: PaneId): void {
-  push({ kind: "document", pane });
-}
-
-export function noteSegmentAct(pane: PaneId): void {
-  push({ kind: "segments", pane });
-}
-
-/**
- * Runs `act` with everything it records folded into one undo entry.
- *
- * For a join, which is one gesture that touches both of a pane's histories: the
- * bytes go in and the seam becomes a cut, and a press that took back only half
- * of that would leave an image cut where nothing joins any more.
+ * For a join, which is one gesture that touches both of a pane's histories: the bytes go in and
+ * the seam becomes a cut, and a press that took back only half of that would leave an image cut
+ * where nothing joins any more.
  */
 export async function groupActs(pane: PaneId, act: () => Promise<void>): Promise<void> {
-  // Not re-entrant on purpose: a nested group would be a second meaning for
-  // one press, and nothing here needs one.
-  if (grouping !== undefined) {
+  const view = paneState(pane)?.document;
+  if (view === undefined) {
     await act();
     return;
   }
-  grouping = { pane, parts: [] };
-  const before = segmentsFor(pane);
+  view.beginActs();
   try {
     await act();
   } finally {
-    const parts = grouping.parts;
-    grouping = undefined;
-    if (parts.length === 1 && parts[0] !== undefined) push(parts[0]);
-    else if (parts.length > 1) push({ kind: "group", pane, parts, before });
+    await view.endActs();
   }
-}
-
-/** Forgets a pane's acts — it closed, or its content was replaced wholesale. */
-export function forgetActs(pane: PaneId): void {
-  for (const stack of [past, future]) {
-    for (let index = stack.length - 1; index >= 0; index--) {
-      if (stack[index]?.pane === pane) stack.splice(index, 1);
-    }
-  }
-}
-
-/** Whether this act still has anything left to take back. */
-function canUndoAct(act: Act): boolean {
-  if (act.kind === "group") return act.parts.some(canUndoAct);
-  if (act.kind === "segments") return canUndoSegments(act.pane);
-  return paneState(act.pane)?.document.canUndo === true;
-}
-
-function canRedoAct(act: Act): boolean {
-  if (act.kind === "group") return act.parts.some(canRedoAct);
-  if (act.kind === "segments") return canRedoSegments(act.pane);
-  return paneState(act.pane)?.document.canRedo === true;
-}
-
-async function undoAct(act: Act, batch: boolean): Promise<void> {
-  if (act.kind === "group") {
-    // In reverse: the seam cut was made after the bytes went in, so it comes
-    // out first — and the cut's offsets only mean anything while they are in.
-    for (const part of [...act.parts].reverse()) await undoAct(part, false);
-    return;
-  }
-  if (act.kind === "segments") {
-    undoSegments(act.pane);
-    return;
-  }
-  const slot = paneState(act.pane);
-  await slot?.typing.undo(batch);
-  // A join is one of those steps, and taking it back gives the pane its file
-  // and its name back with it (§22.2).
-  // Only a slot can have been joined: a part is opened over a file, never out
-  // of two.
-  if (isSlot(act.pane)) syncJoinAttachment(act.pane);
-}
-
-async function redoAct(act: Act): Promise<void> {
-  if (act.kind === "group") {
-    for (const part of act.parts) await redoAct(part);
-    return;
-  }
-  if (act.kind === "segments") {
-    redoSegments(act.pane);
-    return;
-  }
-  const slot = paneState(act.pane);
-  await slot?.typing.redo();
-  // Redoing a join detaches the pane from its file again (§22.2).
-  // Only a slot can have been joined: a part is opened over a file, never out
-  // of two.
-  if (isSlot(act.pane)) syncJoinAttachment(act.pane);
 }
 
 /**
- * The act a press would take back, and what to call it.
+ * The step a press would take back, and what to call it.
  *
- * The menu asks, because an item that says only "Undo" leaves the user to
- * guess which of the two histories the press is about — and a greyed one that
- * would in fact work is worse than either. The name comes from the document
- * where the step carries one: a tool's transaction names itself, so the menu
- * reads `Undo Fix FIT Checksum` rather than `Undo`.
+ * The menu asks, because an item that says only "Undo" leaves the reader to guess which of the
+ * two histories the press is about — and a greyed one that would in fact work is worse than
+ * either. The name comes from the document where the step carries one: a tool's transaction names
+ * itself, so the menu reads `Undo Fix FIT Checksum` rather than `Undo`; a cut carries none.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undoLabel
  */
 export function nextUndo(pane: PaneId): { readonly label: string | undefined } | undefined {
-  return nextAct(past, pane, canUndoAct, (slot) => slot.document.canUndo, documentUndoLabel);
+  const view = paneState(pane)?.document;
+  return view?.canUndo === true ? { label: view.undoLabel } : undefined;
 }
-
-/** The same for the next redo. */
-export function nextRedo(pane: PaneId): { readonly label: string | undefined } | undefined {
-  return nextAct(future, pane, canRedoAct, (slot) => slot.document.canRedo, documentRedoLabel);
-}
-
-type Slot = NonNullable<ReturnType<typeof paneState>>;
 
 /**
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.undoLabel
+ * The same for the next redo.
+ *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.redoLabel
  */
-const documentUndoLabel = (slot: Slot) => slot.document.undoLabel;
-const documentRedoLabel = (slot: Slot) => slot.document.redoLabel;
-
-/**
- * The newest act on `pane` that still has something left in it, or — where this
- * remembers none — the document's own answer, which is the state after a reload
- * of the page or past the limit above.
- *
- * It reads the stacks without changing them: asking what a press would do must
- * not be the press. The drift the press corrects is left for the press.
- */
-function nextAct(
-  stack: readonly Act[],
-  pane: PaneId,
-  usable: (act: Act) => boolean,
-  documentCan: (slot: Slot) => boolean,
-  documentLabel: (slot: Slot) => string | undefined
-): { readonly label: string | undefined } | undefined {
-  const slot = paneState(pane);
-  for (let index = stack.length - 1; index >= 0; index--) {
-    const act = stack[index];
-    if (act === undefined || act.pane !== pane) continue;
-    if (!usable(act)) continue;
-    // A segments act is a cut, which carries no name of its own: the label is
-    // the document's, and a cut changes no byte, so there is none to give.
-    return { label: act.kind === "segments" ? undefined : slot && documentLabel(slot) };
-  }
-  if (slot !== undefined && documentCan(slot)) return { label: documentLabel(slot) };
-  return undefined;
+export function nextRedo(pane: PaneId): { readonly label: string | undefined } | undefined {
+  const view = paneState(pane)?.document;
+  return view?.canRedo === true ? { label: view.redoLabel } : undefined;
 }
 
 /**
@@ -326,30 +103,16 @@ export async function undoLast(pane: PaneId, batch: boolean): Promise<boolean> {
 
 /** The step itself, without the reveal that follows a press. */
 async function undoStep(pane: PaneId, batch: boolean): Promise<boolean> {
-  for (let index = past.length - 1; index >= 0; index--) {
-    const act = past[index];
-    if (act === undefined || act.pane !== pane) continue;
-    if (!canUndoAct(act)) {
-      past.splice(index, 1);
-      continue;
-    }
-    past.splice(index, 1);
-    future.push(act);
-    // Every later act is already undone, so this is exactly what the act left.
-    act.after = segmentsFor(pane);
-    await undoAct(act, batch);
-    if (act.kind === "group" && act.before !== undefined) restorePartition(pane, act.before);
-    return true;
-  }
-  // Nothing recorded for this pane, which is the state after a reload of the
-  // page or past the limit above. The document still knows its own history.
   const slot = paneState(pane);
-  if (slot?.document.canUndo === true) {
-    await slot.typing.undo(batch);
-    if (isSlot(pane)) syncJoinAttachment(pane);
-    return true;
-  }
-  return false;
+  // What this window told the session a moment ago — a cut, a group closed — is in its answer.
+  await slot?.document.settled();
+  if (slot?.document.canUndo !== true) return false;
+  await slot.typing.undo(batch);
+  // A join is one of those steps, and taking it back gives the pane its file and its name back
+  // with it (§22.2). Only a slot can have been joined: a part is opened over a file, never out of
+  // two.
+  if (isSlot(pane)) syncJoinAttachment(pane);
+  return true;
 }
 
 /**
@@ -366,24 +129,12 @@ export async function redoLast(pane: PaneId): Promise<boolean> {
 
 /** The step itself, without the reveal that follows a press. */
 async function redoStep(pane: PaneId): Promise<boolean> {
-  for (let index = future.length - 1; index >= 0; index--) {
-    const act = future[index];
-    if (act === undefined || act.pane !== pane) continue;
-    if (!canRedoAct(act)) {
-      future.splice(index, 1);
-      continue;
-    }
-    future.splice(index, 1);
-    past.push(act);
-    await redoAct(act);
-    if (act.after !== undefined) restorePartition(pane, act.after);
-    return true;
-  }
   const slot = paneState(pane);
-  if (slot?.document.canRedo === true) {
-    await slot.typing.redo();
-    if (isSlot(pane)) syncJoinAttachment(pane);
-    return true;
-  }
-  return false;
+  // What this window told the session a moment ago — a cut, a group closed — is in its answer.
+  await slot?.document.settled();
+  if (slot?.document.canRedo !== true) return false;
+  await slot.typing.redo();
+  // Redoing a join detaches the pane from its file again (§22.2).
+  if (isSlot(pane)) syncJoinAttachment(pane);
+  return true;
 }

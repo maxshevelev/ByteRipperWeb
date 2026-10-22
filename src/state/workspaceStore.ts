@@ -58,7 +58,7 @@ import {
   sourceWriteConflict,
   swapSources,
 } from "@/state/segmentSources";
-import { applySegments, clearSegments, resetSegments, swapSegments } from "@/state/segmentsStore";
+import { applySegments, resetSegments, showSegmentsOf } from "@/state/segmentsStore";
 import {
   closeSession,
   contentSnapshot,
@@ -85,7 +85,7 @@ import {
   type WorkspaceSettings,
 } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
-import { groupActs, noteDocumentAct } from "@/state/undoRouter";
+import { groupActs } from "@/state/undoRouter";
 
 /**
  * The workspace: one per browser tab (D11), so this is a module-level store and
@@ -216,10 +216,7 @@ function makeDocument(storage: EditableByteStorage, pane: PaneId) {
   // one transaction and one stretch of the file that is no longer what it read.
   document.onContentChanged((change) => editingHooks.onContentChange?.(pane, change.spans));
   document.onTransactionCommitted(noteDocumentChanged);
-  // The order the two histories are undone in — an edit and a cut are both
-  // undoable and Cmd/Ctrl+Z has to take back whichever came last.
   document.onTransactionCommitted(() => {
-    noteDocumentAct(pane);
     // A new step is a new future: an undone join can no longer be redone. Only
     // a slot can have been joined — a part is opened over a file, never out of
     // two.
@@ -444,6 +441,26 @@ export const workspaceStore = createStore<WorkspaceState>({
  * @web-only upstream's document goes with the last object holding it
  */
 let shownSessions = new Set<SessionView>();
+
+/**
+ * Which session each pane shows, told to what mirrors their partitions: at once, so a pane's cuts
+ * are there the moment the pane is.
+ */
+let segmentPanes = new Set<PaneId>();
+workspaceStore.subscribe(() => {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  const now = new Set<PaneId>();
+  for (const pane of PANE_IDS) {
+    showSegmentsOf(pane, panes[pane]?.document);
+    now.add(pane);
+  }
+  for (const [id, part] of Object.entries(parts) as [PartId, PaneState][]) {
+    showSegmentsOf(id, part.document);
+    now.add(id);
+  }
+  for (const pane of segmentPanes) if (!now.has(pane)) showSegmentsOf(pane, undefined);
+  segmentPanes = now;
+});
 let lookingAtSessions = false;
 workspaceStore.subscribe(() => {
   if (lookingAtSessions) return;
@@ -653,7 +670,6 @@ export function openInPane(pane: SlotId, file: OpenedFile): void {
  */
 export function closePane(pane: SlotId): void {
   forgetJoins(pane);
-  clearSegments(pane);
   clearSources(pane);
   workspaceStore.update((state) => ({
     ...state,
@@ -673,7 +689,6 @@ export function closePane(pane: SlotId): void {
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.swapPanes
  */
 export function swapPanes(): void {
-  swapSegments();
   swapSources();
   workspaceStore.update((state) => ({
     ...state,
@@ -1450,7 +1465,6 @@ export function foldParts(): void {
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.close
  */
 export function closePart(pane: PartId): void {
-  clearSegments(pane);
   clearSources(pane);
   // The marks stay: they were never the part's. A panel reads the workspace's
   // list at the part's offsets (§20.7), so closing the panel closes a window
@@ -1510,7 +1524,6 @@ export function openBackgroundPane(file: OpenedFile): PartId {
  * @web-only upstream's closes a `PaneViewModel` no window holds
  */
 export function closeBackgroundPane(pane: PartId): void {
-  clearSegments(pane);
   clearSources(pane);
   workspaceStore.update((state) => {
     if (state.parts[pane] === undefined) return state;

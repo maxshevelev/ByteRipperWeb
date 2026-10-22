@@ -52,3 +52,6 @@ export function linePair(): {
 
 /** Lets every message in flight arrive. */
 export const quiet = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
+
+/** A value as a port would hand it over: cloned, nothing of a class left in it. */
+export const crossed = <T>(value: T): T => structuredClone(value);

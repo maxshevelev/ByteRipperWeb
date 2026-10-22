@@ -1,6 +1,6 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { L } from "@/core/localization/localization";
-import { type Segment, SegmentLink } from "@/core/segments/segmentation";
+import { type Segment, type Segmentation, SegmentLink } from "@/core/segments/segmentation";
 import {
   replaceSegment,
   SegmentLengthMismatch,
@@ -357,7 +357,12 @@ function askLengthChange(question: {
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.replaceSegment
  */
-function notifySwap(pane: PaneId, piece: Segment, outcome: SegmentReplaceOutcome): void {
+function notifySwap(
+  pane: PaneId,
+  piece: Segment,
+  outcome: SegmentReplaceOutcome,
+  before: Segmentation | undefined
+): void {
   const size = paneState(pane)?.document.size ?? 0;
   const content = (edit: DiffEdit) => {
     noteEdit(edit);
@@ -377,7 +382,11 @@ function notifySwap(pane: PaneId, piece: Segment, outcome: SegmentReplaceOutcome
       // after it moves whole — links and all (§21.7). The ordinary `.insert`
       // rule would hand them to the piece that starts at the boundary (§21.2),
       // which is right for an edit made there and wrong for a swap.
-      applySegments(pane, (partition) => partition.applyGrowth(piece.index, outcome.length, size));
+      // The session moved the cuts with the insert by the ordinary rule; the swap's own rule is
+      // applied to the partition from before it.
+      applySegments(pane, (partition) =>
+        (before ?? partition).applyGrowth(piece.index, outcome.length, size)
+      );
       content({ kind: "insert", at: outcome.at, length: outcome.length });
       return;
     case "deleted":
@@ -385,8 +394,10 @@ function notifySwap(pane: PaneId, piece: Segment, outcome: SegmentReplaceOutcome
       applySegments(
         pane,
         (partition) =>
-          partition.applyEdit({ kind: "delete", start: outcome.start, end: outcome.end }, size)
-            .partition
+          (before ?? partition).applyEdit(
+            { kind: "delete", start: outcome.start, end: outcome.end },
+            size
+          ).partition
       );
       content({ kind: "delete", start: outcome.start, end: outcome.end });
       return;
@@ -438,6 +449,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
   }
   try {
     await groupActs(pane, async () => {
+      const before = segmentsFor(pane);
       const outcome = await replaceSegment({
         document: slot.document,
         start: piece.start,
@@ -446,7 +458,7 @@ export async function revertPiece(pane: PaneId, piece: Segment): Promise<void> {
         label: L("Revert %1$@", label),
         allowingLengthChange,
       });
-      notifySwap(pane, piece, outcome);
+      notifySwap(pane, piece, outcome, before);
       // The bytes are still that file's — but the file may now be a different
       // length than the piece was, so the link re-records what it now spans.
       applySegments(pane, (partition) =>
@@ -488,6 +500,7 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
   const storage = new FileBackedStorage(donor.source, new ChunkCache());
   const run = async (allowingLengthChange: boolean): Promise<void> => {
     await groupActs(pane, async () => {
+      const before = segmentsFor(pane);
       const outcome = await replaceSegment({
         document: slot.document,
         start: piece.start,
@@ -496,7 +509,7 @@ export async function replacePieceFromFile(pane: PaneId, piece: Segment): Promis
         label: L("Replace %1$@", label),
         allowingLengthChange,
       });
-      notifySwap(pane, piece, outcome);
+      notifySwap(pane, piece, outcome, before);
       // The bytes now come from the file the user pointed at, at its own length.
       applySegments(pane, (partition) =>
         partition.setLink(

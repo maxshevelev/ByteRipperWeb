@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
-import { applySegments, segmentsFor, undoSegments } from "@/state/segmentsStore";
+import { applySegments, segmentsFor } from "@/state/segmentsStore";
+import { undoLast } from "@/state/undoRouter";
 import { closePart, openPart, workspaceStore } from "@/state/workspaceStore";
 
 /**
@@ -24,13 +25,13 @@ describe("a part's segments", () => {
     expect(pieces.map((piece) => [piece.start, piece.end])).toEqual([[0, 0x200]]);
   });
 
-  it("take a cut, and give it back on undo", () => {
+  it("take a cut, and give it back on undo", async () => {
     const part = openPart(bytes, "region.bin");
 
     expect(applySegments(part, (partition) => partition.addCut(0x100))).toBe(true);
     expect(segmentsFor(part)?.segments.map((piece) => piece.start)).toEqual([0, 0x100]);
 
-    expect(undoSegments(part)).toBe(true);
+    expect(await undoLast(part, false)).toBe(true);
     expect(segmentsFor(part)?.segments.map((piece) => piece.start)).toEqual([0]);
   });
 

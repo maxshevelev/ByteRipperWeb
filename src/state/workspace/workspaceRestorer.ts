@@ -1,6 +1,7 @@
 import { L } from "@/core/localization/localization";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
+import type { RecordedAct } from "@/core/session/sessionActs";
 import { EditOverlayStorage, type OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type FileStamp,
@@ -41,12 +42,10 @@ import {
 import { parkToolState } from "@/state/parkedToolState";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
-import { restoreCutHistory, restorePartition } from "@/state/segmentsStore";
-import { onHostDocument } from "@/state/sessions/pageSessions";
+import { onHostDocument, onHostSession } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
-import { type RecordedAct, restoreActs } from "@/state/undoRouter";
 import { type CarriedHistory, putBackHistory } from "@/state/workspace/carriedHistory";
 import type { ContentKeeper } from "@/state/workspace/contentKeeper";
 import { fileSha256 } from "@/state/workspace/fileDigest";
@@ -601,7 +600,7 @@ async function applyPane(
   const restore = paneRestore(saved, pane.document.size, unchanged);
   const segments = saved.segments;
   if (segments !== undefined && segmentationApplies(segments, pane.document.size, unchanged)) {
-    restoreSegments(slot, segments, linkFiles);
+    await restoreSegments(slot, segments, linkFiles);
   }
   // What Undo and Redo take back, the cuts with them: only over the history that came back.
   // @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.restoreSegmentSnapshots
@@ -618,12 +617,12 @@ async function applyPane(
             after: partition(one.after),
           }
         : { kind: one.kind, after: partition(one.after) };
-    restoreActs(slot, undo.past.map(act), undo.future.map(act));
-    restoreCutHistory(
-      slot,
-      undo.cutsPast.map((one) => partitionOf(slot, one, linkFiles)),
-      undo.cutsFuture.map((one) => partitionOf(slot, one, linkFiles))
-    );
+    const cutsPast = undo.cutsPast.map((one) => partitionOf(slot, one, linkFiles));
+    const cutsFuture = undo.cutsFuture.map((one) => partitionOf(slot, one, linkFiles));
+    await onHostSession(pane.document, (session) => {
+      session.acts.restore(undo.past.map(act), undo.future.map(act));
+      session.cuts.restoreHistory(cutsPast, cutsFuture);
+    });
   }
   // Queued behind whatever the pane's typing is doing as it mounts, and never waited on for long:
   // a restore that hung on one would keep the recorder paused for good.
@@ -745,12 +744,15 @@ const stampKey = (stamp: FileStamp): string =>
  *
  * @upstream ByteRipperApp/Workspace/PaneViewModel+Workspace.swift#PaneViewModel.restoreSegments
  */
-function restoreSegments(
+async function restoreSegments(
   slot: PaneId,
   state: SegmentationState,
   linkFiles: ReadonlyMap<string, OpenedFile>
-): void {
-  restorePartition(slot, partitionOf(slot, state, linkFiles));
+): Promise<void> {
+  const view = paneState(slot)?.document;
+  if (view === undefined) return;
+  const partition = partitionOf(slot, state, linkFiles);
+  await onHostSession(view, (session) => session.cuts.restore(partition));
 }
 
 /** A partition as the workspace wrote it, its links to the files reached for them. */

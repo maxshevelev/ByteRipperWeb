@@ -1,5 +1,6 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { Segmentation } from "@/core/segments/segmentation";
+import type { RecordedAct } from "@/core/session/sessionActs";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type DocumentSource,
@@ -36,11 +37,10 @@ import {
 import { sessionParkedStateOn } from "@/state/parkedToolState";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
-import { cutHistoryOf, segmentsFor } from "@/state/segmentsStore";
-import { hostDocument, onHostDocument } from "@/state/sessions/pageSessions";
+import { segmentsFor } from "@/state/segmentsStore";
+import { hostDocument, hostSession, onHostDocument } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
-import { actsFor, type RecordedAct } from "@/state/undoRouter";
 import { type CarriedHistory, carryHistory } from "@/state/workspace/carriedHistory";
 import { ContentKeeper, type KeptPane } from "@/state/workspace/contentKeeper";
 import { partCodecState } from "@/state/workspace/partCodecState";
@@ -441,8 +441,11 @@ function undoSnapshot(
   slot: SlotId,
   handles: Record<string, FileSystemFileHandle>
 ): PaneUndoState | undefined {
-  const { past, future } = actsFor(slot);
-  const cuts = cutHistoryOf(slot);
+  const view = paneState(slot)?.document;
+  if (view === undefined) return undefined;
+  const session = hostSession(view);
+  const { past, future } = session.acts.recorded;
+  const cuts = { past: session.cuts.past, future: session.cuts.future };
   if (past.length + future.length + cuts.past.length + cuts.future.length === 0) return undefined;
   const state = (partition: Segmentation | undefined) =>
     partition === undefined ? undefined : partitionState(slot, partition, handles);

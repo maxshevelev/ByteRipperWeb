@@ -16,8 +16,7 @@ import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { clearSources, segmentLinkState } from "@/state/segmentSources";
-import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
-import { forgetActs } from "@/state/undoRouter";
+import { segmentsFor } from "@/state/segmentsStore";
 import {
   editingHooks,
   joinIntoPane,
@@ -52,23 +51,16 @@ const document = (): NonNullable<ReturnType<typeof paneState>>["document"] => {
 
 /** A delete the shell would make: the bytes go and the partition moves with them. */
 const deleteBytes = async (start: number, end: number) => {
-  const size = document().size;
   await document().delete(start, end);
-  noteSegmentEdit("a", { kind: "delete", start, end }, size - (end - start));
 };
 
 /** An insert the shell would make: the bytes come and the partition moves with them. */
 const insertBytes = async (at: number, bytes: Uint8Array) => {
-  const size = document().size;
   await document().insert(at, bytes);
-  noteSegmentEdit("a", { kind: "insert", at, length: bytes.length }, size + bytes.length);
 };
 
 beforeEach(() => {
   // The partition follows the document here the way the shell makes it.
-  editingHooks.onEdit = (pane, edit) => {
-    noteSegmentEdit(pane, edit, paneState(pane)?.document.size ?? 0);
-  };
 });
 
 afterEach(() => {
@@ -76,8 +68,6 @@ afterEach(() => {
   segmentAsks.lengthChange = undefined;
   clearSources("a");
   clearSources("b");
-  forgetActs("a");
-  forgetActs("b");
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: undefined, b: undefined },

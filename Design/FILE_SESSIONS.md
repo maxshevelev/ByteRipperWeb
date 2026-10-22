@@ -213,12 +213,23 @@ the renderer's chunk cache as it is.
   before; a round trip alone is under 0.1 ms. In the shell, an untitled
   document typed into, the process killed, came back with its bytes and undid
   its last byte.
-- [ ] **S3 — the undo router's acts in the session.** The order of edits and
-  cuts is the session's, so Cmd/Ctrl+Z in any window takes back the last act
-  whichever window did it.
-- [ ] **S4 — segments and bookmarks of a session.** Cuts and their history in
-  the session; bookmarks stay the workspace's (they are a place the person
-  chose, not part of the file's make-up).
+- [x] **S3 — the undo router's acts in the session, and its cuts with them.**
+  The order of edits and cuts is the session's, so Cmd/Ctrl+Z in any window
+  takes back the last act whichever window did it. Done with S4's cuts, which
+  the acts cannot be moved without — an act remembers the partition it left:
+  `src/core/session/sessionCuts.ts` (`CutHistory`, the partition and its own
+  history, moved by the session with every edit) and `sessionActs.ts`
+  (`SessionActs`, the order across the two, groups, the snapshot rules). A
+  session's `undo` and `redo` are the acts'; its `canUndo` and labels are
+  theirs. The page's `segmentsStore` mirrors the partition of the session each
+  pane shows, a window's own cut standing until the host has applied it, as a
+  selection does; `undoRouter` keeps only the window's side of a press. A
+  segment swap computes its partition from the one before the swap, since the
+  session has already moved the cuts by the ordinary insert rule.
+- [ ] **S4 — the rest of a session's make-up.** The segment sources (which file
+  a piece's link names) are still the page's registry, keyed by pane; they are
+  the session's, as the links that name them are. Bookmarks stay the
+  workspace's (a place the person chose, not part of the file's make-up).
 - [ ] **S5 — saving and reverting** through the host, the download path
   handed back to a page.
 - [ ] **S6 — kept content in the host.** `ContentKeeper` and `KeptWriter` per

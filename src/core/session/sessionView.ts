@@ -5,6 +5,8 @@ import {
   type Selection,
   selectionIsEmpty,
 } from "@/core/document/selectionModel";
+import { type Segmentation, wholeFile } from "@/core/segments/segmentation";
+import { partitionData, partitionFrom } from "@/core/session/sessionCuts";
 import type {
   HostMessage,
   JoinSource,
@@ -149,6 +151,12 @@ export class SessionView {
   private state: SessionState;
   /** The last selection this window set, by the number of its request; 0 for none outstanding. */
   private ownSelectionSeq = 0;
+  /** The partition as this window has it, and the host's count it was built from. */
+  private partitionValue: Segmentation = wholeFile(0);
+  private partitionVersion = -1;
+  /** The last partition this window set, by the number of its request; 0 for none outstanding. */
+  private ownCutsSeq = 0;
+  private readonly cutsListeners = new Set<(partition: Segmentation) => void>();
   private closedValue = false;
 
   private readonly contentListeners = new Set<(change: SessionContentChange) => void>();
@@ -185,6 +193,7 @@ export class SessionView {
       selection: caretAt(0, 0),
       contentGeneration: 0,
       baseSerial: 0,
+      cuts: { version: -1, partition: { contentSize: 0, pieces: [{ start: 0, name: "" }] } },
     };
   }
 
@@ -232,6 +241,16 @@ export class SessionView {
 
   get lastCommittedSerial(): number | undefined {
     return this.state.lastCommittedSerial;
+  }
+
+  /** The partition the session's cuts make. */
+  get partition(): Segmentation {
+    return this.partitionValue;
+  }
+
+  onCutsChanged(listener: (partition: Segmentation) => void): Unsubscribe {
+    this.cutsListeners.add(listener);
+    return () => this.cutsListeners.delete(listener);
   }
 
   get baseSerial(): number {
@@ -363,6 +382,44 @@ export class SessionView {
     return this.tellHost({ kind: "markSaved" });
   }
 
+  // MARK: - The cuts: this window's at once, the host's once applied
+
+  /**
+   * A cut, a merge, a rename: the partition it leaves, an undoable step of its own. Answers whether
+   * anything changed; the partition is this window's at once, as a selection is.
+   */
+  applyCuts(next: Segmentation | undefined): boolean {
+    if (next === undefined || next === this.partitionValue) return false;
+    const { seq, answer } = this.client.send(this.id, {
+      kind: "applyCuts",
+      partition: partitionData(next),
+    });
+    answer.catch(() => undefined);
+    this.ownCutsSeq = seq;
+    this.takePartition(next);
+    return true;
+  }
+
+  /** The content was replaced wholesale: one piece over its `size` bytes, nothing to take back. */
+  resetCuts(size: number): Promise<void> {
+    const { seq, answer } = this.client.send(this.id, { kind: "resetCuts" });
+    this.ownCutsSeq = seq;
+    this.takePartition(wholeFile(size));
+    return answer.then(
+      () => undefined,
+      () => undefined
+    );
+  }
+
+  /** Everything until {@link endActs} is one act, one press of Undo. */
+  beginActs(): void {
+    void this.tellHost({ kind: "beginActs" });
+  }
+
+  endActs(): Promise<void> {
+    return this.tellHost({ kind: "endActs" });
+  }
+
   clearKeepingDirty(): Promise<void> {
     return this.tellHost({ kind: "clearKeepingDirty" });
   }
@@ -433,6 +490,18 @@ export class SessionView {
     const selection = own ? this.state.selection : state.selection;
     this.state = { ...state, selection: this.state.selection };
     this.takeSelection(selection);
+
+    const ownCuts = this.ownCutsSeq !== 0 && acked < this.ownCutsSeq;
+    if (!ownCuts) this.ownCutsSeq = 0;
+    if (!ownCuts && state.cuts.version !== this.partitionVersion) {
+      this.partitionVersion = state.cuts.version;
+      this.takePartition(partitionFrom(state.cuts.partition));
+    }
+  }
+
+  private takePartition(partition: Segmentation): void {
+    this.partitionValue = partition;
+    for (const listener of this.cutsListeners) listener(partition);
   }
 
   private takeSelection(selection: Selection): void {

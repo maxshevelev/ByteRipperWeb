@@ -1,6 +1,7 @@
 import type { JoinPosition } from "@/core/document/binaryDocument";
 import type { Selection } from "@/core/document/selectionModel";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import type { PartitionData } from "@/core/session/sessionCuts";
 import type { Bytes } from "@/core/storage/byteStorage";
 
 /**
@@ -33,6 +34,8 @@ export interface SessionState {
   readonly lastCommittedSerial?: number | undefined;
   /** The serial the history stands on below its oldest step — what a dropped step leaves. */
   readonly baseSerial: number;
+  /** The partition the session's cuts make, and how many times it has changed. */
+  readonly cuts: { readonly version: number; readonly partition: PartitionData };
 }
 
 /**
@@ -111,7 +114,14 @@ export type SessionRequest =
   | { readonly kind: "setSelection"; readonly selection: Selection }
   | { readonly kind: "noteSelectionAfterEdit" }
   | { readonly kind: "markSaved" }
-  | { readonly kind: "clearKeepingDirty" };
+  | { readonly kind: "clearKeepingDirty" }
+  /** A cut, a merge, a rename: the partition it leaves, an undoable step of its own. */
+  | { readonly kind: "applyCuts"; readonly partition: PartitionData }
+  /** The content was replaced wholesale: one piece over it, and no act left to take back. */
+  | { readonly kind: "resetCuts" }
+  /** Everything until `endActs` is one act — a join, which inserts bytes and cuts the seam. */
+  | { readonly kind: "beginActs" }
+  | { readonly kind: "endActs" };
 
 /**
  * What a request gives back beyond the state: the bytes read, the stretches an undo or a redo
@@ -123,7 +133,8 @@ export type SessionResult =
   | { readonly kind: "none" }
   | { readonly kind: "bytes"; readonly bytes: Bytes; readonly generation: number }
   | { readonly kind: "applied"; readonly spans?: readonly OperationSpan[] | undefined }
-  | { readonly kind: "serial"; readonly serial?: number | undefined };
+  | { readonly kind: "serial"; readonly serial?: number | undefined }
+  | { readonly kind: "changed"; readonly changed: boolean };
 
 /**
  * A request that failed, as it crosses: its error's name and message, so the window throws what

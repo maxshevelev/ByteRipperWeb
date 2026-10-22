@@ -72,7 +72,7 @@ import {
   setSearchPane,
   useSelectionForFind,
 } from "@/state/searchStore";
-import { noteSegmentEdit, segmentsFor } from "@/state/segmentsStore";
+import { segmentsFor } from "@/state/segmentsStore";
 import { contentSnapshot } from "@/state/sessions/pageSessions";
 import { languageStore } from "@/state/settingsStore";
 import { isTextEntry } from "@/state/textFocusStore";
@@ -438,10 +438,7 @@ export function AppShell() {
       noteEdit(edit);
       noteSearchEdit(pane, edit);
       noteMinimapEdit(pane);
-      // A cut travels with the content: an insert before it moves it, a delete
-      // across it merges the pieces it separated.
-      const size = paneState(pane)?.document.size ?? 0;
-      noteSegmentEdit(pane, edit, size);
+      // The cuts travel with the content in the session itself, which moves them with every edit.
     };
     editingHooks.confirmShift = confirmInsertShift;
     // The tree a tool is reading is told what became of the bytes — held for a

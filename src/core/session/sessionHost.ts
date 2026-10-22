@@ -1,5 +1,8 @@
+import type { DiffEdit } from "@/core/diff/diffEngine";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { SessionActs } from "@/core/session/sessionActs";
+import { CutHistory, partitionData, partitionFrom } from "@/core/session/sessionCuts";
 import type {
   HostMessage,
   JoinSource,
@@ -23,8 +26,19 @@ interface Connection {
   acked: number;
 }
 
-interface Session {
+/**
+ * What a session is made of: the document, the partition its cuts make and their history, and the
+ * order of its acts across the two.
+ *
+ * @web-only see {@link SessionHost}
+ */
+export interface SessionParts {
   readonly document: BinaryDocument;
+  readonly cuts: CutHistory;
+  readonly acts: SessionActs;
+}
+
+interface Session extends SessionParts {
   /** The tail of the session's requests: each runs once the one before it has settled. */
   queue: Promise<void>;
   readonly stop: () => void;
@@ -62,13 +76,23 @@ export class SessionHost {
   open(id: SessionId, document: BinaryDocument): void {
     if (this.sessions.has(id)) throw new Error(`Session ${id} is already open.`);
     const tell = (event: SessionEvent) => this.tell(id, event);
+    const cuts = new CutHistory(document.size);
+    const acts = new SessionActs(document, cuts);
     const stops = [
-      document.onContentChanged((change) => this.tellContent(id, change.ops, change.restoring)),
+      document.onContentChanged((change) => {
+        moveCuts(cuts, change.ops, document.size);
+        this.tellContent(id, change.ops, change.restoring);
+      }),
       document.onSelectionChanged(() => tell({ kind: "selection" })),
-      document.onTransactionCommitted(() => tell({ kind: "committed" })),
+      document.onTransactionCommitted(() => {
+        acts.noteDocument();
+        tell({ kind: "committed" });
+      }),
     ];
     this.sessions.set(id, {
       document,
+      cuts,
+      acts,
       queue: Promise.resolve(),
       stop: () => {
         for (const stop of stops) stop();
@@ -91,10 +115,10 @@ export class SessionHost {
    * any sent later — and tells the windows how the session stands after it. For what the host
    * does to a session on its own account: a kept history put back, a save's checkpoint.
    */
-  run<T>(id: SessionId, work: (document: BinaryDocument) => T | Promise<T>): Promise<T> {
+  run<T>(id: SessionId, work: (session: SessionParts) => T | Promise<T>): Promise<T> {
     const session = this.sessions.get(id);
     if (session === undefined) return Promise.reject(new Error(`Session ${id} is not open.`));
-    const done = session.queue.then(() => work(session.document));
+    const done = session.queue.then(() => work(session));
     session.queue = done.then(
       () => this.tell(id, { kind: "state" }),
       () => this.tell(id, { kind: "state" })
@@ -104,6 +128,11 @@ export class SessionHost {
 
   document(id: SessionId): BinaryDocument | undefined {
     return this.sessions.get(id)?.document;
+  }
+
+  /** The session's parts, for the platform code around the host that reads them. */
+  session(id: SessionId): SessionParts | undefined {
+    return this.sessions.get(id);
   }
 
   get sessionIds(): readonly SessionId[] {
@@ -163,14 +192,14 @@ export class SessionHost {
     session.queue = session.queue.then(async () => {
       connection.acked = Math.max(connection.acked, seq);
       try {
-        const result = await this.apply(session.document, request);
+        const result = await this.apply(session, request);
         const transfer = result.kind === "bytes" ? [result.bytes.buffer] : [];
-        const state = stateOf(session.document);
+        const state = stateOf(session);
         this.send(() =>
           connection.line.post({ kind: "answer", seq, session: id, state, result }, transfer)
         );
       } catch (error) {
-        const state = stateOf(session.document);
+        const state = stateOf(session);
         this.send(() =>
           connection.line.post({
             kind: "answer",
@@ -189,7 +218,8 @@ export class SessionHost {
     });
   }
 
-  private async apply(document: BinaryDocument, request: SessionRequest): Promise<SessionResult> {
+  private async apply(session: Session, request: SessionRequest): Promise<SessionResult> {
+    const { document, cuts, acts } = session;
     const none: SessionResult = { kind: "none" };
     switch (request.kind) {
       case "state":
@@ -221,13 +251,28 @@ export class SessionHost {
           serial: await document.join(await this.source(request.source), request.position),
         };
       case "undo": {
-        const applied = await document.undo(request.batch);
+        const applied = await acts.undo(request.batch);
         return { kind: "applied", spans: applied?.map(operationSpan) };
       }
       case "redo": {
-        const applied = await document.redo();
+        const applied = await acts.redo();
         return { kind: "applied", spans: applied?.map(operationSpan) };
       }
+      case "applyCuts": {
+        const changed = cuts.apply(partitionFrom(request.partition));
+        if (changed) acts.noteCuts();
+        return { kind: "changed", changed };
+      }
+      case "resetCuts":
+        cuts.reset(document.size);
+        acts.forget();
+        return none;
+      case "beginActs":
+        acts.beginGroup();
+        return none;
+      case "endActs":
+        acts.endGroup();
+        return none;
       case "beginEditGroup":
         document.beginEditGroup(request.label);
         return none;
@@ -271,9 +316,9 @@ export class SessionHost {
   }
 
   private tell(id: SessionId, event: SessionEvent): void {
-    const document = this.sessions.get(id)?.document;
-    if (document === undefined) return;
-    const state = stateOf(document);
+    const session = this.sessions.get(id);
+    if (session === undefined) return;
+    const state = stateOf(session);
     const heard = [...this.connections].filter((connection) => connection.shown.has(id));
     const acked = heard.map((connection) => connection.acked);
     this.send(() => {
@@ -295,9 +340,9 @@ export class SessionHost {
    * it and not after a second round trip.
    */
   private tellContent(id: SessionId, ops: readonly UndoOperation[], restoring: boolean): void {
-    const document = this.sessions.get(id)?.document;
-    if (document === undefined) return;
-    const state = stateOf(document);
+    const session = this.sessions.get(id);
+    if (session === undefined) return;
+    const state = stateOf(session);
     const heard = [...this.connections].filter((connection) => connection.shown.has(id));
     const acked = heard.map((connection) => connection.acked);
     this.send(async () => {
@@ -316,20 +361,48 @@ export class SessionHost {
 }
 
 /** @web-only see {@link SessionHost} */
-export function stateOf(document: BinaryDocument): SessionState {
+export function stateOf(session: SessionParts): SessionState {
+  const { document, cuts, acts } = session;
   const history = document.undoHistory;
   return {
     size: document.size,
     dirty: document.isDirty,
-    canUndo: document.canUndo,
-    canRedo: document.canRedo,
-    undoLabel: history.undoLabel,
-    redoLabel: history.redoLabel,
+    canUndo: acts.canUndo,
+    canRedo: acts.canRedo,
+    undoLabel: acts.undoLabel,
+    redoLabel: acts.redoLabel,
     selection: document.selection,
     contentGeneration: document.contentGeneration,
     lastCommittedSerial: history.lastCommittedSerial,
     baseSerial: history.baseSerial,
+    cuts: { version: cuts.version, partition: partitionData(cuts.partition) },
   };
+}
+
+/**
+ * An edit landed: the cuts move with the bytes, one operation at a time, each at the size it left.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.apply
+ * @upstream-differs the session moves its cuts on every edit; upstream's pane tells its store
+ */
+function moveCuts(cuts: CutHistory, ops: readonly UndoOperation[], sizeAfter: number): void {
+  let size = sizeAfter;
+  for (const op of ops) {
+    if (op.kind === "insert") size -= op.bytes.count;
+    else if (op.kind === "delete") size += op.bytes.count;
+  }
+  for (const op of ops) {
+    const count = op.kind === "overwrite" ? op.after.count : op.bytes.count;
+    if (op.kind === "insert") size += count;
+    else if (op.kind === "delete") size -= count;
+    const edit: DiffEdit =
+      op.kind === "overwrite"
+        ? { kind: "overwrite", start: op.at, end: op.at + count }
+        : op.kind === "insert"
+          ? { kind: "insert", at: op.at, length: count }
+          : { kind: "delete", start: op.at, end: op.at + count };
+    cuts.noteEdit(edit, size);
+  }
 }
 
 /**

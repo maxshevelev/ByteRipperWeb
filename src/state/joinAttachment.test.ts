@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
-import { forgetActs, redoLast, undoLast } from "@/state/undoRouter";
+import { redoLast, undoLast } from "@/state/undoRouter";
 import { joinIntoPane, openInPane, workspaceStore } from "@/state/workspaceStore";
 
 const file = (name: string, bytes: readonly number[]): OpenedFile => ({
@@ -50,7 +50,6 @@ const range = (from: number, to: number) => Array.from({ length: to - from }, (_
  */
 describe("a join and the pane's file", () => {
   afterEach(() => {
-    forgetActs("a");
     workspaceStore.update((state) => ({ ...state, panes: { a: undefined, b: undefined } }));
   });
 

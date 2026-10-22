@@ -1,63 +1,71 @@
-import type { DiffEdit } from "@/core/diff/diffEngine";
-import {
-  type Segment,
-  type Segmentation,
-  segmentLabel,
-  wholeFile,
-} from "@/core/segments/segmentation";
+import { type Segment, type Segmentation, segmentLabel } from "@/core/segments/segmentation";
+import type { SessionView } from "@/core/session/sessionView";
 import { createStore } from "@/state/store";
-import { forgetActs, noteSegmentAct } from "@/state/undoRouter";
 import type { PaneId } from "@/state/workspaceStore";
 
 /**
- * Each pane's segment partition.
+ * Each pane's segment partition, as this window sees it.
  *
- * Per pane, not per workspace, and that is the opposite of a bookmark on
- * purpose: segments describe one file's make-up, and a cut **travels with the
- * content** — an insert before it moves it — while a bookmark is a place the
- * user chose and must stay where it was put.
+ * Per pane, not per workspace, and that is the opposite of a bookmark on purpose: segments
+ * describe one file's make-up, and a cut **travels with the content** — an insert before it moves
+ * it — while a bookmark is a place the person chose and must stay where it was put.
  *
- * The partition itself is immutable, so what is kept here is a stack of whole
- * partitions rather than a log of changes to one. A cut, a merge and a rename
- * are each one entry, and taking one back is picking up the partition from
- * before it — which cannot go wrong halfway.
+ * The partition and its history are the session's (`Design/FILE_SESSIONS.md`): the host keeps
+ * them, moves the cuts with every edit, and takes a cut back with Undo in the order it happened
+ * among the edits (`src/core/session/sessionCuts.ts`, `sessionActs.ts`). What is here is the
+ * partition of the session each pane shows, kept current from its view, for what draws and asks.
  */
 
 /** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.Snapshot */
 export interface PaneSegments {
   /**
    * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.current
-   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.contentSize
-   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.cuts
-   * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.segments
    */
   readonly partition: Segmentation;
-  /** Partitions before the current one, oldest first. */
-  readonly past: readonly Segmentation[];
-  /** Partitions undone out of the way, newest first. */
-  readonly future: readonly Segmentation[];
 }
 
 export interface SegmentsState {
   readonly panes: Readonly<Record<PaneId, PaneSegments | undefined>>;
 }
 
-const empty = (contentSize: number): PaneSegments => ({
-  partition: wholeFile(contentSize),
-  past: [],
-  future: [],
-});
-
 /**
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore
- * @upstream-differs one store over every pane's partition, with its own undo
+ * @upstream-differs the partitions of the sessions the panes show, mirrored from their views
  */
 export const segmentsStore = createStore<SegmentsState>({
   panes: { a: undefined, b: undefined },
 });
 
-/** How deep the partition's own undo goes. Cuts are few; this is generous. */
-const HISTORY_LIMIT = 64;
+/** The session each pane shows, and how to stop hearing of its cuts. */
+const shown = new Map<PaneId, { readonly view: SessionView; readonly stop: () => void }>();
+
+/**
+ * Says which session `pane` shows, or that it shows none; its partition is kept current from
+ * then on. The workspace calls it whenever its panes change.
+ */
+export function showSegmentsOf(pane: PaneId, view: SessionView | undefined): void {
+  const held = shown.get(pane);
+  if (held?.view === view) return;
+  held?.stop();
+  shown.delete(pane);
+  const put = (partition: Segmentation | undefined) =>
+    segmentsStore.update((state) =>
+      state.panes[pane]?.partition === partition
+        ? state
+        : {
+            panes: {
+              ...state.panes,
+              [pane]: partition === undefined ? undefined : { partition },
+            },
+          }
+    );
+  if (view === undefined) {
+    put(undefined);
+    return;
+  }
+  shown.set(pane, { view, stop: view.onCutsChanged(put) });
+  put(view.partition);
+}
 
 /** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.segment */
 export function segmentsFor(pane: PaneId): Segmentation | undefined {
@@ -69,34 +77,19 @@ export function segmentsIn(pane: PaneId): Segment[] {
 }
 
 /**
- * A pane opened a file: it starts as one piece covering it.
+ * The pane's content was replaced wholesale: it starts again as one piece covering it, and
+ * nothing that came before is undoable any more.
  *
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.init
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.reset
  */
 export function resetSegments(pane: PaneId, contentSize: number): void {
-  // A new file in the slot: nothing that came before it is undoable any more.
-  forgetActs(pane);
-  segmentsStore.update((state) => ({
-    panes: { ...state.panes, [pane]: empty(contentSize) },
-  }));
-}
-
-export function clearSegments(pane: PaneId): void {
-  forgetActs(pane);
-  segmentsStore.update((state) => ({ panes: { ...state.panes, [pane]: undefined } }));
-}
-
-/** The two panes changed places; so do their partitions. */
-export function swapSegments(): void {
-  segmentsStore.update((state) => ({ panes: { a: state.panes.b, b: state.panes.a } }));
+  void shown.get(pane)?.view.resetCuts(contentSize);
 }
 
 /**
- * Replaces a pane's partition, remembering the one it replaced.
- *
- * Returns whether anything changed: the commands are offered whether or not
- * they can act, and a refused cut must not push an entry nothing would undo.
+ * Replaces a pane's partition, an undoable step of its own. Returns whether anything changed: the
+ * commands are offered whether or not they can act, and a refused cut must not push a step nothing
+ * would undo.
  *
  * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.snapshot
  */
@@ -104,151 +97,17 @@ export function applySegments(
   pane: PaneId,
   change: (partition: Segmentation) => Segmentation | undefined
 ): boolean {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  if (current === undefined) return false;
-  const next = change(current.partition);
-  if (next === undefined || next === current.partition) return false;
-
-  segmentsStore.update((state) => ({
-    panes: {
-      ...state.panes,
-      [pane]: {
-        partition: next,
-        past: [...current.past, current.partition].slice(-HISTORY_LIMIT),
-        // A new change is a new future: what was undone is no longer reachable.
-        future: [],
-      },
-    },
-  }));
-  noteSegmentAct(pane);
-  return true;
-}
-
-/** @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore */
-export function undoSegments(pane: PaneId): boolean {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  const previous = current?.past[current.past.length - 1];
-  if (current === undefined || previous === undefined) return false;
-  segmentsStore.update((state) => ({
-    panes: {
-      ...state.panes,
-      [pane]: {
-        partition: previous,
-        past: current.past.slice(0, -1),
-        future: [current.partition, ...current.future],
-      },
-    },
-  }));
-  return true;
-}
-
-export function redoSegments(pane: PaneId): boolean {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  const next = current?.future[0];
-  if (current === undefined || next === undefined) return false;
-  segmentsStore.update((state) => ({
-    panes: {
-      ...state.panes,
-      [pane]: {
-        partition: next,
-        past: [...current.past, current.partition].slice(-HISTORY_LIMIT),
-        future: current.future.slice(1),
-      },
-    },
-  }));
-  return true;
-}
-
-/**
- * Puts a partition back exactly as it was, history untouched.
- *
- * For undo and redo of an edit. Moving the cuts through the edit's inverse is
- * lossy — a delete that swallowed a cut cannot give it back — so the router
- * restores the partition it saw on either side of the act instead, the way
- * upstream restores a snapshot per transaction.
- *
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore
- * @upstream-differs the snapshot is the partition alone; the store's own history stays where it is
- */
-export function restorePartition(pane: PaneId, partition: Segmentation): void {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  if (current === undefined || current.partition === partition) return;
-  segmentsStore.update((state) => ({
-    panes: { ...state.panes, [pane]: { ...current, partition } },
-  }));
-}
-
-/**
- * The partitions a pane's cuts can step back and forth through: what a workspace writes down.
- *
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.Snapshot
- */
-export function cutHistoryOf(pane: PaneId): {
-  readonly past: readonly Segmentation[];
-  readonly future: readonly Segmentation[];
-} {
-  const held = segmentsStore.getSnapshot().panes[pane];
-  return { past: held?.past ?? [], future: held?.future ?? [] };
-}
-
-/**
- * Puts back the partitions the pane's cuts could step through, the partition itself untouched.
- *
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore
- */
-export function restoreCutHistory(
-  pane: PaneId,
-  past: readonly Segmentation[],
-  future: readonly Segmentation[]
-): void {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  if (current === undefined) return;
-  segmentsStore.update((state) => ({
-    panes: { ...state.panes, [pane]: { ...current, past, future } },
-  }));
-}
-
-export function canUndoSegments(pane: PaneId): boolean {
-  return (segmentsStore.getSnapshot().panes[pane]?.past.length ?? 0) > 0;
-}
-
-export function canRedoSegments(pane: PaneId): boolean {
-  return (segmentsStore.getSnapshot().panes[pane]?.future.length ?? 0) > 0;
-}
-
-/**
- * An edit landed: the cuts move with the bytes.
- *
- * Not an undoable step of its own — the edit is, and taking the edit back
- * brings the cuts back with it. So the partition is replaced in place, history
- * untouched, and the past entries are shifted too so an undo of an older cut
- * still lands on offsets that mean something.
- *
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.apply
- * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.rebase
- */
-export function noteSegmentEdit(pane: PaneId, edit: DiffEdit, newSize: number): void {
-  const current = segmentsStore.getSnapshot().panes[pane];
-  if (current === undefined) return;
-  const shifted = current.partition.applyEdit(edit, newSize);
-  segmentsStore.update((state) => ({
-    panes: {
-      ...state.panes,
-      [pane]: {
-        partition: shifted.partition,
-        past: current.past.map((one) => one.applyEdit(edit, newSize).partition),
-        future: current.future.map((one) => one.applyEdit(edit, newSize).partition),
-      },
-    },
-  }));
+  const view = shown.get(pane)?.view;
+  if (view === undefined) return false;
+  return view.applyCuts(change(view.partition));
 }
 
 /**
  * Both panes, for the shell's "does anything have segments" questions.
  *
- * The pane ids spelled out rather than imported: the workspace store imports
- * this one to reset a pane's partition when a file opens, and a value import
- * back the other way would close the circle.
+ * The pane ids spelled out rather than imported: the workspace store imports this one to reset a
+ * pane's partition when a file opens, and a value import back the other way would close the
+ * circle.
  */
 export function anyCuts(): boolean {
   return (["a", "b"] as const).some((pane) => (segmentsFor(pane)?.cuts.length ?? 0) > 0);
