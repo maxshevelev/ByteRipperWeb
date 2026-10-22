@@ -59,6 +59,14 @@ export interface PaneDragState {
    * what it carries, or over none at all.
    */
   readonly zone: SingleFileDropTarget | undefined;
+  /**
+   * The drop region the zone belongs to: only its bands are lit. Every pane has the same three
+   * bands, so the band alone would light the same one on every pane.
+   *
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.updateHover
+   * @upstream-differs upstream's hover is each view's own state; here it is the window's, so it says whose
+   */
+  readonly zoneRegion?: Element | undefined;
 }
 
 const IDLE: PaneDragState = {
@@ -182,8 +190,24 @@ export function notePaneDragCopying(copying: boolean): void {
  * are the same fact — a zone with nothing to offer is not a zone — so they are one field here
  * rather than two
  */
-export function notePaneDragZone(zone: SingleFileDropTarget | undefined): void {
-  paneDragStore.update((state) => (state.zone === zone ? state : { ...state, zone }));
+export function notePaneDragZone(
+  zone: SingleFileDropTarget | undefined,
+  region?: Element | undefined
+): void {
+  const zoneRegion = zone === undefined ? undefined : region;
+  paneDragStore.update((state) =>
+    state.zone === zone && state.zoneRegion === zoneRegion ? state : { ...state, zone, zoneRegion }
+  );
+}
+
+/**
+ * The pointer has left `region`. Its zone is taken down only if it is still the one lit: a
+ * browser tells the region entered before the one left, and that one's zone is not this one's.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.clearHover
+ */
+export function leavePaneDragZone(region: Element): void {
+  if (paneDragStore.getSnapshot().zoneRegion === region) notePaneDragZone(undefined);
 }
 
 /**

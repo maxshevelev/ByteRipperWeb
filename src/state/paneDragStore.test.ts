@@ -4,6 +4,7 @@ import {
   beginPaneDrag,
   draggedPaneId,
   endDrag,
+  leavePaneDragZone,
   notePaneDragCopying,
   notePaneDragZone,
   paneDragIsCopying,
@@ -86,6 +87,27 @@ describe("the pane drag store", () => {
     notePaneDragZone("appendAtEnd");
     expect(paneDragStore.getSnapshot().zone).toBe("appendAtEnd");
     expect(draggedPaneId()).toBe("a");
+  });
+
+  it("lights the zone of the region under the pointer alone", () => {
+    // Every pane has the same three bands: the zone says whose, as each of upstream's views
+    // lights only its own.
+    const first = { contains: () => false } as unknown as Element;
+    const second = { contains: () => false } as unknown as Element;
+    beginPaneDrag("a");
+    notePaneDragZone("replace", first);
+    expect(paneDragStore.getSnapshot().zoneRegion).toBe(first);
+
+    // The second region is entered before the first is left: leaving the first keeps it lit.
+    notePaneDragZone("insertAtStart", second);
+    leavePaneDragZone(first);
+    expect(paneDragStore.getSnapshot()).toMatchObject({
+      zone: "insertAtStart",
+      zoneRegion: second,
+    });
+
+    leavePaneDragZone(second);
+    expect(paneDragStore.getSnapshot()).toMatchObject({ zone: undefined, zoneRegion: undefined });
   });
 
   it("starts a fresh gesture clean", () => {

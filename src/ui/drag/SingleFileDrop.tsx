@@ -144,14 +144,18 @@ export function SingleFileDrop({
         // it; this workspace's own pane is copied, and "Open as Second File"
         // would say nothing about the copy being made (§23).
         <div className="single-file-drop-second">
-          <DropZoneView
-            title={
-              second !== undefined && isDuplicate(second)
-                ? L("Duplicate Here")
-                : singleFileDropTargetTitle("addSecond")
-            }
-            highlighted={zone === "addSecond"}
-          />
+          {/* Up only while the pointer is over this half, as upstream's `updateDragTarget`
+              shows the half under the pointer and hides the other. */}
+          {zone !== "addSecond" ? null : (
+            <DropZoneView
+              title={
+                second !== undefined && isDuplicate(second)
+                  ? L("Duplicate Here")
+                  : singleFileDropTargetTitle("addSecond")
+              }
+              highlighted
+            />
+          )}
         </div>
       ) : null}
     </div>
