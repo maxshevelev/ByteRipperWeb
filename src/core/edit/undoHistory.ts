@@ -159,6 +159,40 @@ export interface UndoTransaction {
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.serial
    */
   readonly serial: number;
+  /**
+   * The state this transaction was applied to: the serial the document stood at when it was
+   * recorded. Every state has a serial of its own, so the states form a tree, and a kept history
+   * finds its way from the state it wrote down to any other by these.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.parent
+   */
+  readonly parent: number;
+}
+
+/**
+ * A transaction as a kept history writes it down: the transaction, and the two things about it its
+ * step knows — the typing series it belongs to and the name the menu gives it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.init
+ */
+export interface KeptTransaction {
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.transaction */
+  readonly transaction: UndoTransaction;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.seriesID */
+  readonly seriesId: number | undefined;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.label */
+  readonly label: string | undefined;
+  /**
+   * What the pane paired with the transaction, read back from the log: the segments before it
+   * (while it was on the undo side) and after it (while it was on the redo side), in the app's own
+   * encoding.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.segmentsBefore
+   */
+  readonly segmentsBefore?: Uint8Array | undefined;
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#KeptTransaction.segmentsAfter */
+  readonly segmentsAfter?: Uint8Array | undefined;
 }
 
 export interface RecordOptions {
@@ -358,6 +392,7 @@ export class UndoHistory {
 
     this.discardRedo();
     const ops = this.stored(recorded);
+    const parent = this.currentSerial;
     const serial = this.nextSerial++;
     const entry: Entry = {
       serial,
@@ -366,6 +401,7 @@ export class UndoHistory {
         selectionBefore: options.selectionBefore,
         selectionAfter: options.selectionAfter,
         serial,
+        parent,
       },
     };
     this.undoSteps.push({
@@ -452,7 +488,16 @@ export class UndoHistory {
     if (old === undefined) return;
     const dead = old.length - Math.min(this.liveJournalBytes, old.length);
     if (dead <= this.compactionFloor || dead <= this.liveJournalBytes) return;
-    const fresh = new UndoJournal();
+    this.moveJournal();
+  }
+
+  /**
+   * Moves every operation's bytes into a new journal: what compacting does, and what puts a
+   * document's journal into the workspace that keeps it when it was made elsewhere.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.moveJournal
+   */
+  moveJournal(fresh: UndoJournal = new UndoJournal()): void {
     const move = (steps: readonly Step[]) => {
       for (const step of steps) {
         for (const entry of step.entries) {
@@ -603,10 +648,11 @@ export class UndoHistory {
    */
   reset(): void {
     this.dropAll();
-    // `nextSerial` deliberately keeps counting: the history is empty, so the
-    // current state is 0 again, and no future serial can collide with one a
-    // caller still remembers.
-    this.savedSerial = 0;
+    // The content is not the state any serial named so far, so it gets a serial of its own — the
+    // one future edits name as their parent. A reset document is its file as saved, so that serial
+    // is also the saved one.
+    this.base = this.takeSerial();
+    this.savedSerial = this.base;
     this.dirtyAfterClear = false;
     this.transactionCount = 0;
     this.lastUndoWasSeriesByte = false;
@@ -626,6 +672,261 @@ export class UndoHistory {
    */
   clearKeepingDirty(): void {
     this.reset();
+    this.savedSerial = 0;
     this.dirtyAfterClear = true;
   }
+
+  /**
+   * Hands out a serial no state has had.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.takeSerial
+   */
+  private takeSerial(): number {
+    return this.nextSerial++;
+  }
+
+  // MARK: - Kept beside a workspace
+
+  /**
+   * The file the operations' bytes live in — and, for a document a workspace keeps, its log.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.journal
+   */
+  get currentJournal(): UndoJournal | undefined {
+    return this.journal;
+  }
+
+  /**
+   * The serial of the state the document is in.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.headSerial
+   */
+  get headSerial(): number {
+    return this.currentSerial;
+  }
+
+  /**
+   * The serial of the state last saved: what the file on disk holds while the document is not
+   * dirty.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.savedStateSerial
+   */
+  get savedStateSerial(): number {
+    return this.savedSerial;
+  }
+
+  /**
+   * The next serial `record` will hand out — what a kept history goes on counting from, so a
+   * restored document never names two states alike.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.upcomingSerial
+   */
+  get upcomingSerial(): number {
+    return this.nextSerial;
+  }
+
+  /**
+   * Every transaction the history holds, undo side and redo side, oldest serial first: what a kept
+   * history writes down, parents before children.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.heldTransactions
+   */
+  get heldTransactions(): KeptTransaction[] {
+    return [...this.undoSteps, ...this.redoSteps]
+      .flatMap((step) => step.entries.map((entry) => keptOf(step, entry)))
+      .sort((one, other) => one.transaction.serial - other.transaction.serial);
+  }
+
+  /**
+   * The transactions recorded after the one `serial` names, oldest first — what a kept history
+   * has not written yet. Serials only grow, so the undo side is read from its newest end only as
+   * far as it is new: a snapshot costs what changed, not how long the history is.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.heldTransactions
+   */
+  heldTransactionsAfter(serial: number): KeptTransaction[] {
+    const found: KeptTransaction[] = [];
+    outer: for (const step of [...this.undoSteps].reverse()) {
+      for (const entry of [...step.entries].reverse()) {
+        if (entry.serial <= serial) break outer;
+        found.push(keptOf(step, entry));
+      }
+    }
+    for (const step of this.redoSteps) {
+      for (const entry of step.entries) if (entry.serial > serial) found.push(keptOf(step, entry));
+    }
+    return found.sort((one, other) => one.transaction.serial - other.transaction.serial);
+  }
+
+  /**
+   * The transaction the next undo would take back first — the only one a command can still refine
+   * the selection after.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.newestTransaction
+   */
+  get newestTransaction(): UndoTransaction | undefined {
+    const step = this.undoSteps[this.undoSteps.length - 1];
+    return step?.entries[step.entries.length - 1]?.transaction;
+  }
+
+  /**
+   * The serial of the undo side's transaction `k` places from its newest end — what a pane's
+   * segment snapshots are paired with, read from the end that moves.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undoSideSerial
+   */
+  undoSideSerial(fromNewest: number): number | undefined {
+    return sideSerial(this.undoSteps, fromNewest);
+  }
+
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redoSideSerial */
+  redoSideSerial(fromNewest: number): number | undefined {
+    return sideSerial(this.redoSteps, fromNewest);
+  }
+
+  /**
+   * The serials of the undo side, oldest first — what a pane pairs its segment snapshots with.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undoSideSerials
+   */
+  get undoSideSerials(): number[] {
+    return this.undoSteps.flatMap((step) => step.entries.map((entry) => entry.serial));
+  }
+
+  /**
+   * The serials of the redo side, from the one redone last to the next to redo, each step's in
+   * recording order — the order a pane stacks the segments after them.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redoSideSerials
+   */
+  get redoSideSerials(): number[] {
+    return this.redoSteps.flatMap((step) => step.entries.map((entry) => entry.serial));
+  }
+
+  /**
+   * The state an empty undo side stands for: where undoing all that is left lands.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.undoBaseSerial
+   */
+  get undoBaseSerial(): number {
+    return this.base;
+  }
+
+  /**
+   * Whether the document stays dirty whatever state it is in — content nobody saved, with no
+   * earlier state to undo to ({@link clearKeepingDirty}).
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.isDirtyRegardless
+   */
+  get isDirtyRegardless(): boolean {
+    return this.dirtyAfterClear;
+  }
+
+  /**
+   * The newest state the redo side leads to: the redo side is the way from the state the document
+   * is in down to it. Nothing with nothing to redo.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redoTipSerial
+   */
+  get redoTipSerial(): number | undefined {
+    const step = this.redoSteps[0];
+    return step?.entries[step.entries.length - 1]?.serial;
+  }
+
+  /**
+   * How many transactions each redo step holds, the next to redo first — a fast undo of a typing
+   * series is one step of many.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.redoStepSizes
+   */
+  get redoStepSizes(): number[] {
+    return [...this.redoSteps].reverse().map((step) => step.entries.length);
+  }
+
+  /**
+   * Goes on from a document kept beside a workspace: its content is the state `head` names,
+   * serials continue from `nextSerial`, and the file on disk — for a document that has one —
+   * holds the state `saved` names. `dirty` keeps a document dirty that has no saved state to
+   * compare with: an untitled one nobody saved.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.resume
+   */
+  resume(options: {
+    readonly head: number;
+    readonly nextSerial: number;
+    readonly saved: number | undefined;
+    readonly dirty: boolean;
+    readonly journal?: UndoJournal | undefined;
+  }): void {
+    this.restore({
+      undo: [],
+      redo: [],
+      base: options.head,
+      nextSerial: options.nextSerial,
+      saved: options.saved ?? options.head,
+      dirtyRegardless: options.dirty && options.saved === undefined,
+      journal: options.journal,
+    });
+  }
+
+  /**
+   * Puts back a history kept beside a workspace: `undo`, oldest first, is the way from `base` to
+   * the state the document is in; `redo`, the next to redo first, the steps from there on. The
+   * operations' bytes stay where they are — in the kept log — until a compaction moves them into
+   * this history's own journal. Serials go on from `nextSerial`; `saved` names the saved state, and
+   * `dirtyRegardless` keeps a document dirty in any state.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.restore
+   */
+  restore(options: {
+    readonly undo: readonly KeptTransaction[];
+    readonly redo: readonly (readonly KeptTransaction[])[];
+    readonly base: number;
+    readonly nextSerial: number;
+    readonly saved: number;
+    readonly dirtyRegardless: boolean;
+    readonly journal?: UndoJournal | undefined;
+  }): void {
+    this.dropAll();
+    // The kept log, taken up again: the operations' bytes are in it, and the edits from here on go
+    // on writing it.
+    this.journal = options.journal;
+    this.base = options.base;
+    const step = (kept: readonly KeptTransaction[]): Step => ({
+      label: kept[0]?.label,
+      entries: kept.map((one) => ({
+        transaction: one.transaction,
+        serial: one.transaction.serial,
+      })),
+      seriesId: kept[0]?.seriesId,
+    });
+    this.undoSteps = options.undo.map((one) => step([one]));
+    this.redoSteps = [...options.redo].reverse().map(step);
+    const all = [...options.undo, ...options.redo.flat()];
+    for (const kept of all) this.account(kept.transaction.ops, 1);
+    const newest = all.reduce((max, kept) => Math.max(max, kept.transaction.serial), 0);
+    this.nextSerial = Math.max(options.nextSerial, newest + 1, options.base + 1);
+    this.savedSerial = options.saved;
+    this.dirtyAfterClear = options.dirtyRegardless;
+    this.transactionCount = options.undo.length;
+    this.lastUndoWasSeriesByte = false;
+    this.lastUndoSeriesId = undefined;
+  }
+}
+
+/** A step's entry as a kept history writes it down. */
+const keptOf = (step: Step, entry: Entry): KeptTransaction => ({
+  transaction: entry.transaction,
+  seriesId: step.seriesId,
+  label: step.label,
+});
+
+/** The serial `k` places from the newest end of `steps`. */
+function sideSerial(steps: readonly Step[], k: number): number | undefined {
+  let left = k;
+  for (const step of [...steps].reverse()) {
+    if (left < step.entries.length) return step.entries[step.entries.length - 1 - left]?.serial;
+    left -= step.entries.length;
+  }
+  return undefined;
 }
