@@ -196,3 +196,69 @@ test("the page reads a file it opened by path with the service off, and lists no
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+// Design/DESKTOP_WINDOWS.md, D1: the endpoint is served by one window of several, and when that
+// window closes the next one that has the service on takes it over.
+test("the endpoint passes to the next window when the one it served closes", async () => {
+  const folder = temporary();
+  const where = addressIn(folder);
+  process.env.BYTERIPPER_AGENT_SOCKET = where;
+  const ipc = new EventEmitter();
+  const handlers = new Map();
+  ipc.handle = (channel, handler) => handlers.set(channel, handler);
+  const page = (name) => {
+    let destroyed = false;
+    const one = Object.assign(new EventEmitter(), {
+      name,
+      sent: [],
+      isDestroyed: () => destroyed,
+      send: (channel, ...args) => one.sent.push(channel),
+      destroy: () => {
+        destroyed = true;
+        one.emit("destroyed");
+      },
+    });
+    return one;
+  };
+  const first = page("first");
+  const second = page("second");
+  register(ipc, () => true, Object.assign(new EventEmitter(), { isPackaged: false }));
+  const enable = (sender, on) => handlers.get("agent:enable")({ sender }, on);
+  const connectAndWait = async (to) => {
+    const socket = net.connect(where);
+    await new Promise((resolve) => socket.once("connect", resolve));
+    for (let tries = 0; tries < 50 && !to.sent.includes("agent:connection"); tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    socket.destroy();
+  };
+  try {
+    assert.deepEqual(await enable(first, true), { ok: true, endpoint: where });
+    assert.deepEqual(await enable(second, true), { ok: true, endpoint: where });
+    await connectAndWait(first);
+    assert.equal(first.sent.includes("agent:connection"), true);
+    assert.equal(second.sent.includes("agent:connection"), false);
+
+    first.destroy();
+    await connectAndWait(second);
+    assert.equal(second.sent.includes("agent:connection"), true, "the second window serves now");
+
+    second.destroy();
+    assert.equal(
+      await new Promise((resolve) => {
+        const probe = net.connect(where);
+        probe.once("connect", () => {
+          probe.destroy();
+          resolve(true);
+        });
+        probe.once("error", () => resolve(false));
+      }),
+      false,
+      "with no window left that wants it, the endpoint closes"
+    );
+  } finally {
+    await enable(first, false);
+    delete process.env.BYTERIPPER_AGENT_SOCKET;
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

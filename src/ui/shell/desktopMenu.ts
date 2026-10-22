@@ -42,8 +42,15 @@ export interface DesktopBridge {
   setMenu(menus: readonly NativeMenu[]): void;
   /** The window's page zoom, one step in or out, or back to 100 % for 0. */
   zoom(step: -1 | 0 | 1): void;
-  /** Closes the window as its ✕ does; the shell asks about unsaved work. */
+  /**
+   * File ▸ Exit: closes every window front to back, as each one's ✕ would — each asks about its
+   * own unsaved work — and the app goes with the last.
+   */
   quit(): void;
+  /** File ▸ New Window: another window, cascaded off this one (Design/DESKTOP_WINDOWS.md). */
+  newWindow(): void;
+  /** File ▸ Close Window: this window, as its ✕ closes it. */
+  closeWindow(): void;
   /**
    * Whether this build can replace itself: an installed one can, a portable
    * `.exe` or an unpacked `.zip` has nothing to install over.

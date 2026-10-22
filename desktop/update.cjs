@@ -234,8 +234,9 @@ function stayed() {
  * @param BrowserWindow Electron's
  * @param fromApp whether an IPC message came from the app's own page; nothing
  *   else is answered
+ * @param closeAll closes every window, front to back, as File ▸ Exit does
  */
-function register(ipcMain, BrowserWindow, fromApp) {
+function register(ipcMain, BrowserWindow, fromApp, closeAll) {
   ipcMain.on("update:installable", (event) => {
     event.returnValue = fromApp(event) && canInstall();
   });
@@ -271,12 +272,13 @@ function register(ipcMain, BrowserWindow, fromApp) {
       abort = undefined;
     }
     report({ phase: "install" });
-    // The window closes as its ✕ would: unsaved work is asked about on the way
-    // out, and if the answer is to stay, `stayed()` answers for us. Otherwise
-    // the app quits and the setup runs, and this never answers.
+    // The windows close as File ▸ Exit closes them: unsaved work is asked
+    // about on the way out, and if the answer is to stay, `stayed()` answers
+    // for us. Otherwise the app quits and the setup runs, and this never
+    // answers.
     return new Promise((resolve) => {
       cancelRequest = resolve;
-      window.close();
+      closeAll();
     });
   });
 

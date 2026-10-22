@@ -2434,6 +2434,11 @@ export function AppShell() {
       } else if (key === "w" && !event.shiftKey && anyOpen) {
         event.preventDefault();
         void closeWithWarning(front);
+      } else if (key === "w" && !event.shiftKey && desktopBridge() !== undefined) {
+        // Nothing left to close in the shell's window: the window goes, as upstream's ⌘W steps
+        // down to it (Design/DESKTOP_WINDOWS.md).
+        event.preventDefault();
+        desktopBridge()?.closeWindow();
       } else if (
         desktopBridge() !== undefined &&
         !event.shiftKey &&

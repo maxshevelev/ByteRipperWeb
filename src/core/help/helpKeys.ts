@@ -23,8 +23,14 @@
 /** A Mac-style keyboard, where the primary modifier is Command, or one that is not. */
 export type HelpPlatform = "apple" | "other";
 
-/** The chord the help can name. Each is one the app binds, in both editions. */
+/**
+ * The chord the help can name. Each is one the app binds, in both editions — except New Window
+ * and Close Window, which only the desktop shell has (Design/DESKTOP_WINDOWS.md), and which a page
+ * names only in the shell's half of an edition phrase.
+ */
 export type HelpCommand =
+  | "newWindow"
+  | "closeWindow"
   | "undo"
   | "redo"
   | "selectAll"
@@ -83,6 +89,8 @@ export type HelpKeyResolver = (command: string) => string;
  * them at read time instead, so the one table serves both editions
  */
 export const HELP_KEY_SPELLINGS: Readonly<Record<HelpCommand, KeySpelling>> = {
+  newWindow: { apple: "⇧⌘N", other: "Ctrl+Shift+N" },
+  closeWindow: { apple: "⇧⌘W", other: "Ctrl+Shift+W" },
   undo: { apple: "⌘Z", other: "Ctrl+Z" },
   redo: { apple: "⇧⌘Z", other: "Ctrl+Shift+Z" },
   selectAll: { apple: "⌘A", other: "Ctrl+A" },

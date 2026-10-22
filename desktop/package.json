@@ -30,6 +30,7 @@
       "update.cjs",
       "release-key.cjs",
       "agent.cjs",
+      "windows.cjs",
       "agent-endpoint.cjs",
       "relay.cjs",
       "web/**/*"

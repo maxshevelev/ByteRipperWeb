@@ -23,6 +23,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const agent = require("./agent.cjs");
 const updates = require("./update.cjs");
+const appWindows = require("./windows.cjs");
 
 const SCHEME = "app";
 const HOST = "byteripper";
@@ -85,6 +86,14 @@ if (!app.isPackaged) {
   app.setPath("userData", path.join(app.getPath("appData"), "ByteRipper-dev"));
 }
 
+// One process, however often the app is launched (Design/DESKTOP_WINDOWS.md): a second launch
+// hands itself to the first — which brings its window in front forward — and goes. Two processes
+// on one profile would fight over its databases, and the Web Locks that keep one workspace and one
+// project to one window do not reach from one process into another. The lock is the profile's,
+// so it is taken after the development run has picked its own.
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.quit();
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: SCHEME,
@@ -139,10 +148,10 @@ function launchHeight(standard) {
   return Math.min(standard, screen.getPrimaryDisplay().workAreaSize.height);
 }
 
-function createWindow() {
+/** A window holding the page: at the bounds given, or the launch size where the system puts it. */
+function createWindow(bounds) {
   const window = new BrowserWindow({
-    width: 1400,
-    height: launchHeight(900),
+    ...(bounds ?? { width: 1400, height: launchHeight(900) }),
     title: "ByteRipper",
     backgroundColor: "#ffffff",
     webPreferences: {
@@ -185,15 +194,24 @@ function createWindow() {
       detail: words.detail,
     });
     if (choice === 0) event.preventDefault();
-    else updates.stayed();
+    else {
+      windows.stayed();
+      updates.stayed();
+    }
   });
   // Electron does not keep a page's zoom between runs. It is set again once the
   // page is up, which is when the zoom of its origin exists to be set.
   window.webContents.once("did-finish-load", () => window.webContents.setZoomLevel(savedZoom()));
   void window.loadURL(`${SCHEME}://${HOST}${BASE}index.html`);
+  return window;
 }
 
+/** The app's windows, once the app is ready. */
+let windows;
+
 app.whenReady().then(() => {
+  if (!primary) return;
+  windows = appWindows.register({ BrowserWindow, Menu, screen, app, create: createWindow });
   protocol.handle(SCHEME, (request) => {
     const file = fileFor(request.url);
     if (file === undefined) return new Response("Not found", { status: 404 });
@@ -273,7 +291,9 @@ app.whenReady().then(() => {
     const template = menus.map((menu) => ({ label: menu.label, submenu: items(menu.items) }));
     // A Mac's first menu is the application's, whatever it is given.
     if (process.platform === "darwin") template.unshift({ role: "appMenu" });
-    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+    // Each window's own: the commands in it run in that window's page.
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window) windows.setMenu(window, Menu.buildFromTemplate(template));
   });
 
   // The View menu's zoom: the window's page zoom, which is the only zoom the
@@ -287,16 +307,29 @@ app.whenReady().then(() => {
     rememberZoom(level);
   });
 
-  // File ▸ Exit: the window closes as its ✕ would, so unsaved work is asked
-  // about on the way out, and the last window closing quits the app.
+  // File ▸ Exit: every window closes as its ✕ would, front to back, so each asks about its own
+  // unsaved work on the way out; the last one closing quits the app.
   ipcMain.on("quit", (event) => {
+    if (fromApp(event)) windows.closeAll();
+  });
+  // File ▸ New Window and File ▸ Close Window.
+  // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.newWindow
+  ipcMain.on("window:new", (event) => {
+    if (fromApp(event)) windows.makeWindow();
+  });
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
+  ipcMain.on("window:close", (event) => {
     if (fromApp(event)) BrowserWindow.fromWebContents(event.sender)?.close();
   });
 
-  updates.register(ipcMain, BrowserWindow, fromApp);
+  updates.register(ipcMain, BrowserWindow, fromApp, () => windows.closeAll());
   agent.register(ipcMain, fromApp, app);
 
-  createWindow();
+  windows.makeWindow();
 });
 
-app.on("window-all-closed", () => app.quit());
+app.on("second-instance", () => windows?.bringForward());
+// A Mac's Dock icon clicked with every window closed.
+app.on("activate", () => {
+  if (windows !== undefined && windows.windows().length === 0) windows.makeWindow();
+});

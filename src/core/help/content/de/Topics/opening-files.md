@@ -1,4 +1,4 @@
-@source-sha 0aee558b6251318b429ac6ef1d7f1428af12418d27cbc6922f21c49636986abb
+@source-sha fc87578681caaeb0e609c1456cc61a454e7e61ae608f742e407fa1b1c0cc25e8
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -28,9 +28,11 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 
 ## Eine Aufgabe je [[edition:Browser-Tab||Fenster]]
 
-[[edition:Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**||Es gibt keine Tabs im Programm: **ein Arbeitsbereich ist ein Fenster**]]. So hält man mehrere Platinen auf einem Bildschirm auseinander — [[edition:öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Tab verglichen, EC-Dumps im nächsten.||öffnen Sie die Anwendung ein zweites Mal, und sie hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Fenster verglichen, EC-Dumps im anderen.]]
+[[edition:Es gibt keine Tabs im Programm und kein zweites Fenster: **ein Arbeitsbereich ist ein Browser-Tab**. So hält man mehrere Platinen auf einem Bildschirm auseinander — öffnen Sie das Programm in einem weiteren Tab, und es hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Tab verglichen, EC-Dumps im nächsten.||Tabs gibt es im Programm nicht, wohl aber mehrere Fenster: **Ablage ▸ Neues Fenster** ([[key:newWindow]]) öffnet ein weiteres, etwas nach rechts unten versetzt gegenüber dem vorderen. So hält man mehrere Platinen auf einem Bildschirm auseinander — jedes Fenster hat eigene Bereiche, eigene Lesezeichen und ein eigenes Widerrufen: BIOS-Dumps im einen Fenster verglichen, EC-Dumps im nächsten. Wird die Anwendung gestartet, während sie schon läuft, entsteht keine zweite Instanz; stattdessen kommt das vordere Fenster nach vorn.]]
 
 Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; die Größe steht in der Statuszeile darunter. Das ✕ im Kopf schließt diesen Bereich und lässt den anderen offen.
+
+[[edition:||Ist in einem Fenster nichts mehr offen, schließt **Ablage ▸ Schließen** das Fenster selbst; **Ablage ▸ Fenster schließen** ([[key:closeWindow]]) schließt es unabhängig davon, was es enthält. Ein Fenster mit ungesicherten Änderungen fragt vor dem Schließen nach. **Ablage ▸ Beenden** schließt alle Fenster der Reihe nach, das vordere zuerst, und jedes fragt nach seinen eigenen Änderungen; wer „Bleiben“ wählt, behält dieses Fenster und die dahinter offen.]]
 
 ## Wenn die Datei schon offen ist
 

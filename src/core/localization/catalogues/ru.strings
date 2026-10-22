@@ -672,6 +672,8 @@
 "Name the piece that starts there" = "Название сегмента, который начинается там";
 "Name:" = "Имя:";
 "New File" = "Новый файл";
+"New Window" = "Новое окно";
+"Close Window" = "Закрыть окно";
 "New file" = "Новый файл";
 "Newest revision the catalogue lists for this processor and platform" = "Самая свежая ревизия, которая есть в каталоге для этого процессора и платформы";
 "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte." = "Переход к следующему/предыдущему различию шагает по изменениям, а не по байтам: различающиеся байты ближе этого расстояния считаются одним изменением. Меньшее значение — больше остановок. Подсветка байтов всегда побайтовая.";

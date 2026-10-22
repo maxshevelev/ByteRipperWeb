@@ -672,6 +672,8 @@
 "Name the piece that starts there" = "Name des Stücks, das dort beginnt";
 "Name:" = "Name:";
 "New File" = "Neue Datei";
+"New Window" = "Neues Fenster";
+"Close Window" = "Fenster schließen";
 "New file" = "Neue Datei";
 "Newest revision the catalogue lists for this processor and platform" = "Neueste Revision, die der Katalog für diesen Prozessor und diese Plattform führt";
 "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte." = "„Nächster/Vorheriger Unterschied“ springt zwischen Änderungen, nicht zwischen Bytes: abweichende Bytes, die enger beieinanderliegen als hier angegeben, gehören zu einer Änderung. Ein kleinerer Wert hält öfter an. Die Byte-Hervorhebung ist immer byteweise.";

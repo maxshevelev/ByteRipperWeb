@@ -253,8 +253,10 @@ export function Toolbar({
    * View, Help — stand at the first, and the commands of the section that is
    * open stand at the second, beside their name (SectionMenu, `sectionsOf`).
    * What does not port is left out rather than stubbed: New Window and New Tab
-   * belong to a window manager this application does not have (D11), and Enter
-   * Full Screen is the browser's own key.
+   * belong to a window manager a browser tab does not have (D11) — the desktop
+   * shell, which has several windows, offers New Window and Close Window
+   * (Design/DESKTOP_WINDOWS.md) — and Enter Full Screen is the browser's own
+   * key.
    *
    * The list has a fixed shape, as a menu bar does: a command that does not
    * apply is greyed, not removed. Upstream builds its menus once and answers
@@ -282,6 +284,20 @@ export function Toolbar({
     // promising a key the page never receives would be lying.
     // help: menu.file.new
     { label: L("New File"), shortcut: nativeMenuBar ? "⌘N" : undefined, onSelect: onNew },
+    // The desktop shell's windows (Design/DESKTOP_WINDOWS.md): the one File command that acts on
+    // no document, so the shell answers its key itself.
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.newWindow
+    ...(nativeMenuBar
+      ? ([
+          // help: menu.file.new-window
+          {
+            label: L("New Window"),
+            shortcut: "⇧⌘N",
+            shellKey: true,
+            onSelect: () => desktopBridge()?.newWindow(),
+          },
+        ] satisfies MenuEntry[])
+      : []),
     // help: menu.file.open
     { label: L("Open…"), shortcut: "⌘O", onSelect: () => onOpen() },
     // Compare with… opens into the pane the active one is compared with — the
@@ -374,9 +390,24 @@ export function Toolbar({
       // Ctrl+F4 closes a document on Windows; a Mac's is ⌘W. The page takes
       // Ctrl+W as well, for the hand that learnt it in a browser.
       shortcut: nativeMenuBar ? (detectKeyboardPlatform() === "apple" ? "⌘W" : "⌃F4") : undefined,
-      disabled: active === undefined,
-      onSelect: onClose,
+      // In the shell, with nothing left to close in it, Close closes the window, as upstream's
+      // steps down from the panel to the pane to the window.
+      // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeDocument
+      disabled: active === undefined && !nativeMenuBar,
+      onSelect: () => (active === undefined ? desktopBridge()?.closeWindow() : onClose()),
     },
+    ...(nativeMenuBar
+      ? ([
+          // help: menu.file.close-window
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
+          {
+            label: L("Close Window"),
+            shortcut: "⇧⌘W",
+            shellKey: true,
+            onSelect: () => desktopBridge()?.closeWindow(),
+          },
+        ] satisfies MenuEntry[])
+      : []),
     // The application menu's Settings…, which has nowhere else to go: the
     // first level holds the section names only, so it sits at the foot of
     // File, where the shell's File menu puts it (nativeMenus). No ⌘, — in a

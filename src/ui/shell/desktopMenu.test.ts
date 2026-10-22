@@ -133,6 +133,8 @@ describe("File ▸ Open Recent", () => {
       setMenu: (menus: readonly NativeMenu[]) => seen.push(menus as NativeMenu[]),
       zoom: () => {},
       quit: () => {},
+      newWindow: () => {},
+      closeWindow: () => {},
       canInstallUpdate: false,
       installUpdate: () => Promise.resolve({ status: "cancelled" }),
       latestRelease: () => Promise.resolve(undefined),

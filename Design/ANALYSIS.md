@@ -133,9 +133,9 @@ How every part of the desktop app lands here. Four verdicts:
 
 | Feature | Verdict | Notes |
 | --- | --- | --- |
-| In-app tabs (⌘T), each a whole comparison | Dropped | A second comparison is a second browser tab. |
-| Multiple windows, dragging a tab out | Dropped | Same reason. |
-| ⌘W stepping down pane → tab → window | Dropped | Replaced by an explicit Close Pane control. |
+| In-app tabs (⌘T), each a whole comparison | Dropped in a browser | A second comparison is a second browser tab. The desktop shell's tabs are issue #1 (`DESKTOP_WINDOWS.md`). |
+| Multiple windows, dragging a tab out | Dropped in a browser; **the desktop shell has several windows** | One process, several windows, one workspace, as upstream's (`DESKTOP_WINDOWS.md`, the owner's decision of 2026-10-22). |
+| ⌘W stepping down pane → tab → window | Dropped in a browser | Replaced by an explicit Close Pane control. The shell steps down from the pane to the window. |
 | "This file is already open" arbitration, moving a pane between tabs | Dropped | Meaningless once there is one workspace per tab. Two browser tabs holding the same dump are two independent workspaces, and the app cannot know. **This is a real loss** — the desktop guarantees a file is open in one place at a time, and we cannot make that guarantee. |
 | Pane header drag: swap, join, move | Same | As upstream's: the header is the handle, the bands swap or join, and **Option** turns either into a duplicate. Within its own workspace only — a pane cannot be carried into another window, and the strip along the top of the overlay, which is how upstream tears one off, is left out by the owner's decision. Swap and join stay as toolbar and menu commands, for the keyboard. |
 | Duplicate Here in the free half in single-file mode | Same | Now the gesture as well as the command: the workspace splits for the drag and its free half takes the pane as a copy. `Duplicate` stays in the pane's menu. |

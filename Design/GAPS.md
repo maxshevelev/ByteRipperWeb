@@ -88,6 +88,24 @@ reachability, contrast in both themes and state carried by form as well as colou
 Nothing open: the book and the three languages (G63, G64, G66) and a help page's
 own address (G65) are in [Closed](#3-closed).
 
+### 1.10 The desktop shell's windows
+
+The shell is one process with several windows and one workspace
+(`Design/DESKTOP_WINDOWS.md`, the owner's decision of 2026-10-22). D1 is done:
+one process, File ▸ New Window and Close Window, ⌘W stepping down to the window,
+Exit asking each window in turn, the agent's endpoint handed from a closing
+window to the next. What is left:
+
+| ID | Gap | Size | Depends on | Priority | Status |
+|---|---|---|---|---|---|
+| G99 | **One workspace over every window (D2).** Each window still records and restores itself alone, and only the window a launch opens comes back: upstream's `Workspace.windows[]` (front to back, frames, the front one last and key), written by the main process by path, and the last window closing keeping it. `MultiWindowTests.testOnlyTheFirstWindowClaimsTheFrameAutosaveName`. | `WorkspaceRecorder.snapshot`, `AppDelegate.rebuild` | the main process's writer by path | P1 | open |
+| G100 | **Projects of every window (D3).** A project holds every window and opening one replaces them all; the folder chosen by path through the shell's dialog. | `AppDelegate+Projects.swift` | G99 | P1 | open |
+| G101 | **A file open once in the app (D4).** Upstream's `OpenDocumentRegistry` and its question — Show in Its Window, Move to This Window, Cancel (`askAboutFileOpenElsewhere`); here a file still opens in a second window as well. `MultiWindowTests`' registry tests. | `OpenDocumentRegistry.swift` | G99 | P1 | open |
+| G102 | **A pane carried between windows (D5).** A pane dropped on another window's pane (move, swap, join, duplicate), Open in New Window from a comparison's pane header, the New Window strip while a pane is dragged, the bookmarks copied. The undo history crosses only once persistent undo is in; a part's link to a parent in another window is not kept. `PaneDragTests`, `TearOffTests`. | `PaneDrop`, `tearOff(paneAt:into:)`, `NewTabDropStrip` | G99; persistent undo for the history | P2 | open |
+| G103 | **A fragment panel carried between windows (D6).** Open in New Window on the pill, the strip, a panel let go on another window's free half (`7a11bed`). `FragmentPanelTests`. | `tearOffFragment`, `performFragmentDrop` | G102 | P2 | open |
+| G104 | **App-wide state across windows (D7).** The agent's desk sees the documents of the window it serves only (upstream's `AgentDesk` spans every window, front to back); the annotations, the find string and a settings change are not kept in step between windows. | `AgentDesk`, `FindPasteboard` | — | P2 | open |
+| G105 | **Window tabs** — New Tab, the tab bar, Merge All Windows, Move Tab to New Window — in the shell, on `WebContentsView` ([maxshevelev/ByteRipperWeb#1](https://github.com/maxshevelev/ByteRipperWeb/issues/1)). `MultiWindowTests`' tab tests. | `TABS_PLAN.md` | G99 | P3 | open |
+
 ### 1.8 Tests, hardening and delivery (M12)
 
 | ID | Gap | Size | Depends on | Priority | Status |
@@ -104,9 +122,9 @@ own address (G65) are in [Closed](#3-closed).
 
 | Feature | Why | Recorded in |
 |---|---|---|
-| In-app tabs (⌘T), several windows, tearing a tab off | One workspace per browser tab (D11): a second comparison is a second browser tab. | ANALYSIS.md § Tabs, windows, panes |
-| ⌘W stepping down pane → tab → window | Nothing to step down through; each pane has its own close control. | ANALYSIS.md |
-| "This file is already open" arbitration, moving a pane between tabs | Two browser tabs cannot know about each other. **A real loss:** the desktop guarantees a file is open in one place at a time. | ANALYSIS.md |
+| In-app tabs (⌘T), several windows, tearing a tab off — **in a browser** | One workspace per browser tab (D11): a second comparison is a second browser tab. The desktop shell has several windows (§1.10), and its tabs are G105. | ANALYSIS.md § Tabs, windows, panes |
+| ⌘W stepping down pane → tab → window — **in a browser** | Nothing to step down through; each pane has its own close control. The shell steps down to the window (no tabs). | ANALYSIS.md |
+| "This file is already open" arbitration, moving a pane between tabs — **in a browser** | Two browser tabs cannot know about each other. **A real loss:** the desktop guarantees a file is open in one place at a time. The shell's windows will (G101). | ANALYSIS.md |
 | Reparenting a pane into another window, tearing a pane off, moving a pane between tabs | Two browser tabs cannot know about each other: a pane is dragged within its own workspace and no further. **A real loss:** the desktop hands a pane to another window. | ANALYSIS.md, module map (`notApplicable ByteRipperApp/DragDrop/PaneDrag`) |
 | Tearing a fragment panel off into a tab of its own | No tab to tear off into (D11). Upstream drags a panel onto the New Tab strip, or takes **Open in New Tab** from its pill's menu; here a part stays in the dock of the workspace it came out of. **Not a hole in the model:** `FragmentDock.remove` is one method for both ways a panel leaves, and the web uses the one that closes it. And so with it goes upstream `7a11bed`: a panel let go on a window's free half becomes that pane, which is how a part in a tab of its own is compared with another; with no tab to tear off into, and the panel's header drag being the fold, there is nothing here for it to do. | GAPS §1.2 (G48), module map (`ByteRipperApp/Fragments`, `MainViewController.performFragmentDrop`) |
 | The workspace brought back at launch, projects (`.brp`) and Open Recent, in a browser (upstream's `WorkspaceRestorer`, `e597734d`, `RecentFilesStore`) | The owner's decision (2026-10-21): a page is told no path, and a handle it keeps opens a file again only as far as the browser allows at the time — a question about reading, or one about writing, a refusal it remembers — so a restore that works some of the time is not the feature. The desktop shell has all three: it lets its page read a kept handle without a question (`desktop/main.cjs` grants the app page every permission), and has each file's path where there is no handle. A browser keeps no handle from one visit to the next either (an annotation's file is opened by hand after a reload), and the stores an earlier build kept are deleted at start (`forgetReopeningInBrowser`). | `inDesktopShell` in `desktopFiles.ts`; Design/WORKSPACE.md |

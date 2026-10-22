@@ -40,6 +40,12 @@ function register(ipcMain, fromApp, app) {
   let address;
   let page;
   let enabled = false;
+  /**
+   * The windows that have the service on, in the order they asked. One of them is served — the
+   * first still open — and when it closes the next takes the endpoint over (Design/DESKTOP_WINDOWS.md:
+   * each window holds its own documents until the agent's desk spans every window, D7).
+   */
+  const wanting = [];
   const connections = new Map();
   let nextId = 1;
 
@@ -50,6 +56,7 @@ function register(ipcMain, fromApp, app) {
 
   function stop() {
     enabled = false;
+    wanting.length = 0;
     dropConnections();
     if (server !== undefined) {
       server.close();
@@ -95,8 +102,34 @@ function register(ipcMain, fromApp, app) {
     });
   }
 
+  /**
+   * A window that had the service on has gone: the next one that has it takes the endpoint over,
+   * with the connections of the one that went closed — what they were talking about was there.
+   */
+  function handOver(gone) {
+    const at = wanting.indexOf(gone);
+    if (at >= 0) wanting.splice(at, 1);
+    if (page !== gone) return;
+    const next = wanting.find((one) => !one.isDestroyed());
+    if (next === undefined) {
+      stop();
+      return;
+    }
+    dropConnections();
+    page = next;
+  }
+
+  function want(sender) {
+    if (wanting.includes(sender)) return;
+    wanting.push(sender);
+    sender.once("destroyed", () => handOver(sender));
+  }
+
   async function start(sender) {
-    if (server !== undefined) return { ok: true, endpoint: address };
+    if (server !== undefined) {
+      want(sender);
+      return { ok: true, endpoint: address };
+    }
     const where = endpoint();
     if (!isPipe(where)) {
       fs.mkdirSync(path.dirname(where), { recursive: true, mode: 0o700 });
@@ -126,7 +159,7 @@ function register(ipcMain, fromApp, app) {
         page = sender;
         enabled = true;
         listening.on("error", () => undefined);
-        sender.once("destroyed", stop);
+        want(sender);
         resolve({ ok: true, endpoint: where });
       });
     });

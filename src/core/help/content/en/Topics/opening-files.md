@@ -4,9 +4,11 @@
 
 @covers shell.empty-state
 @covers menu.file.new
+@covers menu.file.new-window
 @covers menu.file.open
 @covers menu.file.compare-with
 @covers menu.file.close
+@covers menu.file.close-window
 @covers shell.drop-zones
 
 The workspace holds two file panes. How many of them hold a file decides what the workspace is:
@@ -34,9 +36,11 @@ The second pane is optional. Nothing needs a second file except the comparison i
 
 ## One job per [[edition:browser tab||window]]
 
-There are no tabs inside the app[[edition: and no second window||]]: **one workspace is one [[edition:browser tab||window]]**. That is how several boards are kept apart on one screen — [[edition:open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one tab, EC dumps in the next.||open the application a second time and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one window, EC dumps in the other.]]
+[[edition:There are no tabs inside the app and no second window: **one workspace is one browser tab**. That is how several boards are kept apart on one screen — open the app in another tab and it has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one tab, EC dumps in the next.||There are no tabs inside the application, but there are windows: **File ▸ New Window** ([[key:newWindow]]) opens another, set slightly below and to the right of the window in front. That is how several boards are kept apart on one screen — each window has its own pair of panes, its own bookmarks and its own undo: BIOS dumps compared in one window, EC dumps in the next. Launching the application while it is running opens no second copy of it; the window in front is brought forward instead.]]
 
 Each pane header names its file and whether it has unsaved changes; the status line below it gives the size. The ✕ in the header closes that pane and leaves the other one open.
+
+[[edition:||With nothing left open in a window, **File ▸ Close** closes the window itself; **File ▸ Close Window** ([[key:closeWindow]]) closes it whatever it holds. A window with unsaved changes asks before it closes. **File ▸ Exit** closes every window in turn, the one in front first, each asking about its own changes; choosing to stay keeps that window and the ones behind it open.]]
 
 ## If the file is already open
 
