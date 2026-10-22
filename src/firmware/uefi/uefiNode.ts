@@ -173,8 +173,16 @@ export type UEFINodeKind =
    */
   | "acerDMIStore"
   /**
+   * The DMI area where Panasonic's firmware keeps the machine's identity (`PanasonicDMIArea`): a
+   * header naming the model, a directory, and the records it lists — the asset tag, a serial, the
+   * Windows product key among them — and one record, whose subtype is its ID. Read out of the
+   * padding inside the BIOS region, found by its content. Padding to UEFITool, as Acer's area is.
+   */
+  | "panasonicDMIStore"
+  | "panasonicDMIRecord"
+  /**
    * One value of a vendor's identity area kept as a field of the area's bytes (`DMIField`):
-   * under Acer's DMI area, and under HP's `HP_MUD` entry. Its subtype is how the value is
+   * under Acer's DMI area, under Panasonic's and its records, and under HP's `HP_MUD` entry. Its subtype is how the value is
    * written. Padding to UEFITool, as the area is.
    */
   | "dmiField"

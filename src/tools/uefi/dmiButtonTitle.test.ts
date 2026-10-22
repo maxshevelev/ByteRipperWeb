@@ -22,6 +22,7 @@ describe("the DMI button's word", () => {
     expect(title("lenovoDMIStore")).toBe("Lenovo DMI");
     expect(title("gpnvStore")).toBe("ASUS DMI");
     expect(title("acerDMIStore")).toBe("Acer DMI");
+    expect(title("panasonicDMIStore")).toBe("Panasonic DMI");
     expect(title("vssEntry")).toBe("HP DMI");
     expect(title("sysFStore")).toBe("Apple DMI");
   });

@@ -61,6 +61,8 @@ const ITEM_TYPE_OF_KIND: Readonly<Record<UEFINode["kind"], number>> = {
   lenvBlock: ItemType.padding,
   lenvEntry: ItemType.padding,
   acerDMIStore: ItemType.padding,
+  panasonicDMIStore: ItemType.padding,
+  panasonicDMIRecord: ItemType.padding,
   dmiField: ItemType.padding,
   amdEFS: ItemType.padding,
   amdDirectory: ItemType.padding,
@@ -163,6 +165,8 @@ export function itemSubtype(node: UEFINode): number | undefined {
     case "lenvBlock":
     case "lenvEntry":
     case "acerDMIStore":
+    case "panasonicDMIStore":
+    case "panasonicDMIRecord":
     case "dmiField":
     case "amdEFS":
     case "amdDirectory":

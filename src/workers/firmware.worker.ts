@@ -118,6 +118,7 @@ import {
   readsLenovoDMI,
 } from "@/tools/uefi/uefiLenovoDMIDetail";
 import { buildNodeDetail } from "@/tools/uefi/uefiNodeDetail";
+import { panasonicDMIRowText } from "@/tools/uefi/uefiPanasonicDMIDetail";
 import { isEmptySpace, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import { BlobByteSource } from "@/workers/blobByteSource";
 import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
@@ -471,6 +472,9 @@ const wireNode = (node: UEFINode, store?: UEFINode): WireNode => ({
     : {}),
   ...(node.kind === "acerDMIStore" && readerFor(node) !== undefined
     ? { valueRow: acerDMIRowText(node, readerFor(node) as ImageReader) }
+    : {}),
+  ...(node.kind === "panasonicDMIStore" && readerFor(node) !== undefined
+    ? { valueRow: panasonicDMIRowText(node, readerFor(node) as ImageReader) }
     : {}),
   ...lenovoWireFields(node, store),
   hiddenCopies: hiddenCopiesOf(node),

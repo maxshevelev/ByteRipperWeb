@@ -14,6 +14,7 @@ import { readingGPNVStores } from "@/firmware/uefi/gpnvStore";
 import { readingHPSignatureBlocks } from "@/firmware/uefi/hpSignatureBlock";
 import { readingLenovoDMIStores } from "@/firmware/uefi/lenovoDmiStore";
 import { Microcode, parseMicrocode } from "@/firmware/uefi/microcodeParser";
+import { readingPanasonicDMIStores } from "@/firmware/uefi/panasonicDmiStore";
 import { DEFAULT_EMPTY_BYTE, type Parser } from "@/firmware/uefi/parserState";
 import { opensPicture, PICTURE_SIGNATURES, parsePicture } from "@/firmware/uefi/picture";
 import { makeNode, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -216,6 +217,7 @@ export function scanRawArea(
   read = readingHPSignatureBlocks(parser, read, emptyByte);
   read = readingGPNVStores(parser, read, emptyByte);
   read = readingAcerDMIStores(parser, read, emptyByte);
+  read = readingPanasonicDMIStores(parser, read, emptyByte);
   read = readingAMDMicrocode(parser, read, emptyByte);
   // After the microcode: a patch the directories list is already its row, and keeps it.
   return readingAMDFirmware(parser, read, emptyByte, depth);

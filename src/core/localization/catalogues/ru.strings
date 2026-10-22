@@ -1568,6 +1568,15 @@
 "Run this command once in a terminal. It adds ByteRipper to Claude Code for every folder." = "Выполните эту команду один раз в терминале. Она добавляет ByteRipper в Claude Code для всех папок.";
 "Acer DMI" = "Acer DMI";
 "ASUS DMI" = "ASUS DMI";
+"Panasonic DMI" = "Panasonic DMI";
+"Panasonic DMI record" = "Запись Panasonic DMI";
+"Record %1$@" = "Запись %1$@";
+"Model code" = "Код модели";
+"Serial" = "Серийный номер";
+"ID" = "ID";
+"Directory checksum" = "Контрольная сумма каталога";
+"The header's first 0x80 bytes do not sum to 0." = "Первые 0x80 байт заголовка в сумме не дают 0.";
+"%1$@ of the records fail their checksum." = "Записей с неверной контрольной суммой: %1$@.";
 "System serial" = "Серийный номер системы";
 "MB Serial" = "Серийный номер платы";
 "Asset tag" = "Инвентарный номер";

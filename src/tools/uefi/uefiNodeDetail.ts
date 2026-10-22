@@ -120,6 +120,11 @@ import { acerDMIDetail, readsAcerDMI } from "@/tools/uefi/uefiAcerDMIDetail";
 import { appleDMIDetail } from "@/tools/uefi/uefiAppleDMIDetail";
 import { hpDMIDetail } from "@/tools/uefi/uefiHPDMIDetail";
 import { lenovoDMIDetail, readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
+import {
+  panasonicDMIDetail,
+  panasonicDMIRecordFields,
+  readsPanasonicDMI,
+} from "@/tools/uefi/uefiPanasonicDMIDetail";
 import { uefiTopSwapDetail } from "@/tools/uefi/uefiTopSwap";
 import { dvarMeaning, kindLabel, type OwnNameNode, ownName } from "@/tools/uefi/uefiTreeDisplay";
 
@@ -152,13 +157,17 @@ export function buildNodeDetail(
     withListedRanges(
       withVariableHistory(
         withHPDMI(
-          withAcerDMI(
-            withLenovoDMI(
-              buildDetailRows(node, image, reader, repairs),
+          withPanasonicDMI(
+            withAcerDMI(
+              withLenovoDMI(
+                buildDetailRows(node, image, reader, repairs),
+                node,
+                image,
+                reader,
+                lenovoDMIReaders
+              ),
               node,
-              image,
-              reader,
-              lenovoDMIReaders
+              reader
             ),
             node,
             reader
@@ -206,6 +215,22 @@ function withAcerDMI(detail: NodeDetail, node: UEFINode, reader: ImageReader): N
     ...detail,
     fields: [...detail.fields, ...acer.fields],
     tables: [...detail.tables, ...acer.tables],
+  };
+}
+
+/**
+ * Panasonic's DMI area, read the same way: the identity fields, then the records its directory
+ * lists.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
+ */
+function withPanasonicDMI(detail: NodeDetail, node: UEFINode, reader: ImageReader): NodeDetail {
+  if (!readsPanasonicDMI(node.kind)) return detail;
+  const panasonic = panasonicDMIDetail(node, reader);
+  return {
+    ...detail,
+    fields: [...detail.fields, ...panasonic.fields],
+    tables: [...detail.tables, ...panasonic.tables],
   };
 }
 
@@ -1576,6 +1601,14 @@ function headerFields(
     // Acer's DMI area: its fields are read off the block as a whole, in `acerDMIDetail`,
     // not from one row's bytes.
     case "acerDMIStore":
+      break;
+
+    // Panasonic's DMI area is read in `panasonicDMIDetail`; a record's header is its length and
+    // its checksum.
+    case "panasonicDMIStore":
+      break;
+    case "panasonicDMIRecord":
+      fields.push(...panasonicDMIRecordFields(node, reader));
       break;
 
     // A field of an identity area: its value, read from its own bytes as the area writes it.

@@ -461,7 +461,7 @@ Lost fields are not always lost for good. Some vendors — HP and Acer among the
 
 Where the fields sit inside the image is not standardised. Each vendor puts them where it likes and the layout moves between generations, so carrying them over is in general a job of comparing two images.
 
-Five layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. HP keeps them in NVRAM variables of the main [[term:vss|VSS2]] store, [[term:hp-dmi|HP DMI]]. Apple keeps them in the SysF store of the NVRAM, [[term:apple-dmi|Apple DMI]]. Each layout was read off the dumps of that vendor's machines; none of the five vendors has published it.
+Six layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps these fields in an encoded store of its own, the [[term:lenv|LENV]] blocks ([[topic:lenovo-dmi|Lenovo DMI]]). ASUS laptops on AMI firmware keep them in a [[term:gpnv|GPNV]] store. Acer keeps them in an 8 KiB block in the [[term:padding|padding]] of the BIOS region, the [[term:acer-dmi|Acer DMI]] area. HP keeps them in NVRAM variables of the main [[term:vss|VSS2]] store, [[term:hp-dmi|HP DMI]]. Apple keeps them in the SysF store of the NVRAM, [[term:apple-dmi|Apple DMI]]. Panasonic keeps them in an area with a directory of records in the padding of the BIOS region, [[term:panasonic-dmi|Panasonic DMI]]. Each layout was read off the dumps of that vendor's machines; none of the six vendors has published it.
 
 **Tools ▸ UEFI Structure** shows that store as one row of the tree, **Lenovo DMI**, wherever in the image it lies: in place of the three regions the Insyde flash device map declares as "Unknown", or inside padding where there is no map. Its detail names the block the firmware reads and lists that block's entries decoded, the serial number and the UUID among them; a click on an entry opens its row. Under the row are the change log and both blocks, each entry with its value beside its name.
 
@@ -471,6 +471,7 @@ Five layouts are the exceptions the app reads. Lenovo InsydeH2O firmware keeps t
 @see term:acer-dmi
 @see term:hp-dmi
 @see term:apple-dmi
+@see term:panasonic-dmi
 @see topic:recipe-board-data
 
 @term acer-dmi
@@ -484,6 +485,25 @@ The [[topic:tool-uefi|UEFI tool]] finds it by its content: the signature `06 FF 
 The details list the identity fields under **Entries**, as the block holds them, each a link to its row: the system serial, the motherboard serial, the UUID, the model, and where written the asset tag, the product name and the manufacturing code. Above the table, what the integrity checks found in them: a serial or a motherboard serial that no longer holds the factory pattern — the factory system serials read `00` at offset 7 and `3400` at the end, the factory motherboard serials `1100` at offset 5 —, a UUID that is not a version 1 one or whose variant bit is not set. The block also holds a copy of the last six bytes of the UUID; where the copy no longer reads as the UUID, it has gone stale — the UUID was written after the copy. The block holds no checksums at all, so a change leaves no broken checksum to point at it; what the checks report is all the image says of the change.
 
 Acer has not published the layout; it was read off the dumps of the laptops at hand. It is a method of Acer's firmware, not of DMI: other vendors put the same fields elsewhere, and what the app reads of them is named under [[term:dmi|DMI]]. To carry the area to another dump, copy the whole block to the same address.
+
+@see term:dmi
+@see term:padding
+
+@term panasonic-dmi
+@name Panasonic DMI
+@short The area in which the firmware of a Panasonic Toughbook or Let's note keeps what the factory wrote of the machine — the asset tag, a serial number, the Windows product key — in the padding of the BIOS region.
+
+The firmware of a Panasonic Toughbook keeps the machine's identity in an area of its own in the [[term:padding|padding]] of the BIOS region. To UEFITool and to every other UEFI parser it is non-empty padding: the area is declared nowhere, and nothing in the UEFI structure points at it.
+
+The area begins with a header: `MEI_` and the model, for example `MEI_FZ55-2` (MEI stands for Matsushita Electric Industrial), a model code such as `FZ55FZ-52M4`, and a second signature, `MEI___CF`. At `+0x80` a directory follows: its length in 8-byte units, its checksum, and then for each record its ID and its address. The address is given as the CPU sees the flash — on a 32 MB chip the file offset plus `0xFE000000`, on an 8 MB chip plus `0xFF800000`. Each record starts with its length, header included, and a checksum byte: a 16-bit length in some records, a 32-bit length followed by the checksum and three bytes of unknown meaning in the others. The records follow one another at the addresses the directory gives, back to back or with a gap.
+
+Every part of the area is protected by the same 8-bit checksum: the first `0x80` bytes of the header, the directory, and each record sum to zero modulo 256. A serial number or a key changed in a hex editor without correcting the checksum byte of its record therefore leaves the record failing its check, and the firmware may reject it.
+
+The [[topic:tool-uefi|UEFI tool]] finds the area by its content: `MEI_` on a 4 KB boundary, and a directory whose records lie where it says, each ending no later than the next one begins. A failing checksum does not hide the area. Where it is found, the tree shows it as a row, **Panasonic DMI**, with the model and the serial number beside the name; under it the model, the model code and a row per record, and under a record whose content is known a row for its value. The details state the directory's checksum and any part whose sum fails, list the values under **Entries** and the records under **Directory**, each with its ID, address, length, checksum and, where known, what it holds; a click on a row in either table opens that row in the tree. A record's own details give its checksum and, where it fails, the byte that would make it hold.
+
+Three records are understood: `0x02` holds the asset tag, `0x03` a serial number — whether it is the board's or the machine's is not known — and `0x16` the Windows product key, on the models that have one. What the other records hold is not known, and the details call them unknown. The firmware also keeps a copy of the header's first `0x80` bytes in the NVRAM variable `MiscTableBackup`.
+
+Panasonic has not published the layout, and no public description of it was found. It was read off the dumps of four machines: Toughbook FZ-55 mk2, CF-53 mk1, FZ-G1 mk3 and Let's note CF-AX2. Other models and generations may differ. The area belongs to the particular machine: when a clean or another machine's BIOS is written to the chip, carry the area over from the old dump — the whole area, to the same address — or the serial number and the Windows licence are lost.
 
 @see term:dmi
 @see term:padding

@@ -22,6 +22,7 @@ import {
   type UEFINodeKind,
 } from "@/firmware/uefi/uefiNode";
 import { ItemType, Sub, subtypeName, typeName } from "@/firmware/uefi/uefiTypes";
+import { panasonicDMIRecordRow } from "@/tools/uefi/uefiPanasonicDMIDetail";
 import { topSwapName } from "@/tools/uefi/uefiTopSwap";
 
 /**
@@ -426,6 +427,10 @@ function baseName(node: NamedNode, catalogue: GuidsCatalogue): string {
   if (node.kind === "gpnvRecord") return node.valueRow ?? displayName(node);
   // Acer's DMI area says what it holds: the serial, the rest in the detail.
   if (node.kind === "acerDMIStore") return node.valueRow ?? displayName(node);
+  // Panasonic's says the model and the serial; a record what it holds, where that is known.
+  // @upstream Modules/UEFITool/Sources/UEFITool/UEFIPanasonicDMIDetail.swift#UEFIPanasonicDMIDetail.row
+  if (node.kind === "panasonicDMIStore") return node.valueRow ?? displayName(node);
+  if (node.kind === "panasonicDMIRecord") return panasonicDMIRecordRow(node);
   // HP's `HP_MUD` says whose it is: the serial, the rest in the detail — on a copy the store
   // marks deleted as well, which is where most HP boards keep it.
   if (node.kind === "vssEntry" && node.isHPDMIArea === true && node.valueRow !== undefined) {
@@ -561,6 +566,8 @@ const KIND_LABELS: () => Readonly<Record<UEFINodeKind, string>> = localized(() =
   lenvBlock: L("LENV block"),
   lenvEntry: L("LENV entry"),
   acerDMIStore: L("Acer DMI"),
+  panasonicDMIStore: L("Panasonic DMI"),
+  panasonicDMIRecord: L("Panasonic DMI record"),
   dmiField: L("DMI field"),
   amdEFS: L("Embedded Firmware Structure"),
   amdDirectory: L("AMD firmware directory"),
@@ -609,6 +616,8 @@ function dmiVendorTitle(kind: string): string | undefined {
       return L("ASUS DMI");
     case "acerDMIStore":
       return L("Acer DMI");
+    case "panasonicDMIStore":
+      return L("Panasonic DMI");
     case "vssEntry":
       return L("HP DMI");
     case "sysFStore":
