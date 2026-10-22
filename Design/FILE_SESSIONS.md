@@ -62,22 +62,25 @@ before it sends the next.
 - **Workers** — diff, search, minimap, firmware — are handed what they are
   handed now, a `Blob` of the content, which the host makes from the session.
   Nothing in them changes.
-- **The journal** stays in OPFS, in the files and format it has. Chromium gives
-  a `SharedWorker` neither a nested `Worker` nor a sync access handle (S0), so
-  the journal worker is **lent**: a window creates it and hands its port to
-  the host, the host uses one at a time, and when the lending window goes the
-  host borrows another from a window still connected. The sync handles are
-  released with the lender and reopen in the new one with the file intact.
-  Writes the lender has not answered are written again — the rule
-  `UndoJournal` already keeps, a run answered from memory until its write
-  lands. The lender holds a Web Lock, so the host learns it is gone without
-  waiting for a request to go unanswered. Safari gives the `SharedWorker` sync
-  handles itself, so there the host keeps the journal and borrows nothing.
 - **The shell** reaches the host through a `MessageChannelMain`: the main
   process hands a port to a window's preload, the page passes it on, and it
   outlives that window (S0). A worker has no preload, so the host asks the
-  shell — a project's `Kept/`, hashing by path, the agent — over that port, not
-  through a window.
+  shell over that port, not through a window: files by path, hashing by path,
+  the agent, and everything kept.
+- **In the shell nothing is in OPFS.** The workspace's `Kept/` lies in the
+  profile (`userData/Workspace/Kept/`) and is written by the code that writes a
+  project's (`projects.cjs`): the workspace is a project in a folder of the
+  app's own, and `KeptFolder` has one form in the shell. The undo journal is a
+  file there too, appended by Node — a journal kept beside a workspace or a
+  project is born where it is kept and never moves. `OpfsKeptFolder`,
+  `OpfsJournalStore`, `journal.worker.ts` and the move of a journal into
+  `Kept/` go (the owner's decision of 2026-10-22; no released version holds a
+  `Kept/` in OPFS, so nothing is carried over).
+- **In the browser the journal is the only thing on disk** — the browser keeps
+  no workspace — and it is written by the host itself, as records each written
+  once as a file of their own in OPFS (S0: 3–6 ms a record, no copy of what is
+  already written). A `JournalStore` is only an append and a read, so nothing
+  above it knows. No nested worker, no sync handle, no window lending one.
 - **Saving** goes through the host, which holds the file's handle: a
   `FileSystemFileHandle` writes from a worker. The download path of Firefox
   and Safari needs a page, so there the host hands the window a `Blob` to
@@ -125,7 +128,9 @@ shell and a browser driven through what the step changed.
   Measured, not assumed: a keystroke's round trip, a page of hex rows read
   through the host. A failing answer here changes the plan before code moves.
   The probe is `Design/probes/session-host/`; what it answered is "S0, measured"
-  below. One answer did change the plan: the journal is lent, not nested.
+  below. One answer did change the plan: a `SharedWorker` in Chromium has no
+  sync handle, so the shell keeps its journal and `Kept/` through Node and the
+  browser writes its journal as one file per record.
 
 ## S0, measured
 
@@ -177,8 +182,9 @@ the renderer's chunk cache as it is.
 - [ ] **S6 — saving and reverting** through the host, the download path
   handed back to a page.
 - [ ] **S7 — kept content in the host.** `ContentKeeper` and `KeptWriter` per
-  session; the window records name sessions; restore opens sessions, then the
-  windows that show them.
+  session; the workspace's `Kept/` and journals in the profile through the
+  shell, one `KeptFolder` for workspace and project; the window records name
+  sessions; restore opens sessions, then the windows that show them.
 - [ ] **S8 — panes between windows are views.** D5, D6 and D4 on the host;
   `paneParcel`, `carriedHistory`, the parcels' edits and the main process's
   registry removed.
@@ -202,8 +208,9 @@ the renderer's chunk cache as it is.
 - **Firefox and Safari.** S0 confirmed Safari; Firefox was not run (not on the
   bench) — the probe runs there unchanged, and S10 does not close without it.
   Their save is a download, which the host hands to the tab that asked.
-- **The last window lending the journal.** While any window is connected one
-  can lend; when none is, the host is gone too.
+- **The main process does the shell's disk work.** Writes are async and
+  queued, as a project's are today; if it ever shows in the menus' response,
+  the same handlers move to a `utilityProcess` behind the same port.
 - **A browser workspace across tabs.** What a browser keeps is the origin's —
   the workspace restore stays the shell's (`04d9d31`), but the sessions open now
   are shared by every tab, so closing a tab closes only the sessions no other
