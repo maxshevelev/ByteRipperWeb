@@ -226,10 +226,15 @@ the renderer's chunk cache as it is.
   selection does; `undoRouter` keeps only the window's side of a press. A
   segment swap computes its partition from the one before the swap, since the
   session has already moved the cuts by the ordinary insert rule.
-- [ ] **S4 — the rest of a session's make-up.** The segment sources (which file
-  a piece's link names) are still the page's registry, keyed by pane; they are
-  the session's, as the links that name them are. Bookmarks stay the
-  workspace's (a place the person chose, not part of the file's make-up).
+- [x] **S4 — the rest of a session's make-up.** The segment sources (which file
+  a piece's link names) are keyed by the session, not the pane, and go with it
+  (`segmentSources.ts`, `onSessionClosed`): a swap of the panes moves nothing.
+  They stay in the page until S7 moves them into the host with the files they
+  hold. Bookmarks stay the workspace's (a place the person chose, not part of
+  the file's make-up). What is still the pane's and is the session's — its
+  file, name, saved copy, whether it can be written, and the join marks that
+  give a file back on Undo — goes into the session in S8, where a pane becomes
+  a view of one.
 - [ ] **S5 — saving and reverting** through the host, the download path
   handed back to a page.
 - [ ] **S6 — kept content in the host.** `ContentKeeper` and `KeptWriter` per

@@ -67,10 +67,19 @@ function externalOf(source: ByteStorage): number {
   return reference;
 }
 
+const closedListeners = new Set<(session: SessionId) => void>();
+
+/** Hears of every session this window ends, for what the page keeps beside one. */
+export function onSessionClosed(listener: (session: SessionId) => void): () => void {
+  closedListeners.add(listener);
+  return () => closedListeners.delete(listener);
+}
+
 /** Ends a session no pane shows any more. */
 export function closeSession(view: SessionView): void {
   client.hide(view.id);
   host.close(view.id);
+  for (const listener of closedListeners) listener(view.id);
 }
 
 /**

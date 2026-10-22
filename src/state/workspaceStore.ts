@@ -56,7 +56,6 @@ import {
   linkedSourceNamed,
   sourceIDForFile,
   sourceWriteConflict,
-  swapSources,
 } from "@/state/segmentSources";
 import { applySegments, resetSegments, showSegmentsOf } from "@/state/segmentsStore";
 import {
@@ -689,7 +688,6 @@ export function closePane(pane: SlotId): void {
  * @upstream ByteRipperApp/Window/WindowViewModel.swift#WindowViewModel.swapPanes
  */
 export function swapPanes(): void {
-  swapSources();
   workspaceStore.update((state) => ({
     ...state,
     panes: { a: state.panes.b, b: state.panes.a },

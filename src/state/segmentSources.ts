@@ -8,23 +8,26 @@
  * write over a source?". The baseline's value lives in
  * `src/core/segments/baseline.ts`, where the renderers read it from.
  *
- * One registry per pane, at module level: the pane here is a record in the
- * workspace store, and the registry has to outlive every snapshot the undo
- * stack holds — undoing a join gives its partition back, and redoing it has to
- * find the same source the join minted. Its doors are the ones that replace a
- * pane's document: `workspaceStore.ts` clears these wherever it resets the
- * partition and forgets the joins, and swaps them where the slots do.
+ * One registry per file session, at module level (`Design/FILE_SESSIONS.md`):
+ * the ids are named by the session's partition, so they are the session's, and
+ * follow it to whichever pane shows it — a swap of the panes moves nothing. The
+ * registry outlives every snapshot the undo stack holds — undoing a join gives
+ * its partition back, and redoing it has to find the same source the join
+ * minted — and goes with the session. `workspaceStore.ts` also clears it
+ * wherever it resets the partition of the session it keeps.
  */
 
 import { L } from "@/core/localization/localization";
 import { type BaselineSpan, type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
 import type { Segment, SegmentLink, SegmentSourceID } from "@/core/segments/segmentation";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { SlicedStorage } from "@/core/storage/slicedStorage";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { segmentsFor } from "@/state/segmentsStore";
+import { onSessionClosed } from "@/state/sessions/pageSessions";
 import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
 
 // MARK: - The registry (§21.7)
@@ -81,11 +84,20 @@ interface PaneSources {
   >;
 }
 
-/** @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources (the pane's one) */
-const registries = new Map<PaneId, PaneSources>();
+/** @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources (the session's one) */
+const registries = new Map<SessionId, PaneSources>();
+
+onSessionClosed((session) => registries.delete(session));
+
+/** The registry of the session a pane shows. */
+const registryOf = (pane: PaneId): PaneSources | undefined => {
+  const session = paneState(pane)?.document.id;
+  return session === undefined ? undefined : registries.get(session);
+};
 
 function registryFor(pane: PaneId): PaneSources {
-  let registry = registries.get(pane);
+  const session = paneState(pane)?.document.id;
+  let registry = session === undefined ? undefined : registries.get(session);
   if (registry === undefined) {
     registry = {
       records: new Map(),
@@ -94,7 +106,7 @@ function registryFor(pane: PaneId): PaneSources {
       linkCache: new Map(),
       nextRaw: 0,
     };
-    registries.set(pane, registry);
+    if (session !== undefined) registries.set(session, registry);
   }
   return registry;
 }
@@ -126,7 +138,7 @@ export function sourceIDForFile(pane: PaneId, file: OpenedFile): SegmentSourceID
  * @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.source
  */
 export function sourceInfo(pane: PaneId, id: SegmentSourceID): SourceRecord | undefined {
-  return registries.get(pane)?.records.get(id.raw);
+  return registryOf(pane)?.records.get(id.raw);
 }
 
 /**
@@ -151,7 +163,7 @@ export function sourceName(pane: PaneId, id: SegmentSourceID): string | undefine
  * from a read, and only where a snapshot shrank under the link
  */
 export function reader(pane: PaneId, id: SegmentSourceID): ByteStorage | undefined {
-  const registry = registries.get(pane);
+  const registry = registryOf(pane);
   if (registry === undefined) return undefined;
   const open = registry.readers.get(id.raw);
   if (open !== undefined) return open;
@@ -254,29 +266,8 @@ export function sourceWriteConflict(
  * sources from scratch
  */
 export function clearSources(pane: PaneId): void {
-  registries.delete(pane);
-}
-
-/**
- * The two panes changed places; so do their sources, the way their partitions
- * do.
- *
- * @web-only upstream's panes are objects the window moves; the web's slots are record
- * entries, so their registries must trade places with them
- */
-export function swapSources(): void {
-  const a = registries.get("a");
-  const b = registries.get("b");
-  registries.delete("a");
-  registries.delete("b");
-  if (a !== undefined && b !== undefined) {
-    registries.set("a", b);
-    registries.set("b", a);
-  } else if (a !== undefined) {
-    registries.set("b", a);
-  } else if (b !== undefined) {
-    registries.set("a", b);
-  }
+  const session = paneState(pane)?.document.id;
+  if (session !== undefined) registries.delete(session);
 }
 
 // MARK: - The baseline (§21.7)
@@ -430,7 +421,7 @@ export async function segmentLinkState(
   const slot = paneState(pane);
   const generation = slot?.document.lastCommittedSerial ?? 0;
   const key = `${piece.start}:${piece.end - piece.start}:${link.start}:${link.end}`;
-  const registry = registries.get(pane);
+  const registry = registryOf(pane);
   const cached = registry?.linkCache.get(key);
   if (cached !== undefined && cached.generation === generation) return cached.state;
   const state = await computeSegmentLinkState(pane, slot, piece, link);
