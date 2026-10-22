@@ -51,7 +51,14 @@ named pipe, read the open files and the firmware's structure, compare dumps,
 mark and search bytes and show the person places in them — and, when the person
 allows it, patch a file, one undo step at a time. It is off until it is
 switched on in Settings ▸ Agent; nothing of it exists in the browser edition
-(`Design/PORT_AGENT.md`, `Design/AGENT_PROTOCOL.md`).
+(`Design/PORT_AGENT.md`, `Design/AGENT_PROTOCOL.md`). It keeps the workspace and
+projects as well — every window, the unsaved changes and the undo history of
+each document, so that after a relaunch Ctrl+Z still undoes yesterday's patch.
+
+In both editions the undo history keeps the bytes of the changes on disk rather
+than in memory, within two limits set in Settings ▸ General ▸ Editing, and the
+UEFI tree reads Panasonic's DMI area beside Lenovo's, ASUS's, Acer's, HP's and
+Apple's.
 
 The **pattern library** travels between machines. In Chromium it can live in a
 folder you choose — iCloud Drive, OneDrive, Dropbox — where each browser and

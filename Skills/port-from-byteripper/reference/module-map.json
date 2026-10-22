@@ -13,6 +13,10 @@
   ],
   "notApplicable": [
     {
+      "prefix": "ByteRipperApp/App/AppWindow",
+      "why": "An Escape no view takes sent on as cancelOperation: — AppKit's responder chain, changed in macOS 27 (e083bbe8). A page's Escape is its own keydown: the Find bar, a raised fragment panel and the Settings dialog close on it as they did."
+    },
+    {
       "prefix": "Skills/release",
       "why": "The macOS release: a universal ad-hoc signed .dmg, its version and build number, and a GitHub release. The web edition is deployed as a static site and has no image to build or sign."
     },
