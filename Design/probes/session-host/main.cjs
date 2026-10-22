@@ -1,0 +1,37 @@
+const { app, BrowserWindow, protocol, net, MessageChannelMain } = require("electron");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const win = () => new BrowserWindow({ width: 500, height: 400, show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, "preload.cjs") } });
+const results = (w) => w.webContents.executeJavaScript("window.s0 && window.s0.results.done ? window.s0.results : null");
+async function until(w) { for (let i = 0; i < 200; i++) { const r = await results(w); if (r) return r; await wait(100); } return "timeout"; }
+app.whenReady().then(async () => {
+  app.setPath("userData", path.join(__dirname, "profile"));
+  protocol.handle("app", (req) => net.fetch(pathToFileURL(path.join(__dirname, new URL(req.url).pathname)).toString()));
+  const report = {};
+  const a = win(); await a.loadURL("app://probe/index.html");
+  const { port1, port2 } = new MessageChannelMain();
+  port1.on("message", ({ data }) => port1.postMessage({ id: data.id, answer: { ok: true, fromMain: process.pid, what: data.what } }));
+  port1.start();
+  a.webContents.postMessage("shell-port", null, [port2]);
+  report.windowA = await until(a);
+  const b = win(); await b.loadURL("app://probe/index.html");
+  report.windowB = await until(b);
+  report.sameHost = report.windowA.hello.hostId === report.windowB.hello.hostId;
+  report.counterSeenByB = report.windowB.counterAfterIncr;
+  report.shellPortHanded = await a.webContents.executeJavaScript("window.s0.results.shellPortHanded");
+  const js = (w, code) => w.webContents.executeJavaScript(code);
+  report.lendFromA = await js(a, "window.s0.lend()");
+  report.openInA = await js(a, "window.s0.ask('lent', { what: { op: 'open' } })");
+  report.appendInA = await js(a, "window.s0.ask('lent', { what: { op: 'append', bytes: new Uint8Array(100) } })");
+  a.destroy(); await wait(300);
+  report.appendAfterAClosed = await js(b, "window.s0.ask('lent', { what: { op: 'append', bytes: new Uint8Array(100) } })");
+  report.lendFromB = await js(b, "window.s0.lend()");
+  report.reopenInB = await js(b, "window.s0.ask('lent', { what: { op: 'open' } })");
+  report.appendInB = await js(b, "window.s0.ask('lent', { what: { op: 'append', bytes: new Uint8Array(100) } })");
+  report.askShellAfterAClosed = await b.webContents.executeJavaScript("window.s0.ask('askShell', { what: 'hash' })");
+  report.counterAfterAClosed = await b.webContents.executeJavaScript("window.s0.ask('get')");
+  console.log("S0REPORT " + JSON.stringify(report));
+  app.quit();
+});

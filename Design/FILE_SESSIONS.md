@@ -62,9 +62,22 @@ before it sends the next.
 - **Workers** — diff, search, minimap, firmware — are handed what they are
   handed now, a `Blob` of the content, which the host makes from the session.
   Nothing in them changes.
-- **The journal** stays in OPFS. Sync access handles exist only in dedicated
-  workers, so the host keeps the journal worker as its own nested worker (the
-  page keeps none).
+- **The journal** stays in OPFS, in the files and format it has. Chromium gives
+  a `SharedWorker` neither a nested `Worker` nor a sync access handle (S0), so
+  the journal worker is **lent**: a window creates it and hands its port to
+  the host, the host uses one at a time, and when the lending window goes the
+  host borrows another from a window still connected. The sync handles are
+  released with the lender and reopen in the new one with the file intact.
+  Writes the lender has not answered are written again — the rule
+  `UndoJournal` already keeps, a run answered from memory until its write
+  lands. The lender holds a Web Lock, so the host learns it is gone without
+  waiting for a request to go unanswered. Safari gives the `SharedWorker` sync
+  handles itself, so there the host keeps the journal and borrows nothing.
+- **The shell** reaches the host through a `MessageChannelMain`: the main
+  process hands a port to a window's preload, the page passes it on, and it
+  outlives that window (S0). A worker has no preload, so the host asks the
+  shell — a project's `Kept/`, hashing by path, the agent — over that port, not
+  through a window.
 - **Saving** goes through the host, which holds the file's handle: a
   `FileSystemFileHandle` writes from a worker. The download path of Firefox
   and Safari needs a page, so there the host hands the window a `Blob` to
@@ -105,12 +118,45 @@ and the mirror, both pure and unit-tested.
 Each step ends with `npm run check` green, the desktop tests green, and the
 shell and a browser driven through what the step changed.
 
-- [ ] **S0 — the ground.** A `SharedWorker` reached by two `BrowserWindow`s of
+- [x] **S0 — the ground.** A `SharedWorker` reached by two `BrowserWindow`s of
   the shell (and two tabs of a browser), one object seen by both; nested
   dedicated worker with an OPFS sync access handle inside it; a
   `FileSystemFileHandle` writing from it; Firefox and Safari's `SharedWorker`.
   Measured, not assumed: a keystroke's round trip, a page of hex rows read
   through the host. A failing answer here changes the plan before code moves.
+  The probe is `Design/probes/session-host/`; what it answered is "S0, measured"
+  below. One answer did change the plan: the journal is lent, not nested.
+
+## S0, measured
+
+Electron 44.5 (Chromium 152) with two windows under the app's privileges and
+sandbox; the Chromium of the desktop app's pane with two tabs; Safari 27.0.1
+with two tabs. Firefox is not installed on the bench and was not run.
+
+| | Electron | Chromium tabs | Safari tabs |
+|---|---|---|---|
+| One host, one object, for both windows / tabs | yes | yes | yes |
+| Round trip of a request, median / p99 | ≤ 0.1 / 0.1 ms | 0.1 / 0.2 ms | < 1 / 1 ms ¹ |
+| An edit request answered with the new state, p99 | 0.2 ms | — | 1 ms ¹ |
+| 64 KiB of bytes read from the host, p99 | 0.2 ms | — | 1 ms ¹ |
+| A nested `Worker` in the `SharedWorker` | **no** | **no** | **no** |
+| An OPFS sync access handle in the `SharedWorker` | **no** | **no** | yes |
+| Async OPFS writes in the `SharedWorker` | yes | yes | yes |
+| — reopening a file to append 4 KiB, at 4 / 64 MiB | 11 / 95 ms ² | — | 10 / 41 ms ² |
+| — a 4 KiB record written as a file of its own | 2.7 ms | — | 4–6 ms |
+| A `FileSystemFileHandle` passed to the host writes | yes ³ | yes ³ | no ⁴ |
+| A journal worker lent by a window, sync handle open | yes | — | — |
+| — after the lending window closed: reopened by another | 3 ms, file intact | — | — |
+| A port from the main process, after its window closed | yes | n/a | n/a |
+
+¹ Safari's clock has a 1 ms grain. ² The writable is a copy of the whole file,
+so an append costs the file's size: a journal cannot be appended this way.
+³ An OPFS handle, permission `granted`; a handle from a picker is not checked
+here and S6 checks it. ⁴ Not cloneable — Safari saves through a download
+anyway, and a `File` is.
+
+A keystroke's round trip is two orders below a frame; reads at this cost leave
+the renderer's chunk cache as it is.
 - [ ] **S1 — the protocol and the mirror** (core, pure): requests (read,
   overwrite, insert, delete, fill, replace, join, undo, redo, groups, series,
   selection, save checkpoint), answers carrying the state, change events, the
@@ -153,9 +199,11 @@ shell and a browser driven through what the step changed.
 - **A host that dies.** A `SharedWorker` crash takes every session with it.
   The journal and the kept content are on disk, so the workspace restore brings
   them back as it does after a crash today; S7 makes that the recovery path.
-- **Firefox and Safari.** `SharedWorker` exists in both (Safari from 16); S0
-  confirms it there. Their save is a download, which the host hands to the tab
-  that asked.
+- **Firefox and Safari.** S0 confirmed Safari; Firefox was not run (not on the
+  bench) — the probe runs there unchanged, and S10 does not close without it.
+  Their save is a download, which the host hands to the tab that asked.
+- **The last window lending the journal.** While any window is connected one
+  can lend; when none is, the host is gone too.
 - **A browser workspace across tabs.** What a browser keeps is the origin's —
   the workspace restore stays the shell's (`04d9d31`), but the sessions open now
   are shared by every tab, so closing a tab closes only the sessions no other
