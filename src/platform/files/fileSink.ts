@@ -72,43 +72,43 @@ export interface SaveRequest {
 }
 
 /**
- * Saves to the file the document came from, or downloads a copy.
+ * Where a save goes, which only a page can find out: the file it came from once the browser lets
+ * it be written, a file the picker chose, a download, or nowhere — the picker dismissed.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver.save
- * @upstream-differs writes through a File System Access handle, whose writable publishes the file whole, instead of patching in place or renaming a sibling temporary
+ * The first half of a save. The second, {@link writeTo}, needs no page: the session host does it
+ * from a worker, in the session's turn, so no edit lands between the write and the checkpoint
+ * that says it is saved (`Design/FILE_SESSIONS.md`, S5).
+ *
+ * @web-only upstream's save panel and its write are one call in one process
  */
-export async function save(request: SaveRequest): Promise<SaveOutcome> {
-  const capabilities = request.capabilities ?? detectFileCapabilities();
-  const handle = request.handle;
+export type SaveTarget =
+  | { readonly kind: "inPlace"; readonly handle: FileSystemFileHandle }
+  | { readonly kind: "as"; readonly handle: FileSystemFileHandle }
+  | { readonly kind: "download" }
+  | { readonly kind: "cancelled" };
 
-  if (!capabilities.canSaveInPlace || handle === undefined) {
-    return await download(request);
+/** @web-only see {@link SaveTarget} */
+export async function saveTarget(
+  request: Pick<SaveRequest, "name" | "handle" | "capabilities" | "validateTarget">,
+  as: boolean
+): Promise<SaveTarget> {
+  const capabilities = request.capabilities ?? detectFileCapabilities();
+  if (!as) {
+    const handle = request.handle;
+    if (!capabilities.canSaveInPlace || handle === undefined) return { kind: "download" };
+    if (!(await ensureWritePermission(handle))) {
+      // Permission declined. Downloading anyway would be putting a file somewhere the user did
+      // not ask for; saying so and stopping is the honest answer.
+      throw new StorageError(
+        "permissionDenied",
+        L("This browser needs permission to write to that file, and it was not granted.")
+      );
+    }
+    return { kind: "inPlace", handle };
   }
 
-  if (!(await ensureWritePermission(handle))) {
-    // Permission declined. Downloading anyway would be putting a file somewhere
-    // the user did not ask for; saying so and stopping is the honest answer.
-    throw new StorageError(
-      "permissionDenied",
-      L("This browser needs permission to write to that file, and it was not granted.")
-    );
-  }
-
-  await verifyBaseIsIntact(handle, request.baseSize);
-  await writeThrough(handle, request);
-  return { kind: "savedInPlace", file: openedFileFrom(await handle.getFile(), handle) };
-}
-
-/** Saves to a file the user picks, or downloads a copy where there is no picker. */
-export async function saveAs(request: SaveRequest): Promise<SaveOutcome> {
-  const capabilities = request.capabilities ?? detectFileCapabilities();
   const picker = fileSystemAccess().showSaveFilePicker;
-
-  if (!capabilities.canSaveInPlace || picker === undefined) {
-    return await download(request);
-  }
-
+  if (!capabilities.canSaveInPlace || picker === undefined) return { kind: "download" };
   for (;;) {
     let handle: FileSystemFileHandle;
     try {
@@ -119,16 +119,57 @@ export async function saveAs(request: SaveRequest): Promise<SaveOutcome> {
         return { kind: "cancelled" };
       throw error;
     }
-    // A name that would replace a segment's source sends the panel back up,
-    // the way Save As does (§21.7) — the useful answer is another name.
+    // A name that would replace a segment's source sends the panel back up, the way Save As
+    // does (§21.7) — the useful answer is another name.
     const validate = request.validateTarget;
     if (validate !== undefined && !(await validate(handle))) continue;
-
-    // A new file holds none of the old bytes, so there is nothing to patch: the
-    // whole content is written whatever the document's changed ranges say.
-    await writeThrough(handle, { ...request, changedRanges: undefined, handle });
-    return { kind: "savedAs", file: openedFileFrom(await handle.getFile(), handle) };
+    return { kind: "as", handle };
   }
+}
+
+/**
+ * Writes the content to the file a {@link saveTarget} found: back to the file it came from,
+ * patching what changed where that is correct, or whole to a new one.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver.save
+ * @upstream-differs writes through a File System Access handle, whose writable publishes the file
+ * whole, instead of patching in place or renaming a sibling temporary
+ */
+export async function writeTo(
+  target: Extract<SaveTarget, { readonly kind: "inPlace" | "as" }>,
+  request: SaveRequest
+): Promise<Extract<SaveOutcome, { readonly kind: "savedInPlace" | "savedAs" }>> {
+  const { handle } = target;
+  if (target.kind === "inPlace") {
+    await verifyBaseIsIntact(handle, request.baseSize);
+    await writeThrough(handle, request);
+    return { kind: "savedInPlace", file: openedFileFrom(await handle.getFile(), handle) };
+  }
+  // A new file holds none of the old bytes, so there is nothing to patch: the whole content is
+  // written whatever the document's changed ranges say.
+  await writeThrough(handle, { ...request, changedRanges: undefined, handle });
+  return { kind: "savedAs", file: openedFileFrom(await handle.getFile(), handle) };
+}
+
+/**
+ * Saves to the file the document came from, or downloads a copy.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver
+ * @upstream-differs writes through a File System Access handle, whose writable publishes the file whole, instead of patching in place or renaming a sibling temporary
+ */
+export async function save(request: SaveRequest): Promise<SaveOutcome> {
+  return saveTo(await saveTarget(request, false), request);
+}
+
+/** Saves to a file the user picks, or downloads a copy where there is no picker. */
+export async function saveAs(request: SaveRequest): Promise<SaveOutcome> {
+  return saveTo(await saveTarget(request, true), request);
+}
+
+async function saveTo(target: SaveTarget, request: SaveRequest): Promise<SaveOutcome> {
+  if (target.kind === "cancelled") return { kind: "cancelled" };
+  if (target.kind === "download") return await download(request);
+  return await writeTo(target, request);
 }
 
 /**
@@ -193,10 +234,18 @@ async function writeThrough(handle: FileSystemFileHandle, request: SaveRequest):
  * before the user reaches for the button rather than after.
  */
 async function download(request: SaveRequest): Promise<SaveOutcome> {
-  const chunks: Bytes[] = [];
-  for await (const chunk of contentStream(request.storage)) chunks.push(chunk);
-  downloadBlob(new Blob(chunks, { type: "application/octet-stream" }), request.name);
+  downloadBlob(await contentBlob(request.storage), request.name);
   return { kind: "downloaded", name: request.name };
+}
+
+/**
+ * The content as one blob, for the download flow: made where the content is — the session host —
+ * and handed to the page, which is what can download it.
+ */
+export async function contentBlob(storage: ByteStorage): Promise<Blob> {
+  const chunks: Bytes[] = [];
+  for await (const chunk of contentStream(storage)) chunks.push(chunk);
+  return new Blob(chunks, { type: "application/octet-stream" });
 }
 
 /** Asks for write permission if the handle does not already have it. */

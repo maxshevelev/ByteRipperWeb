@@ -235,8 +235,13 @@ the renderer's chunk cache as it is.
   file, name, saved copy, whether it can be written, and the join marks that
   give a file back on Undo — goes into the session in S8, where a pane becomes
   a view of one.
-- [ ] **S5 — saving and reverting** through the host, the download path
-  handed back to a page.
+- [x] **S5 — saving and reverting** through the host, the download path
+  handed back to a page. A save is two halves (`fileSink.ts`): `saveTarget`,
+  the page's — the picker, the permission — and `writeTo`, which needs no page
+  and runs in the session's turn with the rebase and the checkpoint, so no edit
+  lands between the bytes going out and the state that says they are saved. A
+  download is a blob the host makes (`contentBlob`) and the page downloads. A
+  revert runs in the session's turn since S2.
 - [ ] **S6 — kept content in the host.** `ContentKeeper` and `KeptWriter` per
   session; the workspace's `Kept/` and journals in the profile through the
   shell, one `KeptFolder` for workspace and project; the window records name

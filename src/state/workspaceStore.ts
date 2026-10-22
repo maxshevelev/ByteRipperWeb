@@ -18,11 +18,8 @@ import type { ShiftingEdit } from "@/core/text/shiftWarning";
 import type { KeptJoin } from "@/core/workspace/workspace";
 import { desktopOwnWindows } from "@/platform/desktop/desktopWindows";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
-import {
-  type SaveOutcome,
-  save as saveFile,
-  saveAs as saveFileAs,
-} from "@/platform/files/fileSink";
+import { downloadBlob } from "@/platform/files/download";
+import { contentBlob, type SaveOutcome, saveTarget, writeTo } from "@/platform/files/fileSink";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
@@ -937,59 +934,69 @@ export async function savePane(pane: PaneId, as = false): Promise<SaveOutcome> {
   const slot = paneIn(state, pane);
   if (slot === undefined) return { kind: "cancelled" };
 
-  const overlay = await onHostDocument(
-    slot.document,
-    (document) => document.storage as EditOverlayStorage
-  );
-  const request = {
-    storage: slot.document.storage,
-    name: saveAsName(slot),
-    handle: slot.file.handle,
-    capabilities: state.capabilities,
-    baseSize: overlay.baseSize,
-    // Patching writes only what changed, and only when writing back to the
-    // very file those offsets were measured against.
-    changedRanges: overlay.canPatchInPlace ? overlay.changedRanges : undefined,
-    // A save never writes over a file the dump is built out of (§21.7). The
-    // Save As picker is asked, and a name that is a segment's source is sent
-    // back up to choose another; an in-place save writes the file it came from,
-    // which is not a source (a join is what detaches it), so it needs no guard.
-    validateTarget: (handle: FileSystemFileHandle) => {
-      const source = linkedSourceNamed(pane, handle.name);
-      if (source === undefined) return Promise.resolve(true);
-      const words = sourceWriteConflict([source.name], "name");
-      reportAlert(words.title, words.message);
-      return Promise.resolve(false);
+  const name = saveAsName(slot);
+  // Where it goes is the page's to ask — the picker, the permission; the write is the session's,
+  // in its turn, so no edit lands between the bytes going out and the checkpoint that says so.
+  const target = await saveTarget(
+    {
+      name,
+      handle: slot.file.handle,
+      capabilities: state.capabilities,
+      // A save never writes over a file the dump is built out of (§21.7). The Save As picker is
+      // asked, and a name that is a segment's source is sent back up to choose another; an
+      // in-place save writes the file it came from, which is not a source (a join is what
+      // detaches it), so it needs no guard.
+      validateTarget: (handle: FileSystemFileHandle) => {
+        const source = linkedSourceNamed(pane, handle.name);
+        if (source === undefined) return Promise.resolve(true);
+        const words = sourceWriteConflict([source.name], "name");
+        reportAlert(words.title, words.message);
+        return Promise.resolve(false);
+      },
     },
-  };
-
-  const outcome = as ? await saveFileAs(request) : await saveFile(request);
-
-  if (outcome.kind === "savedInPlace" || outcome.kind === "savedAs") {
-    // The file on disk now holds the document, so the overlay starts again over
-    // it: nothing is a change any more.
-    const base = new FileBackedStorage(outcome.file.source, new ChunkCache());
-    await onHostDocument(slot.document, (document) => {
-      overlay.rebase(base);
-      document.markSaved();
-    });
-    noteDocumentChanged();
-    // The file is known again by what the save made of it: an annotation on it, and its handle,
-    // follow a save in place; a Save As is a file of its own, opened again by its own handle.
-    if (outcome.kind === "savedInPlace") rememberSavedFile(slot.file, outcome.file);
-    else rememberOpenedFile(outcome.file);
-    workspaceStore.update((current) =>
-      withPane(current, pane, {
-        ...slot,
-        name: outcome.file.name,
-        file: outcome.file,
-        // The file on disk now holds the document, so nothing is an edit.
-        saved: savedStorageFor(outcome.file),
-        untitled: false,
-        writable: outcome.file.handle !== undefined,
-      })
+    as
+  );
+  if (target.kind === "cancelled") return { kind: "cancelled" };
+  if (target.kind === "download") {
+    downloadBlob(
+      await onHostDocument(slot.document, (document) => contentBlob(document.storage)),
+      name
     );
+    return { kind: "downloaded", name };
   }
+
+  const outcome = await onHostDocument(slot.document, async (document) => {
+    const overlay = document.storage as EditOverlayStorage;
+    const written = await writeTo(target, {
+      storage: overlay,
+      name,
+      baseSize: overlay.baseSize,
+      // Patching writes only what changed, and only when writing back to the very file those
+      // offsets were measured against.
+      changedRanges: overlay.canPatchInPlace ? overlay.changedRanges : undefined,
+    });
+    // The file on disk now holds the document, so the overlay starts again over it: nothing is a
+    // change any more.
+    overlay.rebase(new FileBackedStorage(written.file.source, new ChunkCache()));
+    document.markSaved();
+    return written;
+  });
+  noteDocumentChanged();
+  // The file is known again by what the save made of it: an annotation on it, and its handle,
+  // follow a save in place; a Save As is a file of its own, opened again by its own handle.
+  if (outcome.kind === "savedInPlace") rememberSavedFile(slot.file, outcome.file);
+  else rememberOpenedFile(outcome.file);
+  workspaceStore.update((current) =>
+    withPane(current, pane, {
+      ...slot,
+      name: outcome.file.name,
+      file: outcome.file,
+      // The file on disk now holds the document, so nothing is an edit.
+      saved: savedStorageFor(outcome.file),
+      untitled: false,
+      writable: outcome.file.handle !== undefined,
+    })
+  );
 
   return outcome;
 }
