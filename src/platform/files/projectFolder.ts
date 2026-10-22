@@ -5,7 +5,7 @@ import { WORKSPACE_VERSION, type Workspace } from "@/core/workspace/workspace";
  * A project's folder as the page reaches it: a directory handle, from `showDirectoryPicker` — in
  * a Chromium browser and in the desktop shell alike (`Design/WORKSPACE.md`, "Projects").
  *
- * `Job.brp/` holds `Project.json`, the workspace value, and beside it only while there are any the
+ * `Job.brw/` holds `Project.json`, the workspace value, and beside it only while there are any the
  * bytes nothing else on disk has: `Untitled/<id>.bin`, the content of a document never saved, and
  * `Edits/<id>.bin`, the unsaved changes of a file, as runs over it.
  *
@@ -30,7 +30,7 @@ export class ProjectFolder {
    */
   static readonly fileName = "Project.json";
 
-  /** The project's name: its folder's, without `.brp`. */
+  /** The project's name: its folder's, without `.brw`. */
   get name(): string {
     return projectName(this.directory.name);
   }
@@ -174,15 +174,18 @@ const EDITS = "Edits";
  * A project's name from its folder's: without the extension.
  *
  * @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.currentProjectName
+ * @upstream-differs `.brw`, not `.brp`: the two keep different workspaces (one window here, windows
+ * of tabs there), so neither may take the other's folder for its own
  */
-export const projectName = (folder: string): string => folder.replace(/\.brp$/i, "");
+export const projectName = (folder: string): string => folder.replace(/\.brw$/i, "");
 
 /**
  * Whether a folder's name says it is a project.
  *
  * @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#URL.isByteRipperProject
+ * @upstream-differs `.brw`, as `projectName`
  */
-export const isProjectFolderName = (name: string): boolean => /\.brp$/i.test(name);
+export const isProjectFolderName = (name: string): boolean => /\.brw$/i.test(name);
 
 async function entryNames(directory: FileSystemDirectoryHandle): Promise<Set<string>> {
   const names = new Set<string>();

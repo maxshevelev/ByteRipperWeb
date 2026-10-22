@@ -14,7 +14,9 @@ A project holds what the [[topic:workspace|workspace]] holds — the files, wher
 
 ## Making a project
 
-**File ▸ Save as Project…** asks for a folder and writes what is open now into it as a project. The folder chosen is used as it is when it is empty, when its name ends in `.brp`, or when it already holds a project, which is then replaced. Any other folder — the folder of a job, with its dumps — receives a new folder `Project.brp` for the project. The project is then the open one, and from then on it is written continuously, every few seconds and on every switch: there is no separate command to save it. The name of the project follows the window's title.
+**File ▸ Save as Project…** asks for a folder and writes what is open now into it as a project. The folder chosen is used as it is when it is empty, when its name ends in `.brw`, or when it already holds a project, which is then replaced. Any other folder — the folder of a job, with its dumps — receives a new folder `Project.brw` for the project. The project is then the open one, and from then on it is written continuously, every few seconds and on every switch: there is no separate command to save it. The name of the project follows the window's title.
+
+Projects of this application and of ByteRipper for macOS are not compatible: neither application opens the other's. The macOS application keeps several windows in a project; this one works with a single window. A project's folder is therefore named `.brw` here, not `.brp`.
 
 The files themselves stay where they are; the project refers to them. It keeps the full path of each file, and the files are opened again by it.
 

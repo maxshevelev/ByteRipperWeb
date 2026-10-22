@@ -1,5 +1,4 @@
-@source-sha 4ec7b2e5160a2db7f58138b481e4b44ffe4ca699b6111a1abc86e1648c08cf87
-@source-sha PLACEHOLDER
+@source-sha 115cc9a835f018a7a1c3181c060fb665ab1f3c1ee92629a14f8647e269715655
 # Projekte
 
 > Ein Projekt ist ein Arbeitsbereich in einem eigenen Ordner: alles, was für einen Auftrag geöffnet ist, wird als Ganzes wieder geöffnet, und zwischen Projekten lässt sich wechseln.
@@ -16,7 +15,9 @@ Ein Projekt enthält dasselbe wie der [[topic:workspace|Arbeitsbereich]] — die
 
 ## Ein Projekt anlegen
 
-**Ablage ▸ Als Projekt sichern…** fragt nach einem Ordner und schreibt alles, was gerade geöffnet ist, als Projekt hinein. Der gewählte Ordner wird unverändert verwendet, wenn er leer ist, wenn sein Name auf `.brp` endet oder wenn er bereits ein Projekt enthält, das dann ersetzt wird. In jedem anderen Ordner — etwa dem Ordner eines Auftrags mit seinen Dumps — wird für das Projekt ein neuer Ordner `Project.brp` angelegt. Danach ist das Projekt das geöffnete und wird fortlaufend geschrieben, alle paar Sekunden und bei jedem Wechsel; einen eigenen Befehl zum Sichern gibt es nicht. Der Name des Projekts steht hinter dem Titel des Fensters.
+**Ablage ▸ Als Projekt sichern…** fragt nach einem Ordner und schreibt alles, was gerade geöffnet ist, als Projekt hinein. Der gewählte Ordner wird unverändert verwendet, wenn er leer ist, wenn sein Name auf `.brw` endet oder wenn er bereits ein Projekt enthält, das dann ersetzt wird. In jedem anderen Ordner — etwa dem Ordner eines Auftrags mit seinen Dumps — wird für das Projekt ein neuer Ordner `Project.brw` angelegt. Danach ist das Projekt das geöffnete und wird fortlaufend geschrieben, alle paar Sekunden und bei jedem Wechsel; einen eigenen Befehl zum Sichern gibt es nicht. Der Name des Projekts steht hinter dem Titel des Fensters.
+
+Projekte dieser Anwendung und von ByteRipper für macOS sind nicht kompatibel: Keine der beiden Anwendungen öffnet die Projekte der anderen. Die macOS-Anwendung speichert in einem Projekt mehrere Fenster, diese Anwendung arbeitet mit einem einzigen Fenster. Der Projektordner trägt hier deshalb die Endung `.brw`, nicht `.brp`.
 
 Die Dateien selbst bleiben, wo sie sind; das Projekt verweist auf sie. Es merkt sich den vollständigen Pfad jeder Datei und öffnet die Dateien darüber wieder.
 

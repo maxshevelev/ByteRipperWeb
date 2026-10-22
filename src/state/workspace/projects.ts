@@ -24,7 +24,7 @@ import { notesPanelIsUp, paneState, reportAlert, workspaceStore } from "@/state/
 
 /**
  * Projects (`Design/WORKSPACE.md`, "Projects"): a workspace kept in a folder the person names,
- * `.brp`, and switched between.
+ * `.brw`, and switched between.
  *
  * A project is live. While it is open everything is recorded into it — the files, the untitled
  * documents, the unsaved changes of its files — so leaving it asks nothing: switching to another
@@ -80,8 +80,8 @@ async function entryNames(directory: FileSystemDirectoryHandle): Promise<string[
 
 /**
  * The folder a project picked as `picked` is kept in: that folder itself when it is a project
- * already — written over: the person chose it — or empty, or named `.brp`; otherwise, a folder of
- * other things such as a job's, a `.brp` made inside it.
+ * already — written over: the person chose it — or empty, or named `.brw`; otherwise, a folder of
+ * other things such as a job's, a `.brw` made inside it.
  */
 async function projectFolderIn(
   picked: FileSystemDirectoryHandle
@@ -94,8 +94,8 @@ async function projectFolderIn(
   const names = await entryNames(picked);
   if (names.length === 0 || isProjectFolderName(picked.name)) return picked;
   const base = projectsStore.getSnapshot().current?.name ?? L("Project");
-  let name = `${base}.brp`;
-  for (let number = 2; names.includes(name); number++) name = `${base} ${number}.brp`;
+  let name = `${base}.brw`;
+  for (let number = 2; names.includes(name); number++) name = `${base} ${number}.brw`;
   return picked.getDirectoryHandle(name, { create: true });
 }
 

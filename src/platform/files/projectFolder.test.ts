@@ -26,9 +26,9 @@ describe("a project's folder", () => {
   });
 
   it("is named by its folder without the extension", () => {
-    expect(projectName("Job 1234.brp")).toBe("Job 1234");
+    expect(projectName("Job 1234.brw")).toBe("Job 1234");
     expect(projectName("Bench")).toBe("Bench");
-    expect(isProjectFolderName("A.BRP")).toBe(true);
+    expect(isProjectFolderName("A.BRW")).toBe(true);
     expect(isProjectFolderName("dumps")).toBe(false);
   });
 });

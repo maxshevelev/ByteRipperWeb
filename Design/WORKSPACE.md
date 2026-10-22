@@ -78,7 +78,7 @@ its position only — upstream's `PaneRestore`.
 
 ## Projects
 
-`.brp` folders (W7), where a page can write a folder: a Chromium browser and
+`.brw` folders (W7), where a page can write a folder: a Chromium browser and
 the desktop shell, both through `showDirectoryPicker`. Not offered in Firefox
 and Safari, as save in place is not.
 
@@ -86,8 +86,8 @@ and Safari, as save in place is not.
   the `Workspace` value, indented — and, only while there are any,
   `Untitled/<id>.bin` and `Edits/<id>.bin` (a length-prefixed JSON header of
   runs, then the added bytes; upstream writes a binary plist).
-  **Save as Project…** uses the folder picked when it is empty, named `.brp`
-  or a project already (replaced); any other folder gets a `Project.brp`
+  **Save as Project…** uses the folder picked when it is empty, named `.brw`
+  or a project already (replaced); any other folder gets a `Project.brw`
   inside it. **Open Project…** takes a project folder, or a folder holding
   exactly one — a browser's Open… cannot pick a folder.
 - **What a folder cannot hold** — its own handle and its files' handles — is
