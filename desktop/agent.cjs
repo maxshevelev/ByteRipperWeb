@@ -4,6 +4,7 @@
 // Everything that is logic — MCP, the tools — runs in the page, where the documents and the
 // parsers are. This knows no message: it listens on the endpoint while the page says the service
 // is on, gives each connection an id, and copies bytes between the connection and the page.
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");
@@ -268,6 +269,14 @@ function register(ipcMain, fromApp, app, { host, isHost } = {}) {
         } finally {
           await handle.close();
         }
+      }
+      case "hash": {
+        // The SHA-256 of the whole file, read here rather than carried to the page: what a kept
+        // history checks the file it was laid over by (P7 of the persistent-undo port).
+        // @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileDigest.swift#FileDigest.sha256
+        const hash = crypto.createHash("sha256");
+        for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
+        return hash.digest("hex");
       }
       default:
         throw new Error(`Unknown file request: ${request.op}`);

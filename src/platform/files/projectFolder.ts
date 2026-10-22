@@ -1,3 +1,4 @@
+import type { JournalStore } from "@/core/edit/undoJournal";
 import type { OverlayEdits, OverlayRun } from "@/core/storage/editOverlayStorage";
 import type { Workspace } from "@/core/workspace/workspace";
 
@@ -72,6 +73,59 @@ export class ProjectFolder {
   async removeKeptExcept(keys: ReadonlySet<string>): Promise<void> {
     await this.bridge.keeps([...keys]);
   }
+
+  /**
+   * The undo journal of the document kept under `key`: `Kept/<key>.log` in the project's folder,
+   * written by the shell (`Design/PORT_WINDOW_07A3928_21A2889.md`, P5).
+   *
+   * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keptFolder
+   * @upstream-differs a store the shell writes by key; upstream's journal is a file it opens by path
+   */
+  journalStore(key: string): ProjectJournalStore {
+    return new ProjectJournalStore(this.bridge, key);
+  }
+}
+
+/**
+ * A kept document's journal in the open project's folder, written, read, cut back and put on the
+ * disk by the shell.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
+ * @upstream-differs the shell's main process holds the file; the page names it by key
+ */
+export class ProjectJournalStore implements JournalStore {
+  private readonly bridge: ProjectBridge;
+  private readonly key: string;
+
+  constructor(bridge: ProjectBridge, key: string) {
+    this.bridge = bridge;
+    this.key = key;
+  }
+
+  async write(at: number, bytes: Uint8Array): Promise<void> {
+    await this.bridge.log({ op: "write", key: this.key, at, bytes });
+  }
+
+  async read(at: number, count: number): Promise<Uint8Array> {
+    return (await this.bridge.log({ op: "read", key: this.key, at, count })) as Uint8Array;
+  }
+
+  /**
+   * Cuts the log back to `length`, as a manifest pinned it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
+   */
+  async truncate(length: number): Promise<void> {
+    await this.bridge.log({ op: "truncate", key: this.key, at: length });
+  }
+
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.synchronize */
+  async synchronize(): Promise<void> {
+    await this.bridge.log({ op: "sync", key: this.key });
+  }
+
+  /** The log stays: the project keeps it until no window names its key (`removeKeptExcept`). */
+  close(): void {}
 }
 
 /** The shell's half of a project, as its preload script exposes it. */
@@ -82,6 +136,19 @@ export interface ProjectBridge {
   readKept(
     key: string
   ): Promise<{ readonly kind: "untitled" | "edits"; readonly bytes: Uint8Array } | undefined>;
+  /** A kept document's log under `Kept/`, by its key. */
+  log(
+    request:
+      | {
+          readonly op: "write";
+          readonly key: string;
+          readonly at: number;
+          readonly bytes: Uint8Array;
+        }
+      | { readonly op: "read"; readonly key: string; readonly at: number; readonly count: number }
+      | { readonly op: "truncate"; readonly key: string; readonly at: number }
+      | { readonly op: "sync"; readonly key: string }
+  ): Promise<Uint8Array | undefined>;
 }
 
 /**

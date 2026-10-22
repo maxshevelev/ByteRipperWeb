@@ -481,6 +481,32 @@ app.whenReady().then(() => {
   ipcMain.handle("project:kept-read", (event, key) =>
     sender(event) ? projects.readKept(openFolder(), key) : undefined
   );
+  // A kept document's undo journal (P5 of the persistent-undo port): written, read, cut back and
+  // put on the disk by key, under the open project's `Kept/` and nowhere else.
+  ipcMain.handle("project:log", (event, request) => {
+    if (!sender(event)) throw new Error("Not the app's page.");
+    const folder = openFolder();
+    const at = Number(request?.at ?? 0);
+    if (!Number.isSafeInteger(at) || at < 0) throw new Error("Not a place in a log.");
+    switch (request?.op) {
+      case "write":
+        if (!(request.bytes instanceof Uint8Array)) throw new Error("Not bytes.");
+        return projects.writeLog(folder, request.key, at, request.bytes);
+      case "read": {
+        const count = Number(request.count);
+        if (!Number.isSafeInteger(count) || count < 0 || count > 64 << 20) {
+          throw new Error("Not a length to read.");
+        }
+        return projects.readLog(folder, request.key, at, count);
+      }
+      case "truncate":
+        return projects.truncateLog(folder, request.key, at);
+      case "sync":
+        return projects.syncLog(folder, request.key);
+      default:
+        throw new Error(`Unknown log request: ${request?.op}`);
+    }
+  });
   ipcMain.handle("project:open", (event, given, suggestedName) => {
     const window = sender(event);
     return window

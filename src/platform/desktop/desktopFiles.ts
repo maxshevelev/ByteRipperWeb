@@ -20,6 +20,13 @@ export interface DesktopFiles {
     readonly offset: number;
     readonly length: number;
   }): Promise<Uint8Array>;
+  /**
+   * The SHA-256 of the whole file, in hex, read by the shell: what a kept history checks the file
+   * it was laid over by.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/FileDigest.swift#FileDigest.sha256
+   */
+  file(request: { readonly op: "hash"; readonly path: string }): Promise<string>;
 }
 
 let installed: { readonly files: DesktopFiles | undefined } | undefined;

@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     keeps: (keys) => ipcRenderer.invoke("project:keeps", keys),
     writeKept: (key, kind, bytes) => ipcRenderer.invoke("project:kept-write", key, kind, bytes),
     readKept: (key) => ipcRenderer.invoke("project:kept-read", key),
+    log: (request) => ipcRenderer.invoke("project:log", request),
     open: (path, suggestedName) => ipcRenderer.invoke("project:open", path, suggestedName),
     saveAs: (suggestedName) => ipcRenderer.invoke("project:save-as", suggestedName),
     close: () => ipcRenderer.invoke("project:close"),

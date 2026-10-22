@@ -111,3 +111,25 @@ test("the recent projects are newest first, ten at most, and Clear Menu empties 
   recent.clear();
   assert.deepEqual(recent.list(), []);
 });
+
+test("a kept document's log is written where it is told, read back, cut back and fenced in", () => {
+  const folder = temporary();
+  projects.writeLog(folder, "d1", 0, Uint8Array.of(1, 2, 3, 4));
+  projects.writeLog(folder, "d1", 4, Uint8Array.of(5, 6));
+  assert.deepEqual([...projects.readLog(folder, "d1", 2, 4)], [3, 4, 5, 6]);
+  projects.syncLog(folder, "d1");
+
+  // A pinned length cuts off what came after it, and appending goes on from there.
+  projects.truncateLog(folder, "d1", 3);
+  projects.writeLog(folder, "d1", 3, Uint8Array.of(9));
+  assert.deepEqual([...projects.readLog(folder, "d1", 0, 4)], [1, 2, 3, 9]);
+  assert.throws(() => projects.readLog(folder, "d1", 2, 8), "past the end is not read");
+
+  assert.throws(() => projects.writeLog(folder, "../escape", 0, Uint8Array.of(1)));
+  assert.equal(fs.existsSync(path.join(folder, "Kept", "d1.log")), true);
+
+  // A document no window names any more takes its log with it.
+  projects.writeLog(folder, "d2", 0, Uint8Array.of(7));
+  projects.removeKeptExcept(folder, new Set(["d2"]));
+  assert.deepEqual(fs.readdirSync(path.join(folder, "Kept")), ["d2.log"]);
+});

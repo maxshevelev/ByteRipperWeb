@@ -10,6 +10,13 @@ const path = require("node:path");
 const FILE_NAME = "Project.json";
 const UNTITLED = "Untitled";
 const EDITS = "Edits";
+/**
+ * The undo journals of the documents the project keeps: one append-only log per document, which
+ * its history writes as it is edited (`Design/PORT_WINDOW_07A3928_21A2889.md`, P5).
+ *
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keptFolder
+ */
+const KEPT = "Kept";
 /** The format `Project.json` is written in: every window. Version 1 was one window's workspace. */
 const PROJECT_VERSION = 2;
 /** @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.limit */
@@ -156,22 +163,93 @@ function readKept(folder, key) {
   return undefined;
 }
 
+/** The log a key names, under the project's `Kept/`. */
+function logPath(folder, key) {
+  if (!isKey(key)) throw new Error("Not a key the page makes.");
+  return path.join(folder, KEPT, `${key}.log`);
+}
+
+/**
+ * Writes `bytes` into the log `key` names at `at` — the end of what was written before, or a point
+ * a pinned length cut it back to.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.appendRecord
+ */
+function writeLog(folder, key, at, bytes) {
+  const file = logPath(folder, key);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const fd = fs.openSync(file, fs.existsSync(file) ? "r+" : "w");
+  try {
+    const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.length);
+    for (let done = 0; done < buffer.length; ) {
+      done += fs.writeSync(fd, buffer, done, buffer.length - done, at + done);
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.read */
+function readLog(folder, key, at, count) {
+  const fd = fs.openSync(logPath(folder, key), "r");
+  try {
+    const buffer = Buffer.alloc(count);
+    for (let done = 0; done < count; ) {
+      const read = fs.readSync(fd, buffer, done, count - done, at + done);
+      if (read <= 0) throw new Error("The log is shorter than asked.");
+      done += read;
+    }
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, count);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Cuts the log back to `length`, as a manifest pinned it: what was written past it — after the
+ * last manifest, before a crash — is not part of it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
+ */
+function truncateLog(folder, key, length) {
+  const file = logPath(folder, key);
+  if (fs.existsSync(file)) fs.truncateSync(file, length);
+}
+
+/**
+ * Puts what was written into the log on the disk, before a manifest names it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.synchronize
+ */
+function syncLog(folder, key) {
+  const file = logPath(folder, key);
+  if (!fs.existsSync(file)) return;
+  const fd = fs.openSync(file, "r+");
+  try {
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 /**
  * Deletes what is kept of every document `keys` does not name: one saved, discarded or closed takes
  * its copy with it.
  */
 function removeKeptExcept(folder, keys) {
-  for (const sub of [UNTITLED, EDITS]) {
+  for (const sub of [UNTITLED, EDITS, KEPT]) {
     const where = path.join(folder, sub);
     for (const name of entries(where)) {
-      if (!keys.has(name.replace(/\.bin$/, ""))) fs.rmSync(path.join(where, name), { force: true });
+      if (!keys.has(name.replace(/\.(bin|log)$/, ""))) {
+        fs.rmSync(path.join(where, name), { force: true });
+      }
     }
   }
 }
 
 /** Empties a project's folder, for one written over it. */
 function clear(folder) {
-  for (const name of [FILE_NAME, UNTITLED, EDITS]) {
+  for (const name of [FILE_NAME, UNTITLED, EDITS, KEPT]) {
     fs.rmSync(path.join(folder, name), { recursive: true, force: true });
   }
   lastWritten.delete(folder);
@@ -228,6 +306,10 @@ module.exports = {
   writeKept,
   readKept,
   removeKeptExcept,
+  writeLog,
+  readLog,
+  truncateLog,
+  syncLog,
   clear,
   recentStore,
 };

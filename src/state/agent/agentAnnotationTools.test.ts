@@ -71,7 +71,7 @@ const bridge = (): AgentBridge => ({
 /** The shell's files for the page's own use, over the same machine's files. */
 const pageFiles = (): DesktopFiles => ({
   pathOf: () => undefined,
-  file: bridge().file as DesktopFiles["file"],
+  file: bridge().file as unknown as DesktopFiles["file"],
 });
 
 const leave: (() => void)[] = [];
