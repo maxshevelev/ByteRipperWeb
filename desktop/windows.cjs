@@ -82,6 +82,9 @@ function structureOf(entries, project) {
  * @param deps.pickProjectToSave asks, over a window, where to keep a project, suggesting a name
  * @param deps.confirmLeave asks, over a window, whether to leave its unsaved work; true to leave
  * @param deps.onStayed hears that a quit was given up because the reader stayed
+ * @param deps.createOwn makes the window of one of the app's own kinds (`OWN_KINDS`) at the bounds
+ *   given, handing its page what it is to show first
+ * @param deps.ownFrames reads and writes where each of those windows stood (`read()`, `write(value)`)
  */
 function register({
   BrowserWindow,
@@ -95,6 +98,8 @@ function register({
   pickProjectToSave,
   confirmLeave,
   onStayed,
+  createOwn,
+  ownFrames,
 }) {
   /** Front to back. */
   const order = [];
@@ -281,6 +286,87 @@ function register({
     return window;
   }
 
+  /**
+   * The app's own windows — the help, the annotations, the agent — one of each kind at most, made
+   * the first time it is asked for. They belong to the app and not to the workspace: no project
+   * holds them, the structure does not list them, and they do not keep the app running once the
+   * last window of the workspace has closed.
+   *
+   * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.instance
+   * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
+   * @upstream-differs a window of its own rather than a tab beside the dumps: the shell has no tabs
+   *   yet (issue #1)
+   */
+  const own = new Map();
+  let ownFramesHeld;
+
+  function framesOfOwn() {
+    if (ownFramesHeld === undefined) {
+      try {
+        const read = ownFrames?.read();
+        ownFramesHeld = read !== null && typeof read === "object" ? read : {};
+      } catch {
+        ownFramesHeld = {};
+      }
+    }
+    return ownFramesHeld;
+  }
+
+  function rememberOwnFrame(kind, window) {
+    if (window.isDestroyed()) return;
+    framesOfOwn()[kind] = frameOf(window);
+    try {
+      ownFrames?.write(framesOfOwn());
+    } catch {
+      // A frame not kept is a window made at the system's place next time.
+    }
+  }
+
+  /**
+   * Opens the app's window of `kind`, or brings forward the one there is, and has it show
+   * `message` (the help's page, an annotation): what a page asks for with Help ▸ …, Window ▸ …
+   */
+  function openOwn(kind, message) {
+    if (!OWN_KINDS.includes(kind)) return;
+    const there = own.get(kind);
+    if (there !== undefined && !there.isDestroyed()) {
+      if (there.isMinimized()) there.restore();
+      there.show();
+      there.focus();
+      if (message !== undefined) there.webContents.send("own:show", message);
+      return;
+    }
+    const kept = framesOfOwn()[kind];
+    const bounds =
+      kept === undefined
+        ? undefined
+        : reachableFrame(
+            kept,
+            screen.getAllDisplays().map((display) => display.workArea)
+          );
+    const window = createOwn(kind, bounds, message);
+    own.set(kind, window);
+    window.on("focus", () => {
+      // A Mac's one menu bar stays the workspace window's in front, whose commands it runs.
+      if (process.platform === "darwin") {
+        const behind = front();
+        Menu.setApplicationMenu(behind === undefined ? null : (menus.get(behind) ?? null));
+      }
+    });
+    window.on("moved", () => rememberOwnFrame(kind, window));
+    window.on("resized", () => rememberOwnFrame(kind, window));
+    window.on("close", () => rememberOwnFrame(kind, window));
+    window.on("closed", () => {
+      if (own.get(kind) === window) own.delete(kind);
+    });
+  }
+
+  /** Which of the app's own kinds `window` is, or nothing for a window of the workspace. */
+  function ownKindOf(window) {
+    for (const [kind, one] of own) if (one === window) return kind;
+    return undefined;
+  }
+
   /** The window's page says which workspace it is, and whether it records it. */
   function hold(window, id, restores) {
     holds.set(window, { id: String(id), restores: restores === true });
@@ -334,7 +420,9 @@ function register({
       }
     }
     leaving = true;
-    for (const window of live()) window.destroy();
+    for (const window of [...live(), ...own.values()]) {
+      if (!window.isDestroyed()) window.destroy();
+    }
     app.quit();
   }
 
@@ -344,6 +432,8 @@ function register({
     event.preventDefault();
     void quit();
   });
+  // The app's own windows do not hold it open: the last window of the workspace closing is the
+  // quit, which takes them with it (`quit`).
   app.on("window-all-closed", () => {
     if (switching) return;
     leaving = true;
@@ -577,7 +667,16 @@ function register({
     currentProject: () => project,
     windows: live,
     structure,
+    openOwn,
+    ownKindOf,
   };
 }
 
-module.exports = { register, cascadeFrom, reachableFrame, structureOf, CASCADE };
+/**
+ * The app's own windows, by kind: the help book, the annotations and the agent's log.
+ *
+ * @web-only a browser holds them as panels of the tab's dock
+ */
+const OWN_KINDS = ["help", "notes", "agent"];
+
+module.exports = { register, cascadeFrom, reachableFrame, structureOf, CASCADE, OWN_KINDS };

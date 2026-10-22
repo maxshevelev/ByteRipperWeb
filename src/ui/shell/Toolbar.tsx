@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { agentStatusText } from "@/core/agent/agentStatus";
 import { L } from "@/core/localization/localization";
+import { desktopOwnWindows } from "@/platform/desktop/desktopWindows";
 import { saveVerb } from "@/platform/files/capabilities";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { showAbout } from "@/state/aboutStore";
 import {
+  agentAnnotationStore,
   canRedoRemoval,
   canUndoRemoval,
   orderedAnnotations,
@@ -52,6 +54,7 @@ import {
   agentPanelIsUp,
   frontPane,
   notesPanelIsUp,
+  openNotesPanel,
   paneIn,
   type SlotId,
   setLayout,
@@ -61,6 +64,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { TOOLS } from "@/tools/registry";
+import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { detectKeyboardPlatform } from "@/ui/pane/hexKeys";
 import { mergePiece, pieceAt } from "@/ui/segments/segmentCommands";
 import { activateTool } from "@/ui/shell/activateTool";
@@ -227,6 +231,7 @@ export function Toolbar({
   // The Agent button and its mark: there while the service is switched on, filled while an agent is
   // connected (`Design/PORT_AGENT.md`).
   const agent = useStore(agentService.store);
+  const unseenNotes = useStore(agentAnnotationStore).unseen.size;
   /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState
    * @upstream ByteRipperApp/Window/MainViewController.swift#DiffNavigationState.previousDifference
@@ -768,6 +773,11 @@ export function Toolbar({
         ...(agentService.isAvailable
           ? ([
               { kind: "heading", label: L("Window", { context: "menu" }), opensMenu: true },
+              // help: menu.window.notes
+              // @upstream ByteRipperApp/App/MainMenu.swift#MainMenu.build
+              ...(desktopOwnWindows() === undefined
+                ? []
+                : [{ label: L("Annotations"), onSelect: openNotesPanel }]),
               // help: menu.window.agent
               {
                 label: L("Agent"),
@@ -793,7 +803,8 @@ export function Toolbar({
   for (const id of toolbarItems(
     bothOpen,
     identical.current,
-    agent.running || agent.failure !== undefined
+    agent.running || agent.failure !== undefined,
+    desktopOwnWindows() !== undefined
   )) {
     const count = seen.get(id) ?? 0;
     seen.set(id, count + 1);
@@ -894,6 +905,23 @@ export function Toolbar({
             onClick={onSegments}
           >
             <SegmentsGlyph />
+          </IconButton>
+        );
+      // The Annotations window, with the count of the agent's notes nobody has looked at on its
+      // corner, in the agent's notes' colour — whose they are.
+      // help: toolbar.notes
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.notesItem
+      // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.syncNotesBadge
+      case "notes":
+        return (
+          <IconButton
+            key={key}
+            label={L("Annotations")}
+            title={L("Show the Annotations window")}
+            onClick={openNotesPanel}
+          >
+            <NotesGlyph />
+            {unseenNotes > 0 ? <span className="toolbar-notes-count">{unseenNotes}</span> : null}
           </IconButton>
         );
       case "wordSize":

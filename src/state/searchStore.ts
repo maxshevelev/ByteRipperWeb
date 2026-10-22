@@ -373,6 +373,37 @@ function cancelSearch(pane: PaneId): void {
 
 export const searchStore = createStore<SearchState>(IDLE);
 
+/**
+ * The recent searches and the two switches as another window — or another tab of this edition —
+ * leaves them: the history is the app's, not a window's, so a search made in one window is the
+ * first recent search in every other, and Ignore Case or Smart Search turned in one is turned in
+ * all. What is typed in a field stays that field's.
+ *
+ * @web-only upstream's windows share one `UserDefaults` and one find pasteboard; here each window
+ * is a page, and the browser's `storage` event says what another page wrote
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.storageArea !== localStorage) return;
+    if (event.key === HISTORY_STORAGE_KEY || event.key === null) {
+      const history = parseFindHistory(event.key === null ? null : event.newValue);
+      searchStore.update((state) =>
+        JSON.stringify(state.history) === JSON.stringify(history) ? state : { ...state, history }
+      );
+    }
+    if (event.key === CASE_STORAGE_KEY || event.key === null) {
+      const caseSensitive = storedCaseSensitive();
+      searchStore.update((state) =>
+        state.caseSensitive === caseSensitive ? state : { ...state, caseSensitive }
+      );
+    }
+    if (event.key === SMART_STORAGE_KEY || event.key === null) {
+      const smart = storedSmart();
+      searchStore.update((state) => (state.smart === smart ? state : { ...state, smart }));
+    }
+  });
+}
+
 let worker: Worker | undefined;
 let nextJobId: JobId = 1;
 let currentJobId: JobId | undefined;

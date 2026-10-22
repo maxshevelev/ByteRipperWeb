@@ -67,7 +67,8 @@ From upstream's `TABS_PLAN.md`, `PANE_DRAG_PLAN.md`, `WORKSPACE_PLAN.md` and
 | Bookmarks: copied with a torn-off pane, a moved pane adopting the receiving window's | Same | D5 |
 | The agent sees every window's documents (`AgentDesk`, front to back), brings a window forward | Same, the main process routing a call to the window that holds the document | D7 |
 | App-wide: the annotations, the find string, the settings | Kept in step across windows (`BroadcastChannel`, `storage` events) | D7 |
-| The Annotations, Agent, Settings and Help windows (singletons) | **Stay panels of each window's dock** (CLAUDE.md): each window may raise its own | — |
+| The Annotations, Agent and Help windows (singletons, the app's and not a window's) | **Windows of their own, one each** (the owner's decision, 2026-10-22): Window ▸ Annotations, Agent, Help open or raise the one window; in the browser they stay panels of the dock | D7b–D7d |
+| The Settings window | Stays the dialog of the window it was opened from; the settings themselves are the app's (D7a) | — |
 | Tabs: New Tab, the tab bar, Merge All Windows, Move Tab to New Window | Not here — issue #1 | — |
 
 ## How a pane crosses from one window to another
@@ -154,9 +155,46 @@ the module map moved.
   pane header in a comparison; the New Window strip while dragging; bookmarks.
 - [x] **D6 — a fragment panel carried.** Open in New Window on the pill, the
   strip, a panel let go on another window's free half.
-- [ ] **D7 — app-wide state.** The agent's desk over every window (the main
-  process routing), the annotations, the find string and the settings kept in
-  step.
+- [ ] **D7 — app-wide state.** The owner's decision on 2026-10-22: the
+  annotations, the agent and the help are the app's, so in the shell each is a
+  window of its own, as upstream's are, rather than a panel of every window's
+  dock. In four steps:
+  - [x] **D7a — the settings in step.** A setting changed in one window is in
+    force in every other (`BroadcastChannel` "byteripper-settings", each page
+    reading the settings again: font, theme, language, word size, layout,
+    grouping, the warning, the agent's switches); the recent searches and the
+    find switches (`storage` events); Open Recent ("byteripper-recent-files").
+    The find *string* is not shared: the web keeps a history where upstream has
+    the find pasteboard (the owner's decision, module map), and the history is
+    now the app's. The same holds between a browser's tabs.
+  - [x] **D7b — the app's own windows; the help.** The main process makes one
+    window per kind (`help`, `notes`, `agent`; `openOwn` in `windows.cjs`),
+    the kind handed to its page by the launch (`WindowLaunch.own`), keeps
+    where each stood (`Workspace/OwnWindows.json`), and leaves them out of the
+    workspace's windows, its structure and a project; they do not hold the app
+    open once the last window of the workspace has gone. A Mac's menu bar over
+    one of them stays the workspace window's in front. The help book moved into
+    its window: every `?` and Help ▸ … asks the shell to open or raise it at
+    the page named (`showHelp`), and the window keeps the reader's place;
+    ⌘W closes it. It is not reopened at launch.
+  - [x] **D7c — the Annotations window.** The annotations are the app's: every
+    page holds the same set (`annotationWindows.ts`), tells the others of each
+    change over `BroadcastChannel` "byteripper-annotations", and puts what it
+    is told together with its own by id against the version both last agreed
+    on (`mergeAnnotations`): an annotation added, removed or edited in either
+    window survives, one made in both under one id gives this window's a new
+    id. An annotation on a document with no file is known to the other windows
+    as being in its window (`AnnotationFile` "elsewhere"), and goes with that
+    window. The Annotations window is one more such page, showing the cards;
+    a card's place is shown by the window holding its document, or — for a file
+    no window holds — by the window last in front, which opens it. Window ▸
+    Annotations and the toolbar's Annotations button after Segments open it,
+    the button carrying the count of the agent's notes not yet seen; the window
+    counts as up while it is in front. It is not reopened at launch.
+  - [ ] **D7d — the Agent window and the desk over every window.** One service
+    for the app; a document's id names its window, a call is run by the window
+    holding its document, `documents` lists every window front to back, and the
+    Agent window shows the log of all of them.
 
 Then persistent undo (P3–P8 of the port window) lands on top of D2's writer,
 and a moved pane carries its history.

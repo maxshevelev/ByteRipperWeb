@@ -573,6 +573,8 @@ export class AgentAnnotationTools {
       if (annotation.file.kind === "document") {
         return annotation.file.document.deref() === held.document;
       }
+      // Another window's document is in no pane of this one.
+      if (annotation.file.kind === "elsewhere") return false;
       const identity = fileIdentityOf(pane);
       return identity !== undefined && sameFile(annotation.file.identity, identity);
     });
@@ -761,7 +763,9 @@ export class AgentAnnotationTools {
     return (one) =>
       one.file.kind === "document"
         ? one.file.document.deref() === place.document
-        : identity !== undefined && sameFile(one.file.identity, identity);
+        : one.file.kind === "disk" &&
+          identity !== undefined &&
+          sameFile(one.file.identity, identity);
   }
 
   // MARK: - Shapes

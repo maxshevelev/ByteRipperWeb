@@ -35,7 +35,11 @@ import {
   undoRemoval,
   updateAnnotation,
 } from "@/state/agent/agentAnnotationStore";
-import { agentService } from "@/state/agent/agentService";
+import {
+  annotationIsOpen,
+  onWindowsChanged,
+  showAnnotation,
+} from "@/state/agent/annotationWindows";
 import { askNote } from "@/state/noteFormStore";
 import { useStore } from "@/state/useStore";
 import { workspaceStore } from "@/state/workspaceStore";
@@ -162,8 +166,11 @@ const orderWhileCarried = (order: readonly string[], ids: readonly string[]): st
 // help: window.notes
 export function NotesPanel() {
   const state = useStore(agentAnnotationStore);
-  // Whether each file is open, which the cards' dots say, moves with the workspace.
+  // Whether each file is open, which the cards' dots say, moves with the workspace — and in the
+  // desktop shell's Annotations window, with what the app's other windows hold.
   useStore(workspaceStore);
+  const [, windowsChanged] = useState(0);
+  useEffect(() => onWindowsChanged(() => windowsChanged((count) => count + 1)), []);
   const notes = orderedAnnotations(state);
   const titles = annotationTitles(notes);
   const chosen = state.chosen;
@@ -228,7 +235,7 @@ export function NotesPanel() {
       selectAnnotations([...chosen, id], id);
     }
   };
-  const show = (id: string) => void agentService.annotationTools.show(id, true);
+  const show = (id: string) => showAnnotation(id);
   const remove = (doomed: ReadonlySet<string>) => removeFromPanel(doomed);
   // help: window.notes.edit
   const edit = (annotation: AgentAnnotation) =>
@@ -641,7 +648,7 @@ export function NotesPanel() {
                 key={annotation.id}
                 annotation={annotation}
                 titles={titles}
-                isOpen={agentService.annotationTools.placeOf(annotation) !== undefined}
+                isOpen={annotationIsOpen(annotation)}
                 isSelected={chosen.has(annotation.id)}
                 isNew={state.marked.has(annotation.id)}
                 isCarried={carry?.id === annotation.id}
@@ -667,7 +674,7 @@ export function NotesPanel() {
               <NoteCard
                 annotation={carried}
                 titles={titles}
-                isOpen={agentService.annotationTools.placeOf(carried) !== undefined}
+                isOpen={annotationIsOpen(carried)}
                 isSelected={chosen.has(carried.id)}
                 isNew={state.marked.has(carried.id)}
                 isCarried={false}

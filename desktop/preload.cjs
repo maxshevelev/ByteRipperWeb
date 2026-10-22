@@ -60,6 +60,15 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     clearRecent: () => ipcRenderer.invoke("project:clear-recent"),
   },
   closeWindow: () => ipcRenderer.send("window:close"),
+  // The app's own windows (D7): the help, the annotations, the agent — one of each, opened or
+  // brought forward at what is named, and in such a window, the next thing it is asked to show.
+  own: {
+    open: (kind, message) => ipcRenderer.send("window:own", kind, message),
+    onShow: (callback) => listen("own:show", callback),
+    // Through the shell, which keeps where the window stood: a page's own `window.close()` ends
+    // the page and leaves the shell nothing to hear.
+    close: () => ipcRenderer.send("window:close"),
+  },
   // Show in Its Window (D4): this window brought forward.
   focusWindow: () => ipcRenderer.send("window:focus"),
   canInstallUpdate: ipcRenderer.sendSync("update:installable"),

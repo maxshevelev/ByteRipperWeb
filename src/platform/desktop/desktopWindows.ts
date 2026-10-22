@@ -28,6 +28,48 @@ export interface WindowLaunch {
   readonly handover?: unknown;
   /** The project the app has open, which this window is one of (D3). */
   readonly project?: ShellProject | undefined;
+  /** Which of the app's own windows this is (D7); nothing for a window of the workspace. */
+  readonly own?: OwnWindowKind | undefined;
+  /** What the app's own window is to show first, as the page that opened it named it. */
+  readonly show?: unknown;
+}
+
+/**
+ * The app's own windows in the desktop shell (`Design/DESKTOP_WINDOWS.md`, D7): the help book, the
+ * annotations and the agent's log, one of each, which a browser holds as panels of the dock.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController
+ * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
+ * @upstream-differs the kinds as data; upstream has a controller class per window
+ */
+export type OwnWindowKind = "help" | "notes" | "agent";
+
+/** What the shell's preload script exposes for the app's own windows. */
+export interface DesktopOwnWindowsBridge {
+  open(kind: OwnWindowKind, message?: unknown): void;
+  onShow(callback: (message: unknown) => void): () => void;
+  /** Closes this page's window, as its title bar's close does. */
+  close(): void;
+}
+
+let installedOwn: { readonly bridge: DesktopOwnWindowsBridge | undefined } | undefined;
+
+/** The shell's own windows, where the page runs in it; nothing in a browser. */
+export function desktopOwnWindows(): DesktopOwnWindowsBridge | undefined {
+  if (installedOwn !== undefined) return installedOwn.bridge;
+  if (typeof window === "undefined") return undefined;
+  return (window as { byteripperDesktop?: { own?: DesktopOwnWindowsBridge } }).byteripperDesktop
+    ?.own;
+}
+
+/** Stands `bridge` in for the shell's own windows, or with nothing puts the shell's back. */
+export function installDesktopOwnWindowsForTesting(bridge?: DesktopOwnWindowsBridge | null): void {
+  installedOwn = bridge === undefined ? undefined : { bridge: bridge ?? undefined };
+}
+
+/** Which of the app's own windows this page is, or nothing for a window of the workspace. */
+export function ownWindowKind(): OwnWindowKind | undefined {
+  return windowLaunch()?.own;
 }
 
 /** A project as the shell names it: its folder's path, and its name. */

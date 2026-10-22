@@ -14,6 +14,7 @@ import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
 import type { ShiftingEdit } from "@/core/text/shiftWarning";
+import { desktopOwnWindows } from "@/platform/desktop/desktopWindows";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
 import {
   type SaveOutcome,
@@ -64,12 +65,14 @@ import {
   forgetWarnsBeforeShiftingEdits,
   GROUPING_GAP_CHOICES,
   loadSettings,
+  onSettingsFromOtherWindows,
   rememberGroupingGap,
   rememberLayoutIsVertical,
   rememberWarnsBeforeShiftingEdits,
   rememberWordSize,
   settingsStore,
   type TextDecodingSettings,
+  type WorkspaceSettings,
 } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { groupActs, noteDocumentAct } from "@/state/undoRouter";
@@ -725,13 +728,28 @@ export async function restoreSettings(): Promise<void> {
   // drawn: a label drawn in English and then again in Russian is a flicker
   // nobody asked for.
   await applyLanguage(settingsStore.getSnapshot().language);
-  workspaceStore.update((state) => ({
-    ...state,
-    wordSize: stored.wordSize,
-    layout: stored.layoutIsVertical ? "sideBySide" : "stacked",
-    groupingGap: stored.groupingGap,
-    confirmShiftingEdits: stored.warnsBeforeShiftingEdits,
-  }));
+  adoptSettings(stored);
+  // A setting changed in another window is in force in this one too, as upstream's
+  // notification reaches every window.
+  onSettingsFromOtherWindows(adoptSettings);
+}
+
+function adoptSettings(stored: WorkspaceSettings): void {
+  const layout: PaneLayout = stored.layoutIsVertical ? "sideBySide" : "stacked";
+  workspaceStore.update((state) =>
+    state.wordSize === stored.wordSize &&
+    state.layout === layout &&
+    state.groupingGap === stored.groupingGap &&
+    state.confirmShiftingEdits === stored.warnsBeforeShiftingEdits
+      ? state
+      : {
+          ...state,
+          wordSize: stored.wordSize,
+          layout,
+          groupingGap: stored.groupingGap,
+          confirmShiftingEdits: stored.warnsBeforeShiftingEdits,
+        }
+  );
 }
 
 /**
@@ -1312,8 +1330,18 @@ export function syncNotesPanel(hasAnnotations: boolean): void {
   });
 }
 
-/** Raises the Annotations panel, when there is one. */
+/**
+ * Raises the Annotations panel, when there is one — or, in the desktop shell, opens the
+ * Annotations window (`Design/DESKTOP_WINDOWS.md`, D7c).
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showNotesWindow
+ */
 export function openNotesPanel(): void {
+  const own = desktopOwnWindows();
+  if (own !== undefined) {
+    own.open("notes");
+    return;
+  }
   workspaceStore.update((state) =>
     state.notesPanel === undefined
       ? state

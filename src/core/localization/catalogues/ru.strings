@@ -1278,6 +1278,7 @@
 "Scroll the log to each new request as it arrives" = "Прокручивать журнал к каждому новому запросу";
 "Select a request to see all of it." = "Выберите запрос, чтобы увидеть его целиком.";
 "Show the Agent window" = "Показать окно агента";
+"Show the Annotations window" = "Показать окно заметок";
 "Switched off." = "Выключена.";
 "The agent service is not available in this copy of the app." = "В этой копии программы служба агента недоступна.";
 "The program the agent runs in, whose configuration is shown below" = "Программа, в которой работает агент; её настройка показана ниже";

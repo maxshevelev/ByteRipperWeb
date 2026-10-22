@@ -27,6 +27,7 @@
 
 In **[[edition:this browser, on this machine||this installation, on this machine]]** — not in an account and not in a file that can be copied. The consequences are worth knowing:
 
+- [[edition:Every open tab of the page reads the same settings||Every window of the application reads the same settings]]: a change made in one is in force in the others at once. So are **File ▸ Open Recent** and the list of recent searches.
 - [[edition:Another browser, another machine or a private window||Another installation or another machine]] starts from the defaults.
 - [[edition:Clearing site data for this page||Clearing the application's data]] clears the settings with it, along with the bookmarks and the pattern library.
 - [[edition:There is no File Types tab: which application opens a `.bin` is the operating system's business, and a web page is not offered the job.||There is no File Types tab: which application opens a `.bin` is the operating system's business.]]

@@ -43,11 +43,77 @@ export function setSettingsStorage(store: KeyValueStore): void {
 }
 
 function remember(key: string, value: unknown): void {
-  void values().put(key, value);
+  written(values().put(key, value));
 }
 
 function forget(...keys: string[]): void {
-  for (const key of keys) void values().remove(key);
+  for (const key of keys) written(values().remove(key));
+}
+
+// MARK: - Other windows
+
+/**
+ * Where a change is announced to the app's other windows and the browser's other tabs of this
+ * edition, which hold the settings in a store of their own and would otherwise draw with what
+ * they read when they opened.
+ *
+ * @web-only upstream's notifications reach every window of the one process; here each
+ * window is a page, so the change is announced and each page reads the settings again
+ */
+const CHANNEL = "byteripper-settings";
+let channel: BroadcastChannel | undefined;
+let writes: Promise<unknown>[] | undefined;
+
+/**
+ * Collects the writes one change makes and announces them once they have all landed, so a page
+ * that hears of it reads what was written rather than what was there before.
+ */
+function written(write: Promise<unknown>): void {
+  if (writes === undefined) {
+    const batch: Promise<unknown>[] = [];
+    writes = batch;
+    queueMicrotask(() => {
+      writes = undefined;
+      void Promise.allSettled(batch).then(() => channel?.postMessage("changed"));
+    });
+  }
+  writes.push(write);
+}
+
+const otherWindowListeners = new Set<(settings: WorkspaceSettings) => void>();
+
+/**
+ * Calls `listener` with the workspace's settings each time another window has changed a
+ * setting — once this page's own store has been read again, and its theme, its font and its
+ * language put in force.
+ */
+export function onSettingsFromOtherWindows(
+  listener: (settings: WorkspaceSettings) => void
+): () => void {
+  listenToOtherWindows();
+  otherWindowListeners.add(listener);
+  return () => otherWindowListeners.delete(listener);
+}
+
+function listenToOtherWindows(): void {
+  if (channel !== undefined || typeof BroadcastChannel === "undefined") return;
+  channel = new BroadcastChannel(CHANNEL);
+  let reading = Promise.resolve();
+  channel.onmessage = () => {
+    // One reading at a time, in the order they were announced: the last one read is the last
+    // one written.
+    reading = reading.then(readAgain).catch(() => undefined);
+  };
+  (channel as { unref?: () => void }).unref?.();
+}
+
+async function readAgain(): Promise<void> {
+  const language = settingsStore.getSnapshot().language;
+  const stored = await loadSettings();
+  await loadRestoresWorkspace();
+  const now = settingsStore.getSnapshot().language;
+  if (now !== language) await applyLanguage(now);
+  for (const listener of otherWindowListeners) listener(stored);
 }
 
 // MARK: - Appearance
@@ -373,15 +439,19 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
     ].map((key) => store.get<unknown>(key))
   );
 
-  settingsStore.update((state) => ({
-    restoresWorkspace: state.restoresWorkspace,
-    fontFamily: fontFamilyFrom(fontFamily),
-    rowHeightScale: rowHeightScaleFrom(rowHeightScale),
-    fontSize: fontSizeFrom(fontSize),
-    theme: themeFrom(theme),
-    language: storedLanguageChoice(typeof language === "string" ? language : undefined),
-    textDecoding: textDecodingFrom(identifier, placeholder),
-  }));
+  settingsStore.update((state) => {
+    const read: SettingsState = {
+      restoresWorkspace: state.restoresWorkspace,
+      fontFamily: fontFamilyFrom(fontFamily),
+      rowHeightScale: rowHeightScaleFrom(rowHeightScale),
+      fontSize: fontSizeFrom(fontSize),
+      theme: themeFrom(theme),
+      language: storedLanguageChoice(typeof language === "string" ? language : undefined),
+      textDecoding: textDecodingFrom(identifier, placeholder),
+    };
+    // Read again for another window's change, what that change left alone is not redrawn.
+    return JSON.stringify(read) === JSON.stringify(state) ? state : read;
+  });
   applyAppearance(settingsStore.getSnapshot());
   applyTheme(settingsStore.getSnapshot().theme);
 

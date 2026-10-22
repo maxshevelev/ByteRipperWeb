@@ -65,7 +65,35 @@ export function setRecentFilesStorage(store: KeyValueStore): void {
 }
 
 function persist(rows: readonly RecentFileEntry[]): void {
-  void values().put(KEY, rows);
+  void values()
+    .put(KEY, rows)
+    .then(() => channel?.postMessage("changed"));
+}
+
+/**
+ * Where a change to the list is announced to the app's other windows and the browser's other
+ * tabs, which read it again: the list is the app's, so Open Recent reads alike in every window.
+ *
+ * @web-only upstream's windows read one `UserDefaults` list; here each window is a page
+ * holding the list in a store of its own
+ */
+const CHANNEL = "byteripper-recent-files";
+let channel: BroadcastChannel | undefined;
+
+function listenToOtherWindows(): void {
+  if (channel !== undefined || typeof BroadcastChannel === "undefined") return;
+  channel = new BroadcastChannel(CHANNEL);
+  channel.onmessage = () => {
+    void values()
+      .get<RecentFileEntry[]>(KEY)
+      .then((stored) =>
+        recentFilesStore.update(() => ({
+          rows: Array.isArray(stored) ? stored : [],
+        }))
+      )
+      .catch(() => undefined);
+  };
+  (channel as { unref?: () => void }).unref?.();
 }
 
 /**
@@ -107,7 +135,9 @@ export function recordRecentFile(handle: FileSystemFileHandle, name: string): bo
  */
 export function clearRecentFiles(): void {
   recentFilesStore.update(() => ({ rows: [] }));
-  void values().remove(KEY);
+  void values()
+    .remove(KEY)
+    .then(() => channel?.postMessage("changed"));
 }
 
 /**
@@ -189,6 +219,7 @@ export async function pruneMissingRecentFiles(): Promise<void> {
  * reads it from IndexedDB and prunes afterwards
  */
 export async function restoreRecentFiles(): Promise<void> {
+  listenToOtherWindows();
   const stored = await values().get<RecentFileEntry[]>(KEY);
   if (stored !== undefined && Array.isArray(stored)) {
     recentFilesStore.update(() => ({ rows: stored }));

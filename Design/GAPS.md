@@ -98,7 +98,7 @@ too (G99–G103, in Closed). What is left:
 
 | ID | Gap | Size | Depends on | Priority | Status |
 |---|---|---|---|---|---|
-| G104 | **App-wide state across windows (D7).** The agent's desk sees the documents of the window it serves only (upstream's `AgentDesk` spans every window, front to back); the annotations, the find string and a settings change are not kept in step between windows. | `AgentDesk`, `FindPasteboard` | — | P2 | open |
+| G104 | **App-wide state across windows (D7).** The agent's desk sees the documents of the window it serves only (upstream's `AgentDesk` spans every window, front to back), and the annotations are not kept in step between windows; the agent is a panel of every window's dock where upstream gives it a window of its own (D7d). The settings, the recent searches and Open Recent are kept in step (D7a); the help (D7b) and the annotations (D7c) are windows of their own, the annotations held alike by every window. | `AgentDesk`, `FindPasteboard` | — | P2 | open |
 | G105 | **Window tabs** — New Tab, the tab bar, Merge All Windows, Move Tab to New Window — in the shell, on `WebContentsView` ([maxshevelev/ByteRipperWeb#1](https://github.com/maxshevelev/ByteRipperWeb/issues/1)). `MultiWindowTests`' tab tests. | `TABS_PLAN.md` | G99 | P3 | open |
 
 ### 1.8 Tests, hardening and delivery (M12)

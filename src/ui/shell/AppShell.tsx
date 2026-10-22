@@ -15,6 +15,7 @@ import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScr
 import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
+import { shareAnnotationsAcrossWindows } from "@/state/agent/annotationWindows";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
@@ -43,8 +44,10 @@ import {
   draggedPartId,
   draggedRemotePane,
   endDrag,
+  notePaneDragCopying,
   type RemoteDraggedPane,
 } from "@/state/paneDragStore";
+import { PANE_IDS } from "@/state/paneId";
 import {
   partsLinkedTo,
   strandingCloseButton,
@@ -583,12 +586,38 @@ export function AppShell() {
     [accept]
   );
 
+  /**
+   * A pane let go on an empty window: another window's, or one of this window's fragment panels,
+   * goes in as its first pane — the most obvious place to put one. The window's own handlers ask
+   * through here, since what answers is made further down.
+   *
+   * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneDropOutcome
+   * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.onPaneDropped
+   * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.paneOperation
+   * @upstream ByteRipperApp/Window/EmptyStateView.swift#EmptyStateView.onCopyModifierChanged
+   * @upstream-differs the window's own drag handlers answer, the empty state being a view of it
+   */
+  const emptyWindowDrop = useRef<{
+    outcome(copying: boolean): PaneDropOutcome | undefined;
+    perform(copying: boolean): void;
+  }>({ outcome: () => undefined, perform: () => undefined });
+
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
       // A pane from another window of the desktop shell, or one of this window's own back after
       // leaving it: taken up, so the New Window strip comes up with it (D5).
       if (event.dataTransfer !== null && dragCarriesPane(event.dataTransfer)) {
         followPaneDrag();
+        // An empty window takes it whole, as its first pane.
+        const outcome = emptyWindowDrop.current.outcome(event.altKey);
+        if (outcome === undefined) {
+          setDragging(false);
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = event.altKey ? "copy" : "move";
+        notePaneDragCopying(event.altKey);
+        setDragging(true);
         return;
       }
       if (!dragCarriesFiles(event.dataTransfer)) return;
@@ -621,6 +650,13 @@ export function AppShell() {
     // help: shell.drop-zones
     const onDrop = (event: DragEvent) => {
       if (event.dataTransfer === null) return;
+      if (dragCarriesPane(event.dataTransfer)) {
+        if (emptyWindowDrop.current.outcome(event.altKey) === undefined) return;
+        event.preventDefault();
+        setDragging(false);
+        emptyWindowDrop.current.perform(event.altKey);
+        return;
+      }
       event.preventDefault();
       setDragging(false);
       endDrag();
@@ -906,7 +942,8 @@ export function AppShell() {
     // The favourites and this browser's identity, from the last visit.
     void restoreFavorites();
     // The annotations, with the order of their cards, from the last visit.
-    void restoreAnnotations();
+    // In the desktop shell they are the app's, held alike by every window (D7c).
+    void restoreAnnotations().then(shareAnnotationsAcrossWindows);
     // What reopens files on its own is the desktop shell's (`inDesktopShell`): a browser keeps
     // none of it, and forgets what an earlier build of the page kept.
     if (inDesktopShell()) {
@@ -2068,6 +2105,24 @@ export function AppShell() {
     },
     [paneDropOutcomeFor, remoteDropOutcomeFor]
   );
+
+  emptyWindowDrop.current = {
+    outcome: (copying) => {
+      const { panes } = workspaceStore.getSnapshot();
+      if (PANE_IDS.some((slot) => panes[slot] !== undefined)) return undefined;
+      const outcome = outcomeResolverFor("a")("replace", copying);
+      return outcome.kind === "move" || outcome.kind === "duplicate" ? outcome : undefined;
+    },
+    perform: (copying) => {
+      const part = draggedPartId();
+      if (part !== undefined) {
+        void performPartDrop(part, "a", "replace", copying);
+        return;
+      }
+      const remote = draggedRemotePane();
+      if (remote !== undefined) void performRemotePaneDrop(remote, "a", "replace", copying);
+    },
+  };
 
   /**
    * Performs whatever the drop means. Nothing here is a new operation — each

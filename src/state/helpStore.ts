@@ -22,6 +22,7 @@ import { helpDestinationExists } from "@/core/help/helpBook";
 import { type HelpLink, sameLink, TOPIC, topicLink } from "@/core/help/helpIds";
 import { HELP_FALLBACK_LANGUAGE, loadHelpBook } from "@/core/help/helpLoader";
 import { currentLanguage } from "@/core/localization/localization";
+import { desktopOwnWindows, ownWindowKind } from "@/platform/desktop/desktopWindows";
 import { appEdition } from "@/platform/edition";
 import { languageStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
@@ -121,8 +122,15 @@ export function reloadHelpBook(): void {
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#HelpPresenter.show
  */
 export function showHelp(link?: HelpLink): void {
-  openHelpPanel();
   void ensureHelpBook();
+  // The desktop shell gives the book a window of its own (`Design/DESKTOP_WINDOWS.md`, D7), which
+  // keeps the reader's place: it is asked to show the page, or where the reader left off.
+  const own = desktopOwnWindows();
+  if (own !== undefined && ownWindowKind() !== "help") {
+    own.open("help", { link });
+    return;
+  }
+  if (ownWindowKind() !== "help") openHelpPanel();
   const state = helpStore.getSnapshot();
   const wanted = link ?? helpHere(state) ?? topicLink(TOPIC.overview);
   goToHelp(wanted);
@@ -184,6 +192,10 @@ export function toggleHelpContents(): void {
  * they have put the book away.
  */
 export function closeHelp(): void {
+  if (ownWindowKind() === "help") {
+    desktopOwnWindows()?.close();
+    return;
+  }
   closeHelpPanel();
   helpStore.update((state) => ({ ...state, trail: [], at: -1, query: "", contentsOpen: false }));
 }
@@ -215,3 +227,25 @@ export function helpHasPage(link: HelpLink): boolean {
  * @upstream-differs no static behind a lock: the book lives in this store, which awaits it and holds it for the language in force
  */
 languageStore.subscribe(() => reloadHelpBook());
+
+/**
+ * The help's own window in the desktop shell: shows what its launch named, and then whatever
+ * another window asks it to show — a `?`, Help ▸ … — at the page named, or where the reader is.
+ *
+ * @upstream Packages/HelpUI/Sources/HelpUI/HelpPresenter.swift#HelpPresenter.show
+ * @upstream-differs the ask arrives from another window's page through the shell
+ */
+export function startHelpWindow(first: unknown): () => void {
+  const show = (message: unknown) => {
+    const link = (message as { link?: HelpLink } | undefined)?.link;
+    showHelp(isHelpLink(link) ? link : undefined);
+  };
+  show(first);
+  return desktopOwnWindows()?.onShow(show) ?? (() => undefined);
+}
+
+function isHelpLink(value: unknown): value is HelpLink {
+  if (typeof value !== "object" || value === null) return false;
+  const { kind, id } = value as { kind?: unknown; id?: unknown };
+  return (kind === "topic" || kind === "term") && typeof id === "string";
+}

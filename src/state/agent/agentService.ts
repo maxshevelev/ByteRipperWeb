@@ -31,6 +31,7 @@ import { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import { AgentRefsTools } from "@/state/agent/agentRefsTools";
 import {
   loadAgentSettings,
+  onSettingsFromOtherWindows,
   rememberAgentBackgroundFiles,
   rememberAgentBackgroundMemoryMiB,
   rememberAgentEditsAllowed,
@@ -488,17 +489,32 @@ export class AgentService {
 
   /** Reads the switches left by the last visit, and opens the endpoint if the service was on. */
   async start(): Promise<void> {
+    await this.readSettings();
+    void this.loadRelay();
+    // A switch turned in another window is turned in this one.
+    onSettingsFromOtherWindows(() => void this.readSettings());
+  }
+
+  private async readSettings(): Promise<void> {
     const settings = await loadAgentSettings();
-    this.store.update((state) => ({
-      ...state,
-      enabled: settings.enabled,
-      editsAllowed: settings.editsAllowed,
-      launchesApp: settings.launchesApp,
-    }));
-    this.keptLimits = { files: settings.backgroundFiles, memoryMiB: settings.backgroundMemoryMiB };
+    this.store.update((state) =>
+      state.enabled === settings.enabled &&
+      state.editsAllowed === settings.editsAllowed &&
+      state.launchesApp === settings.launchesApp
+        ? state
+        : {
+            ...state,
+            enabled: settings.enabled,
+            editsAllowed: settings.editsAllowed,
+            launchesApp: settings.launchesApp,
+          }
+    );
+    this.keptLimits = {
+      files: settings.backgroundFiles,
+      memoryMiB: settings.backgroundMemoryMiB,
+    };
     this.applyLimits();
     await this.apply();
-    void this.loadRelay();
   }
 
   /** @upstream ByteRipperApp/Agent/AgentService.swift#AgentService.isEnabled */

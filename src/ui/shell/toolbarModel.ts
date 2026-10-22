@@ -29,6 +29,7 @@ export type ToolbarItemId =
   | "goTo"
   | "find"
   | "segments"
+  | "notes"
   | "wordSize"
   | "diffNavigation"
   | "filesIdentical"
@@ -84,9 +85,14 @@ export const TOOLBAR_DEFAULT_ITEMS: readonly ToolbarItemId[] = [
 export function toolbarItems(
   comparison: boolean,
   identical: boolean,
-  agent = false
+  agent = false,
+  notes = false
 ): ToolbarItemId[] {
   return TOOLBAR_DEFAULT_ITEMS.flatMap((id): ToolbarItemId[] => {
+    // The Annotations button, right after Segments, where the annotations are a window of their
+    // own — the desktop shell's (D7c); a browser's are a pill in the dock.
+    // @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.makeNotesItem
+    if (id === "segments") return notes ? ["segments", "notes"] : ["segments"];
     // The Agent button sits between the help book and the pane arrangement, each with a space of
     // its own on either side, while the agent service is switched on: a door to a window about a
     // service that is not there would open onto "Switched off." and nothing else.

@@ -8,8 +8,9 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
-import { drawnIn, showAnnotationCards } from "@/state/agent/agentAnnotationStore";
+import { drawnIn } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
+import { revealAnnotationCards } from "@/state/agent/annotationWindows";
 import {
   addBookmarkAtOffset,
   deleteBookmarkAtOffset,
@@ -784,7 +785,7 @@ function noteItems(pane: PaneId, offset: number): MenuEntry[] {
       label: L("Open Annotation “%1$@”", one.annotation.title),
       onSelect: () => {
         showNotesLeaving(pane);
-        showAnnotationCards([one.annotation.id]);
+        revealAnnotationCards([one.annotation.id]);
       },
     }));
 }

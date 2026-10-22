@@ -1278,6 +1278,7 @@
 "Scroll the log to each new request as it arrives" = "Das Protokoll zu jeder neuen Anfrage scrollen";
 "Select a request to see all of it." = "Eine Anfrage auswählen, um sie vollständig zu sehen.";
 "Show the Agent window" = "Das Agentenfenster zeigen";
+"Show the Annotations window" = "Das Fenster „Anmerkungen“ zeigen";
 "Switched off." = "Ausgeschaltet.";
 "The agent service is not available in this copy of the app." = "In dieser Kopie des Programms ist der Agentendienst nicht verfügbar.";
 "The program the agent runs in, whose configuration is shown below" = "Das Programm, in dem der Agent läuft; seine Konfiguration steht darunter";

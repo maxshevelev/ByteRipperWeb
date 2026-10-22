@@ -9,6 +9,7 @@ import {
 import { arranged, inCardOrder } from "@/core/agent/annotationOrder";
 import type { BinaryDocument } from "@/core/document/binaryDocument";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
+import { desktopOwnWindows, ownWindowKind } from "@/platform/desktop/desktopWindows";
 import { type KeyValueStore, openKeyValueStore } from "@/platform/storage/keyValueStore";
 import { keptHandles, onFileReplaced, onHandlesChange, restoreHandles } from "@/state/fileReopen";
 import { createStore } from "@/state/store";
@@ -425,9 +426,16 @@ function syncPanel(): void {
   try {
     // The panel stays up, empty, while the removal that emptied it can be taken back: with it gone
     // there would be nowhere to press Undo.
-    const up = notesPanelIsUp(workspaceStore.getSnapshot());
-    syncNotesPanel(allAnnotations().length > 0 || (up && canUndoRemoval()));
-    if (notesPanelIsUp(workspaceStore.getSnapshot())) {
+    // The desktop shell's annotations are a window of their own (D7c): no pill in a window of the
+    // workspace, and the window counts as up while it is in front of the person.
+    const own = ownWindowKind();
+    const shell = own !== undefined || desktopOwnWindows() !== undefined;
+    if (!shell) {
+      const up = notesPanelIsUp(workspaceStore.getSnapshot());
+      syncNotesPanel(allAnnotations().length > 0 || (up && canUndoRemoval()));
+    }
+    const up = own === "notes" ? notesWindowInView() : notesPanelIsUp(workspaceStore.getSnapshot());
+    if (up) {
       markAnnotationsSeen();
       agentAnnotationStore.update((state) =>
         state.fresh.size === 0
@@ -443,6 +451,25 @@ function syncPanel(): void {
 }
 agentAnnotationStore.subscribe(syncPanel);
 workspaceStore.subscribe(syncPanel);
+
+/**
+ * Whether the Annotations window is in front of the person: on screen, and the window with the
+ * keyboard.
+ *
+ * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.isInView
+ */
+function notesWindowInView(): boolean {
+  return (
+    typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()
+  );
+}
+if (typeof window !== "undefined" && ownWindowKind() === "notes") {
+  // Coming into view takes the count and marks the notes made meanwhile; going out of it takes
+  // the marks off.
+  for (const event of ["focus", "blur", "visibilitychange"]) {
+    window.addEventListener(event, syncPanel);
+  }
+}
 
 /**
  * Forgets every annotation, for a test that leaves none behind for the next.

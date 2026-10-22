@@ -43,14 +43,15 @@ test("with no window in front, the system places the new one", () => {
  * Windows whose pages answer the quit's question, each with an answer to the dialog over it, and a
  * structure kept in memory.
  */
-function harness({ saved, toOpen, toSave } = {}) {
+function harness({ saved, toOpen, toSave, ownFrames } = {}) {
   const app = Object.assign(new EventEmitter(), { quitCalled: 0, quit: () => app.quitCalled++ });
   const made = [];
   const asked = [];
   const written = [];
   let stayedHeard = 0;
   const displays = [{ workArea }];
-  const windows = register({
+  const framesWritten = [];
+  const deps = {
     BrowserWindow: { getFocusedWindow: () => undefined },
     Menu: { setApplicationMenu: () => undefined },
     screen: { getDisplayMatching: () => ({ workArea }), getAllDisplays: () => displays },
@@ -72,6 +73,11 @@ function harness({ saved, toOpen, toSave } = {}) {
     },
     pickProjectToOpen: async () => toOpen,
     pickProjectToSave: async () => toSave,
+    createOwn: (kind, bounds, message) => deps.create(bounds, { own: kind, show: message }),
+    ownFrames: {
+      read: () => ownFrames,
+      write: (value) => framesWritten.push(JSON.parse(JSON.stringify(value))),
+    },
     create: (bounds, launch) => {
       let destroyed = false;
       const window = Object.assign(new EventEmitter(), {
@@ -82,6 +88,7 @@ function harness({ saved, toOpen, toSave } = {}) {
         lastSnapshot: 0,
         forgot: [],
         calls: [],
+        sent: [],
         answers: {},
         isDestroyed: () => destroyed,
         isMinimized: () => false,
@@ -99,6 +106,7 @@ function harness({ saved, toOpen, toSave } = {}) {
           if (!prevented) window.destroy();
         },
         webContents: {
+          send: (channel, message) => window.sent.push([channel, message]),
           executeJavaScript: async (code) => {
             const [, name, args] = /__byteripperShell\?\.(\w+)\?\.\((.*)\)$/s.exec(code) ?? [];
             const values = args ? JSON.parse(`[${args}]`) : [];
@@ -115,8 +123,9 @@ function harness({ saved, toOpen, toSave } = {}) {
       made.push(window);
       return window;
     },
-  });
-  return { app, made, asked, written, windows, stayed: () => stayedHeard };
+  };
+  const windows = register(deps);
+  return { app, made, asked, written, framesWritten, windows, stayed: () => stayedHeard };
 }
 
 const settle = async () => {
@@ -480,4 +489,64 @@ test("a launch whose project is gone opens one window", () => {
   windows.launch();
   assert.equal(made.length, 1);
   assert.equal(made[0].launch.project, undefined);
+});
+
+// The app's own windows (D7): the help, the annotations, the agent.
+
+// Upstream: NotesWindowController.instance — one window, made the first time it is asked for.
+test("the app's own window of a kind is made once, and asked again it shows what is named", () => {
+  const { made, windows } = harness();
+  windows.makeWindow();
+  windows.openOwn("help", { link: { kind: "topic", id: "overview" } });
+  windows.openOwn("help", { link: { kind: "topic", id: "settings" } });
+  assert.equal(made.length, 2);
+  assert.deepEqual(made[1].launch, {
+    own: "help",
+    show: { link: { kind: "topic", id: "overview" } },
+  });
+  assert.deepEqual(made[1].sent, [["own:show", { link: { kind: "topic", id: "settings" } }]]);
+  assert.equal(windows.ownKindOf(made[1]), "help");
+  assert.equal(windows.ownKindOf(made[0]), undefined);
+});
+
+test("a kind the app has no window of is not made", () => {
+  const { made, windows } = harness();
+  windows.openOwn("settings");
+  assert.equal(made.length, 0);
+});
+
+test("the app's own windows are not the workspace's", () => {
+  const { made, windows } = harness();
+  windows.makeWindow();
+  windows.hold(made[0], "w1", true);
+  windows.openOwn("notes");
+  made[1].emit("focus");
+  assert.deepEqual(windows.windows(), [made[0]]);
+  assert.deepEqual(
+    windows.structure().windows.map((one) => one.id),
+    ["w1"]
+  );
+});
+
+test("an own window opens where it stood when it was closed", () => {
+  const { made, windows, framesWritten } = harness({
+    ownFrames: { agent: { x: 300, y: 200, width: 700, height: 600 } },
+  });
+  windows.openOwn("agent");
+  assert.deepEqual(made[0].bounds, { x: 300, y: 200, width: 700, height: 600 });
+  made[0].bounds = { x: 320, y: 220, width: 700, height: 600 };
+  made[0].close();
+  assert.deepEqual(framesWritten.at(-1), { agent: { x: 320, y: 220, width: 700, height: 600 } });
+  windows.openOwn("agent");
+  assert.equal(made.length, 2, "made again once closed");
+});
+
+test("closing the last window of the workspace quits, taking the app's own windows with it", async () => {
+  const { app, made, windows } = harness();
+  windows.makeWindow();
+  windows.openOwn("help");
+  made[0].close();
+  await settle();
+  assert.equal(app.quitCalled, 1);
+  assert.equal(made[1].isDestroyed(), true);
 });

@@ -55,6 +55,19 @@ export type AnnotationFile =
       readonly kind: "document";
       readonly document: WeakRef<BinaryDocument>;
       readonly name: string;
+    }
+  /**
+   * A document with no file that another of the desktop shell's windows holds: named by that
+   * window and the pane it is in there, which is what is asked to show it or let it go
+   * (`Design/DESKTOP_WINDOWS.md`, D7c).
+   *
+   * @web-only upstream's windows share the document itself; a page cannot hold another's
+   */
+  | {
+      readonly kind: "elsewhere";
+      readonly window: string;
+      readonly pane: string;
+      readonly name: string;
     };
 
 /**

@@ -1,4 +1,4 @@
-@source-sha 4b44e9eac6a98fb391a08b482639208ae8b1c2ca0132e353914fdee6b6edc425
+@source-sha 5e51ea2b7bb9622075302606bd2d007fc95aaf6f7de665af187235c81055a020
 # Einstellungen
 
 > **Ablage ▸ Einstellungen…** [[edition:im Menü der Symbolleiste||im Menü]] — das, was sich das Programm merkt.
@@ -15,6 +15,7 @@
 
 **[[edition:In diesem Browser, auf diesem Rechner||In dieser Installation, auf diesem Rechner]]** — nicht in einem Konto und nicht in einer Datei, die man kopieren kann. Daraus folgt:
 
+- [[edition:Alle geöffneten Tabs der Seite lesen dieselben Einstellungen||Alle Fenster der Anwendung lesen dieselben Einstellungen]]: Eine Änderung in einem gilt sofort auch in den übrigen. Dasselbe gilt für **Ablage ▸ Benutzte Dokumente** und die Liste der letzten Suchen.
 - [[edition:Ein anderer Browser, ein anderer Rechner oder ein privates Fenster||Eine andere Installation oder ein anderer Rechner]] beginnen bei den Voreinstellungen.
 - [[edition:Das Löschen der Website-Daten||Das Löschen der Daten der Anwendung]] löscht die Einstellungen mit, samt Lesezeichen und Musterbibliothek.
 - [[edition:Einen Reiter „Dateitypen“ gibt es hier nicht: Womit eine `.bin` geöffnet wird, ist Sache des Betriebssystems, und einer Webseite wird diese Aufgabe nicht angeboten.||Einen Reiter „Dateitypen“ gibt es hier nicht: Womit eine `.bin` geöffnet wird, ist Sache des Betriebssystems.]]

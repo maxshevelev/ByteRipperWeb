@@ -8,6 +8,11 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { TOPIC, termId, termLink, topicLink } from "@/core/help/helpIds";
+import {
+  installDesktopOwnWindowsForTesting,
+  installDesktopWorkspaceForTesting,
+  resetWindowLaunchForTesting,
+} from "@/platform/desktop/desktopWindows";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import {
   closeHelp,
@@ -23,6 +28,7 @@ import {
   reloadHelpBook,
   setHelpQuery,
   showHelp,
+  startHelpWindow,
 } from "@/state/helpStore";
 import { foldParts, toggleHelpPanel, workspaceStore } from "@/state/workspaceStore";
 
@@ -172,5 +178,50 @@ describe("the book itself", () => {
     expect(helpHasPage(topicLink(TOPIC.toolME))).toBe(true);
     expect(helpHasPage(termLink(termId("fpt")))).toBe(true);
     expect(helpHasPage(termLink(termId("no-such-word")))).toBe(false);
+  });
+});
+
+describe("the help's own window in the desktop shell (D7)", () => {
+  afterEach(() => {
+    installDesktopOwnWindowsForTesting();
+    installDesktopWorkspaceForTesting();
+    resetWindowLaunchForTesting();
+  });
+
+  it("is asked to show the page from a window of the workspace, which opens no panel", () => {
+    const asked: unknown[] = [];
+    installDesktopOwnWindowsForTesting({
+      open: (kind, message) => asked.push([kind, message]),
+      onShow: () => () => undefined,
+      close: () => undefined,
+    });
+    showHelp(topicLink(TOPIC.settings));
+    expect(asked).toEqual([["help", { link: topicLink(TOPIC.settings) }]]);
+    expect(helpPanel()).toBeUndefined();
+  });
+
+  it("shows in itself what it was opened at, and then what it is asked for", () => {
+    let shown: ((message: unknown) => void) | undefined;
+    installDesktopOwnWindowsForTesting({
+      open: () => undefined,
+      onShow: (callback) => {
+        shown = callback;
+        return () => undefined;
+      },
+      close: () => undefined,
+    });
+    installDesktopWorkspaceForTesting({
+      launch: () => ({ adopt: false, own: "help" }),
+      hold: () => undefined,
+    });
+    const stop = startHelpWindow({ link: topicLink(TOPIC.bookmarks) });
+    expect(helpHere(helpStore.getSnapshot())).toEqual(topicLink(TOPIC.bookmarks));
+    shown?.({ link: topicLink(TOPIC.settings) });
+    expect(helpHere(helpStore.getSnapshot())).toEqual(topicLink(TOPIC.settings));
+    // Something that is not a link is where the reader already is.
+    shown?.({ link: { kind: "page", id: 7 } });
+    expect(helpHere(helpStore.getSnapshot())).toEqual(topicLink(TOPIC.settings));
+    expect(helpPanel()).toBeUndefined();
+    stop();
   });
 });

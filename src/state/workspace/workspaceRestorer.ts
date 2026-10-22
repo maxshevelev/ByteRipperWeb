@@ -19,7 +19,7 @@ import {
 } from "@/core/workspace/workspace";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
-import { desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
+import { desktopOwnWindows, desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { decodeEdits } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
@@ -663,7 +663,8 @@ function applySurface(state: SurfaceState): void {
 async function restoreNotes(notes: NotesState | undefined): Promise<void> {
   if (notes === undefined) return;
   await restoreAnnotations();
-  if (notes.isUp) openNotesPanel();
+  // The desktop shell's Annotations window is the app's, not this window's, and is not reopened.
+  if (notes.isUp && desktopOwnWindows() === undefined) openNotesPanel();
   if (notes.selected.length > 0) selectAnnotations(notes.selected, notes.selected[0]);
 }
 

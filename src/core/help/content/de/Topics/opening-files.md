@@ -1,4 +1,4 @@
-@source-sha 6c9cce379d240f94cae849ce6827c61ee8f48002564fd1b50182f2e030b2823a
+@source-sha 8e443d49bb8a897caa81ca577a5f81edc95513f3740ed352582b417ad58337cf
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -34,7 +34,7 @@ Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; di
 
 [[edition:||Ist in einem Fenster nichts mehr offen, schließt **Ablage ▸ Schließen** das Fenster selbst; **Ablage ▸ Fenster schließen** ([[key:closeWindow]]) schließt es unabhängig davon, was es enthält. Ein Fenster mit ungesicherten Änderungen fragt vor dem Schließen nach. **Ablage ▸ Beenden** schließt alle Fenster der Reihe nach, das vordere zuerst, und jedes fragt nach seinen eigenen Änderungen; wer „Bleiben“ wählt, behält dieses Fenster und die dahinter offen.]]
 
-[[edition:||Ein Bereich wird an seinem Kopf zwischen Fenstern bewegt. Auf der Mitte eines Bereichs in einem anderen Fenster losgelassen, wandert er dorthin; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie, und auf dem oberen oder unteren Band wird er an jenen Bereich angefügt. Solange ein Bereich gezogen wird, bietet ein Streifen am oberen Rand jedes Fensters **In neues Fenster verschieben** an, mit gedrückter Alt-Taste **In neues Fenster duplizieren**; Dateien, die auf den Streifen gezogen werden, öffnen sich in einem neuen Fenster. Im Vergleich bietet das Menü des Bereichskopfs **In neuem Fenster öffnen** an. Ein Bereich, der in ein neues Fenster getragen wird, nimmt die Lesezeichen des Fensters mit, aus dem er kommt. Ein verschobener Bereich behält seine Position, seine Segmente und seine ungesicherten Änderungen; sein Widerrufen-Verlauf bleibt zurück.]]
+[[edition:||Ein Bereich wird an seinem Kopf zwischen Fenstern bewegt. Auf der Mitte eines Bereichs in einem anderen Fenster losgelassen, wandert er dorthin; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie, und auf dem oberen oder unteren Band wird er an jenen Bereich angefügt. Irgendwo auf einem leeren Fenster losgelassen, wird er zum Bereich dieses Fensters. Solange ein Bereich gezogen wird, bietet ein Streifen am oberen Rand jedes Fensters **In neues Fenster verschieben** an, mit gedrückter Alt-Taste **In neues Fenster duplizieren**; Dateien, die auf den Streifen gezogen werden, öffnen sich in einem neuen Fenster. Im Vergleich bietet das Menü des Bereichskopfs **In neuem Fenster öffnen** an. Ein Bereich, der in ein neues Fenster getragen wird, nimmt die Lesezeichen des Fensters mit, aus dem er kommt. Ein verschobener Bereich behält seine Position, seine Segmente und seine ungesicherten Änderungen; sein Widerrufen-Verlauf bleibt zurück.]]
 
 ## Wenn die Datei schon offen ist
 

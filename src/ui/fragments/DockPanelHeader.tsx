@@ -1,6 +1,7 @@
 import { type ReactNode, useContext } from "react";
 import { createPortal } from "react-dom";
 import { L } from "@/core/localization/localization";
+import { ownWindowKind } from "@/platform/desktop/desktopWindows";
 import { foldParts } from "@/state/workspaceStore";
 import { PaneHeaderHostContext } from "@/ui/pane/paneHeaderHost";
 import { CloseButton } from "@/ui/shell/CloseButton";
@@ -106,7 +107,11 @@ export function DockPanelHeader({
         {title}
       </h2>
       {children}
-      <DockPanelControls closeLabel={closeLabel} onClose={onClose} onCollapse={foldParts} />
+      {/* In a window of its own the window's title bar closes it, and there is no dock to fold
+          into (`Design/DESKTOP_WINDOWS.md`, D7). */}
+      {ownWindowKind() === undefined ? (
+        <DockPanelControls closeLabel={closeLabel} onClose={onClose} onCollapse={foldParts} />
+      ) : null}
     </header>
   );
   // Outside a panel — a test, or a page that renders it on its own — it stands where it is.

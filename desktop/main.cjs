@@ -174,6 +174,45 @@ const structureStore = {
   },
 };
 
+/** Where the app's own windows — the help, the annotations, the agent — last stood. */
+const ownFramesFile = () => path.join(app.getPath("userData"), "Workspace", "OwnWindows.json");
+
+const ownFramesStore = {
+  read() {
+    try {
+      return JSON.parse(fs.readFileSync(ownFramesFile(), "utf8"));
+    } catch {
+      return undefined;
+    }
+  },
+  write(value) {
+    const file = ownFramesFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value, null, 2));
+  },
+};
+
+/** The size each of the app's own windows opens at the first time, before it has a frame kept. */
+const OWN_SIZES = {
+  help: { width: 980, height: 760 },
+  notes: { width: 760, height: 720 },
+  agent: { width: 720, height: 720 },
+};
+
+/**
+ * What a page may hand the app's own window to show — a help page's link, an annotation's id —
+ * as plain data of a modest size, or nothing.
+ */
+function ownMessage(message) {
+  if (message === undefined || message === null) return undefined;
+  try {
+    const text = JSON.stringify(message);
+    return text.length <= 64 * 1024 ? JSON.parse(text) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The projects opened lately, kept beside the structure. */
 const recentProjects = projects.recentStore(() =>
   path.join(app.getPath("userData"), "Workspace", "RecentProjects.json")
@@ -272,6 +311,13 @@ app.whenReady().then(() => {
     },
     confirmLeave: async (window) => confirmLeave(window),
     onStayed: () => updates.stayed(),
+    createOwn: (kind, bounds, message) =>
+      createWindow(bounds ?? OWN_SIZES[kind], {
+        adopt: false,
+        own: kind,
+        ...(message === undefined ? {} : { show: message }),
+      }),
+    ownFrames: ownFramesStore,
   });
   protocol.handle(SCHEME, (request) => {
     const file = fileFor(request.url);
@@ -399,6 +445,11 @@ app.whenReady().then(() => {
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
   ipcMain.on("window:close", (event) => {
     if (fromApp(event)) BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+  // The app's own windows (D7): Help ▸ …, Window ▸ Annotations and Agent open the one window of
+  // the kind, or bring it forward, at what the page names.
+  ipcMain.on("window:own", (event, kind, message) => {
+    if (fromApp(event) && typeof kind === "string") windows.openOwn(kind, ownMessage(message));
   });
 
   // Projects (D3): every window's, written by this process into the folder of the one open. A page

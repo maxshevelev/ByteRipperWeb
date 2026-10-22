@@ -67,13 +67,19 @@ Important rules:
 - The hex grid draws through a glyph atlas and repaints dirty regions only. When
   drawing lags, fix what is repainted; do not cache what was painted.
 - One workspace per browser tab. No in-app tabs, no window management, no pane
-  dragging — that was a deliberate decision, not an omission.
+  dragging — that was a deliberate decision, not an omission. **The desktop
+  shell is the exception** (the owner's decision, 2026-10-22): one process,
+  several windows, one workspace, panes and panels carried between windows
+  (`Design/DESKTOP_WINDOWS.md`); its tabs are issue #1.
 - **Every additional window opens as a panel in the fragment dock.** A part, the
   help book and the Agent window each take a pill in the dock along the bottom
   edge and rise from it as the panel over the panes; a new one is another kind
   of panel beside them (`workspaceStore.helpPanel`, `agentPanel`), never a
   floating window, a modal or a corner of its own. At most one per kind, raised
-  when asked for again; Esc folds it, ✕ on the pill closes it.
+  when asked for again; Esc folds it, ✕ on the pill closes it. In the desktop
+  shell the annotations, the agent and the help — the app's, not a
+  workspace's — are each a window of its own instead, one per kind, as
+  upstream's are (`Design/DESKTOP_WINDOWS.md`, D7); a part stays a panel.
 - **A name the help puts in bold is a promise.** After renaming anything
   user-visible, or editing a help page that quotes the interface, also run:
   `python3 Skills/help-names/scripts/help_names.py`
