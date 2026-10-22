@@ -1195,3 +1195,28 @@ export type FirmwareWorkerResponse =
   | FirmwareRebuildResponse
   | FirmwareProgress
   | FirmwareFailed;
+
+// MARK: - The undo journals' files
+
+/** A run written to, or read from, a journal's file; a journal let go. */
+export type JournalWorkerRequest =
+  | {
+      readonly kind: "write";
+      readonly id: number;
+      readonly name: string;
+      readonly at: number;
+      readonly bytes: Uint8Array;
+    }
+  | {
+      readonly kind: "read";
+      readonly id: number;
+      readonly name: string;
+      readonly at: number;
+      readonly count: number;
+    }
+  | { readonly kind: "close"; readonly name: string };
+
+export type JournalWorkerResponse =
+  | { readonly kind: "done"; readonly id: number }
+  | { readonly kind: "read"; readonly id: number; readonly bytes: Uint8Array }
+  | { readonly kind: "failed"; readonly id: number; readonly message: string };

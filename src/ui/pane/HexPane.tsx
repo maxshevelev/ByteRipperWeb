@@ -945,7 +945,7 @@ export function HexPane({
     const stopContent = doc.onContentChanged((change) => {
       const renderer = rendererRef.current;
       for (const op of change.ops) {
-        if (op.kind === "overwrite") renderer?.invalidateBytes(op.at, op.at + op.after.length);
+        if (op.kind === "overwrite") renderer?.invalidateBytes(op.at, op.at + op.after.count);
         else renderer?.invalidateBytes(op.at, doc.size);
       }
       apply();

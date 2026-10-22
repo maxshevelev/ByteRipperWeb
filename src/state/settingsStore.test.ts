@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { currentUndoLimits } from "@/core/edit/undoJournal";
 import { type KeyValueStore, memoryKeyValueStore } from "@/platform/storage/keyValueStore";
 import {
   APP_THEMES,
@@ -28,6 +29,7 @@ import {
   setTextDecoding,
   setTheme,
   settingsStore,
+  setUndoLimits,
   THEME_KEY,
   textDecodingFrom,
   themeAppearance,
@@ -201,6 +203,24 @@ describe("the shifting-edit warning", () => {
     expect(warnsBeforeShiftingEditsFrom(await storage.get(WARNS_BEFORE_SHIFTING_EDITS_KEY))).toBe(
       true
     );
+  });
+});
+
+describe("the undo history's bounds", () => {
+  // Large by default — dumps are large — with no bound on steps, and every choice handed to the
+  // histories at once.
+  // @upstream ByteRipperTests/EditingSettingsTests.swift#EditingSettingsTests.testTheUndoBoundsDefaultLargeAndReachEveryHistory
+  it("default large, and reach every history", async () => {
+    expect(appearance().undoHistoryMiB).toBe(4096);
+    expect(appearance().undoSteps).toBe(0);
+    expect(currentUndoLimits()).toEqual({ bytes: 4 * 2 ** 30, transactions: undefined });
+
+    setUndoLimits({ undoHistoryMiB: 512 });
+    setUndoLimits({ undoSteps: 10_000 });
+    expect(currentUndoLimits()).toEqual({ bytes: 512 * 2 ** 20, transactions: 10_000 });
+    await loadSettings();
+    expect(appearance().undoHistoryMiB, "read back as stored").toBe(512);
+    expect(appearance().undoSteps).toBe(10_000);
   });
 });
 

@@ -1,3 +1,4 @@
+import { setCurrentUndoLimits, type UndoLimits } from "@/core/edit/undoJournal";
 import {
   type LanguageChoice,
   resolveLanguage,
@@ -238,6 +239,30 @@ export const DEFAULT_GROUPING_GAP = 64;
 /** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.warnsBeforeShiftingEditsKey */
 export const WARNS_BEFORE_SHIFTING_EDITS_KEY = "WarnsBeforeShiftingEdits";
 
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoHistoryMiBKey */
+export const UNDO_HISTORY_MIB_KEY = "UndoHistoryMiB";
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoStepsKey */
+export const UNDO_STEPS_KEY = "UndoSteps";
+
+/**
+ * What the size menu offers, in MiB. Large: dumps are large, and a replace of a 1 GB region keeps
+ * 2 GB — its bytes before and after.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoHistoryChoicesMiB
+ */
+export const UNDO_HISTORY_CHOICES_MIB: readonly number[] = [512, 1024, 2048, 4096, 8192, 16384];
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.defaultUndoHistoryMiB */
+export const DEFAULT_UNDO_HISTORY_MIB = 4096;
+/**
+ * What the steps menu offers; 0 is no bound. A typed byte is one step, and in practice 10 000 is
+ * already more than anyone reaches.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoStepChoices
+ */
+export const UNDO_STEP_CHOICES: readonly number[] = [1000, 10_000, 100_000, 0];
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.defaultUndoSteps */
+export const DEFAULT_UNDO_STEPS = 0;
+
 // MARK: - Text decoding
 
 /**
@@ -330,6 +355,36 @@ export function warnsBeforeShiftingEditsFrom(stored: unknown): boolean {
 }
 
 /**
+ * The bytes of changes each document's history keeps, in MiB.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoHistoryMiB
+ */
+export function undoHistoryMiBFrom(stored: unknown): number {
+  return typeof stored === "number" && UNDO_HISTORY_CHOICES_MIB.includes(stored)
+    ? stored
+    : DEFAULT_UNDO_HISTORY_MIB;
+}
+
+/**
+ * The changes each document's history keeps; 0 is no bound.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoSteps
+ */
+export function undoStepsFrom(stored: unknown): number {
+  return typeof stored === "number" && UNDO_STEP_CHOICES.includes(stored)
+    ? stored
+    : DEFAULT_UNDO_STEPS;
+}
+
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoLimits */
+export const undoLimitsOf = (
+  settings: Pick<SettingsState, "undoHistoryMiB" | "undoSteps">
+): UndoLimits => ({
+  bytes: settings.undoHistoryMiB * 2 ** 20,
+  transactions: settings.undoSteps === 0 ? undefined : settings.undoSteps,
+});
+
+/**
  * Each field falls back on its own: a table nobody knows does not discard a
  * perfectly good placeholder.
  *
@@ -370,6 +425,10 @@ export interface SettingsState {
    * @upstream ByteRipperApp/Settings/GeneralSettings.swift#WorkspaceSettings.restoresWorkspace
    */
   readonly restoresWorkspace: boolean;
+  /** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoHistoryMiB */
+  readonly undoHistoryMiB: number;
+  /** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.undoSteps */
+  readonly undoSteps: number;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -380,6 +439,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   language: "system",
   textDecoding: DEFAULT_TEXT_DECODING,
   restoresWorkspace: false,
+  undoHistoryMiB: DEFAULT_UNDO_HISTORY_MIB,
+  undoSteps: DEFAULT_UNDO_STEPS,
 };
 
 /**
@@ -423,6 +484,8 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
     layoutIsVertical,
     groupingGap,
     warns,
+    undoHistoryMiB,
+    undoSteps,
   ] = await Promise.all(
     [
       FONT_FAMILY_KEY,
@@ -436,6 +499,8 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
       LAYOUT_DIRECTION_KEY,
       GROUPING_GAP_KEY,
       WARNS_BEFORE_SHIFTING_EDITS_KEY,
+      UNDO_HISTORY_MIB_KEY,
+      UNDO_STEPS_KEY,
     ].map((key) => store.get<unknown>(key))
   );
 
@@ -448,12 +513,17 @@ export async function loadSettings(): Promise<WorkspaceSettings> {
       theme: themeFrom(theme),
       language: storedLanguageChoice(typeof language === "string" ? language : undefined),
       textDecoding: textDecodingFrom(identifier, placeholder),
+      undoHistoryMiB: undoHistoryMiBFrom(undoHistoryMiB),
+      undoSteps: undoStepsFrom(undoSteps),
     };
     // Read again for another window's change, what that change left alone is not redrawn.
     return JSON.stringify(read) === JSON.stringify(state) ? state : read;
   });
   applyAppearance(settingsStore.getSnapshot());
   applyTheme(settingsStore.getSnapshot().theme);
+  // Every document's undo history keeps to the bounds the settings name, read at each edit.
+  // @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.applyUndoLimits
+  setCurrentUndoLimits(undoLimitsOf(settingsStore.getSnapshot()));
 
   return {
     wordSize: wordSizeFrom(wordSize),
@@ -713,6 +783,33 @@ export function forgetGroupingGap(): void {
 
 export function forgetWarnsBeforeShiftingEdits(): void {
   forget(WARNS_BEFORE_SHIFTING_EDITS_KEY);
+}
+
+/**
+ * Remembers the undo history's bounds and hands them to every document's history, which reads
+ * them at its next edit.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.set
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.applyUndoLimits
+ */
+export function setUndoLimits(
+  bounds: Partial<Pick<SettingsState, "undoHistoryMiB" | "undoSteps">>
+): void {
+  if (bounds.undoHistoryMiB !== undefined) remember(UNDO_HISTORY_MIB_KEY, bounds.undoHistoryMiB);
+  if (bounds.undoSteps !== undefined) remember(UNDO_STEPS_KEY, bounds.undoSteps);
+  settingsStore.update((state) => ({ ...state, ...bounds }));
+  setCurrentUndoLimits(undoLimitsOf(settingsStore.getSnapshot()));
+}
+
+/** @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettings.resetToDefaults */
+export function resetUndoLimits(): void {
+  forget(UNDO_HISTORY_MIB_KEY, UNDO_STEPS_KEY);
+  settingsStore.update((state) => ({
+    ...state,
+    undoHistoryMiB: DEFAULT_UNDO_HISTORY_MIB,
+    undoSteps: DEFAULT_UNDO_STEPS,
+  }));
+  setCurrentUndoLimits(undoLimitsOf(settingsStore.getSnapshot()));
 }
 
 // MARK: - The workspace

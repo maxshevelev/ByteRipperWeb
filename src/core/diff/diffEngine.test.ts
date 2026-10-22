@@ -11,6 +11,7 @@ import {
   scanDiffRange,
 } from "@/core/diff/diffEngine";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { UndoBytes } from "@/core/edit/undoJournal";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import { SeededRandom } from "@/core/testing/support";
@@ -366,18 +367,18 @@ describe("the net edit a transaction produces", () => {
   const overwrite = (at: number, length: number): UndoOperation => ({
     kind: "overwrite",
     at,
-    before: new Uint8Array(length),
-    after: new Uint8Array(length),
+    before: UndoBytes.of(new Uint8Array(length)),
+    after: UndoBytes.of(new Uint8Array(length)),
   });
   const insert = (at: number, length: number): UndoOperation => ({
     kind: "insert",
     at,
-    bytes: new Uint8Array(length),
+    bytes: UndoBytes.of(new Uint8Array(length)),
   });
   const remove = (at: number, length: number): UndoOperation => ({
     kind: "delete",
     at,
-    bytes: new Uint8Array(length),
+    bytes: UndoBytes.of(new Uint8Array(length)),
   });
 
   const cases: { name: string; ops: UndoOperation[]; expected: DiffEdit | undefined }[] = [

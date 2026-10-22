@@ -70,6 +70,7 @@ import {
   rememberLayoutIsVertical,
   rememberWarnsBeforeShiftingEdits,
   rememberWordSize,
+  resetUndoLimits,
   settingsStore,
   type TextDecodingSettings,
   type WorkspaceSettings,
@@ -703,6 +704,7 @@ export function setConfirmShiftingEdits(confirmShiftingEdits: boolean): void {
 export function resetEditingSettings(): void {
   forgetWarnsBeforeShiftingEdits();
   workspaceStore.update((state) => ({ ...state, confirmShiftingEdits: true }));
+  resetUndoLimits();
 }
 
 /** @upstream ByteRipperApp/Settings/ComparisonSettings.swift#ComparisonSettings.set */
@@ -1763,9 +1765,14 @@ function seamCut(options: {
 export function syncJoinAttachment(pane: SlotId): void {
   const slot = workspaceStore.getSnapshot().panes[pane];
   if (slot === undefined) return;
+  const history = slot.document.undoHistory;
+  // A join whose step the history's bounds dropped can no longer be undone, so nothing is left
+  // to re-attach: with nothing to undo, the history stands on the newest dropped step.
+  // @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.dropMarksOfDroppedSteps
   const marks = joinMarks[pane];
+  marks.splice(0, marks.length, ...marks.filter((mark) => mark.serial > history.baseSerial));
   const undone = undoneJoins[pane];
-  const applied = slot.document.undoHistory.lastCommittedSerial ?? 0;
+  const applied = history.lastCommittedSerial ?? history.baseSerial;
 
   let attachment: Pick<PaneState, "name" | "file" | "saved" | "writable"> | undefined;
   // Undone: the join's step has left the history, so the file comes back.

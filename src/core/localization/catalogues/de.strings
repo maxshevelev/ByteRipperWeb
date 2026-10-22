@@ -1678,3 +1678,11 @@
 "The store marks this copy deleted and keeps no current one. The values are whole, and on most HP boards read so far the store holds them this way; where the firmware takes them from on such a board, the dump does not show." = "Der Speicher markiert diese Kopie als gelöscht und hält keine gültige. Die Werte sind vollständig, und auf den meisten bisher untersuchten HP-Platinen liegen sie so vor; woher die Firmware einer solchen Platine sie tatsächlich nimmt, zeigt der Dump nicht.";
 "The asset tracking number is not the serial number. HP writes the serial number there by default: the owner set another value, or it came over from another machine." = "Die Inventarnummer ist nicht die Seriennummer. HP schreibt dort standardmäßig die Seriennummer ein: Entweder hat der Besitzer einen anderen Wert gesetzt, oder die Nummer stammt von einem anderen Gerät.";
 "edit|Cut" = "Ausschneiden";
+
+/* Settings ▸ General ▸ Editing: the undo history's bounds */
+"Undo history size:" = "Größe des Widerrufsverlaufs:";
+"Undo steps:" = "Widerrufsschritte:";
+"Unlimited" = "Unbegrenzt";
+"How many bytes of changes each document's undo history keeps" = "Wie viele Bytes an Änderungen der Widerrufsverlauf jedes Dokuments aufbewahrt";
+"How many changes each document's undo history keeps" = "Wie viele Änderungen der Widerrufsverlauf jedes Dokuments aufbewahrt";
+"Each open document keeps an undo history of its own. The bytes of its changes are kept in a temporary file, not in memory, before and after alike: overwriting 1 GB keeps 2 GB. Past either limit the oldest changes can no longer be undone. A lower limit takes effect at the next change; a single change larger than the limit is still kept, so it can be undone." = "Jedes geöffnete Dokument führt einen eigenen Widerrufsverlauf. Die Bytes seiner Änderungen, der vorherige wie der neue Inhalt, werden in einer temporären Datei aufbewahrt, nicht im Arbeitsspeicher: Das Überschreiben von 1 GB belegt 2 GB. Jenseits einer der beiden Grenzen lassen sich die ältesten Änderungen nicht mehr widerrufen. Eine niedrigere Grenze gilt ab der nächsten Änderung; eine einzelne Änderung, die größer ist als die Grenze, bleibt dennoch erhalten und kann widerrufen werden.";

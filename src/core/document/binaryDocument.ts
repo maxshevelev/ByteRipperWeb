@@ -4,7 +4,13 @@ import {
   type Selection,
   selectionIsEmpty,
 } from "@/core/document/selectionModel";
-import { invertOperation, UndoHistory, type UndoOperation } from "@/core/edit/undoHistory";
+import {
+  invertOperation,
+  operationLength,
+  UndoHistory,
+  type UndoOperation,
+} from "@/core/edit/undoHistory";
+import { UndoBytes } from "@/core/edit/undoJournal";
 import type { ByteStorage, Bytes, EditableByteStorage } from "@/core/storage/byteStorage";
 
 /**
@@ -182,7 +188,7 @@ export class BinaryDocument {
     if (bytes.length === 0) return;
     const offset = Math.min(Math.max(at, 0), this.storageValue.size);
     await this.storageValue.insert(offset, bytes);
-    this.record([{ kind: "insert", at: offset, bytes }]);
+    this.record([{ kind: "insert", at: offset, bytes: UndoBytes.of(bytes) }]);
     this.clampSelection();
   }
 
@@ -198,7 +204,7 @@ export class BinaryDocument {
 
     const removed = await this.storageValue.read(from, to - from);
     await this.storageValue.delete(from, to);
-    this.record([{ kind: "delete", at: from, bytes: removed }]);
+    this.record([{ kind: "delete", at: from, bytes: UndoBytes.of(removed) }]);
     this.clampSelection();
   }
 
@@ -216,7 +222,13 @@ export class BinaryDocument {
    *
    * The final repetition is truncated when the length is not a multiple of the
    * pattern; a pattern longer than the range writes only its prefix. Recorded
-   * as an overwrite, so undo restores the original bytes.
+   * as overwrites, so undo restores the original bytes.
+   *
+   * Worked in {@link FILL_CHUNK_SIZE} slices, each one overwrite of the
+   * transaction: a slice's old bytes go into the history's journal before the
+   * next is read, and what the fill wrote is kept as its pattern, not as bytes —
+   * so a fill of a gigabyte holds one slice in memory, and its history keeps the
+   * gigabyte it replaced and a few bytes of pattern.
    *
    * `caretAfter` overrides what redo restores — a fill leaves the caret at the
    * range start, not at its end.
@@ -229,13 +241,33 @@ export class BinaryDocument {
     const to = Math.min(Math.max(end, 0), this.storageValue.size);
     if (to <= from) return;
 
-    const count = to - from;
-    const before = await this.storageValue.read(from, count);
-    const after = new Uint8Array(count);
-    for (let i = 0; i < count; i++) after[i] = pattern[i % pattern.length] ?? 0;
-
-    await this.storageValue.overwrite(from, after);
-    this.record([{ kind: "overwrite", at: from, before, after }], caretAfter);
+    const ops: UndoOperation[] = [];
+    try {
+      for (let at = from; at < to; at += FILL_CHUNK_SIZE) {
+        const count = Math.min(FILL_CHUNK_SIZE, to - at);
+        // The pattern as it stands at this slice's first byte: the slices continue one
+        // repetition, they do not each start it again.
+        const phase = (at - from) % pattern.length;
+        const slicePattern = new Uint8Array([
+          ...pattern.subarray(phase),
+          ...pattern.subarray(0, phase),
+        ]);
+        const written = UndoBytes.pattern(slicePattern, count);
+        const before = await this.storageValue.read(at, count);
+        await this.storageValue.overwrite(at, await written.load());
+        ops.push(
+          ...this.undoHistory.stored([
+            { kind: "overwrite", at, before: UndoBytes.of(before), after: written },
+          ])
+        );
+      }
+    } catch (error) {
+      // Put back what the slices already wrote: a fill is all or nothing.
+      for (const op of [...ops].reverse())
+        await this.applyForward(invertOperation(op)).catch(() => undefined);
+      throw error;
+    }
+    this.record(ops, caretAfter);
     this.clampSelection();
   }
 
@@ -254,7 +286,7 @@ export class BinaryDocument {
     if (leftoverEnd > writtenEnd) {
       const removed = await this.storageValue.read(writtenEnd, leftoverEnd - writtenEnd);
       await this.storageValue.delete(writtenEnd, leftoverEnd);
-      ops.push({ kind: "delete", at: writtenEnd, bytes: removed });
+      ops.push({ kind: "delete", at: writtenEnd, bytes: UndoBytes.of(removed) });
     }
     this.record(ops);
     this.clampSelection();
@@ -581,7 +613,9 @@ export class BinaryDocument {
     if (ops.length === 0) return;
 
     if (this.groupDepth > 0) {
-      this.pendingGroupOps.push(...ops);
+      // Into the journal at once: a group can run to gigabytes (a join, a streamed replace), and
+      // holding its bytes until it closes would cost them in memory all the same.
+      this.pendingGroupOps.push(...this.undoHistory.stored(ops));
       this.emitContent({ ops, restoring: false });
       return;
     }
@@ -606,9 +640,8 @@ export class BinaryDocument {
     if (last === undefined) return this.selectionValue.start;
     switch (last.kind) {
       case "overwrite":
-        return last.at + last.after.length;
       case "insert":
-        return last.at + last.bytes.length;
+        return last.at + operationLength(last);
       case "delete":
         return last.at;
     }
@@ -669,12 +702,17 @@ export class BinaryDocument {
     if (existingEnd > start) {
       const before = await this.storageValue.read(start, existingEnd - start);
       const after = bytes.slice(0, before.length);
-      ops.push({ kind: "overwrite", at: start, before, after });
+      ops.push({
+        kind: "overwrite",
+        at: start,
+        before: UndoBytes.of(before),
+        after: UndoBytes.of(after),
+      });
       await this.storageValue.overwrite(start, after);
     }
     if (end > existingEnd) {
       const tail = bytes.slice(existingEnd - start);
-      ops.push({ kind: "insert", at: existingEnd, bytes: tail });
+      ops.push({ kind: "insert", at: existingEnd, bytes: UndoBytes.of(tail) });
       await this.storageValue.append(tail);
     }
     return ops;
@@ -683,14 +721,22 @@ export class BinaryDocument {
   private async applyForward(operation: UndoOperation): Promise<void> {
     switch (operation.kind) {
       case "overwrite":
-        await this.storageValue.overwrite(operation.at, operation.after);
+        await this.storageValue.overwrite(operation.at, await operation.after.load());
         break;
       case "insert":
-        await this.storageValue.insert(operation.at, operation.bytes);
+        await this.storageValue.insert(operation.at, await operation.bytes.load());
         break;
       case "delete":
-        await this.storageValue.delete(operation.at, operation.at + operation.bytes.length);
+        await this.storageValue.delete(operation.at, operation.at + operation.bytes.count);
         break;
     }
   }
 }
+
+/**
+ * The slice a fill reads and writes at a time: the 1 MiB the segment writer, the replacer and the
+ * join use.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.fillChunkSize
+ */
+export const FILL_CHUNK_SIZE = 1024 * 1024;

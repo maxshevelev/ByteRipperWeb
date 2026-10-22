@@ -1677,3 +1677,11 @@
 "The store marks this copy deleted and keeps no current one. The values are whole, and on most HP boards read so far the store holds them this way; where the firmware takes them from on such a board, the dump does not show." = "Хранилище помечает эту копию удалённой, а действующей копии не держит. Значения целы, и на большинстве изученных плат HP они хранятся именно так; откуда прошивка такой платы берёт их на самом деле, по дампу не видно.";
 "The asset tracking number is not the serial number. HP writes the serial number there by default: the owner set another value, or it came over from another machine." = "Инвентарный номер не совпадает с серийным. По умолчанию HP записывает туда серийный номер: либо владелец задал другое значение, либо номер перенесён с другой машины.";
 "edit|Cut" = "Вырезать";
+
+/* Settings ▸ General ▸ Editing: the undo history's bounds */
+"Undo history size:" = "Объём истории отмены:";
+"Undo steps:" = "Шагов отмены:";
+"Unlimited" = "Без ограничений";
+"How many bytes of changes each document's undo history keeps" = "Сколько байтов правок хранит история отмены каждого документа";
+"How many changes each document's undo history keeps" = "Сколько правок хранит история отмены каждого документа";
+"Each open document keeps an undo history of its own. The bytes of its changes are kept in a temporary file, not in memory, before and after alike: overwriting 1 GB keeps 2 GB. Past either limit the oldest changes can no longer be undone. A lower limit takes effect at the next change; a single change larger than the limit is still kept, so it can be undone." = "Каждый открытый документ ведёт собственную историю отмены. Байты его правок — и прежние, и новые — хранятся во временном файле, а не в памяти: перезапись 1 ГБ занимает 2 ГБ. Сверх любого из пределов самые старые правки отменить уже нельзя. Уменьшенный предел действует со следующей правки; одна правка, превышающая предел, всё равно сохраняется и может быть отменена.";

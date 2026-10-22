@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { UndoBytes } from "@/core/edit/undoJournal";
 import {
   changeOfEdit,
   changeOfOperations,
@@ -92,8 +93,18 @@ describe("a transaction's operations as one change", () => {
   // once, as the stretch between the outermost of them.
   it("folds a scattered transaction into the stretch it touched", () => {
     const operations: UndoOperation[] = [
-      { kind: "overwrite", at: 0x40, before: bytes(2), after: bytes(2) },
-      { kind: "overwrite", at: 0x10, before: bytes(4), after: bytes(4) },
+      {
+        kind: "overwrite",
+        at: 0x40,
+        before: UndoBytes.of(bytes(2)),
+        after: UndoBytes.of(bytes(2)),
+      },
+      {
+        kind: "overwrite",
+        at: 0x10,
+        before: UndoBytes.of(bytes(4)),
+        after: UndoBytes.of(bytes(4)),
+      },
     ];
 
     expect(shape(changeOfOperations(operations) as ToolContentChange)).toBe("0x10..<0x42 +0");
@@ -103,8 +114,8 @@ describe("a transaction's operations as one change", () => {
   // which is why the deltas are added rather than the widths compared.
   it("adds up the operations that move the tail", () => {
     const operations: UndoOperation[] = [
-      { kind: "insert", at: 0x10, bytes: bytes(4) },
-      { kind: "delete", at: 0x20, bytes: bytes(2) },
+      { kind: "insert", at: 0x10, bytes: UndoBytes.of(bytes(4)) },
+      { kind: "delete", at: 0x20, bytes: UndoBytes.of(bytes(2)) },
     ];
 
     expect(shape(changeOfOperations(operations) as ToolContentChange)).toBe("0x10..<0x20 +2");

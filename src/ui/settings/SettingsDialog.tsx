@@ -6,9 +6,10 @@ import {
   resolveLanguage,
   storedLanguageChoice,
 } from "@/core/localization/appLanguage";
-import { L } from "@/core/localization/localization";
+import { currentLanguage, L } from "@/core/localization/localization";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { BYTE_DECODERS } from "@/core/text/byteDecoderRegistry";
+import { friendlySize } from "@/core/text/byteSize";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { WORD_SIZES, wordSizeTitle } from "@/render/hexGrid/hexLayout";
 import { agentService } from "@/state/agent/agentService";
@@ -27,8 +28,13 @@ import {
   setTextDecoding,
   setTheme,
   settingsStore,
+  setUndoLimits,
   themeFrom,
   themeTitle,
+  UNDO_HISTORY_CHOICES_MIB,
+  UNDO_STEP_CHOICES,
+  undoHistoryMiBFrom,
+  undoStepsFrom,
   wordSizeFrom,
 } from "@/state/settingsStore";
 import { useStore } from "@/state/useStore";
@@ -480,6 +486,10 @@ function ComparisonTab() {
  * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.refresh
  * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.warnsBeforeShiftingEdits
  * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.warnChanged
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historySizePopup
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historyStepsPopup
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historySizeChanged
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historyStepsChanged
  */
 /**
  * Settings ▸ Language: the browser's own, or one of the three, each named in
@@ -533,9 +543,19 @@ function LanguageTab() {
   );
 }
 
+/**
+ * "10 000" in the language's own grouping of digits; "Unlimited" for 0.
+ *
+ * @upstream ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.stepsTitle
+ */
+function undoStepsTitle(steps: number): string {
+  return steps > 0 ? steps.toLocaleString(currentLanguage()) : L("Unlimited");
+}
+
 // help: settings.editing
 function EditingTab() {
   const { confirmShiftingEdits } = useStore(workspaceStore);
+  const { undoHistoryMiB, undoSteps } = useStore(settingsStore);
 
   return (
     <section>
@@ -557,6 +577,46 @@ function EditingTab() {
       <p className="settings-caption">
         {L(
           "Insert mode, a paste in it, and Delete Bytes move every byte after the edit, so they ask first. Turn this off to edit without the dialog — the edits stay undoable, and insert mode still shows INS in the pane's status line."
+        )}
+      </p>
+      {/* help: settings.editing.undo-history */}
+      <div className="settings-grid">
+        <label htmlFor="settings-undo-size">{L("Undo history size:")}</label>
+        <select
+          id="settings-undo-size"
+          className="settings-select"
+          title={L("How many bytes of changes each document's undo history keeps")}
+          value={undoHistoryMiB}
+          onChange={(event) =>
+            setUndoLimits({ undoHistoryMiB: undoHistoryMiBFrom(Number(event.target.value)) })
+          }
+        >
+          {UNDO_HISTORY_CHOICES_MIB.map((mib) => (
+            <option key={mib} value={mib}>
+              {friendlySize(mib * 2 ** 20)}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="settings-undo-steps">{L("Undo steps:")}</label>
+        <select
+          id="settings-undo-steps"
+          className="settings-select"
+          title={L("How many changes each document's undo history keeps")}
+          value={undoSteps}
+          onChange={(event) =>
+            setUndoLimits({ undoSteps: undoStepsFrom(Number(event.target.value)) })
+          }
+        >
+          {UNDO_STEP_CHOICES.map((steps) => (
+            <option key={steps} value={steps}>
+              {undoStepsTitle(steps)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="settings-caption">
+        {L(
+          "Each open document keeps an undo history of its own. The bytes of its changes are kept in a temporary file, not in memory, before and after alike: overwriting 1 GB keeps 2 GB. Past either limit the oldest changes can no longer be undone. A lower limit takes effect at the next change; a single change larger than the limit is still kept, so it can be undone."
         )}
       </p>
     </section>

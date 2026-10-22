@@ -12,6 +12,7 @@
 @covers menu.edit.fill
 @covers menu.edit.copy-to-other-pane
 @covers settings.editing
+@covers settings.editing.undo-history
 
 Hex digits are typed into the hex column and characters into the text column. Both edit the same bytes.
 
@@ -48,6 +49,10 @@ The confirmations can be switched off in [[topic:settings|Settings ▸ General]]
 ## Undo
 
 Every edit is one undo step ([[key:undo]]), including the large ones: a join, a fill, a write made by a [[topic:tools-overview|tool panel]], a fragment written back into its parent. Undo is held per document — the dump in front is what [[key:undo]] takes back, so an edit made inside a [[topic:fragments|fragment panel]] is undone in the fragment and not in the image behind it.
+
+How far back undo reaches is set by two limits in [[topic:settings|Settings ▸ General]], each for every document on its own. **Undo history size:** counts the bytes of the changes, the content before and after each change alike: overwriting 1 GB keeps 2 GB. A fill keeps only the content it replaced: what it wrote is kept as the byte sequence it repeats. **Undo steps:** counts the changes; a typed byte is one. Past either limit the oldest changes can no longer be undone, and the document stays modified. A lower limit takes effect at the next change. A single change larger than the size limit is still kept and can be undone.
+
+The bytes of the changes are kept in a temporary file on disk, not in memory, so a large replace does not occupy its size in memory for as long as it can be undone. The file is removed when the document is closed.
 
 ## In a text field
 

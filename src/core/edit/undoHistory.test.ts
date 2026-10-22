@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UndoHistory, type UndoOperation, type UndoTransaction } from "@/core/edit/undoHistory";
+import { UndoBytes } from "@/core/edit/undoJournal";
 
 /** Ported from `UndoHistoryTests.swift` and `UndoStepLabelTests`. */
 
@@ -8,8 +9,8 @@ const FILE_SIZE = 1024;
 const op = (at: number): UndoOperation => ({
   kind: "overwrite",
   at,
-  before: new Uint8Array([0x00]),
-  after: new Uint8Array([0xff]),
+  before: UndoBytes.of(new Uint8Array([0x00])),
+  after: UndoBytes.of(new Uint8Array([0xff])),
 });
 
 /** Which offsets each returned transaction touched, for comparing gestures. */
@@ -355,11 +356,14 @@ describe("naming a step, so the menu can say what it takes back", () => {
 });
 
 describe("inverting an operation", () => {
-  it("is what undo applies", () => {
+  it("is what undo applies", async () => {
     const history = new UndoHistory();
-    record(history, [{ kind: "insert", at: 4, bytes: new Uint8Array([1, 2]) }]);
-    const undone = history.undo();
-    expect(undone?.[0]?.ops[0]).toEqual({ kind: "insert", at: 4, bytes: new Uint8Array([1, 2]) });
+    record(history, [{ kind: "insert", at: 4, bytes: UndoBytes.of(new Uint8Array([1, 2])) }]);
+    const undone = history.undo()?.[0]?.ops[0];
+    expect(undone?.kind).toBe("insert");
+    expect(undone?.at).toBe(4);
+    if (undone?.kind !== "insert") throw new Error("not an insert");
+    expect(await undone.bytes.load()).toEqual(new Uint8Array([1, 2]));
   });
 });
 

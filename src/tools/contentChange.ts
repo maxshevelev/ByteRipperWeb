@@ -128,11 +128,11 @@ function operationAsEdit(operation: UndoOperation): DiffEdit {
       return {
         kind: "overwrite",
         start: operation.at,
-        end: operation.at + operation.before.length,
+        end: operation.at + operation.before.count,
       };
     case "insert":
-      return { kind: "insert", at: operation.at, length: operation.bytes.length };
+      return { kind: "insert", at: operation.at, length: operation.bytes.count };
     case "delete":
-      return { kind: "delete", start: operation.at, end: operation.at + operation.bytes.length };
+      return { kind: "delete", start: operation.at, end: operation.at + operation.bytes.count };
   }
 }

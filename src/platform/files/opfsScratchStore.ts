@@ -155,7 +155,7 @@ const LOCK_PREFIX = "byteripper-scratch:";
  * @web-only upstream's temporary directory is one process's; an origin's private storage is every
  * page's of that origin at once
  */
-function holdForThisPage(prefix: string): void {
+export function holdForThisPage(prefix: string): void {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
   void locks?.request(`${LOCK_PREFIX}${prefix}`, () => new Promise<void>(() => undefined));
 }

@@ -4956,6 +4956,11 @@ button.uefi-title {
   justify-self: end;
 }
 
+/* Controls after a caption start a group of their own, as upstream's 20 points above its grid. */
+.settings-caption + .settings-grid {
+  margin-top: 20px;
+}
+
 .settings-row {
   display: flex;
   flex-wrap: wrap;

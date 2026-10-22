@@ -14,6 +14,7 @@
 
 import { beforeEach, expect, test, vi } from "vitest";
 import type { UndoOperation } from "@/core/edit/undoHistory";
+import { UndoBytes } from "@/core/edit/undoJournal";
 
 interface Posted {
   readonly kind: string;
@@ -52,8 +53,8 @@ const { editingHooks, openEmptyInPane, openInPane, revertPane, workspaceStore } 
 const overwrite = (at: number): UndoOperation => ({
   kind: "overwrite",
   at,
-  before: new Uint8Array(2),
-  after: new Uint8Array([0xff, 0xff]),
+  before: UndoBytes.of(new Uint8Array(2)),
+  after: UndoBytes.of(new Uint8Array([0xff, 0xff])),
 });
 
 /** The invalidations sent so far. */
@@ -116,8 +117,12 @@ test("holds a burst of edits and delivers the stretch they all touched", async (
 });
 
 test("adds up the length changes of the edits it held", async () => {
-  noteFirmwareOperations("a", [{ kind: "insert", at: 0x10, bytes: new Uint8Array(4) }]);
-  noteFirmwareOperations("a", [{ kind: "delete", at: 0x20, bytes: new Uint8Array(2) }]);
+  noteFirmwareOperations("a", [
+    { kind: "insert", at: 0x10, bytes: UndoBytes.of(new Uint8Array(4)) },
+  ]);
+  noteFirmwareOperations("a", [
+    { kind: "delete", at: 0x20, bytes: UndoBytes.of(new Uint8Array(2)) },
+  ]);
 
   await vi.advanceTimersByTimeAsync(400);
 
@@ -162,7 +167,9 @@ test("carries the content as it now stands, not what the file was opened with", 
   const document = workspaceStore.getSnapshot().panes.a?.document;
   if (document === undefined) throw new Error("the pane did not open");
   await document.insert(0x10, new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]));
-  noteFirmwareOperations("a", [{ kind: "insert", at: 0x10, bytes: new Uint8Array(4) }]);
+  noteFirmwareOperations("a", [
+    { kind: "insert", at: 0x10, bytes: UndoBytes.of(new Uint8Array(4)) },
+  ]);
   await vi.advanceTimersByTimeAsync(400);
 
   const sent = invalidations()[0];

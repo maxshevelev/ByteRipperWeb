@@ -136,17 +136,17 @@ export function netDiffEdit(ops: readonly UndoOperation[]): DiffEdit | undefined
     switch (op.kind) {
       case "overwrite":
         from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.after.length);
+        maxEnd = Math.max(maxEnd, op.at + op.after.count);
         break;
       case "insert":
         from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.bytes.length);
-        netDelta += op.bytes.length;
+        maxEnd = Math.max(maxEnd, op.at + op.bytes.count);
+        netDelta += op.bytes.count;
         break;
       case "delete":
         from = Math.min(from, op.at);
-        maxEnd = Math.max(maxEnd, op.at + op.bytes.length);
-        netDelta -= op.bytes.length;
+        maxEnd = Math.max(maxEnd, op.at + op.bytes.count);
+        netDelta -= op.bytes.count;
         break;
     }
   }

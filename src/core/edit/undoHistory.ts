@@ -1,5 +1,11 @@
 import type { Selection } from "@/core/document/selectionModel";
 import { caretAt } from "@/core/document/selectionModel";
+import {
+  currentUndoLimits,
+  type UndoBytes,
+  UndoJournal,
+  type UndoLimits,
+} from "@/core/edit/undoJournal";
 
 /**
  * Linear undo and redo, with a dirty checkpoint.
@@ -35,17 +41,20 @@ import { caretAt } from "@/core/document/selectionModel";
  * tail, so every stored operation is length-preserving and reverts without a
  * truncate.
  *
+ * The bytes are {@link UndoBytes}: in memory as an edit hands them over, in the
+ * history's journal once it has recorded them.
+ *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation
  */
 export type UndoOperation =
   | {
       readonly kind: "overwrite";
       readonly at: number;
-      readonly before: Uint8Array;
-      readonly after: Uint8Array;
+      readonly before: UndoBytes;
+      readonly after: UndoBytes;
     }
-  | { readonly kind: "insert"; readonly at: number; readonly bytes: Uint8Array }
-  | { readonly kind: "delete"; readonly at: number; readonly bytes: Uint8Array };
+  | { readonly kind: "insert"; readonly at: number; readonly bytes: UndoBytes }
+  | { readonly kind: "delete"; readonly at: number; readonly bytes: UndoBytes };
 
 /**
  * The operation that reverts this one, for applying a transaction in reverse:
@@ -82,6 +91,53 @@ export function invertOperation(operation: UndoOperation): UndoOperation {
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction
  */
+/**
+ * How many bytes the operation covers in the document: what an overwrite wrote, what an insert
+ * added, what a delete removed.
+ */
+export function operationLength(operation: UndoOperation): number {
+  return operation.kind === "overwrite" ? operation.after.count : operation.bytes.count;
+}
+
+/**
+ * The bytes the operation carries, before and after alike — what it costs the history to keep
+ * ({@link UndoLimits.bytes}). A fill's bytes count as its pattern.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation.heldBytes
+ */
+function heldBytesOf(operation: UndoOperation): number {
+  return operation.kind === "overwrite"
+    ? operation.before.heldCount + operation.after.heldCount
+    : operation.bytes.heldCount;
+}
+
+/**
+ * The same operation with its bytes in `journal`.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation.stored
+ */
+function storedIn(operation: UndoOperation, journal: UndoJournal): UndoOperation {
+  return operation.kind === "overwrite"
+    ? {
+        ...operation,
+        before: journal.store(operation.before),
+        after: journal.store(operation.after),
+      }
+    : { ...operation, bytes: journal.store(operation.bytes) };
+}
+
+/**
+ * How many of the operation's bytes lie in `journal`.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoOperation.bytes
+ */
+function bytesIn(operation: UndoOperation, journal: UndoJournal): number {
+  const count = (bytes: UndoBytes) => (bytes.journal === journal ? bytes.count : 0);
+  return operation.kind === "overwrite"
+    ? count(operation.before) + count(operation.after)
+    : count(operation.bytes);
+}
+
 export interface UndoTransaction {
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.ops */
   readonly ops: readonly UndoOperation[];
@@ -136,6 +192,13 @@ interface Step {
   readonly seriesId: number | undefined;
 }
 
+/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Step.bytes */
+const stepBytesIn = (step: Step, journal: UndoJournal): number =>
+  step.entries.reduce(
+    (sum, entry) => sum + entry.transaction.ops.reduce((one, op) => one + bytesIn(op, journal), 0),
+    0
+  );
+
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory */
 export class UndoHistory {
   private undoSteps: Step[] = [];
@@ -155,6 +218,36 @@ export class UndoHistory {
    */
   private dirtyAfterClear = false;
   private transactionCount = 0;
+
+  /**
+   * The bounds this history keeps to; absent reads {@link currentUndoLimits} at each edit, which
+   * is what a document does — the settings can change while it is open.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.limits
+   */
+  limits: UndoLimits | undefined;
+  /**
+   * The file the operations' bytes live in, made at the first edit that has any.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.journal
+   */
+  private journal: UndoJournal | undefined;
+  private held = 0;
+  /**
+   * How many of the held bytes lie in the current journal; the rest of its length is dead —
+   * steps dropped, redo sides cut, groups cancelled.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.liveJournalBytes
+   */
+  private liveJournalBytes = 0;
+  /**
+   * Dead bytes the journal may hold before it is compacted, at the least; beyond that, it is
+   * compacted once they outweigh the live ones.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.compactionFloor
+   */
+  compactionFloor = 64 * 2 ** 20;
+  private base = 0;
 
   // The coalescing window for fast rollback.
   private lastUndoWasSeriesByte = false;
@@ -190,12 +283,35 @@ export class UndoHistory {
   }
 
   /**
+   * The bytes every recorded operation carries, undo and redo side together.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.heldBytes
+   */
+  get heldBytes(): number {
+    return this.held;
+  }
+
+  /**
+   * The state an empty undo side stands for: 0 for the file as opened, the serial of the newest
+   * dropped transaction once the bounds have dropped any. Undoing everything that is left lands
+   * there, not on 0.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.baseSerial
+   */
+  get baseSerial(): number {
+    return this.base;
+  }
+
+  /**
    * The serial of the newest committed transaction — the name of the state the
-   * document is in. Zero with nothing committed: the file as it was opened.
+   * document is in. With nothing to undo, the state the undo side starts from:
+   * the file as it was opened (0), or the newest step the bounds dropped.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.currentSerial
    */
   private get currentSerial(): number {
     const step = this.undoSteps[this.undoSteps.length - 1];
-    return step?.entries[step.entries.length - 1]?.serial ?? 0;
+    return step?.entries[step.entries.length - 1]?.serial ?? this.base;
   }
 
   /**
@@ -237,10 +353,11 @@ export class UndoHistory {
    *
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.record
    */
-  record(ops: readonly UndoOperation[], options: RecordOptions): void {
-    if (ops.length === 0) return;
+  record(recorded: readonly UndoOperation[], options: RecordOptions): void {
+    if (recorded.length === 0) return;
 
-    this.redoSteps = [];
+    this.discardRedo();
+    const ops = this.stored(recorded);
     const serial = this.nextSerial++;
     const entry: Entry = {
       serial,
@@ -257,8 +374,116 @@ export class UndoHistory {
       seriesId: options.seriesId,
     });
     this.transactionCount++;
+    this.account(ops, 1);
     this.lastUndoWasSeriesByte = false;
     this.lastUndoSeriesId = undefined;
+    this.dropBeyondLimits();
+    this.compactIfNeeded();
+  }
+
+  /**
+   * `ops` with their bytes in the journal — what an edit group does with the operations it
+   * collects, so a long group (a join, a streamed replace) does not hold its bytes in memory until
+   * it closes.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.stored
+   */
+  stored(ops: readonly UndoOperation[]): UndoOperation[] {
+    if (this.journal === undefined) {
+      if (!ops.some((op) => heldBytesOf(op) > 0)) return [...ops];
+      this.journal = new UndoJournal();
+    }
+    const journal = this.journal;
+    return ops.map((op) => storedIn(op, journal));
+  }
+
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.account */
+  private account(ops: readonly UndoOperation[], sign: 1 | -1): void {
+    for (const op of ops) {
+      const held = heldBytesOf(op);
+      const live = this.journal === undefined ? 0 : bytesIn(op, this.journal);
+      if (sign > 0) {
+        this.held += held;
+        this.liveJournalBytes += live;
+      } else {
+        this.held -= Math.min(held, this.held);
+        this.liveJournalBytes -= Math.min(live, this.liveJournalBytes);
+      }
+    }
+  }
+
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.discardRedo */
+  private discardRedo(): void {
+    for (const step of this.redoSteps) {
+      for (const entry of step.entries) this.account(entry.transaction.ops, -1);
+    }
+    this.redoSteps = [];
+  }
+
+  /**
+   * Drops the oldest steps until the history is within its bounds — never the newest: one edit
+   * larger than the bound is still undoable once. Runs right after a record, when the redo side
+   * is empty.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.dropBeyondLimits
+   */
+  private dropBeyondLimits(): void {
+    const limits = this.limits ?? currentUndoLimits();
+    const over = () =>
+      (limits.bytes !== undefined && this.held > limits.bytes) ||
+      (limits.transactions !== undefined && this.transactionCount > limits.transactions);
+    while (this.undoSteps.length > 1 && over()) {
+      const step = this.undoSteps.shift() as Step;
+      for (const entry of step.entries) this.account(entry.transaction.ops, -1);
+      this.transactionCount -= step.entries.length;
+      const serial = step.entries[step.entries.length - 1]?.serial;
+      if (serial !== undefined) this.base = serial;
+    }
+  }
+
+  /**
+   * Moves the live bytes into a new journal once the dead ones outweigh them. The old journal is
+   * let go, not rewritten: bytes handed out from it stay readable while anything holds them.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.compactIfNeeded
+   */
+  private compactIfNeeded(): void {
+    const old = this.journal;
+    if (old === undefined) return;
+    const dead = old.length - Math.min(this.liveJournalBytes, old.length);
+    if (dead <= this.compactionFloor || dead <= this.liveJournalBytes) return;
+    const fresh = new UndoJournal();
+    const move = (steps: readonly Step[]) => {
+      for (const step of steps) {
+        for (const entry of step.entries) {
+          entry.transaction = {
+            ...entry.transaction,
+            ops: entry.transaction.ops.map((op) => storedIn(op, fresh)),
+          };
+        }
+      }
+    };
+    move(this.undoSteps);
+    move(this.redoSteps);
+    this.journal = fresh;
+    this.liveJournalBytes = [...this.undoSteps, ...this.redoSteps].reduce(
+      (sum, step) => sum + stepBytesIn(step, fresh),
+      0
+    );
+  }
+
+  /**
+   * Lets go of every operation's bytes: the journal goes with them.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.dropAll
+   */
+  private dropAll(): void {
+    this.undoSteps = [];
+    this.redoSteps = [];
+    this.journal = undefined;
+    this.held = 0;
+    this.liveJournalBytes = 0;
+    this.base = 0;
   }
 
   /**
@@ -377,8 +602,7 @@ export class UndoHistory {
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.reset
    */
   reset(): void {
-    this.undoSteps = [];
-    this.redoSteps = [];
+    this.dropAll();
     // `nextSerial` deliberately keeps counting: the history is empty, so the
     // current state is 0 again, and no future serial can collide with one a
     // caller still remembers.
