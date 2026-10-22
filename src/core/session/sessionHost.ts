@@ -167,7 +167,11 @@ export class SessionHost {
       case "state":
         return none;
       case "read":
-        return { kind: "bytes", bytes: (await document.read(request.at, request.length)).slice() };
+        return {
+          kind: "bytes",
+          bytes: (await document.read(request.at, request.length)).slice(),
+          generation: document.contentGeneration,
+        };
       case "overwrite":
         await document.overwrite(request.at, request.bytes);
         return none;

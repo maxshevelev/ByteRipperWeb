@@ -178,25 +178,35 @@ the renderer's chunk cache as it is.
   its state, and an event reaches the window that caused it before its answer.
   Left for S2: a port says nothing when its page goes, so a window will hold a
   Web Lock the host waits on, and hand its sessions back when it is released.
-- [ ] **S2 — the host, sessions in it.** Open a file into a session (handle,
-  `File`, path), close it, list a workspace's sessions; a window's panes show
-  sessions by id. The documents leave the page; `workspaceStore` holds
-  `SessionView`s.
-- [ ] **S3 — editing through it.** `TypingController`, the edit commands, Fill,
-  Delete Bytes, paste, the tools' writes, joins — each a request. Undo and redo
-  are the session's; the undo router's acts move into the session with them.
-- [ ] **S4 — reading through it.** The renderers' chunk cache over host reads;
-  the workers handed host-made `Blob`s; search, diff, minimap, firmware as
-  before.
-- [ ] **S5 — segments and bookmarks of a session.** Cuts and their history in
+- [ ] **S2 — the panes show sessions, the host still in the page.** A
+  `SessionHost` runs in the window itself, over a `MessageChannel`, and every
+  pane holds a `SessionView` where it held a `BinaryDocument`: opening a file
+  opens a session, closing a pane closes it, and everything that edited or read
+  a document goes through the view — `TypingController`, the edit commands,
+  Fill, Delete Bytes, paste, the tools' writes, joins (requests); the renderer,
+  saves, the workers, search, diff, minimap, firmware (`SessionStorage`, and a
+  snapshot the host makes). The app behaves as before in one window, which is
+  what proves the protocol on all of it before a second window depends on it.
+  What still reaches into the host's document from the page — the keeper, the
+  cut history, the undo router — does it through one named door,
+  `hostDocument(id)`, which S3–S6 close. (S2–S4 of the first draft, folded:
+  a pane cannot show a session it edits another way.)
+- [ ] **S3 — the undo router's acts in the session.** The order of edits and
+  cuts is the session's, so Cmd/Ctrl+Z in any window takes back the last act
+  whichever window did it.
+- [ ] **S4 — segments and bookmarks of a session.** Cuts and their history in
   the session; bookmarks stay the workspace's (they are a place the person
   chose, not part of the file's make-up).
-- [ ] **S6 — saving and reverting** through the host, the download path
+- [ ] **S5 — saving and reverting** through the host, the download path
   handed back to a page.
-- [ ] **S7 — kept content in the host.** `ContentKeeper` and `KeptWriter` per
+- [ ] **S6 — kept content in the host.** `ContentKeeper` and `KeptWriter` per
   session; the workspace's `Kept/` and journals in the profile through the
   shell, one `KeptFolder` for workspace and project; the window records name
-  sessions; restore opens sessions, then the windows that show them.
+  sessions; restore opens sessions, then the windows that show them. With it
+  `hostDocument(id)` has no caller left in the page, and goes.
+- [ ] **S7 — the host in a `SharedWorker`.** The same host, moved; the shell's
+  port from the main process; a window's Web Lock, so the host knows a window
+  went. Panes in two windows can show one session from here on.
 - [ ] **S8 — panes between windows are views.** D5, D6 and D4 on the host;
   `paneParcel`, `carriedHistory`, the parcels' edits and the main process's
   registry removed.

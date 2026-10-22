@@ -211,3 +211,40 @@ describe("what crosses and what fails", () => {
     expect([...host.shownSessions()]).toEqual(["s"]);
   });
 });
+
+describe("the bytes a window reads", () => {
+  it("are peeked once prefetched, and forgotten where another window's edit changed them", async () => {
+    const bytes = Array.from({ length: 200_000 }, (_, at) => at & 0xff);
+    const { window } = hostWith({ s: bytes });
+    const a = await window().show("s");
+    const b = await window().show("s");
+    expect(a.peek(70_000, 4), "nothing read yet").toBeUndefined();
+    await a.prefetch(0, 200_000);
+    expect(asArray(a.peek(70_000, 4) ?? new Uint8Array())).toEqual(bytes.slice(70_000, 70_004));
+
+    await b.overwrite(70_001, new Uint8Array([0xee]));
+    await quiet();
+    expect(a.peek(70_000, 4), "the chunk the edit touched is gone").toBeUndefined();
+    expect(a.peek(0, 4), "the others stay").toBeDefined();
+    expect(asArray(await a.read(70_000, 4))).toEqual([0x70, 0xee, 0x72, 0x73]);
+
+    await a.prefetch(0, 200_000);
+    await b.insert(100_000, new Uint8Array([1]));
+    await quiet();
+    expect(a.peek(0, 4), "a chunk before the insert stays").toBeDefined();
+    expect(a.peek(131_072, 4), "after it, everything moved").toBeUndefined();
+    expect(asArray(await a.read(100_000, 2))).toEqual([1, 100_000 & 0xff]);
+  });
+
+  it("does not keep a chunk read before an edit it then heard of", async () => {
+    const { window } = hostWith({ s: [1, 2, 3, 4] });
+    const a = await window().show("s");
+    const b = await window().show("s");
+    const edit = b.overwrite(0, new Uint8Array([9]));
+    const reading = a.read(0, 4);
+    await edit;
+    await reading;
+    await quiet();
+    expect(asArray(await a.read(0, 4))).toEqual([9, 2, 3, 4]);
+  });
+});

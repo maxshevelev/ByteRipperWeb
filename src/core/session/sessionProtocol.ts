@@ -109,7 +109,7 @@ export type SessionRequest =
  */
 export type SessionResult =
   | { readonly kind: "none" }
-  | { readonly kind: "bytes"; readonly bytes: Bytes }
+  | { readonly kind: "bytes"; readonly bytes: Bytes; readonly generation: number }
   | { readonly kind: "applied"; readonly spans?: readonly OperationSpan[] | undefined }
   | { readonly kind: "serial"; readonly serial?: number | undefined };
 

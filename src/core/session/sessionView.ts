@@ -18,6 +18,7 @@ import type {
   SessionState,
   ViewMessage,
 } from "@/core/session/sessionProtocol";
+import { SessionStorage } from "@/core/session/sessionStorage";
 import type { Bytes } from "@/core/storage/byteStorage";
 
 type Unsubscribe = () => void;
@@ -142,11 +143,26 @@ export class SessionView {
   private readonly closeListeners = new Set<() => void>();
 
   readonly id: SessionId;
+  /**
+   * The session's bytes as this window reads them: chunks from the host, cached here, forgotten
+   * where the host says they changed — what the renderer peeks at and a save streams from.
+   */
+  readonly storage: SessionStorage;
   private readonly client: SessionClient;
 
   constructor(client: SessionClient, id: SessionId) {
     this.client = client;
     this.id = id;
+    const mirror = () => this.state;
+    this.storage = new SessionStorage({
+      get size() {
+        return mirror().size;
+      },
+      get contentGeneration() {
+        return mirror().contentGeneration;
+      },
+      readChunk: (at, length) => this.readChunk(at, length),
+    });
     this.state = {
       size: 0,
       dirty: false,
@@ -232,9 +248,26 @@ export class SessionView {
 
   // MARK: - Reading
 
-  async read(at: number, length: number): Promise<Bytes> {
+  read(at: number, length: number): Promise<Bytes> {
+    return this.storage.read(at, length);
+  }
+
+  peek(at: number, length: number): Bytes | undefined {
+    return this.storage.peek(at, length);
+  }
+
+  prefetch(at: number, length: number): Promise<void> {
+    return this.storage.prefetch(at, length);
+  }
+
+  private async readChunk(
+    at: number,
+    length: number
+  ): Promise<{ bytes: Bytes; generation: number }> {
     const result = await this.ask({ kind: "read", at, length });
-    return result?.kind === "bytes" ? result.bytes : new Uint8Array(0);
+    return result?.kind === "bytes"
+      ? { bytes: result.bytes, generation: result.generation }
+      : { bytes: new Uint8Array(0), generation: -1 };
   }
 
   // MARK: - Edits, each a request
@@ -348,6 +381,7 @@ export class SessionView {
     this.take(state, acked);
     switch (event.kind) {
       case "content":
+        this.storage.invalidate(event.spans);
         for (const listener of this.contentListeners)
           listener({ spans: event.spans, restoring: event.restoring });
         return;
