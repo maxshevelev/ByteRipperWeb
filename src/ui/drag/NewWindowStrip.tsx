@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { L } from "@/core/localization/localization";
 import { dragCarriesFiles } from "@/platform/files/dragDrop";
 import {
@@ -34,6 +34,9 @@ import { dragCarriesPane } from "@/ui/drag/dragDrop";
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.height
  */
 export const NEW_WINDOW_STRIP_HEIGHT = 44;
+
+/** How long after a drag starts the strip comes up. */
+const STRIP_DELAY_MS = 150;
 
 /** Where the strip ends, in the viewport, while it is up: what the bands under it start below. */
 export const newWindowStripStore = createStore<{ readonly bottom: number | undefined }>({
@@ -78,7 +81,19 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
   const { inFlight, copying } = useStore(paneDragStore);
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const shown = inFlight !== undefined;
+  // Up once the drag is under way rather than as it starts. A pane's header lies under the strip,
+  // and an element that comes up under the pointer in the very turn the drag starts in makes
+  // Chromium drop the drag at once — which is how a pane's header came to carry nothing.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (inFlight === undefined) {
+      setSettled(false);
+      return;
+    }
+    const timer = setTimeout(() => setSettled(true), STRIP_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [inFlight]);
+  const shown = inFlight !== undefined && settled;
 
   useLayoutEffect(() => {
     const element = ref.current;

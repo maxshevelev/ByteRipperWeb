@@ -1199,6 +1199,19 @@ export function AppShell() {
       // chosen, and its own handler asks for the focus.
       if (target.closest(".hex-scroller") !== null) return;
       if (selectableText(target)) return;
+      // A press on what is carried by dragging — a pane's header, a panel's pill — starts a drag
+      // only while its default stands: a cancelled press is a cancelled drag, which is how a
+      // pane's header came to carry nothing at all. So it is let through, and the focus it takes
+      // is handed back to what had it once the press is over.
+      if (target.closest('[draggable="true"]') !== null) {
+        const had = document.activeElement;
+        setTimeout(() => {
+          if (had instanceof HTMLElement && document.activeElement !== had) {
+            had.focus({ preventScroll: true });
+          }
+        }, 0);
+        return;
+      }
       event.preventDefault();
       // A tool's tree or table keeps the focus a click would have given it:
       // its rows are what the arrows move, and with the focus left where it was
