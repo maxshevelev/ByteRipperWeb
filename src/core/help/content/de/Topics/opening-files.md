@@ -1,4 +1,4 @@
-@source-sha fc87578681caaeb0e609c1456cc61a454e7e61ae608f742e407fa1b1c0cc25e8
+@source-sha 8db1b52b596e62e48212976e4ea34c1f5b02cb7407782fa58812608c941e5a38
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -36,10 +36,10 @@ Jeder Bereichskopf nennt seine Datei und ob es ungesicherte Änderungen gibt; di
 
 ## Wenn die Datei schon offen ist
 
-Hier wird nichts abgelehnt — [[edition:ein Tab||ein Fenster]] kann nicht wissen, ob die Datei woanders offen ist:
+[[edition:Hier wird nichts abgelehnt — ein Tab kann nicht wissen, ob die Datei woanders offen ist:||Eine Datei ist im Programm immer nur an einer Stelle geöffnet, über alle seine Fenster hinweg; innerhalb eines Fensters dürfen beide Bereiche sie halten:]]
 
 - **Im anderen Bereich** — erlaubt, und nützlich: die beiden Bereiche sind zwei Dokumente über einer Datei, also lässt sich eines bearbeiten und der Vergleich zum anderen dabei mitlesen. Ihre eigenen Änderungen sieht man ohnehin, in Rot; und wenn Sie wirklich zwei Kopien nebeneinander brauchen, macht **Ablage ▸ Duplizieren** eine im anderen Bereich.
-- **[[edition:In einem anderen Browser-Tab||In einem anderen Fenster]]** — [[edition:jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht||jenes Fenster ist ein eigener Arbeitsbereich, und dieses sieht es nicht]]. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.
+- **[[edition:In einem anderen Browser-Tab||In einem anderen Fenster]]** — [[edition:jener Tab ist ein eigener Arbeitsbereich, und dieser sieht ihn nicht. Die Datei öffnet sich auch hier, und die beiden wissen nichts voneinander: in der Datei steht, was zuletzt gesichert wurde.||das Programm fragt, was geschehen soll. **In ihrem Fenster zeigen** holt jenes Fenster nach vorn, mit dem Bereich der Datei als aktivem. **In dieses Fenster verschieben** holt den Bereich hierher, mit seiner Position, seinen Segmenten und seinen ungesicherten Änderungen; sein Widerrufen-Verlauf bleibt dort. Ein Bereich, über dem Teile geöffnet sind, wird nicht verschoben: Schließen Sie die Teile zuerst in seinem Fenster. Eine Datei, die ein Agent öffnet, wird auf diese Weise nicht geprüft.]]
 - **In genau diesem Bereich** — die Datei wird neu gelesen; so nimmt man einen Dump wieder auf, nachdem ein Programmer ihn überschrieben hat.
 
 ! Die Datei in einem Bereich mit ungesicherten Änderungen zu ersetzen, verlangt eine Bestätigung — ob die Datei per Drop oder über **Öffnen…** kommt. Verworfene Änderungen lassen sich nicht wiederherstellen.

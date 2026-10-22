@@ -147,7 +147,7 @@ the module map moved.
 - [x] **D3 — projects of every window.** Open / Save as / Close Project at
   the app's level, a project replacing every window, the folder chosen by
   path.
-- [ ] **D4 — a file open once in the app.** The registry in the main process,
+- [x] **D4 — a file open once in the app.** The registry in the main process,
   Show in Its Window / Move to This Window.
 - [ ] **D5 — a pane carried between windows.** The parcel; pane drop on
   another window (move, swap, join, duplicate); Open in New Window from the

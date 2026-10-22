@@ -674,6 +674,12 @@
 "New File" = "Новый файл";
 "New Window" = "Новое окно";
 "Close Window" = "Закрыть окно";
+"“%1$@” is already open" = "«%1$@» уже открыт";
+"A file is open in one place at a time, so it cannot be opened here as well. Show it where it is, or move that pane into this window." = "Файл может быть открыт только в одном месте, поэтому открыть его ещё и здесь нельзя. Покажите его там, где он открыт, или перенесите ту файловую панель в это окно.";
+"Show in Its Window" = "Показать в его окне";
+"Move to This Window" = "Перенести в это окно";
+"“%1$@” could not be moved" = "«%1$@» перенести не удалось";
+"Parts are open over it in its window. Close them there first." = "В его окне над ним открыты части. Сначала закройте их там.";
 "New file" = "Новый файл";
 "Newest revision the catalogue lists for this processor and platform" = "Самая свежая ревизия, которая есть в каталоге для этого процессора и платформы";
 "Next / Previous Difference steps between changes, not bytes: differing bytes closer together than this belong to one change. A smaller value stops more often. Byte highlighting is always per byte." = "Переход к следующему/предыдущему различию шагает по изменениям, а не по байтам: различающиеся байты ближе этого расстояния считаются одним изменением. Меньшее значение — больше остановок. Подсветка байтов всегда побайтовая.";

@@ -5,6 +5,7 @@ import {
 } from "@/platform/desktop/desktopWindows";
 import { settingsStore } from "@/state/settingsStore";
 import { unsavedPanesLostToLeaving } from "@/state/unsavedWork";
+import { startOpenOnce } from "@/state/workspace/openOnce";
 import {
   askToSaveSession,
   confirmDiscardingSession,
@@ -91,6 +92,7 @@ export function startShellWorkspace(): () => void {
     discard: discardSessionForProject,
     projectChanged: followProject,
   };
+  const leaveOpenOnce = startOpenOnce();
   let restores = settingsStore.getSnapshot().restoresWorkspace;
   bridge.hold(workspaceId(), restores);
   const stop = settingsStore.subscribe(() => {
@@ -103,6 +105,7 @@ export function startShellWorkspace(): () => void {
   if (keep !== undefined && restores) void forgetWorkspacesExcept(keep);
   return () => {
     stop();
+    leaveOpenOnce();
     delete hooks.__byteripperShell;
   };
 }

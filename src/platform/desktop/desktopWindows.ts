@@ -67,6 +67,13 @@ export function installDesktopProjectForTesting(bridge?: DesktopProjectBridge | 
   installedProject = bridge === undefined ? undefined : { bridge: bridge ?? undefined };
 }
 
+/** Brings this window forward, in the desktop shell; nothing in a browser. */
+export function desktopWindowFocus(): (() => void) | undefined {
+  if (typeof window === "undefined") return undefined;
+  const bridge = (window as { byteripperDesktop?: { focusWindow?: () => void } }).byteripperDesktop;
+  return bridge?.focusWindow === undefined ? undefined : () => bridge.focusWindow?.();
+}
+
 /** What the shell's preload script exposes for this. */
 export interface DesktopWorkspaceBridge {
   launch(): WindowLaunch | null;

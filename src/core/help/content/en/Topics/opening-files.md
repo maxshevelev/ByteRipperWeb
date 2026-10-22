@@ -44,10 +44,10 @@ Each pane header names its file and whether it has unsaved changes; the status l
 
 ## If the file is already open
 
-Nothing is refused here — [[edition:a tab||a window]] cannot tell whether a file is open elsewhere:
+[[edition:Nothing is refused here — a tab cannot tell whether a file is open elsewhere:||A file is open in one place in the program at a time, across all its windows; within one window, both panes may hold it:]]
 
 - **In the other pane** — allowed, and useful: the two panes are two documents over one file, so you can edit one of them and watch the comparison against the other. Your own edits show in red anyway; and when two copies side by side are what you want, **File ▸ Duplicate** makes one in the other pane.
-- **[[edition:In another browser tab||In another window]]** — [[edition:that tab||that window]] is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.
+- **[[edition:In another browser tab||In another window]]** — [[edition:that tab is a workspace of its own and this one cannot see it. The file simply opens here as well, and the two know nothing about each other; whichever saves last is what the file holds.||the program asks what to do. **Show in Its Window** brings that window to the front with the file's pane active. **Move to This Window** moves the pane here with its position, its segments and its unsaved changes; its undo history stays behind. A pane with parts open over it is not moved: close the parts in its window first. A file an agent opens is not checked in this way.]]
 - **In this very pane** — it re-reads the file, which is how a dump is picked up again after a programmer has rewritten it.
 
 ! Replacing the file in a pane that holds unsaved edits asks for confirmation, whether the file arrives by a drop or through **Open…**. A discarded pane cannot be restored.

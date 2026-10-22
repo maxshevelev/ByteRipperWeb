@@ -532,6 +532,41 @@ async function applyPane(
   scrollLink.scrollToOffset(slot, restore.topOffset, BYTES_PER_ROW);
 }
 
+/**
+ * A pane carried here from another window (`Design/DESKTOP_WINDOWS.md`, D4): its file opened into
+ * `slot`, its unsaved changes laid over it, and its place, input and segments as they were there.
+ * The file is the same one, so everything measured on it holds. The undo history stays behind
+ * until persistent undo keeps it where every window can read it.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.movePaneHere
+ * @upstream-differs the pane's state crosses as its workspace record; upstream moves the object,
+ * its undo history with it
+ */
+export async function adoptMovedPane(
+  slot: SlotId,
+  file: OpenedFile,
+  saved: PaneState,
+  edits: OverlayEdits | undefined
+): Promise<void> {
+  pauseWorkspaceRecorder(true);
+  try {
+    openInPane(slot, file);
+    if (edits !== undefined) applyKeptEdits(slot, edits);
+    const linkFiles = new Map<string, OpenedFile>();
+    for (const piece of saved.segments?.pieces ?? []) {
+      if (piece.link === undefined) continue;
+      const key = stampKey(piece.link.file);
+      if (linkFiles.has(key)) continue;
+      const one = await reach(piece.link.file, undefined, false);
+      if (one.kind === "opened") linkFiles.set(key, one.file);
+    }
+    setActivePane(slot);
+    await applyPane(slot, saved, true, linkFiles);
+  } finally {
+    pauseWorkspaceRecorder(false);
+  }
+}
+
 /** The minimap of `surface` as it was. */
 function applyMinimap(surface: SurfaceId, state: SurfaceState): void {
   if (!state.minimapVisible) return;

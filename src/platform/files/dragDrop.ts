@@ -30,10 +30,13 @@ export async function filesFromDrop(transfer: DataTransfer): Promise<OpenedFile[
 
   if (!canWriteDroppedFiles) return plain;
 
+  // The desktop shell tells a file's path only of the drop's own files, not of the one a handle
+  // gives: each file item is the plain file of the same place.
   const pending: Promise<OpenedFile | undefined>[] = [];
+  let index = 0;
   for (const item of Array.from(transfer.items)) {
     if (item.kind !== "file") continue;
-    pending.push(handleFromItem(item));
+    pending.push(handleFromItem(item, plain[index++]?.path));
   }
 
   const withHandles = (await Promise.all(pending)).filter(
@@ -44,7 +47,10 @@ export async function filesFromDrop(transfer: DataTransfer): Promise<OpenedFile[
   return withHandles.length > 0 ? withHandles : plain;
 }
 
-async function handleFromItem(item: DataTransferItem): Promise<OpenedFile | undefined> {
+async function handleFromItem(
+  item: DataTransferItem,
+  path: string | undefined
+): Promise<OpenedFile | undefined> {
   const getHandle = (
     item as DataTransferItem & {
       getAsFileSystemHandle?: () => Promise<FileSystemHandle | null>;
@@ -56,7 +62,7 @@ async function handleFromItem(item: DataTransferItem): Promise<OpenedFile | unde
       const handle = await getHandle.call(item);
       if (handle !== null && handle.kind === "file") {
         const fileHandle = handle as FileSystemFileHandle;
-        return openedFileFrom(await fileHandle.getFile(), fileHandle);
+        return openedFileFrom(await fileHandle.getFile(), fileHandle, path);
       }
       // A directory was dropped: nothing here to open.
       if (handle !== null) return undefined;

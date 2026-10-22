@@ -31,8 +31,13 @@ export interface OpenedFile {
  * Wraps a browser `File` — which is already a `ByteSource` — as an opened file. Every way a file
  * the person chose arrives comes through here, so this is where it is given its path.
  */
-export function openedFileFrom(file: File, handle?: FileSystemFileHandle): OpenedFile {
-  const path = pathOfFile(file);
+export function openedFileFrom(
+  file: File,
+  handle?: FileSystemFileHandle,
+  knownPath?: string
+): OpenedFile {
+  // A file a handle gave has no path the shell can tell; the caller may know it from elsewhere.
+  const path = pathOfFile(file) ?? knownPath;
   return {
     name: file.name,
     size: file.size,

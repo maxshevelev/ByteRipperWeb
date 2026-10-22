@@ -1,4 +1,5 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type DocumentSource,
   type FileStamp,
@@ -357,6 +358,23 @@ function paneSnapshot(
     insertMode: typing.isInsertMode,
     topOffset: scrollLink.visibleRange(slot, BYTES_PER_ROW)?.start ?? start,
   };
+}
+
+/**
+ * One pane as another window is to take it up (`Design/DESKTOP_WINDOWS.md`, D4): what the
+ * workspace would write of it, and its unsaved changes.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releasePane
+ * @upstream-differs a record of the pane rather than the pane itself, two windows sharing no objects
+ */
+export async function paneParcel(
+  slot: SlotId
+): Promise<{ readonly pane: PaneState; readonly edits?: OverlayEdits | undefined } | undefined> {
+  const pane = paneSnapshot(slot, {}, []);
+  if (pane === undefined) return undefined;
+  const edits =
+    paneState(slot)?.document.isDirty === true ? await exportKeptEdits(slot) : undefined;
+  return { pane, ...(edits === undefined ? {} : { edits }) };
 }
 
 /**

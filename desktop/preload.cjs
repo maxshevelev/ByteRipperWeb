@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     clearRecent: () => ipcRenderer.invoke("project:clear-recent"),
   },
   closeWindow: () => ipcRenderer.send("window:close"),
+  // Show in Its Window (D4): this window brought forward.
+  focusWindow: () => ipcRenderer.send("window:focus"),
   canInstallUpdate: ipcRenderer.sendSync("update:installable"),
   installUpdate: (version) => ipcRenderer.invoke("update:install", version),
   latestRelease: () => ipcRenderer.invoke("update:latest"),

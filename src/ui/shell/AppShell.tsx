@@ -78,6 +78,7 @@ import { keyboardIsInTreePanel, openTreeSearch } from "@/state/uefiSearchSetting
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
+import { openOnce, openOnceHooks } from "@/state/workspace/openOnce";
 import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
 import { projectQuestionStore } from "@/state/workspace/projects";
 import { startShellWorkspace } from "@/state/workspace/shellWorkspace";
@@ -444,7 +445,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.ignoredCount
    */
   const accept = useCallback(
-    (files: OpenedFile[], into?: SlotId, placement: OpenPanePlacement = "fillFree") => {
+    async (files: OpenedFile[], into?: SlotId, placement: OpenPanePlacement = "fillFree") => {
       // Two files chosen at once fill both slots, which is how a comparison is
       // opened in one gesture — but only into an empty workspace: with a file
       // already open, a second one would land on top of it. Where the file goes
@@ -480,6 +481,9 @@ export function AppShell() {
             return;
           }
         }
+        // Open in another window of the desktop shell: shown there, or brought here, rather than
+        // opened twice (`Design/DESKTOP_WINDOWS.md`, D4).
+        if (!(await openOnce(slot, file))) continue;
         // A report about the file this pane is losing — "Downloaded bios.bin."
         // — would stand over the name of the file arriving in its place.
         forgetTransientMessage(slot);
@@ -812,6 +816,30 @@ export function AppShell() {
    * for. A promise rather than a callback so the command reads as one sequence:
    * pick a folder, ask, write.
    */
+  // The question a file open in another window of the desktop shell is met with, in this window's
+  // own dialog: Show in Its Window, Move to This Window, or Cancel.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.askAboutFileOpenElsewhere
+  // @upstream-differs a window where upstream says a tab: the shell's windows have no tabs
+  useEffect(() => {
+    openOnceHooks.ask = (name) =>
+      new Promise((resolve) =>
+        setCloseAsk({
+          title: L("“%1$@” is already open", name),
+          message: L(
+            "A file is open in one place at a time, so it cannot be opened here as well. Show it where it is, or move that pane into this window."
+          ),
+          confirmLabel: L("Show in Its Window"),
+          otherLabel: L("Move to This Window"),
+          answer: (choice) => {
+            setCloseAsk(undefined);
+            resolve(choice === "confirm" ? "show" : choice === "other" ? "move" : "cancel");
+          },
+        })
+      );
+    return () => {
+      openOnceHooks.ask = undefined;
+    };
+  }, []);
   const [writeAsk, setWriteAsk] = useState<
     { title: string; message: string; answer: (yes: boolean) => void } | undefined
   >(undefined);

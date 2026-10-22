@@ -443,6 +443,16 @@ app.whenReady().then(() => {
     if (sender(event)) recentProjects.clear();
   });
 
+  // Show in Its Window (D4): the window holding a file brings itself forward. A page cannot raise
+  // its own window; the windows find the file among themselves (`openOnce.ts`).
+  ipcMain.on("window:focus", (event) => {
+    const window = sender(event);
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  });
+
   updates.register(ipcMain, BrowserWindow, fromApp, () => void windows.quit());
   agent.register(ipcMain, fromApp, app);
 
