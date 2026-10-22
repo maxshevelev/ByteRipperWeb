@@ -43,6 +43,12 @@ export interface SessionOperations {
   readonly residentBytes: { readonly args: undefined; readonly result: number };
   /** The content was put back from outside: whatever reads it starts over. */
   readonly contentReplaced: { readonly args: undefined; readonly result: undefined };
+  /**
+   * Names the session for an agent, unless a window named it first: the name it goes by.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.id
+   */
+  readonly agentName: { readonly args: string; readonly result: string };
   /** Puts a partition back, its history untouched: not an undo step. */
   readonly restoreCuts: { readonly args: PartitionData; readonly result: undefined };
   /** What Undo and Redo take back, the cuts with them, as a workspace writes it down. */
@@ -166,6 +172,10 @@ const operations: {
   contentReplaced: (session) => {
     session.document.contentReplaced();
     return undefined;
+  },
+  agentName: (session, id) => {
+    session.agentId ??= id;
+    return session.agentId;
   },
   restoreCuts: (session, partition) => {
     session.cuts.restore(partitionFrom(partition));

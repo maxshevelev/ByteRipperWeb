@@ -300,8 +300,14 @@ the renderer's chunk cache as it is.
   one workspace record and kept folder each; Show in Its Window and Move to
   This Window still ask the windows over a channel, which the host could
   answer itself.
-- [ ] **S9 — the agent on the host.** Documents by session id, tools run
-  against sessions, the window showing one brought forward.
+- [x] **S9 — the agent on the host.** What an agent calls a document — `d3` —
+  is the session's (`SessionState.agentId`, the `agentName` operation): the
+  first window to name it gives the name, every window shows it under that
+  name, and a pane carried to another window keeps it. The service still runs
+  each call in a window (D7d), which finds the document by that name. Left:
+  a tool naming two documents in two windows is still refused, though the host
+  reaches both; running tools in the host rather than in a window would lift
+  that.
 - [ ] **S10 — the browser edition** on the same host: tabs as windows of one
   workspace — a pane carried between tabs, a file open once across them — and
   the docs: `DESKTOP_WINDOWS.md`, `WORKSPACE.md`, `IMPLEMENTATION_PLAN.md`,

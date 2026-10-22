@@ -34,6 +34,11 @@ export interface SessionState {
   readonly lastCommittedSerial?: number | undefined;
   /** The serial the history stands on below its oldest step — what a dropped step leaves. */
   readonly baseSerial: number;
+  /**
+   * What an agent calls the session — `d3` — once a window has named it: the same name whichever
+   * window shows it.
+   */
+  readonly agentId?: string | undefined;
   /** Where the history stands — what a kept snapshot is compared with. */
   readonly historyVersion: { readonly epoch: number; readonly serial: number };
   /** The partition the session's cuts make, and how many times it has changed. */

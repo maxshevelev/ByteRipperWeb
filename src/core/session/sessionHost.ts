@@ -36,6 +36,8 @@ interface Connection {
  */
 export interface SessionParts {
   readonly id: SessionId;
+  /** What an agent calls it, once a window has named it. */
+  agentId?: string | undefined;
   readonly document: BinaryDocument;
   readonly cuts: CutHistory;
   readonly acts: SessionActs;
@@ -458,6 +460,7 @@ export function stateOf(session: SessionParts): SessionState {
     lastCommittedSerial: history.lastCommittedSerial,
     baseSerial: history.baseSerial,
     historyVersion: history.version,
+    agentId: session.agentId,
     cuts: { version: cuts.version, partition: partitionData(cuts.partition) },
   };
 }

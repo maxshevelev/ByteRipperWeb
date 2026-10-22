@@ -293,6 +293,11 @@ export class SessionView {
     return () => this.cutsListeners.delete(listener);
   }
 
+  /** What an agent calls the session, once a window has named it. */
+  get agentId(): string | undefined {
+    return this.state.agentId;
+  }
+
   /** Where the session's history stands. */
   get historyVersion(): { readonly epoch: number; readonly serial: number } {
     return this.state.historyVersion;

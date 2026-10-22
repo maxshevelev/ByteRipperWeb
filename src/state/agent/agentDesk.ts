@@ -2,7 +2,9 @@ import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { SessionView } from "@/core/session/sessionView";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import { operate } from "@/platform/sessions/sessionOperations";
 import { AgentBackgroundDocuments } from "@/state/agent/agentBackgroundDocuments";
+import { onSessionClosed } from "@/state/sessions/pageSessions";
 import {
   type PaneId,
   type PartId,
@@ -19,12 +21,13 @@ import {
  * a file closed a second ago cannot be described as open. The one thing kept is the short id each
  * document is given the first time an agent sees it — held weakly against the document, so it
  * goes when the document does, and a file opened into the same pane later is a new document with
- * a new id.
+ * a new id. The name is the session's, held by the host, so it is the same in every window.
  *
  * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk
  */
 export class AgentDesk {
-  private readonly ids = new WeakMap<SessionView, string>();
+  /** The names this window gave, by session, until the host's word on them arrives. */
+  private readonly ids = new Map<string, string>();
   private nextId = 1;
   /**
    * The files an agent opened by path, with no window. Their ids are the entry's, not the
@@ -53,6 +56,7 @@ export class AgentDesk {
   constructor(bridge: () => AgentBridge | undefined = () => undefined) {
     this.bridge = bridge;
     this.background = new AgentBackgroundDocuments(bridge, () => this.mint());
+    onSessionClosed((session) => this.ids.delete(session));
     this.background.onRelease = (entry) => {
       this.released.set(entry.id, entry.path);
     };
@@ -79,10 +83,17 @@ export class AgentDesk {
    * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.id
    */
   id(document: SessionView): string {
-    const held = this.ids.get(document);
-    if (held !== undefined) return held;
+    // The session's own name first: a document carried to another window is the same session,
+    // and goes on under the name it had (`Design/FILE_SESSIONS.md`, S9).
+    const named = document.agentId ?? this.ids.get(document.id);
+    if (named !== undefined) return named;
     const id = this.mint();
-    this.ids.set(document, id);
+    this.ids.set(document.id, id);
+    void operate(document, "agentName", id)
+      .then((agreed) => {
+        if (agreed !== id) this.ids.set(document.id, agreed);
+      })
+      .catch(() => undefined);
     return id;
   }
 
