@@ -62,10 +62,12 @@ export function singleFile(): Plugin {
           // …and, with a relative base, wrapped once more: new URL(new URL(…).href, …).
           // The options go with it: a *module* worker from a `blob:` URL is
           // refused on a page opened from disk (measured in Chrome), and these
-          // bundles have no import or export, so a classic worker runs them.
+          // bundles have no import or export, so a classic worker runs them. The
+          // session host's `SharedWorker` is named too; a page from disk has no
+          // origin to share one in, and runs its host itself (`pageSessions.ts`).
           const url = `(?:new URL\\(\\s*${file}\\.href\\s*,\\s*(?:\`\`\\s*\\+\\s*)?import\\.meta\\.url\\s*\\)|${file})`;
           const reference = new RegExp(
-            `${url}\\s*,\\s*\\{\\s*type\\s*:\\s*[\`"']module[\`"']\\s*\\}`,
+            `${url}\\s*,\\s*\\{\\s*type\\s*:\\s*[\`"']module[\`"'][^}]*\\}`,
             "g"
           );
           const blob = `URL.createObjectURL(new Blob([${JSON.stringify(workerCode(worker.fileName))}],{type:"text/javascript"}))`;
