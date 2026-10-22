@@ -162,10 +162,22 @@ anyway, and a `File` is.
 
 A keystroke's round trip is two orders below a frame; reads at this cost leave
 the renderer's chunk cache as it is.
-- [ ] **S1 — the protocol and the mirror** (core, pure): requests (read,
+- [x] **S1 — the protocol and the mirror** (core, pure): requests (read,
   overwrite, insert, delete, fill, replace, join, undo, redo, groups, series,
   selection, save checkpoint), answers carrying the state, change events, the
   `SessionView` mirror; tests against a host running in-process.
+  Done as `src/core/session/` — `sessionProtocol.ts`, `sessionHost.ts`,
+  `sessionView.ts`, over a line that clones and delays as a port does
+  (`src/core/testing/sessionLines.ts`). What it settled:
+  an operation crosses as the stretch it touched (`OperationSpan`), which is all
+  a window does with one; grouping, series, `markSaved` are told, not awaited —
+  the host keeps one window's order, and `settled()` waits for it; the
+  selection is the one value a window holds ahead of the host, its own until
+  the host has applied the request that set it (`acked`), so news of an older
+  selection never takes a newer one back; every message about a session carries
+  its state, and an event reaches the window that caused it before its answer.
+  Left for S2: a port says nothing when its page goes, so a window will hold a
+  Web Lock the host waits on, and hand its sessions back when it is released.
 - [ ] **S2 — the host, sessions in it.** Open a file into a session (handle,
   `File`, path), close it, list a workspace's sessions; a window's panes show
   sessions by id. The documents leave the page; `workspaceStore` holds
