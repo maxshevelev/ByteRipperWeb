@@ -10,12 +10,7 @@ import {
   WORKSPACE_KEY,
   workspaceId,
 } from "@/state/workspace/workspaceIdentity";
-import {
-  allWorkspaceRecords,
-  readKeptBytes,
-  writeKeptBytes,
-  writeWorkspaceRecord,
-} from "@/state/workspace/workspaceRecords";
+import { allWorkspaceRecords, writeWorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import { fromProjectFile } from "@/state/workspace/workspaceRestorer";
 
 // `Design/DESKTOP_WINDOWS.md`, D2: a window of the desktop shell is the workspace its launch names,
@@ -105,12 +100,10 @@ describe("a window closed for good", () => {
     sessionStorage.setItem(WORKSPACE_KEY, "w-kept");
   });
 
-  it("takes its record and what it kept with it", async () => {
+  it("takes its record with it", async () => {
     await recordFor("w-closed", Date.now());
-    await writeKeptBytes("w-closed", "d-1", new Uint8Array([1]));
     await forgetWorkspace("w-closed");
     expect((await allWorkspaceRecords()).some((one) => one.id === "w-closed")).toBe(false);
-    expect(await readKeptBytes("w-closed", "d-1")).toBeUndefined();
   });
 
   it("is never this window itself", async () => {

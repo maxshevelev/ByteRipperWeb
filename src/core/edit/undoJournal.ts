@@ -299,11 +299,21 @@ export class UndoJournal {
    *
    * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
    */
+  /**
+   * Where the journal lies when a workspace keeps it: its `Kept/` folder and its name there.
+   * Nothing for a journal of the history's own, removed when nothing holds it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.url
+   */
+  readonly place: { readonly folder: string; readonly file: string } | undefined;
+
   constructor(
     store: JournalStore = storeProvider(),
-    pinned?: { readonly length: number; readonly hash: Uint8Array }
+    pinned?: { readonly length: number; readonly hash: Uint8Array },
+    place?: { readonly folder: string; readonly file: string }
   ) {
     this.files = store;
+    this.place = place;
     this.end = pinned?.length ?? 0;
     this.chain = pinned?.hash ?? EMPTY_HASH;
     released?.register(this, store);

@@ -22,9 +22,6 @@ export interface WorkspaceRecord {
   readonly handles: Readonly<Record<string, FileSystemFileHandle>>;
 }
 
-/** Where a restore reads the bytes a workspace keeps beside itself: the tab's, or a project's. */
-export type KeptReader = <T>(key: string) => Promise<T | undefined>;
-
 /** A record not seen for this long goes, as the bookmarks' do. */
 export const WORKSPACE_STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -61,52 +58,4 @@ export async function allWorkspaceRecords(
 /** Forgets every workspace: the switch turned off, so none comes back months later. */
 export async function removeAllWorkspaceRecords(): Promise<void> {
   for (const { key } of await records.entries().catch(() => [])) await removeWorkspaceRecord(key);
-}
-
-/**
- * The bytes a workspace keeps beside itself: an untitled document's content, as a Blob, and a
- * file's unsaved changes, as runs over it — each under `<workspace>/<key>`.
- *
- * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.untitledURL
- * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.editsURL
- */
-const kept = openKeyValueStore("byteripper-workspace-bytes");
-
-/** @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.writeUntitled */
-export async function writeKeptBytes(
-  workspace: string,
-  key: string,
-  value: unknown
-): Promise<void> {
-  await kept.put(`${workspace}/${key}`, value).catch(() => undefined);
-}
-
-/** @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.readUntitled */
-export async function readKeptBytes<T>(workspace: string, key: string): Promise<T | undefined> {
-  return kept.get<T>(`${workspace}/${key}`).catch(() => undefined);
-}
-
-/**
- * Drops what a workspace keeps of documents it no longer holds: a document closed takes its copy
- * with it.
- *
- * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.removeUntitled
- */
-export async function removeKeptBytesExcept(
-  workspace: string,
-  keep: ReadonlySet<string>
-): Promise<void> {
-  const prefix = `${workspace}/`;
-  for (const { key } of await kept.entries().catch(() => [])) {
-    if (key.startsWith(prefix) && !keep.has(key.slice(prefix.length))) {
-      await kept.remove(key).catch(() => undefined);
-    }
-  }
-}
-
-/** Forgets what every workspace kept beside itself. */
-export async function removeAllKeptBytes(): Promise<void> {
-  for (const { key } of await kept.entries().catch(() => [])) {
-    await kept.remove(key).catch(() => undefined);
-  }
 }

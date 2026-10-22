@@ -14,6 +14,7 @@ import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
 import type { ShiftingEdit } from "@/core/text/shiftWarning";
+import type { KeptJoin } from "@/core/workspace/workspace";
 import { desktopOwnWindows } from "@/platform/desktop/desktopWindows";
 import { detectFileCapabilities, type FileCapabilities } from "@/platform/files/capabilities";
 import {
@@ -1103,11 +1104,12 @@ export function openKeptUntitledInPane(
 }
 
 /**
- * Lays the unsaved changes the workspace kept for a file over it, as they were when the page was
- * left: the bytes read changed again, red against the file, and closing asks. Throws when they do
- * not fit the file — it changed since.
+ * Lays changes carried with a document over it — a pane handed over by another window, a part's
+ * kept content over what its parent gives: the bytes read changed, red against the file, and
+ * closing asks. Throws when they do not fit the file — it changed since.
  *
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptEdits
+ * @web-only a pane crosses between windows as a record and its changes, where upstream hands over
+ * the pane itself; a workspace's kept content is laid over by the keeper (`contentKeeper.ts`)
  */
 export function applyKeptEdits(pane: PaneId, edits: OverlayEdits): void {
   const slot = paneState(pane);
@@ -1805,6 +1807,74 @@ export function syncJoinAttachment(pane: SlotId): void {
     return { ...state, panes: { ...state.panes, [pane]: { ...current, ...next } } };
   });
   noteDocumentChanged();
+}
+
+/**
+ * The joins on a pane's history as a workspace keeps them: those that can be undone and those that
+ * can be redone, each with the file it detached the pane from.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.keptJoins
+ */
+export function keptJoinsOf(pane: PaneId): {
+  readonly undo: readonly KeptJoin[];
+  readonly redo: readonly KeptJoin[];
+} {
+  if (!isSlot(pane)) return { undo: [], redo: [] };
+  const kept = (mark: JoinMark): KeptJoin => ({
+    serial: mark.serial,
+    name: mark.name,
+    readOnly: !mark.writable,
+    file: {
+      name: mark.file.name,
+      size: mark.file.size,
+      modified: mark.file.lastModified,
+      ...(mark.file.path === undefined ? {} : { path: mark.file.path }),
+    },
+  });
+  return { undo: joinMarks[pane].map(kept), redo: undoneJoins[pane].map(kept) };
+}
+
+/**
+ * Puts back the joins a kept history came back with: undoing one attaches the pane to the file it
+ * detached it from again, and redoing it detaches the pane once more. The pane is the joined image
+ * now — what a join made of it.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.restoreJoins
+ * @upstream-differs the marks are the pane's, beside the workspace, where upstream keeps them on
+ * the document
+ */
+export function restoreJoinMarks(
+  pane: PaneId,
+  joins: readonly { readonly kept: KeptJoin; readonly file: OpenedFile }[],
+  undone: readonly { readonly kept: KeptJoin; readonly file: OpenedFile }[]
+): void {
+  if (!isSlot(pane)) return;
+  const slot = workspaceStore.getSnapshot().panes[pane];
+  if (slot === undefined) return;
+  const mark = ({ kept, file }: { kept: KeptJoin; file: OpenedFile }): JoinMark => ({
+    serial: kept.serial,
+    name: kept.name,
+    file,
+    saved: new FileBackedStorage(file.source, new ChunkCache()),
+    writable: !kept.readOnly,
+    joined: { name: slot.name, file: slot.file },
+  });
+  joinMarks[pane] = joins.map(mark);
+  undoneJoins[pane] = undone.map(mark);
+}
+
+/**
+ * The pane's document had its kept content laid over it, or its history put back: its bytes are
+ * read again, its cuts start from the whole of it, and what shows whether it is saved says so.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptContent
+ */
+export function keptContentLaid(pane: PaneId): void {
+  const slot = paneState(pane);
+  if (slot === undefined) return;
+  resetSegments(pane, slot.document.size);
+  slot.document.contentReplaced();
+  signalFullInvalidation(pane);
 }
 
 /** A pane's content was replaced: nothing it was joined from is reachable now. */

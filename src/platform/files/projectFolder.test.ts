@@ -38,42 +38,42 @@ describe("a project's folder", () => {
   });
 });
 
-/** The shell's half of a project, over a log kept in memory as `desktop/projects.cjs` keeps it. */
-function memoryBridge(): { bridge: ProjectBridge; logs: Map<string, Uint8Array> } {
-  const logs = new Map<string, Uint8Array>();
+/** The shell's half of a project, over kept files held in memory as `desktop/projects.cjs` keeps them. */
+function memoryBridge(): { bridge: ProjectBridge; files: Map<string, Uint8Array> } {
+  const files = new Map<string, Uint8Array>();
   const bridge: ProjectBridge = {
     record: async () => undefined,
     keeps: async () => undefined,
-    writeKept: async () => undefined,
-    readKept: async () => undefined,
-    log: async (request) => {
-      const log = logs.get(request.key) ?? new Uint8Array(0);
+    kept: async (request) => {
+      const file = files.get(request.name) ?? new Uint8Array(0);
       switch (request.op) {
         case "write": {
-          const grown = new Uint8Array(Math.max(log.length, request.at + request.bytes.length));
-          grown.set(log);
+          const grown = new Uint8Array(Math.max(file.length, request.at + request.bytes.length));
+          grown.set(file);
           grown.set(request.bytes, request.at);
-          logs.set(request.key, grown);
+          files.set(request.name, grown);
           return undefined;
         }
         case "read":
-          if (request.at + request.count > log.length) throw new Error("short");
-          return log.slice(request.at, request.at + request.count);
+          if (request.at + request.count > file.length) throw new Error("short");
+          return file.slice(request.at, request.at + request.count);
         case "truncate":
-          logs.set(request.key, log.slice(0, request.at));
+          files.set(request.name, file.slice(0, request.at));
           return undefined;
+        case "size":
+          return files.has(request.name) ? file.length : undefined;
         case "sync":
           return undefined;
       }
     },
   };
-  return { bridge, logs };
+  return { bridge, files };
 }
 
-describe("a kept document's journal in the project's folder (P5)", () => {
+describe("a kept file in the project's folder (P5)", () => {
   it("is the history's journal, read back as its log, and cut back to where it was pinned", async () => {
-    const { bridge, logs } = memoryBridge();
-    const store = new ProjectFolder("Job", bridge).journalStore("d1");
+    const { bridge, files } = memoryBridge();
+    const store = new ProjectFolder("Job", bridge).kept.file("d1.log");
     const history = new UndoHistory();
     history.moveJournal(new UndoJournal(store));
     history.recordAtCaret(
@@ -92,9 +92,9 @@ describe("a kept document's journal in the project's folder (P5)", () => {
     // Past the pin: what a crash leaves after the last manifest.
     writer.appendSelection(1, { start: 0, end: 0, fileSize: 3 });
     await writer.pin();
-    expect(logs.get("d1")?.length).toBeGreaterThan(pinned.length);
+    expect(files.get("d1.log")?.length).toBeGreaterThan(pinned.length);
     await store.truncate(pinned.length);
-    expect(logs.get("d1")?.length).toBe(pinned.length);
+    expect(await store.size()).toBe(pinned.length);
 
     const read = await readHistoryLog(new UndoJournal(store, pinned), pinned.length, pinned.hash);
     const op = read[0]?.transaction.ops[0];

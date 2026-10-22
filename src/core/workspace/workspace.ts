@@ -22,7 +22,7 @@ export interface Workspace {
  *
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#Workspace.currentVersion
  */
-export const WORKSPACE_VERSION = 1;
+export const WORKSPACE_VERSION = 2;
 
 /**
  * The Annotations panel: whether it was the panel up, and which cards were chosen. The annotations
@@ -98,11 +98,203 @@ export interface PaneState {
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.segments */
   readonly segments?: SegmentationState | undefined;
   /**
-   * The unsaved changes of a file, kept beside the workspace under this name.
+   * A file's content beyond what is on disk — its unsaved changes and the history that made them
+   * — kept beside the workspace. Nothing for a file with neither.
    *
-   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.edits
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.kept
    */
-  readonly edits?: string | undefined;
+  readonly kept?: KeptContent | undefined;
+  /**
+   * What the undo router and the cut history held for the pane: what a press of Undo takes back
+   * after a relaunch, the cuts with it (`Design/PORT_WINDOW_07A3928_21A2889.md`, P6e).
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#HistoryLog.segmentsMagic
+   * @upstream-differs upstream pairs a snapshot with each step of the document's history in its
+   * log; the web keeps its snapshots on the router's acts and its cuts' own history, so those are
+   * what is written down
+   */
+  readonly undo?: PaneUndoState | undefined;
+}
+
+/**
+ * A document's content as a workspace keeps it: a base, and the log of the transactions made over
+ * it. Every state a document passes through has a serial of its own; the base holds one state, the
+ * log holds transactions, each naming the state it was applied to, and the content is the state
+ * `head` names, found from the base by the transactions between them. An edit appends to the log
+ * and an undo only moves `head`, so a snapshot writes what changed since the last one.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.init
+ */
+export interface KeptContent {
+  /**
+   * The document's name in `Kept/`, for as long as it is kept.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.id
+   */
+  readonly id: string;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.base */
+  readonly base: KeptBase;
+  /**
+   * The state the document was in.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.head
+   */
+  readonly head: number;
+  /**
+   * Where its serials go on counting from.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.nextSerial
+   */
+  readonly nextSerial: number;
+  /**
+   * For a file: the state the file on disk holds. Nothing for a document with no file.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.saved
+   */
+  readonly saved?: number | undefined;
+  /**
+   * The transactions over the base; nothing while there are none.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.log
+   */
+  readonly log?: KeptLog | undefined;
+  /**
+   * The history over the content: what undo and redo find after a relaunch. Nothing for content
+   * kept without one.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.history
+   */
+  readonly history?: KeptHistory | undefined;
+}
+
+/**
+ * The files in `Kept/` a content is read from.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptContent.files
+ */
+export function keptFiles(content: KeptContent): string[] {
+  const files: string[] = [];
+  if (content.base.kind !== "file") files.push(content.base.file);
+  if (content.log !== undefined) files.push(content.log.file);
+  return files;
+}
+
+/**
+ * The state a kept content starts from: the file on disk, which holds the state `serial` names;
+ * the whole content in `Kept/<file>` — an untitled document or a part; or runs over the file on
+ * disk (`OverlayEdits`) in `Kept/<file>` — a file whose saved state no transaction kept leads to.
+ * `hash` is the kept file's SHA-256, hex: it is read only when it matches.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptBase
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptBase.serial
+ */
+export type KeptBase =
+  | { readonly kind: "file"; readonly serial: number }
+  | {
+      readonly kind: "bytes" | "edits";
+      readonly file: string;
+      readonly serial: number;
+      readonly hash: string;
+    };
+
+/**
+ * A log in `Kept/`, pinned: the length it is read to and the chained hash at that length, hex.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptLog
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptLog.init
+ */
+export interface KeptLog {
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptLog.file */
+  readonly file: string;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptLog.length */
+  readonly length: number;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptLog.hash */
+  readonly hash: string;
+}
+
+/**
+ * A document's undo history as a workspace keeps it, beside its content: the transactions are in
+ * the log, this says how they stand.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.init
+ */
+export interface KeptHistory {
+  /**
+   * The state an empty undo side stands for: the undo side is the way from it to the head.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.undoBase
+   */
+  readonly undoBase: number;
+  /**
+   * The newest state the redo side leads to; nothing with nothing to redo.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.redoTip
+   */
+  readonly redoTip?: number | undefined;
+  /**
+   * How many transactions each redo step holds, the next to redo first.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.redoSteps
+   */
+  readonly redoSteps: readonly number[];
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.savedState */
+  readonly savedState: number;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.dirtyRegardless */
+  readonly dirtyRegardless: boolean;
+  /**
+   * The joins that can be undone and those that can be redone, each with the file it detached the
+   * document from.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.joins
+   */
+  readonly joins: readonly KeptJoin[];
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptHistory.undoneJoins */
+  readonly undoneJoins: readonly KeptJoin[];
+}
+
+/**
+ * A join on a kept history: its transaction, and the file it detached the document from — which
+ * undoing it attaches the document to again.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.init
+ * @upstream-differs the file as a stamp and the name the pane showed, a page reaching a file by
+ * its handle or, in the shell, its path
+ */
+export interface KeptJoin {
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.serial */
+  readonly serial: number;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.path */
+  readonly file: FileStamp;
+  readonly name: string;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.readOnly */
+  readonly readOnly: boolean;
+}
+
+/**
+ * What the undo router held for a pane, and the cuts' own history: the acts in the order they
+ * were made, those undone in the order they were taken out, each with the partitions it restores;
+ * and the partitions the segments store can step back and forth through.
+ *
+ * @web-only see {@link PaneState.undo}
+ */
+export interface PaneUndoState {
+  readonly past: readonly UndoActState[];
+  readonly future: readonly UndoActState[];
+  readonly cutsPast: readonly SegmentationState[];
+  readonly cutsFuture: readonly SegmentationState[];
+}
+
+/** One act of the undo router: an edit, a cut, or both as one. */
+export interface UndoActState {
+  readonly kind: "document" | "segments" | "group";
+  readonly parts?: readonly UndoActState[] | undefined;
+  /** For a group: the partition before its first part. */
+  readonly before?: SegmentationState | undefined;
+  /** The partition the act left, taken when it was undone. */
+  readonly after?: SegmentationState | undefined;
 }
 
 /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#InputRegion */
@@ -155,14 +347,14 @@ export interface FragmentState {
 }
 
 /**
- * An untitled document: the key of its bytes beside the workspace, the name it showed, and
- * whether it held work nobody had saved.
+ * An untitled document: its content as the workspace keeps it, the name it showed, and whether it
+ * held work nobody had saved.
  *
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#UntitledStamp
  */
 export interface UntitledStamp {
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#UntitledStamp.id */
-  readonly id: string;
+  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#UntitledStamp.content */
+  readonly content: KeptContent;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#UntitledStamp.name */
   readonly name?: string | undefined;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#UntitledStamp.size */
@@ -195,6 +387,14 @@ export interface FileStamp {
   readonly modified: number;
   /** The key of the handle kept beside the workspace, where the browser gave one. */
   readonly handle?: string | undefined;
+  /**
+   * The file's SHA-256, hex — written down only when something is laid over the file at restore
+   * (`PaneState.kept`), and then what decides whether it is still the file: a copy or a `touch`
+   * moves the date, not the bytes.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#FileStamp.sha256
+   */
+  readonly sha256?: string | undefined;
 }
 
 /**
@@ -412,4 +612,102 @@ export type RestoreIssue =
    *
    * @web-only the reason the browser gave
    */
-  | { readonly kind: "unreadable"; readonly name: string; readonly reason: string };
+  | { readonly kind: "unreadable"; readonly name: string; readonly reason: string }
+  /**
+   * The changes kept for it could not be read — the kept files are damaged or missing: a file
+   * opened as it is on disk, a document with no file was not opened.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/PaneRestore.swift#RestoreIssue.unreadable
+   */
+  | { readonly kind: "keptUnreadable"; readonly name: string }
+  /**
+   * Its content came back, but not the steps to undo it: the log no longer held the way back.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/PaneRestore.swift#RestoreIssue.historyLost
+   */
+  | { readonly kind: "historyLost"; readonly name: string };
+
+/**
+ * The workspace with every kept content in it — a file's, an untitled document's, a part's, in a
+ * pane or a panel — passed through `transform`: what fills in a content's base and log once they
+ * are written.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#Workspace.updatingKept
+ */
+export function updatingKept(
+  workspace: Workspace,
+  transform: (content: KeptContent) => KeptContent
+): Workspace {
+  const pane = (state: PaneState): PaneState => {
+    const kept = state.kept === undefined ? {} : { kept: transform(state.kept) };
+    const document = state.document;
+    switch (document.kind) {
+      case "file":
+        return { ...state, ...kept };
+      case "untitled":
+        return {
+          ...state,
+          ...kept,
+          document: {
+            kind: "untitled",
+            untitled: { ...document.untitled, content: transform(document.untitled.content) },
+          },
+        };
+      case "part": {
+        const edits = document.part.edits;
+        return {
+          ...state,
+          ...kept,
+          document:
+            edits === undefined
+              ? document
+              : {
+                  kind: "part",
+                  part: {
+                    ...document.part,
+                    edits: { ...edits, content: transform(edits.content) },
+                  },
+                },
+        };
+      }
+    }
+  };
+  return {
+    ...workspace,
+    tab: {
+      ...workspace.tab,
+      panes: workspace.tab.panes.map((one) => (one === undefined ? undefined : pane(one))),
+      fragments: workspace.tab.fragments.map((fragment) => ({
+        ...fragment,
+        pane: pane(fragment.pane),
+      })),
+    },
+  };
+}
+
+/**
+ * The workspace with the stamp of every file kept content is laid over passed through
+ * `transform`: what fills in a hash made behind the snapshot.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#Workspace.updatingKeptFileStamps
+ */
+export function updatingKeptFileStamps(
+  workspace: Workspace,
+  transform: (stamp: FileStamp) => FileStamp
+): Workspace {
+  const pane = (state: PaneState): PaneState =>
+    state.kept === undefined || state.document.kind !== "file"
+      ? state
+      : { ...state, document: { kind: "file", file: transform(state.document.file) } };
+  return {
+    ...workspace,
+    tab: {
+      ...workspace.tab,
+      panes: workspace.tab.panes.map((one) => (one === undefined ? undefined : pane(one))),
+      fragments: workspace.tab.fragments.map((fragment) => ({
+        ...fragment,
+        pane: pane(fragment.pane),
+      })),
+    },
+  };
+}

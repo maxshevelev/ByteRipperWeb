@@ -353,6 +353,19 @@ export class BinaryDocument {
     return this.undoHistory.lastCommittedSerial;
   }
 
+  /**
+   * Says that the content and its history were put back from outside — a workspace's kept content
+   * laid over the storage, its history restored — so whatever shows or reads the document starts
+   * over from it, as after a revert.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyKeptContent
+   * @upstream-differs the document announces it; upstream's pane signals its own views
+   */
+  contentReplaced(): void {
+    this.clampSelection();
+    this.emitContent({ ops: [], restoring: true });
+  }
+
   // MARK: - Undo and redo
 
   /**

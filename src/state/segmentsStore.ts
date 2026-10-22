@@ -178,6 +178,36 @@ export function restorePartition(pane: PaneId, partition: Segmentation): void {
   }));
 }
 
+/**
+ * The partitions a pane's cuts can step back and forth through: what a workspace writes down.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.Snapshot
+ */
+export function cutHistoryOf(pane: PaneId): {
+  readonly past: readonly Segmentation[];
+  readonly future: readonly Segmentation[];
+} {
+  const held = segmentsStore.getSnapshot().panes[pane];
+  return { past: held?.past ?? [], future: held?.future ?? [] };
+}
+
+/**
+ * Puts back the partitions the pane's cuts could step through, the partition itself untouched.
+ *
+ * @upstream ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.restore
+ */
+export function restoreCutHistory(
+  pane: PaneId,
+  past: readonly Segmentation[],
+  future: readonly Segmentation[]
+): void {
+  const current = segmentsStore.getSnapshot().panes[pane];
+  if (current === undefined) return;
+  segmentsStore.update((state) => ({
+    panes: { ...state.panes, [pane]: { ...current, past, future } },
+  }));
+}
+
 export function canUndoSegments(pane: PaneId): boolean {
   return (segmentsStore.getSnapshot().panes[pane]?.past.length ?? 0) > 0;
 }

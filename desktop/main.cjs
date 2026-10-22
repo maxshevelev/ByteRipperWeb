@@ -474,37 +474,32 @@ app.whenReady().then(() => {
     const window = sender(event);
     if (window && Array.isArray(keys)) windows.projectKeeps(window, keys);
   });
-  ipcMain.handle("project:kept-write", (event, key, kind, bytes) => {
-    if (!sender(event)) throw new Error("Not the app's page.");
-    projects.writeKept(openFolder(), key, kind === "untitled" ? "untitled" : "edits", bytes);
-  });
-  ipcMain.handle("project:kept-read", (event, key) =>
-    sender(event) ? projects.readKept(openFolder(), key) : undefined
-  );
-  // A kept document's undo journal (P5 of the persistent-undo port): written, read, cut back and
-  // put on the disk by key, under the open project's `Kept/` and nowhere else.
-  ipcMain.handle("project:log", (event, request) => {
+  // A kept document's content (P5–P6 of the persistent-undo port): its log, its base, written,
+  // read, cut back and put on the disk by name, under the open project's `Kept/` and nowhere else.
+  ipcMain.handle("project:kept", (event, request) => {
     if (!sender(event)) throw new Error("Not the app's page.");
     const folder = openFolder();
     const at = Number(request?.at ?? 0);
-    if (!Number.isSafeInteger(at) || at < 0) throw new Error("Not a place in a log.");
+    if (!Number.isSafeInteger(at) || at < 0) throw new Error("Not a place in a kept file.");
     switch (request?.op) {
       case "write":
         if (!(request.bytes instanceof Uint8Array)) throw new Error("Not bytes.");
-        return projects.writeLog(folder, request.key, at, request.bytes);
+        return projects.writeLog(folder, request.name, at, request.bytes);
       case "read": {
         const count = Number(request.count);
         if (!Number.isSafeInteger(count) || count < 0 || count > 64 << 20) {
           throw new Error("Not a length to read.");
         }
-        return projects.readLog(folder, request.key, at, count);
+        return projects.readLog(folder, request.name, at, count);
       }
       case "truncate":
-        return projects.truncateLog(folder, request.key, at);
+        return projects.truncateLog(folder, request.name, at);
       case "sync":
-        return projects.syncLog(folder, request.key);
+        return projects.syncLog(folder, request.name);
+      case "size":
+        return projects.keptSize(folder, request.name);
       default:
-        throw new Error(`Unknown log request: ${request?.op}`);
+        throw new Error(`Unknown kept request: ${request?.op}`);
     }
   });
   ipcMain.handle("project:open", (event, given, suggestedName) => {

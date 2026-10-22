@@ -18,24 +18,63 @@ const scope = self as unknown as DedicatedWorkerGlobalScope;
 
 const handles = new Map<string, Promise<FileSystemSyncAccessHandle>>();
 
+/**
+ * The folder a name lies in, and its own name: a journal's is at the top, a kept file's in its
+ * workspace's folder — `kept-<id>/<name>`.
+ */
+async function place(
+  name: string,
+  create: boolean
+): Promise<{ folder: FileSystemDirectoryHandle; file: string }> {
+  const parts = name.split("/");
+  let folder = await navigator.storage.getDirectory();
+  for (const part of parts.slice(0, -1)) folder = await folder.getDirectoryHandle(part, { create });
+  return { folder, file: parts[parts.length - 1] as string };
+}
+
 function handleFor(name: string): Promise<FileSystemSyncAccessHandle> {
   let handle = handles.get(name);
   if (handle === undefined) {
-    handle = navigator.storage
-      .getDirectory()
-      .then((root) => root.getFileHandle(name, { create: true }))
+    handle = place(name, true)
+      .then(({ folder, file }) => folder.getFileHandle(file, { create: true }))
       .then((file) => file.createSyncAccessHandle());
     handles.set(name, handle);
   }
   return handle;
 }
 
-async function close(name: string): Promise<void> {
+/** Lets go of the file's handle, so it can be removed or read whole elsewhere. */
+async function release(name: string): Promise<void> {
   const handle = handles.get(name);
   handles.delete(name);
   if (handle !== undefined) (await handle.catch(() => undefined))?.close();
+}
+
+async function close(name: string): Promise<void> {
+  await release(name);
+  const { folder, file } = await place(name, false);
+  await folder.removeEntry(file).catch(() => undefined);
+}
+
+/** Removes every file of `folder` that `keep` does not name, or with no `keep` the folder. */
+async function sweep(folder: string, keep: readonly string[] | undefined): Promise<void> {
   const root = await navigator.storage.getDirectory();
-  await root.removeEntry(name).catch(() => undefined);
+  if (keep === undefined) {
+    for (const name of [...handles.keys()]) if (name.startsWith(`${folder}/`)) await release(name);
+    await root.removeEntry(folder, { recursive: true }).catch(() => undefined);
+    return;
+  }
+  const directory = (await root.getDirectoryHandle(folder).catch(() => undefined)) as
+    | (FileSystemDirectoryHandle & { keys?: () => AsyncIterableIterator<string> })
+    | undefined;
+  if (directory?.keys === undefined) return;
+  const named = new Set(keep);
+  const doomed: string[] = [];
+  for await (const name of directory.keys()) if (!named.has(name)) doomed.push(name);
+  for (const name of doomed) {
+    await release(`${folder}/${name}`);
+    await directory.removeEntry(name).catch(() => undefined);
+  }
 }
 
 scope.addEventListener("message", (event: MessageEvent<JournalWorkerRequest>) => {
@@ -67,6 +106,31 @@ async function answer(request: JournalWorkerRequest): Promise<void> {
       }
       case "close":
         await close(request.name);
+        return;
+      case "release":
+        await release(request.name);
+        post({ kind: "done", id: request.id });
+        return;
+      case "truncate": {
+        const handle = await handleFor(request.name);
+        handle.truncate(request.at);
+        handle.flush();
+        post({ kind: "done", id: request.id });
+        return;
+      }
+      case "size": {
+        const { folder, file } = await place(request.name, false).catch(() => ({
+          folder: undefined,
+          file: "",
+        }));
+        const exists = await folder?.getFileHandle(file).catch(() => undefined);
+        const size = exists === undefined ? undefined : (await handleFor(request.name)).getSize();
+        post({ kind: "size", id: request.id, size });
+        return;
+      }
+      case "sweep":
+        await sweep(request.folder, request.keep);
+        post({ kind: "done", id: request.id });
         return;
     }
   } catch (error) {

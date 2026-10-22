@@ -60,10 +60,10 @@ test("a project saved into a job's folder gets a .brw of its own there", () => {
 test("a project saved over another replaces it; an empty or .brw folder is used as it is", () => {
   const old = temporary();
   projects.write(old, [{ workspace: workspace("old") }]);
-  projects.writeKept(old, "d-1", "untitled", new Uint8Array([1]));
+  projects.writeLog(old, "d-1.bin", 0, new Uint8Array([1]));
   assert.equal(projects.prepare(old, "Project"), old);
   assert.equal(projects.holdsProject(old), false);
-  assert.equal(projects.readKept(old, "d-1"), undefined);
+  assert.equal(fs.existsSync(path.join(old, "Kept", "d-1.bin")), false);
   const empty = temporary();
   assert.equal(projects.prepare(empty, "Project"), empty);
   const named = path.join(temporary(), "New.brw");
@@ -71,30 +71,12 @@ test("a project saved over another replaces it; an empty or .brw folder is used 
   assert.equal(fs.existsSync(named), true);
 });
 
-test("kept bytes come back with their kind, and go when no window names them", () => {
+test("a name that could leave the folder is refused", () => {
   const folder = temporary();
-  projects.writeKept(folder, "d-untitled", "untitled", new Uint8Array([1, 2]));
-  projects.writeKept(folder, "d-edits", "edits", new Uint8Array([3]));
-  assert.deepEqual(projects.readKept(folder, "d-untitled"), {
-    kind: "untitled",
-    bytes: new Uint8Array([1, 2]),
-  });
-  assert.equal(projects.readKept(folder, "d-edits").kind, "edits");
-  // A document saved since: its key is a file's changes now, and only that.
-  projects.writeKept(folder, "d-untitled", "edits", new Uint8Array([9]));
-  assert.equal(projects.readKept(folder, "d-untitled").kind, "edits");
-  projects.removeKeptExcept(folder, new Set(["d-edits"]));
-  assert.equal(projects.readKept(folder, "d-untitled"), undefined);
-  assert.equal(projects.readKept(folder, "d-edits").kind, "edits");
-});
-
-test("a key that could leave the folder is refused", () => {
-  const folder = temporary();
-  for (const key of ["../escape", "a/b", "", "..", "x".repeat(200)]) {
-    assert.throws(() => projects.writeKept(folder, key, "untitled", new Uint8Array([1])));
-    assert.equal(projects.readKept(folder, key), undefined);
+  for (const name of ["../escape.log", "a/b.log", "", "..", `${"x".repeat(200)}.log`, "d.json"]) {
+    assert.throws(() => projects.writeLog(folder, name, 0, new Uint8Array([1])));
   }
-  assert.equal(fs.existsSync(path.join(path.dirname(folder), "escape.bin")), false);
+  assert.equal(fs.existsSync(path.join(path.dirname(folder), "escape.log")), false);
 });
 
 // Upstream: RecentProjectsStoreTests.
@@ -112,24 +94,28 @@ test("the recent projects are newest first, ten at most, and Clear Menu empties 
   assert.deepEqual(recent.list(), []);
 });
 
-test("a kept document's log is written where it is told, read back, cut back and fenced in", () => {
+test("a kept document's files are written where they are told, read back, cut back and fenced in", () => {
   const folder = temporary();
-  projects.writeLog(folder, "d1", 0, Uint8Array.of(1, 2, 3, 4));
-  projects.writeLog(folder, "d1", 4, Uint8Array.of(5, 6));
-  assert.deepEqual([...projects.readLog(folder, "d1", 2, 4)], [3, 4, 5, 6]);
-  projects.syncLog(folder, "d1");
+  projects.writeLog(folder, "d1.log", 0, Uint8Array.of(1, 2, 3, 4));
+  projects.writeLog(folder, "d1.log", 4, Uint8Array.of(5, 6));
+  assert.deepEqual([...projects.readLog(folder, "d1.log", 2, 4)], [3, 4, 5, 6]);
+  projects.syncLog(folder, "d1.log");
 
   // A pinned length cuts off what came after it, and appending goes on from there.
-  projects.truncateLog(folder, "d1", 3);
-  projects.writeLog(folder, "d1", 3, Uint8Array.of(9));
-  assert.deepEqual([...projects.readLog(folder, "d1", 0, 4)], [1, 2, 3, 9]);
-  assert.throws(() => projects.readLog(folder, "d1", 2, 8), "past the end is not read");
+  projects.truncateLog(folder, "d1.log", 3);
+  projects.writeLog(folder, "d1.log", 3, Uint8Array.of(9));
+  assert.deepEqual([...projects.readLog(folder, "d1.log", 0, 4)], [1, 2, 3, 9]);
+  assert.throws(() => projects.readLog(folder, "d1.log", 2, 8), "past the end is not read");
 
-  assert.throws(() => projects.writeLog(folder, "../escape", 0, Uint8Array.of(1)));
+  assert.throws(() => projects.writeLog(folder, "../escape.log", 0, Uint8Array.of(1)));
+  assert.throws(() => projects.writeLog(folder, "d1.json", 0, Uint8Array.of(1)));
   assert.equal(fs.existsSync(path.join(folder, "Kept", "d1.log")), true);
 
-  // A document no window names any more takes its log with it.
-  projects.writeLog(folder, "d2", 0, Uint8Array.of(7));
-  projects.removeKeptExcept(folder, new Set(["d2"]));
-  assert.deepEqual(fs.readdirSync(path.join(folder, "Kept")), ["d2.log"]);
+  // A file no window names any more goes; so does what the format before this one kept.
+  projects.writeLog(folder, "d2.bin", 0, Uint8Array.of(7));
+  fs.mkdirSync(path.join(folder, "Edits"));
+  fs.writeFileSync(path.join(folder, "Edits", "d2.bin"), "old");
+  projects.removeKeptExcept(folder, new Set(["d2.bin"]));
+  assert.deepEqual(fs.readdirSync(path.join(folder, "Kept")), ["d2.bin"]);
+  assert.deepEqual(fs.readdirSync(path.join(folder, "Edits")), []);
 });

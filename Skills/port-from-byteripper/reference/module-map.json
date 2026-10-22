@@ -6026,6 +6026,7 @@
     {
       "swift": "Packages/Workspace",
       "web": [
+        "src/core/workspace/keptFolder.ts",
         "src/core/workspace/workspace.ts",
         "src/platform/files/projectFolder.ts"
       ],
@@ -6044,7 +6045,9 @@
         "src/state/workspace/workspaceRecords.ts",
         "src/state/workspace/partCodecState.ts",
         "src/state/workspace/projectRecords.ts",
-        "src/state/workspace/projects.ts"
+        "src/state/workspace/projects.ts",
+        "src/state/workspace/contentKeeper.ts",
+        "src/state/workspace/keptWriter.ts"
       ],
       "status": "ported",
       "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."

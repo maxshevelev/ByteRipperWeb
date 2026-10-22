@@ -60,6 +60,54 @@ interface GroupAct {
 
 type Act = SimpleAct | GroupAct;
 
+/**
+ * A pane's acts, the oldest first, and those undone, in the order a redo takes them back — what a
+ * workspace writes down so a press of Undo after a relaunch takes back what it did before it.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentUndoStack
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.segmentRedoStack
+ * @upstream-differs the snapshots are on the router's acts rather than paired with the document's
+ * steps
+ */
+export function actsFor(pane: PaneId): {
+  readonly past: readonly RecordedAct[];
+  readonly future: readonly RecordedAct[];
+} {
+  return {
+    past: past.filter((act) => act.pane === pane),
+    future: future.filter((act) => act.pane === pane),
+  };
+}
+
+/**
+ * Puts a pane's acts back as a workspace kept them, after whatever the router holds of other panes.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.restoreSegmentSnapshots
+ */
+export function restoreActs(
+  pane: PaneId,
+  restoredPast: readonly RecordedAct[],
+  restoredFuture: readonly RecordedAct[]
+): void {
+  forgetActs(pane);
+  const own = (act: RecordedAct): Act =>
+    act.kind === "group"
+      ? { kind: "group", pane, parts: act.parts.map(own), before: act.before, after: act.after }
+      : { kind: act.kind, pane, after: act.after };
+  past.push(...restoredPast.map(own));
+  future.push(...restoredFuture.map(own));
+}
+
+/** An act as it is written down and put back: the same, with nothing of the pane in it. */
+export type RecordedAct =
+  | { readonly kind: "document" | "segments"; readonly after?: Segmentation | undefined }
+  | {
+      readonly kind: "group";
+      readonly parts: readonly RecordedAct[];
+      readonly before: Segmentation | undefined;
+      readonly after?: Segmentation | undefined;
+    };
+
 const past: Act[] = [];
 const future: Act[] = [];
 

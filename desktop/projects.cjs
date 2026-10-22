@@ -1,8 +1,9 @@
 // Projects on disk (Design/DESKTOP_WINDOWS.md, D3): a `.brw` folder holding `Project.json` —
-// every window of the app, front to back — and, only while there are any, the bytes nothing else on
-// disk has: `Untitled/<key>.bin`, a document never saved, and `Edits/<key>.bin`, a file's unsaved
-// changes. The main process writes it by path; a page never names a path to write, only a key under
-// the project that is open, so the page's one way to the disk by path stops at that folder.
+// every window of the app, front to back — and, only while there are any, the content of the
+// documents it keeps in `Kept/`: each document's base and the log of its history
+// (Design/PORT_WINDOW_07A3928_21A2889.md, P6). The main process writes it by path; a page never
+// names a path to write, only a kept file's name under the project that is open, so the page's one
+// way to the disk by path stops at that folder.
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -21,9 +22,6 @@ const KEPT = "Kept";
 const PROJECT_VERSION = 2;
 /** @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.limit */
 const RECENT_LIMIT = 10;
-
-/** A key the page names its kept bytes by: its own made ids, and nothing that could leave the folder. */
-const isKey = (key) => typeof key === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(key);
 
 /**
  * Whether a folder's name says it is a project.
@@ -129,54 +127,26 @@ function write(folder, windows) {
 }
 
 /**
- * Keeps the bytes of `key`: an untitled document's content, or a file's changes as the page
- * encoded them.
- *
- * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper
- * @upstream-differs whole values under Untitled/ and Edits/, until persistent undo keeps a log
+ * A file the page keeps a document's content in, under `Kept/`: a log, a base written whole, or a
+ * file's changes as runs — a name the page made, and nothing that could leave the folder.
  */
-function writeKept(folder, key, kind, bytes) {
-  if (!isKey(key)) throw new Error("Not a key the page makes.");
-  const sub = path.join(folder, kind === "untitled" ? UNTITLED : EDITS);
-  fs.mkdirSync(sub, { recursive: true });
-  writeWhole(path.join(sub, `${key}.bin`), Buffer.from(bytes));
-  // A key is in one of the two folders: a document saved since is a file's changes no more.
-  fs.rmSync(path.join(folder, kind === "untitled" ? EDITS : UNTITLED, `${key}.bin`), {
-    force: true,
-  });
-}
+const isKeptName = (name) =>
+  typeof name === "string" && /^[A-Za-z0-9_-]{1,100}\.(log|bin|edits)$/.test(name);
 
-/** The bytes kept under `key`, with which kind they are; nothing when there are none. */
-function readKept(folder, key) {
-  if (!isKey(key)) return undefined;
-  for (const [kind, sub] of [
-    ["untitled", UNTITLED],
-    ["edits", EDITS],
-  ]) {
-    try {
-      const bytes = fs.readFileSync(path.join(folder, sub, `${key}.bin`));
-      return { kind, bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length) };
-    } catch {
-      // Not under this kind.
-    }
-  }
-  return undefined;
-}
-
-/** The log a key names, under the project's `Kept/`. */
-function logPath(folder, key) {
-  if (!isKey(key)) throw new Error("Not a key the page makes.");
-  return path.join(folder, KEPT, `${key}.log`);
+/** The kept file `name` names, under the project's `Kept/`. */
+function logPath(folder, name) {
+  if (!isKeptName(name)) throw new Error("Not a name the page makes.");
+  return path.join(folder, KEPT, name);
 }
 
 /**
- * Writes `bytes` into the log `key` names at `at` — the end of what was written before, or a point
+ * Writes `bytes` into the kept file `name` names at `at` — the end of what was written before, or a point
  * a pinned length cut it back to.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.appendRecord
  */
-function writeLog(folder, key, at, bytes) {
-  const file = logPath(folder, key);
+function writeLog(folder, name, at, bytes) {
+  const file = logPath(folder, name);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const fd = fs.openSync(file, fs.existsSync(file) ? "r+" : "w");
   try {
@@ -190,8 +160,8 @@ function writeLog(folder, key, at, bytes) {
 }
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.read */
-function readLog(folder, key, at, count) {
-  const fd = fs.openSync(logPath(folder, key), "r");
+function readLog(folder, name, at, count) {
+  const fd = fs.openSync(logPath(folder, name), "r");
   try {
     const buffer = Buffer.alloc(count);
     for (let done = 0; done < count; ) {
@@ -211,8 +181,8 @@ function readLog(folder, key, at, count) {
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
  */
-function truncateLog(folder, key, length) {
-  const file = logPath(folder, key);
+function truncateLog(folder, name, length) {
+  const file = logPath(folder, name);
   if (fs.existsSync(file)) fs.truncateSync(file, length);
 }
 
@@ -221,8 +191,8 @@ function truncateLog(folder, key, length) {
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.synchronize
  */
-function syncLog(folder, key) {
-  const file = logPath(folder, key);
+function syncLog(folder, name) {
+  const file = logPath(folder, name);
   if (!fs.existsSync(file)) return;
   const fd = fs.openSync(file, "r+");
   try {
@@ -232,17 +202,25 @@ function syncLog(folder, key) {
   }
 }
 
+/** How long the kept file `name` is; nothing when there is none. */
+function keptSize(folder, name) {
+  try {
+    return fs.statSync(logPath(folder, name)).size;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Deletes what is kept of every document `keys` does not name: one saved, discarded or closed takes
  * its copy with it.
  */
-function removeKeptExcept(folder, keys) {
+function removeKeptExcept(folder, names) {
   for (const sub of [UNTITLED, EDITS, KEPT]) {
     const where = path.join(folder, sub);
     for (const name of entries(where)) {
-      if (!keys.has(name.replace(/\.(bin|log)$/, ""))) {
-        fs.rmSync(path.join(where, name), { force: true });
-      }
+      // `Untitled/` and `Edits/` are the format before the kept content's: nothing names them.
+      if (sub !== KEPT || !names.has(name)) fs.rmSync(path.join(where, name), { force: true });
     }
   }
 }
@@ -295,7 +273,7 @@ function recentStore(file) {
 module.exports = {
   FILE_NAME,
   PROJECT_VERSION,
-  isKey,
+  isKeptName,
   isProjectFolderName,
   projectName,
   holdsProject,
@@ -303,13 +281,12 @@ module.exports = {
   prepare,
   read,
   write,
-  writeKept,
-  readKept,
   removeKeptExcept,
   writeLog,
   readLog,
   truncateLog,
   syncLog,
+  keptSize,
   clear,
   recentStore,
 };

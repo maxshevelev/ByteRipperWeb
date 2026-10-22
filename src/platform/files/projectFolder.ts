@@ -1,5 +1,5 @@
-import type { JournalStore } from "@/core/edit/undoJournal";
 import type { OverlayEdits, OverlayRun } from "@/core/storage/editOverlayStorage";
+import type { KeptFile, KeptFolder } from "@/core/workspace/keptFolder";
 import type { Workspace } from "@/core/workspace/workspace";
 
 /**
@@ -43,112 +43,84 @@ export class ProjectFolder {
   }
 
   /**
-   * Keeps `value` under `key`: a Blob is an untitled document's content, anything else a file's
-   * unsaved changes.
+   * The project's `Kept/`, written by the shell (`Design/PORT_WINDOW_07A3928_21A2889.md`, P5–P6).
    *
-   * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper
-   * @upstream-differs a file's changes are a header of runs and the added bytes after it, where
-   * upstream writes a base and a log
+   * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.keptFolder
+   * @upstream-differs the shell's main process holds the files; the page names them
    */
-  async writeKept(key: string, value: unknown): Promise<void> {
-    if (value instanceof Blob) {
-      await this.bridge.writeKept(key, "untitled", new Uint8Array(await value.arrayBuffer()));
-    } else {
-      await this.bridge.writeKept(key, "edits", encodeEdits(value as OverlayEdits));
-    }
-  }
-
-  /** What is kept under `key`: an untitled document's bytes as a Blob, or a file's changes. */
-  async readKept<T>(key: string): Promise<T | undefined> {
-    const kept = await this.bridge.readKept(key).catch(() => undefined);
-    if (kept === undefined || kept === null) return undefined;
-    if (kept.kind === "untitled") return new Blob([kept.bytes.slice()]) as T;
-    return decodeEdits(kept.bytes) as T | undefined;
-  }
-
-  /**
-   * Says which keys this window keeps bytes under: what no window of the project names any more,
-   * the shell deletes.
-   */
-  async removeKeptExcept(keys: ReadonlySet<string>): Promise<void> {
-    await this.bridge.keeps([...keys]);
-  }
-
-  /**
-   * The undo journal of the document kept under `key`: `Kept/<key>.log` in the project's folder,
-   * written by the shell (`Design/PORT_WINDOW_07A3928_21A2889.md`, P5).
-   *
-   * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keptFolder
-   * @upstream-differs a store the shell writes by key; upstream's journal is a file it opens by path
-   */
-  journalStore(key: string): ProjectJournalStore {
-    return new ProjectJournalStore(this.bridge, key);
+  get kept(): KeptFolder {
+    const bridge = this.bridge;
+    return {
+      id: `project:${this.name}`,
+      file: (name) => new ProjectKeptFile(bridge, name),
+      // The shell removes what no window of the project names, once every window has said.
+      removeExcept: async (names) => {
+        await bridge.keeps([...names]);
+      },
+    };
   }
 }
 
 /**
- * A kept document's journal in the open project's folder, written, read, cut back and put on the
- * disk by the shell.
+ * A kept file in the open project's folder, written, read, cut back and put on the disk by the
+ * shell.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
- * @upstream-differs the shell's main process holds the file; the page names it by key
+ * @upstream-differs the shell's main process holds the file; the page names it
  */
-export class ProjectJournalStore implements JournalStore {
+export class ProjectKeptFile implements KeptFile {
   private readonly bridge: ProjectBridge;
-  private readonly key: string;
+  private readonly name: string;
 
-  constructor(bridge: ProjectBridge, key: string) {
+  constructor(bridge: ProjectBridge, name: string) {
     this.bridge = bridge;
-    this.key = key;
+    this.name = name;
   }
 
   async write(at: number, bytes: Uint8Array): Promise<void> {
-    await this.bridge.log({ op: "write", key: this.key, at, bytes });
+    await this.bridge.kept({ op: "write", name: this.name, at, bytes });
   }
 
   async read(at: number, count: number): Promise<Uint8Array> {
-    return (await this.bridge.log({ op: "read", key: this.key, at, count })) as Uint8Array;
+    return (await this.bridge.kept({ op: "read", name: this.name, at, count })) as Uint8Array;
   }
 
-  /**
-   * Cuts the log back to `length`, as a manifest pinned it.
-   *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init
-   */
+  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.init */
   async truncate(length: number): Promise<void> {
-    await this.bridge.log({ op: "truncate", key: this.key, at: length });
+    await this.bridge.kept({ op: "truncate", name: this.name, at: length });
   }
 
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoJournal.swift#UndoJournal.synchronize */
   async synchronize(): Promise<void> {
-    await this.bridge.log({ op: "sync", key: this.key });
+    await this.bridge.kept({ op: "sync", name: this.name });
   }
 
-  /** The log stays: the project keeps it until no window names its key (`removeKeptExcept`). */
+  async size(): Promise<number | undefined> {
+    return (await this.bridge.kept({ op: "size", name: this.name })) as number | undefined;
+  }
+
+  /** The file stays: the project keeps it until no window names it. */
   close(): void {}
 }
 
 /** The shell's half of a project, as its preload script exposes it. */
 export interface ProjectBridge {
   record(workspace: Workspace): Promise<void>;
-  keeps(keys: readonly string[]): Promise<void>;
-  writeKept(key: string, kind: "untitled" | "edits", bytes: Uint8Array): Promise<void>;
-  readKept(
-    key: string
-  ): Promise<{ readonly kind: "untitled" | "edits"; readonly bytes: Uint8Array } | undefined>;
-  /** A kept document's log under `Kept/`, by its key. */
-  log(
+  /** The names of the files this window keeps under `Kept/`; the shell removes the rest. */
+  keeps(names: readonly string[]): Promise<void>;
+  /** A kept file under `Kept/`, by its name. */
+  kept(
     request:
       | {
           readonly op: "write";
-          readonly key: string;
+          readonly name: string;
           readonly at: number;
           readonly bytes: Uint8Array;
         }
-      | { readonly op: "read"; readonly key: string; readonly at: number; readonly count: number }
-      | { readonly op: "truncate"; readonly key: string; readonly at: number }
-      | { readonly op: "sync"; readonly key: string }
-  ): Promise<Uint8Array | undefined>;
+      | { readonly op: "read"; readonly name: string; readonly at: number; readonly count: number }
+      | { readonly op: "truncate"; readonly name: string; readonly at: number }
+      | { readonly op: "sync" | "size"; readonly name: string }
+  ): Promise<Uint8Array | number | undefined>;
 }
 
 /**

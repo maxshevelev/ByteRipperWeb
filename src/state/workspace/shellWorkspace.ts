@@ -3,6 +3,7 @@ import {
   type ShellProject,
   windowLaunch,
 } from "@/platform/desktop/desktopWindows";
+import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
 import { settingsStore } from "@/state/settingsStore";
 import { unsavedPanesLostToLeaving } from "@/state/unsavedWork";
 import { startOpenOnce } from "@/state/workspace/openOnce";
@@ -15,11 +16,7 @@ import {
 } from "@/state/workspace/projects";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import { recordWorkspace } from "@/state/workspace/workspaceRecorder";
-import {
-  allWorkspaceRecords,
-  removeKeptBytesExcept,
-  removeWorkspaceRecord,
-} from "@/state/workspace/workspaceRecords";
+import { allWorkspaceRecords, removeWorkspaceRecord } from "@/state/workspace/workspaceRecords";
 
 /**
  * This window's part in the desktop shell's one workspace over every window
@@ -67,7 +64,7 @@ export async function answerQuit(): Promise<{ readonly asks: boolean }> {
 export async function forgetWorkspace(id: string): Promise<void> {
   if (id === workspaceId()) return;
   await removeWorkspaceRecord(id);
-  await removeKeptBytesExcept(id, new Set());
+  if (OpfsKeptFolder.isAvailable()) await new OpfsKeptFolder(id).remove().catch(() => undefined);
 }
 
 /** The records of windows the app no longer holds, gone: the launch said which it still does. */

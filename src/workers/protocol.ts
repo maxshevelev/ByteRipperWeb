@@ -1214,9 +1214,21 @@ export type JournalWorkerRequest =
       readonly at: number;
       readonly count: number;
     }
-  | { readonly kind: "close"; readonly name: string };
+  | { readonly kind: "close"; readonly name: string }
+  /** The file's handle let go; the file stays: a kept log or base. */
+  | { readonly kind: "release"; readonly id: number; readonly name: string }
+  | { readonly kind: "truncate"; readonly id: number; readonly name: string; readonly at: number }
+  | { readonly kind: "size"; readonly id: number; readonly name: string }
+  /** Every file in `folder` that `keep` does not name removed; with no `keep`, the folder. */
+  | {
+      readonly kind: "sweep";
+      readonly id: number;
+      readonly folder: string;
+      readonly keep?: readonly string[] | undefined;
+    };
 
 export type JournalWorkerResponse =
   | { readonly kind: "done"; readonly id: number }
   | { readonly kind: "read"; readonly id: number; readonly bytes: Uint8Array }
+  | { readonly kind: "size"; readonly id: number; readonly size: number | undefined }
   | { readonly kind: "failed"; readonly id: number; readonly message: string };

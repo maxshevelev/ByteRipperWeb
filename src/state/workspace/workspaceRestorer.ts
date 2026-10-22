@@ -1,9 +1,11 @@
 import { L } from "@/core/localization/localization";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
-import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
+import { EditOverlayStorage, type OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type FileStamp,
+  type KeptContent,
+  type KeptJoin,
   type NotesState,
   type PaneState,
   paneRestore,
@@ -13,6 +15,7 @@ import {
   segmentationApplies,
   stampIsUnchanged,
   type ToolState,
+  type UndoActState,
   WORKSPACE_VERSION,
   type Workspace,
   workspaceIsEmpty,
@@ -21,7 +24,6 @@ import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { desktopOwnWindows, desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
-import { decodeEdits } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
@@ -38,23 +40,25 @@ import {
 import { parkToolState } from "@/state/parkedToolState";
 import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
-import { restorePartition } from "@/state/segmentsStore";
+import { restoreCutHistory, restorePartition } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
+import { type RecordedAct, restoreActs } from "@/state/undoRouter";
+import type { ContentKeeper } from "@/state/workspace/contentKeeper";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { enterProject } from "@/state/workspace/projects";
-import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
+  currentKeeper,
   keepWaitingWorkspace,
   pauseWorkspaceRecorder,
   readOwnWorkspace,
 } from "@/state/workspace/workspaceRecorder";
-import type { KeptReader, WorkspaceRecord } from "@/state/workspace/workspaceRecords";
-import { readKeptBytes } from "@/state/workspace/workspaceRecords";
+import type { WorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import {
   applyKeptEdits,
   foldParts,
+  keptContentLaid,
   openInPane,
   openKeptUntitledInPane,
   openNotesPanel,
@@ -62,6 +66,7 @@ import {
   paneState,
   raisePart,
   reportAlert,
+  restoreJoinMarks,
   setActivePane,
   setSplitFraction,
   workspaceStore,
@@ -173,10 +178,9 @@ async function reach(
 }
 
 /** What this restore works from, kept while it waits for a click. */
-let waiting: { readonly record: WorkspaceRecord; readonly kept: KeptReader } | undefined;
-
-/** The bytes the tab's own session keeps beside itself. */
-const sessionKept: KeptReader = (key) => readKeptBytes(workspaceId(), key);
+let waiting:
+  | { readonly record: WorkspaceRecord; readonly keeper: ContentKeeper | undefined }
+  | undefined;
 
 /**
  * Restores the workspace this tab is, when the setting is on and there is one: called once, as the
@@ -219,7 +223,7 @@ async function restoreKept(): Promise<void> {
   // A file opened before the restore got here — dropped on the page while it loaded — is the
   // reader's answer: nothing is put back over it.
   if (PANE_IDS.some((slot) => paneState(slot) !== undefined)) return;
-  await restoreFrom(record, false, sessionKept);
+  await restoreFrom(record, false, currentKeeper());
 }
 
 /**
@@ -229,7 +233,7 @@ async function restoreKept(): Promise<void> {
 export async function reopenWaitingWorkspace(): Promise<void> {
   const held = waiting;
   if (held === undefined) return;
-  await restoreFrom(held.record, true, held.kept);
+  await restoreFrom(held.record, true, held.keeper);
 }
 
 /**
@@ -247,15 +251,7 @@ async function openProjectWindow(): Promise<void> {
   const written = await bridge.window().catch(() => undefined);
   if (written === undefined || written.version !== WORKSPACE_VERSION) return;
   const workspace = fromProjectFile(written);
-  const read = (key: string) =>
-    bridge
-      .readKept(key)
-      .then((kept) => {
-        if (kept === undefined || kept === null) return undefined;
-        return kept.kind === "untitled" ? new Blob([kept.bytes.slice()]) : decodeEdits(kept.bytes);
-      })
-      .catch(() => undefined);
-  await restoreFrom({ workspace, leftAt: 0, handles: {} }, false, read as KeptReader);
+  await restoreFrom({ workspace, leftAt: 0, handles: {} }, false, currentKeeper());
 }
 
 /**
@@ -270,14 +266,14 @@ export function fromProjectFile(workspace: Workspace): Workspace {
 }
 
 /**
- * Puts `record` back into the empty tab, reading the bytes it keeps through `kept`.
+ * Puts `record` back into the empty tab, reading the content it keeps through `keeper`.
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.finishWorkspaceTab
  */
 export async function restoreFrom(
   record: WorkspaceRecord,
   asking: boolean,
-  kept: KeptReader
+  keeper: ContentKeeper | undefined
 ): Promise<void> {
   pauseWorkspaceRecorder(true);
   try {
@@ -306,7 +302,7 @@ export async function restoreFrom(
     // Something is behind a click: the whole workspace waits for it, rather than coming back in
     // halves.
     if ([...reached, ...links.values()].some((one) => one?.kind === "asks")) {
-      waiting = { record, kept };
+      waiting = { record, keeper };
       keepWaitingWorkspace(true);
       workspaceRestoreStore.update(() => ({
         waiting: tab.panes.flatMap((pane) =>
@@ -328,12 +324,14 @@ export async function restoreFrom(
       // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
       if (saved.document.kind === "untitled") {
         const stamp = saved.document.untitled;
-        const bytes = await kept<Blob>(stamp.id);
+        const name = stamp.name ?? L("Untitled");
+        const bytes = await keeper?.bytesOf(stamp.content).catch(() => undefined);
         if (bytes === undefined) {
-          issues.push({ kind: "missing", name: stamp.name ?? L("Untitled") });
+          issues.push({ kind: "keptUnreadable", name });
           continue;
         }
-        openKeptUntitledInPane(slot, bytes, stamp.name ?? L("Untitled"), stamp.dirty);
+        openKeptUntitledInPane(slot, new Blob([bytes.slice()]), name, stamp.dirty);
+        await adoptKept(slot, stamp.content, name, stamp.dirty, keeper, record);
         opened.push({ slot, saved, unchanged: true });
         continue;
       }
@@ -350,13 +348,18 @@ export async function restoreFrom(
         modified: one.file.lastModified,
       });
       if (!unchanged) issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
-      // Its unsaved changes, laid over it only when it is the file they were made on.
-      if (unchanged && saved.edits !== undefined) {
-        const edits = await kept<OverlayEdits>(saved.edits);
+      // Its unsaved changes and the history that made them, laid over it only when it is the file
+      // they were made on; kept changes that cannot be read leave it as it is on disk.
+      // @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.apply
+      const kept = saved.kept;
+      if (unchanged && kept !== undefined && keeper !== undefined) {
+        const storage = paneState(slot)?.document.storage;
         try {
-          if (edits !== undefined) applyKeptEdits(slot, edits);
+          if (!(storage instanceof EditOverlayStorage)) throw new Error("No overlay to lay it on.");
+          await keeper.apply(kept, storage);
+          await adoptKept(slot, kept, one.file.name, true, keeper, record);
         } catch {
-          issues.push({ kind: "changed", name: one.file.path ?? one.file.name });
+          issues.push({ kind: "keptUnreadable", name: one.file.path ?? one.file.name });
         }
       }
       opened.push({ slot, saved, unchanged });
@@ -381,8 +384,11 @@ export async function restoreFrom(
           : opened.find((one) => PANE_IDS.indexOf(one.slot) === tool.pane)) ?? opened[0];
       if (target !== undefined) restoreTool(tool, target.slot, target.unchanged);
     }
-    await restoreFragments(record, opened, issues, kept);
+    await restoreFragments(record, opened, issues, keeper);
     await restoreNotes(record.workspace.notes);
+    keeper?.forgetReadBacks();
+    for (const name of keeper?.takeHistoriesLost() ?? [])
+      issues.push({ kind: "historyLost", name });
     reportRestoreIssues(issues);
   } finally {
     pauseWorkspaceRecorder(false);
@@ -406,7 +412,7 @@ async function restoreFragments(
   record: WorkspaceRecord,
   opened: readonly { slot: SlotId; saved: PaneState; unchanged: boolean }[],
   issues: RestoreIssue[],
-  kept: KeptReader
+  keeper: ContentKeeper | undefined
 ): Promise<void> {
   const { tab } = record.workspace;
   if (tab.fragments.length === 0) return;
@@ -438,29 +444,34 @@ async function restoreFragments(
         });
         const edits = origin.edits;
         if (part !== undefined && edits !== undefined) {
-          const bytes = await kept<Blob>(edits.id);
-          if (bytes !== undefined) layOver(part, bytes);
+          const bytes = await keeper?.bytesOf(edits.content).catch(() => undefined);
+          if (bytes !== undefined) {
+            await layOver(part, bytes);
+            await adoptKept(part, edits.content, origin.name, true, keeper, record);
+          } else issues.push({ kind: "keptUnreadable", name: origin.name });
         }
       }
       if (part === undefined) {
         // No way home: its own changes come back as bytes of their own, or nothing does.
-        const bytes = origin.edits === undefined ? undefined : await kept<Blob>(origin.edits.id);
-        if (bytes !== undefined) {
-          part = openPart(new Uint8Array(await bytes.arrayBuffer()), origin.name);
+        const content = origin.edits?.content;
+        const bytes =
+          content === undefined ? undefined : await keeper?.bytesOf(content).catch(() => undefined);
+        if (bytes !== undefined && content !== undefined) {
+          part = openPart(bytes, origin.name);
+          await adoptKept(part, content, origin.name, true, keeper, record);
           unchanged = parent?.unchanged ?? true;
         } else {
           issues.push({ kind: "missing", name: origin.name });
         }
       }
     } else if (source.kind === "untitled") {
-      const bytes = await kept<Blob>(source.untitled.id);
+      const name = source.untitled.name ?? L("Untitled");
+      const bytes = await keeper?.bytesOf(source.untitled.content).catch(() => undefined);
       if (bytes !== undefined) {
-        part = openPart(
-          new Uint8Array(await bytes.arrayBuffer()),
-          source.untitled.name ?? L("Untitled")
-        );
+        part = openPart(bytes, name);
         if (source.untitled.dirty) paneState(part)?.document.undoHistory.clearKeepingDirty();
-      }
+        await adoptKept(part, source.untitled.content, name, source.untitled.dirty, keeper, record);
+      } else issues.push({ kind: "keptUnreadable", name });
     }
     if (part === undefined) continue;
     if (fragment.pane.id !== undefined)
@@ -475,15 +486,48 @@ async function restoreFragments(
 }
 
 /** A part's changes, kept as its whole content, laid over what its parent gives. */
-function layOver(part: PartId, bytes: Blob): void {
-  void bytes.arrayBuffer().then((buffer) => {
-    const added = new Uint8Array(buffer);
-    applyKeptEdits(part, {
-      baseSize: 0,
-      runs: added.length === 0 ? [] : [{ kind: "added", start: 0, end: added.length }],
-      added,
-    });
+async function layOver(part: PartId, added: Uint8Array): Promise<void> {
+  applyKeptEdits(part, {
+    baseSize: 0,
+    runs: added.length === 0 ? [] : [{ kind: "added", start: 0, end: added.length }],
+    added,
   });
+}
+
+/**
+ * A pane put back with its kept content goes on as kept: its history, and the joins on it with
+ * the files they detached it from — reached as the workspace's files are.
+ *
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.adopt
+ */
+async function adoptKept(
+  pane: PaneId,
+  content: KeptContent,
+  name: string,
+  dirty: boolean,
+  keeper: ContentKeeper | undefined,
+  record: WorkspaceRecord
+): Promise<void> {
+  const document = paneState(pane)?.document;
+  if (document === undefined || keeper === undefined) return;
+  const { joins, undoneJoins } = await keeper.adopt(document, content, name, dirty);
+  if (joins.length > 0 || undoneJoins.length > 0) {
+    const files = async (kept: readonly KeptJoin[]) => {
+      const found: { kept: KeptJoin; file: OpenedFile }[] = [];
+      for (const one of kept) {
+        const stamp = one.file;
+        const reached = await reach(
+          stamp,
+          stamp.handle === undefined ? undefined : record.handles[stamp.handle],
+          false
+        );
+        if (reached.kind === "opened") found.push({ kept: one, file: reached.file });
+      }
+      return found;
+    };
+    restoreJoinMarks(pane, await files(joins), await files(undoneJoins));
+  }
+  keptContentLaid(pane);
 }
 
 const parsed = <T>(text: string | undefined): T | undefined => {
@@ -514,6 +558,28 @@ async function applyPane(
   const segments = saved.segments;
   if (segments !== undefined && segmentationApplies(segments, pane.document.size, unchanged)) {
     restoreSegments(slot, segments, linkFiles);
+  }
+  // What Undo and Redo take back, the cuts with them: only over the history that came back.
+  // @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.restoreSegmentSnapshots
+  const undo = saved.undo;
+  if (undo !== undefined && unchanged && (pane.document.canUndo || pane.document.canRedo)) {
+    const partition = (state: SegmentationState | undefined) =>
+      state === undefined ? undefined : partitionOf(slot, state, linkFiles);
+    const act = (one: UndoActState): RecordedAct =>
+      one.kind === "group"
+        ? {
+            kind: "group",
+            parts: (one.parts ?? []).map(act),
+            before: partition(one.before),
+            after: partition(one.after),
+          }
+        : { kind: one.kind, after: partition(one.after) };
+    restoreActs(slot, undo.past.map(act), undo.future.map(act));
+    restoreCutHistory(
+      slot,
+      undo.cutsPast.map((one) => partitionOf(slot, one, linkFiles)),
+      undo.cutsFuture.map((one) => partitionOf(slot, one, linkFiles))
+    );
   }
   // Queued behind whatever the pane's typing is doing as it mounts, and never waited on for long:
   // a restore that hung on one would keep the recorder paused for good.
@@ -617,6 +683,15 @@ function restoreSegments(
   state: SegmentationState,
   linkFiles: ReadonlyMap<string, OpenedFile>
 ): void {
+  restorePartition(slot, partitionOf(slot, state, linkFiles));
+}
+
+/** A partition as the workspace wrote it, its links to the files reached for them. */
+function partitionOf(
+  slot: PaneId,
+  state: SegmentationState,
+  linkFiles: ReadonlyMap<string, OpenedFile>
+): Segmentation {
   const pieces = state.pieces.map((piece) => {
     const file = piece.link === undefined ? undefined : linkFiles.get(stampKey(piece.link.file));
     if (piece.link === undefined || file === undefined)
@@ -631,7 +706,7 @@ function restoreSegments(
       ),
     };
   });
-  restorePartition(slot, new Segmentation(state.contentSize, pieces));
+  return new Segmentation(state.contentSize, pieces);
 }
 
 /**
@@ -729,6 +804,19 @@ export function reportRestoreIssues(issues: readonly RestoreIssue[]): void {
     .join("\n");
   if (unreadable !== "")
     sections.push(`${L("Not opened — they could not be read:")}\n${unreadable}`);
+  const keptUnreadable = list("keptUnreadable");
+  if (keptUnreadable !== "") {
+    // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.reportRestoreIssues
+    sections.push(
+      `${L("Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:")}\n${keptUnreadable}`
+    );
+  }
+  const historyLost = list("historyLost");
+  if (historyLost !== "") {
+    sections.push(
+      `${L("Their changes came back, but not the steps to undo them: the kept history no longer led back:")}\n${historyLost}`
+    );
+  }
   const changed = list("changed");
   if (changed !== "") {
     sections.push(

@@ -282,6 +282,13 @@ export class UndoHistory {
    */
   compactionFloor = 64 * 2 ** 20;
   private base = 0;
+  /**
+   * How many times the history was emptied (`reset`, `clearKeepingDirty`) or put back from a kept
+   * one: the content then jumped with no transaction to say how.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.epoch
+   */
+  private epoch = 0;
 
   // The coalescing window for fast rollback.
   private lastUndoWasSeriesByte = false;
@@ -314,6 +321,17 @@ export class UndoHistory {
    */
   get undoDepth(): number {
     return this.transactionCount;
+  }
+
+  /**
+   * The state the content is in, as far as the history can name it: what lets bytes kept
+   * elsewhere — a workspace's — be rewritten only when they changed.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.version
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.Version
+   */
+  get version(): { readonly epoch: number; readonly serial: number } {
+    return { epoch: this.epoch, serial: this.currentSerial };
   }
 
   /**
@@ -654,6 +672,7 @@ export class UndoHistory {
     this.base = this.takeSerial();
     this.savedSerial = this.base;
     this.dirtyAfterClear = false;
+    this.epoch += 1;
     this.transactionCount = 0;
     this.lastUndoWasSeriesByte = false;
     this.lastUndoSeriesId = undefined;
@@ -911,6 +930,7 @@ export class UndoHistory {
     this.transactionCount = options.undo.length;
     this.lastUndoWasSeriesByte = false;
     this.lastUndoSeriesId = undefined;
+    this.epoch += 1;
   }
 }
 

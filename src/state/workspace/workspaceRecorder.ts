@@ -1,20 +1,25 @@
 import type { BinaryDocument } from "@/core/document/binaryDocument";
+import type { Segmentation } from "@/core/segments/segmentation";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type DocumentSource,
   type FileStamp,
   type FragmentState,
+  type KeptContent,
   type NotesState,
   type PaneState,
+  type PaneUndoState,
   type SegmentationState,
   type SurfaceState,
   type TabState,
   type ToolState,
+  type UndoActState,
   WORKSPACE_VERSION,
   type Workspace,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
 import type { OpenedFile } from "@/platform/files/openedFile";
+import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
 import type { ProjectFolder } from "@/platform/files/projectFolder";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
@@ -31,22 +36,27 @@ import {
 import { sessionParkedStateOn } from "@/state/parkedToolState";
 import { searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
-import { segmentsFor } from "@/state/segmentsStore";
+import { cutHistoryOf, segmentsFor } from "@/state/segmentsStore";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
+import { actsFor, type RecordedAct } from "@/state/undoRouter";
+import { ContentKeeper, type KeptPane } from "@/state/workspace/contentKeeper";
 import { partCodecState } from "@/state/workspace/partCodecState";
 import { currentProject, switchToProject } from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   readWorkspaceRecord,
-  removeAllKeptBytes,
   removeAllWorkspaceRecords,
-  removeKeptBytesExcept,
   removeWorkspaceRecord,
-  writeKeptBytes,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
-import { exportKeptEdits, notesPanelIsUp, paneState, workspaceStore } from "@/state/workspaceStore";
+import {
+  exportKeptEdits,
+  keptJoinsOf,
+  notesPanelIsUp,
+  paneState,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { toolById } from "@/tools/registry";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
@@ -96,18 +106,17 @@ export function keepWaitingWorkspace(on: boolean): void {
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.snapshot
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceTab
  */
-export async function snapshotWorkspace(): Promise<{
+export async function snapshotWorkspace(keeper?: ContentKeeper): Promise<{
   readonly workspace: Workspace;
   readonly handles: Record<string, FileSystemFileHandle>;
-  readonly keeps: readonly KeptWrite[];
 }> {
   const handles: Record<string, FileSystemFileHandle> = {};
-  const keeps: KeptWrite[] = [];
-  const panes = PANE_IDS.map((slot) => paneSnapshot(slot, handles, keeps));
+  const panes: (PaneState | undefined)[] = [];
+  for (const slot of PANE_IDS) panes.push(await paneSnapshot(slot, handles, keeper));
   const state = workspaceStore.getSnapshot();
   const { fragments, expandedFragment } = await fragmentsSnapshot(
     new Set(PANE_IDS.filter((_, index) => panes[index] !== undefined)),
-    keeps
+    keeper
   );
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFindPattern
   const search = searchStore.getSnapshot();
@@ -130,9 +139,36 @@ export async function snapshotWorkspace(): Promise<{
   return {
     workspace: { version: WORKSPACE_VERSION, tab, ...(notes === undefined ? {} : { notes }) },
     handles,
-    keeps,
   };
 }
+
+/**
+ * What a pane's document is to the keeper.
+ *
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keep
+ */
+function keptPane(pane: PaneId, isUntitled: boolean): KeptPane | undefined {
+  const held = paneState(pane);
+  if (held === undefined) return undefined;
+  return {
+    document: held.document,
+    isUntitled,
+    exportKeptEdits: () =>
+      PANE_IDS.includes(pane as SlotId)
+        ? exportKeptEdits(pane as SlotId)
+        : Promise.resolve(undefined),
+    joins: () => keptJoinsOf(pane),
+  };
+}
+
+/**
+ * What an untitled document carries in a record that keeps no content: a pane handed to another
+ * window, whose bytes go with it on their own.
+ *
+ * @web-only a pane crosses between windows as a record and its bytes, where upstream hands over
+ * the pane itself
+ */
+const UNKEPT: KeptContent = { id: "", base: { kind: "file", serial: 0 }, head: 0, nextSerial: 0 };
 
 /**
  * The panels over the tab, in the dock's order — a parent before the parts taken out of it, a
@@ -146,7 +182,7 @@ export async function snapshotWorkspace(): Promise<{
  */
 async function fragmentsSnapshot(
   written: Set<PaneId>,
-  keeps: KeptWrite[]
+  keeper: ContentKeeper | undefined
 ): Promise<{ fragments: FragmentState[]; expandedFragment: number | undefined }> {
   const state = workspaceStore.getSnapshot();
   const fragments: FragmentState[] = [];
@@ -159,15 +195,16 @@ async function fragmentsSnapshot(
     const part = paneState(pane);
     if (part === undefined) continue;
     const { document } = part;
-    const key = keptKey(document);
-    const version = contentVersion(document);
-    const bytes = async () => new Blob([(await document.storage.read(0, document.size)).slice()]);
     const origin = part.origin;
     const codec = origin === undefined ? undefined : partCodecState(origin.codec);
     const changed = origin === undefined ? true : await origin.hasChanges(document);
     let source: DocumentSource;
+    const kept = async () => {
+      const shape = keptPane(pane, true);
+      return (shape === undefined ? undefined : await keeper?.keep(shape)) ?? UNKEPT;
+    };
     if (origin !== undefined && codec !== undefined && written.has(origin.parent)) {
-      if (changed) keeps.push({ key, version, value: bytes });
+      const content = changed ? await kept() : undefined;
       source = {
         kind: "part",
         part: {
@@ -178,16 +215,20 @@ async function fragmentsSnapshot(
           layout: JSON.stringify(origin.layout),
           codec: JSON.stringify(codec),
           size: document.size,
-          ...(changed
-            ? { edits: { id: key, name: part.name, size: document.size, dirty: true } }
-            : {}),
+          ...(content === undefined
+            ? {}
+            : { edits: { content, name: part.name, size: document.size, dirty: true } }),
         },
       };
     } else {
-      keeps.push({ key, version, value: bytes });
       source = {
         kind: "untitled",
-        untitled: { id: key, name: part.name, size: document.size, dirty: document.isDirty },
+        untitled: {
+          content: await kept(),
+          name: part.name,
+          size: document.size,
+          dirty: document.isDirty,
+        },
       };
     }
     if (state.dock.expanded === panel) expandedFragment = fragments.length;
@@ -288,6 +329,19 @@ function segmentsSnapshot(
   ) {
     return undefined;
   }
+  return partitionState(slot, current, handles);
+}
+
+/**
+ * A partition as the workspace writes it: each link by its source's file.
+ *
+ * @upstream ByteRipperApp/Workspace/PaneViewModel+Workspace.swift#PaneViewModel.encodedSegments
+ */
+function partitionState(
+  slot: SlotId,
+  current: Segmentation,
+  handles: Record<string, FileSystemFileHandle>
+): SegmentationState {
   return {
     contentSize: current.contentSize,
     pieces: current.pieces.map((piece) => {
@@ -316,47 +370,79 @@ function segmentsSnapshot(
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspacePane
  */
-function paneSnapshot(
+async function paneSnapshot(
   slot: SlotId,
   handles: Record<string, FileSystemFileHandle>,
-  keeps: KeptWrite[]
-): PaneState | undefined {
+  keeper: ContentKeeper | undefined
+): Promise<PaneState | undefined> {
   const pane = paneState(slot);
   if (pane === undefined) return undefined;
   const { file, document, typing } = pane;
   const { start, end } = document.selection;
   const segments = segmentsSnapshot(slot, handles);
-  const key = keptKey(document);
-  const version = contentVersion(document);
-  // A document never saved: its bytes, kept beside the workspace, rewritten only when its content
-  // moved since the last write.
-  // @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.stamp
-  // @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.editsStamp
-  if (pane.untitled) {
-    keeps.push({
-      key,
-      version,
-      value: async () => new Blob([(await document.storage.read(0, document.size)).slice()]),
-    });
-  } else if (document.isDirty) {
-    // A file's unsaved changes: runs over the file, about the size of the changes.
-    keeps.push({ key, version, value: () => exportKeptEdits(slot) });
-  }
+  // A document's content beyond the file — an untitled one's whole, a file's unsaved changes and
+  // the history that made them — kept beside the workspace.
+  // @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.stamp
+  const shape = keptPane(slot, pane.untitled);
+  const kept = shape === undefined ? undefined : await keeper?.keep(shape);
+  const undo = kept === undefined ? undefined : undoSnapshot(slot, handles);
   return {
     id: slot,
     document: pane.untitled
       ? {
           kind: "untitled",
-          untitled: { id: key, name: pane.name, size: document.size, dirty: document.isDirty },
+          untitled: {
+            content: kept ?? UNKEPT,
+            name: pane.name,
+            size: document.size,
+            dirty: document.isDirty,
+          },
         }
       : { kind: "file", file: stampOf(file, slot, handles) },
-    ...(!pane.untitled && document.isDirty ? { edits: key } : {}),
+    ...(!pane.untitled && kept !== undefined ? { kept } : {}),
+    ...(undo === undefined ? {} : { undo }),
     ...(segments === undefined ? {} : { segments }),
     selectionStart: start,
     selectionEnd: end,
     inputRegion: typing.inputRegion,
     insertMode: typing.isInsertMode,
     topOffset: scrollLink.visibleRange(slot, BYTES_PER_ROW)?.start ?? start,
+  };
+}
+
+/**
+ * What a press of Undo and Redo takes back in the pane and the cuts it restores, as the undo
+ * router and the segments store hold them; nothing when they hold nothing.
+ *
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.segmentWrites
+ * @upstream-differs the router's acts and the cuts' own history, not snapshots paired with the
+ * document's steps in its log
+ */
+function undoSnapshot(
+  slot: SlotId,
+  handles: Record<string, FileSystemFileHandle>
+): PaneUndoState | undefined {
+  const { past, future } = actsFor(slot);
+  const cuts = cutHistoryOf(slot);
+  if (past.length + future.length + cuts.past.length + cuts.future.length === 0) return undefined;
+  const state = (partition: Segmentation | undefined) =>
+    partition === undefined ? undefined : partitionState(slot, partition, handles);
+  const act = (one: RecordedAct): UndoActState => {
+    const after = state(one.after);
+    if (one.kind !== "group") return { kind: one.kind, ...(after === undefined ? {} : { after }) };
+    const before = state(one.before);
+    return {
+      kind: "group",
+      parts: one.parts.map(act),
+      ...(before === undefined ? {} : { before }),
+      ...(after === undefined ? {} : { after }),
+    };
+  };
+  return {
+    past: past.map(act),
+    future: future.map(act),
+    cutsPast: cuts.past.map((one) => partitionState(slot, one, handles)),
+    cutsFuture: cuts.future.map((one) => partitionState(slot, one, handles)),
   };
 }
 
@@ -370,7 +456,7 @@ function paneSnapshot(
 export async function paneParcel(
   slot: SlotId
 ): Promise<{ readonly pane: PaneState; readonly edits?: OverlayEdits | undefined } | undefined> {
-  const pane = paneSnapshot(slot, {}, []);
+  const pane = await paneSnapshot(slot, {}, undefined);
   if (pane === undefined) return undefined;
   const edits =
     paneState(slot)?.document.isDirty === true ? await exportKeptEdits(slot) : undefined;
@@ -390,29 +476,41 @@ export async function recordWorkspace(leaving = false): Promise<boolean> {
   // A project waiting for a click to reach its files is not written over with the empty tab.
   if (project !== undefined) return keepsWaiting ? false : recordProject(project);
   if (!restores) return false;
-  const { workspace, handles, keeps } = await snapshotWorkspace();
+  const keeper = sessionKeeper();
+  keeper?.beginSnapshot();
+  const { workspace, handles } = await snapshotWorkspace(keeper);
   if (keepsWaiting) {
     if (workspaceIsEmpty(workspace)) return false;
     // A file opened by hand: the workspace that was waiting is given up for this one.
     keepsWaiting = false;
   }
   const id = workspaceId();
-  // The bytes first, then the record that names them: a record never points at bytes not there.
-  const due = keeps.filter((one) => keptVersions.get(one.key) !== one.version);
-  for (const one of due) {
-    const value = await one.value();
-    if (value === undefined) continue;
-    await writeKeptBytes(id, one.key, value);
-    keptVersions.set(one.key, one.version);
-  }
   const text = JSON.stringify(workspace);
-  if (text === lastWritten && !leaving && due.length === 0) return true;
+  if (text === lastWritten && !leaving && keeper?.hasPending !== true) return true;
   lastWritten = text;
-  await writeWorkspaceRecord(id, { workspace, leftAt: Date.now(), handles });
-  // A document closed takes its copy with it.
-  await removeKeptBytesExcept(id, new Set(keeps.map((one) => one.key)));
+  // The kept content first, then the record that names it: a record never points at bytes not
+  // there. Then what no record names goes.
+  const record = (filled: Workspace) =>
+    writeWorkspaceRecord(id, { workspace: filled, leftAt: Date.now(), handles });
+  if (keeper === undefined) await record(workspace);
+  else await keeper.commit(workspace, record).catch(() => undefined);
   return true;
 }
+
+/**
+ * The keeper of the session's content, in the origin-private file system — one per workspace id;
+ * nothing where the page has no such storage, and then a document's content is not kept.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
+ */
+function sessionKeeper(): ContentKeeper | undefined {
+  if (!OpfsKeptFolder.isAvailable()) return undefined;
+  const id = workspaceId();
+  if (session?.id !== id) session = { id, keeper: new ContentKeeper(new OpfsKeptFolder(id)) };
+  return session.keeper;
+}
+
+let session: { readonly id: string; readonly keeper: ContentKeeper } | undefined;
 
 /**
  * Writes the window into the open project — always, whatever the switch says: it is a folder the
@@ -426,17 +524,16 @@ async function recordProject(project: {
   readonly id: string;
   readonly folder: ProjectFolder;
 }): Promise<boolean> {
-  const { workspace, keeps } = await snapshotWorkspace();
+  if (projectKeeper?.id !== project.id) {
+    projectKeeper = { id: project.id, keeper: new ContentKeeper(project.folder.kept) };
+  }
+  const keeper = projectKeeper.keeper;
+  keeper.beginSnapshot();
+  const { workspace } = await snapshotWorkspace(keeper);
   try {
-    const due = keeps.filter((one) => projectVersions.get(one.key) !== one.version);
-    for (const one of due) {
-      const value = await one.value();
-      if (value === undefined) continue;
-      await project.folder.writeKept(one.key, value);
-      projectVersions.set(one.key, one.version);
-    }
-    await project.folder.write(workspace);
-    await project.folder.removeKeptExcept(new Set(keeps.map((one) => one.key)));
+    await keeper.commit(workspace, async (filled) => {
+      await project.folder.write(filled);
+    });
   } catch {
     return false;
   }
@@ -444,12 +541,22 @@ async function recordProject(project: {
 }
 
 /**
- * By key, the content version last written into the open project: a keeper of its own, started
- * afresh with each project.
+ * The keeper of the open project's content: a keeper of its own, started afresh with each
+ * project.
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keeper
  */
-const projectVersions = new Map<string, number>();
+let projectKeeper: { readonly id: string; readonly keeper: ContentKeeper } | undefined;
+
+/** The keeper of what this window records into now, for the restore to put content back through. */
+export function currentKeeper(): ContentKeeper | undefined {
+  const project = currentProject();
+  if (project === undefined) return sessionKeeper();
+  if (projectKeeper?.id !== project.id) {
+    projectKeeper = { id: project.id, keeper: new ContentKeeper(project.folder.kept) };
+  }
+  return projectKeeper.keeper;
+}
 
 /**
  * Records into the project from now on, or — nothing — into the tab's session. What the keeper
@@ -458,7 +565,7 @@ const projectVersions = new Map<string, number>();
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.switchTo
  */
 export function recordInto(project: { id: string; folder: ProjectFolder } | undefined): void {
-  projectVersions.clear();
+  projectKeeper = undefined;
   switchToProject(project);
 }
 
@@ -470,53 +577,9 @@ export function recordInto(project: { id: string; folder: ProjectFolder } | unde
 export async function discardSession(): Promise<void> {
   const id = workspaceId();
   lastWritten = undefined;
-  keptVersions.clear();
+  session = undefined;
   await removeWorkspaceRecord(id);
-  await removeKeptBytesExcept(id, new Set());
-}
-
-/** Bytes to keep beside the workspace: under which key, for which content, made how. */
-interface KeptWrite {
-  readonly key: string;
-  readonly version: number;
-  readonly value: () => Promise<unknown>;
-}
-
-/** The key each document's bytes are kept under, made once per document. */
-const keptKeys = new WeakMap<BinaryDocument, string>();
-/** By key, the content version last written. */
-const keptVersions = new Map<string, number>();
-/** By document, how often its content has changed: what says its bytes need writing again. */
-const versions = new WeakMap<BinaryDocument, { count: number }>();
-
-function keptKey(document: BinaryDocument): string {
-  let key = keptKeys.get(document);
-  if (key === undefined) {
-    key = `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    keptKeys.set(document, key);
-  }
-  return key;
-}
-
-/**
- * How often the document's content has changed since this page first looked at it.
- *
- * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.Entry.written
- * @upstream-differs counted from the document's content changes, where upstream reads its undo
- * history's version; a restored document is written again under a key of its own, where upstream
- * adopts the one it was kept by
- */
-function contentVersion(document: BinaryDocument): number {
-  let counter = versions.get(document);
-  if (counter === undefined) {
-    const made = { count: 1 };
-    counter = made;
-    versions.set(document, made);
-    document.onContentChanged(() => {
-      made.count += 1;
-    });
-  }
-  return counter.count;
+  if (OpfsKeptFolder.isAvailable()) await new OpfsKeptFolder(id).remove().catch(() => undefined);
 }
 
 /**
@@ -544,8 +607,8 @@ export function startWorkspaceRecorder(): () => void {
     lastWritten = undefined;
     if (!now) {
       void removeAllWorkspaceRecords();
-      void removeAllKeptBytes();
-      keptVersions.clear();
+      session = undefined;
+      void OpfsKeptFolder.removeAll();
     } else void recordWorkspace(true);
   });
   return () => {
@@ -560,18 +623,17 @@ export function startWorkspaceRecorder(): () => void {
 export const readOwnWorkspace = () => readWorkspaceRecord(workspaceId());
 
 /**
- * Whether the workspace holds `document` as it is now — its bytes or its changes written down at
- * their current content — so leaving the page need not ask about it: it comes back, still unsaved.
- * An edit made since the last write is not held, and is asked about.
+ * Whether the workspace holds `document` as it is now — its content written down at its current
+ * state — so leaving the page need not ask about it: it comes back, still unsaved. An edit made
+ * since the last write is not held, and is asked about.
  *
- * @upstream ByteRipperApp/Workspace/UntitledKeeper.swift#UntitledKeeper.holdsCurrentBytes
+ * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.holdsCurrentBytes
  */
 export function workspaceHolds(document: BinaryDocument): boolean {
   if (paused || keepsWaiting) return false;
-  const key = keptKeys.get(document);
-  if (key === undefined) return false;
-  const version = versions.get(document)?.count;
   // A project holds what it has written whatever the switch says.
-  if (currentProject() !== undefined) return projectVersions.get(key) === version;
-  return settingsStore.getSnapshot().restoresWorkspace && keptVersions.get(key) === version;
+  if (currentProject() === undefined && !settingsStore.getSnapshot().restoresWorkspace) {
+    return false;
+  }
+  return currentKeeper()?.holdsCurrentBytes(document) === true;
 }

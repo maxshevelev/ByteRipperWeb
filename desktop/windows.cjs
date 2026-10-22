@@ -124,7 +124,7 @@ function register({
   let project;
   /** Each window's workspace as its page last recorded it into the project. */
   let projectTabs = new WeakMap();
-  /** The keys of the bytes each window's page keeps in the project. */
+  /** The names of the files each window's page keeps in the project's `Kept/`. */
   let projectKeys = new WeakMap();
   /** The workspace a window opened with a project restores, as the project's file holds it. */
   const projectSeeds = new WeakMap();
@@ -609,7 +609,7 @@ function register({
   /** The window's page says which bytes it keeps in the project. */
   function projectKeeps(window, keys) {
     if (project === undefined) return;
-    projectKeys.set(window, new Set(keys.filter(projects.isKey)));
+    projectKeys.set(window, new Set(keys.filter(projects.isKeptName)));
   }
 
   /**
