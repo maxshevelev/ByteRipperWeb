@@ -1,5 +1,4 @@
-import { BinaryDocument } from "@/core/document/binaryDocument";
-import { SessionHost, stateOf } from "@/core/session/sessionHost";
+import { SessionHost } from "@/core/session/sessionHost";
 import type {
   HostMessage,
   JoinSource,
@@ -8,8 +7,9 @@ import type {
 } from "@/core/session/sessionProtocol";
 import { SessionStorage } from "@/core/session/sessionStorage";
 import { SessionClient, type SessionView } from "@/core/session/sessionView";
-import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import { OpfsKeptFolder } from "@/platform/files/opfsJournalStore";
+import { type DocumentSource, sizeOf, storageOf } from "@/platform/sessions/documentSource";
 import { portLine } from "@/platform/sessions/portLine";
 import { installSessionOperations } from "@/platform/sessions/sessionOperations";
 import { installKeeperOperations } from "@/state/sessions/keeperOperations";
@@ -35,6 +35,7 @@ const externals = new Map<number, ByteStorage>();
 let externalCount = 0;
 
 const host = new SessionHost({
+  storage: storageOf,
   external: async (reference) => {
     const storage = externals.get(reference as number);
     externals.delete(reference as number);
@@ -54,6 +55,8 @@ installKeeperOperations(host, (ref) => {
 });
 const client = new SessionClient(portLine<ViewMessage, HostMessage>(channel.port1));
 
+/** What tells this window's sessions from another's: their ids are chosen here. */
+const windowTag = Math.random().toString(36).slice(2, 10);
 let opened = 0;
 
 /** Asks the host for something it does on no one session's account — the kept content. */
@@ -61,14 +64,10 @@ export function operateHost(name: string, args: unknown): Promise<unknown> {
   return client.operate(name, args);
 }
 
-/** Opens `storage` as a new session and shows it here. */
-export function openSession(storage: EditableByteStorage): SessionView {
-  const id: SessionId = `s${++opened}`;
-  const document = new BinaryDocument(storage);
-  host.open(id, document);
-  const parts = host.session(id);
-  if (parts === undefined) throw new Error(`Session ${id} did not open.`);
-  return client.adopt(id, stateOf(parts));
+/** Opens a new session from `source` in the host, and shows it here at once. */
+export function openSession(source: DocumentSource): SessionView {
+  const id: SessionId = `${windowTag}-${++opened}`;
+  return client.open(id, source, sizeOf(source));
 }
 
 /** What a join names its bytes by: a session's own, or bytes from outside them. */

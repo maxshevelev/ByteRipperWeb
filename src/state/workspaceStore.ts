@@ -2,16 +2,15 @@ import type { DiffEdit } from "@/core/diff/diffEngine";
 import type { JoinPosition } from "@/core/document/binaryDocument";
 import { caretAt } from "@/core/document/selectionModel";
 import { TypingController } from "@/core/edit/typingController";
+import { assertRepresentableSize } from "@/core/limits";
 import { L } from "@/core/localization/localization";
 import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
 import type { OperationSpan } from "@/core/session/sessionProtocol";
 import type { SessionView } from "@/core/session/sessionView";
-import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
-import { EditOverlayStorage } from "@/core/storage/editOverlayStorage";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
-import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
 import { makeByteDecoder } from "@/core/text/byteDecoderRegistry";
 import type { ShiftingEdit } from "@/core/text/shiftWarning";
@@ -22,6 +21,7 @@ import { downloadBlob } from "@/platform/files/download";
 import { type SaveOutcome, saveTarget } from "@/platform/files/fileSink";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { OpfsScratchStore } from "@/platform/files/opfsScratchStore";
+import type { DocumentSource } from "@/platform/sessions/documentSource";
 import { operate } from "@/platform/sessions/sessionOperations";
 import type { WordSize } from "@/render/hexGrid/hexLayout";
 import type { DocumentOrigin } from "@/state/documentOrigin";
@@ -183,13 +183,8 @@ function savedStorageFor(file: OpenedFile): ByteStorage {
   return new FileBackedStorage(file.source, new ChunkCache());
 }
 
-/** A scratch store where the browser has one, and none where it does not. */
-function scratchOptions(): { scratch?: OpfsScratchStore } {
-  return OpfsScratchStore.isAvailable() ? { scratch: new OpfsScratchStore() } : {};
-}
-
-function makeDocument(storage: EditableByteStorage, pane: PaneId) {
-  const document = openSession(storage);
+function makeDocument(source: DocumentSource, pane: PaneId) {
+  const document = openSession(source);
   const typing = new TypingController(document, {
     // The comparison is between the workspace's two panes: an edit in a part
     // is not a difference between files.
@@ -606,12 +601,15 @@ export function slotForNewFile(): SlotId {
  */
 export function openInPane(pane: SlotId, file: OpenedFile): void {
   try {
-    const base = new FileBackedStorage(file.source, new ChunkCache());
+    assertRepresentableSize(file.source.size);
     // The materialisation valve, now that there is somewhere private to write:
     // an edit session pathological enough to grow the piece list past its
     // budget folds it into a scratch file rather than letting reads crawl.
     const previous = workspaceStore.getSnapshot().panes[pane]?.document;
-    const { document, typing } = makeDocument(new EditOverlayStorage(base, scratchOptions()), pane);
+    const { document, typing } = makeDocument(
+      { kind: "file", source: file.source, scratch: true },
+      pane
+    );
     // Where the reader is, in offsets. Loading another dump into a pane is
     // usually a way of looking at the same offsets in a different file, so the
     // caret comes over, clamped to what the new file has — and the viewport is
@@ -1004,12 +1002,8 @@ export async function duplicatePane(from: SlotId): Promise<void> {
   }
 
   const into: SlotId = from === "a" ? "b" : "a";
-  const scratch = new OpfsScratchStore();
   const source = await operate(slot.document, "snapshot");
-  const { document, typing } = makeDocument(
-    new EditOverlayStorage(new FileBackedStorage(source, new ChunkCache()), { scratch }),
-    into
-  );
+  const { document, typing } = makeDocument({ kind: "file", source, scratch: true }, into);
   // Never-saved content with nothing behind it to undo to — the state a join
   // leaves upstream, and what makes a close warn.
   await document.clearKeepingDirty();
@@ -1070,10 +1064,7 @@ export function copyName(name: string): string {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.openUntitled
  */
 export function openEmptyInPane(pane: SlotId, name = "Untitled.bin"): void {
-  const { document, typing } = makeDocument(
-    new EditOverlayStorage(new MemoryBackedStorage()),
-    pane
-  );
+  const { document, typing } = makeDocument({ kind: "empty" }, pane);
   workspaceStore.update((state) => ({
     ...state,
     panes: {
@@ -1111,10 +1102,7 @@ export async function openKeptUntitledInPane(
   name: string,
   dirty: boolean
 ): Promise<void> {
-  const { document, typing } = makeDocument(
-    new EditOverlayStorage(new FileBackedStorage(bytes, new ChunkCache())),
-    pane
-  );
+  const { document, typing } = makeDocument({ kind: "file", source: bytes, scratch: false }, pane);
   // Work nobody saved, with no history to undo it by: what a join leaves a document in.
   if (dirty) await document.clearKeepingDirty();
   workspaceStore.update((state) => ({
@@ -1197,10 +1185,7 @@ export function openPart(bytes: Uint8Array, name: string, origin?: DocumentOrigi
   // clipboard's own export does for the same reason.
   const blob = new Blob([bytes.slice()], { type: "application/octet-stream" });
   const file: OpenedFile = { name, size: bytes.length, lastModified: Date.now(), source: blob };
-  const { document, typing } = makeDocument(
-    new EditOverlayStorage(new FileBackedStorage(blob, new ChunkCache())),
-    pane
-  );
+  const { document, typing } = makeDocument({ kind: "file", source: blob, scratch: false }, pane);
   workspaceStore.update((state) => ({
     ...state,
     parts: {
@@ -1471,7 +1456,7 @@ export function openBackgroundPane(file: OpenedFile): PartId {
   backgroundCounter += 1;
   const pane: PartId = `part:${-backgroundCounter}`;
   const { document, typing } = makeDocument(
-    new EditOverlayStorage(new FileBackedStorage(file.source, new ChunkCache())),
+    { kind: "file", source: file.source, scratch: false },
     pane
   );
   workspaceStore.update((state) => ({

@@ -92,6 +92,32 @@ export class SessionClient {
     return view;
   }
 
+  /**
+   * Opens a session in the host from `source` — what the platform's host makes a document of —
+   * under the id `id`, and shows it here at once: as an empty document of `size` bytes would stand,
+   * until the host says how it does. Everything sent after this comes after it.
+   */
+  open(id: SessionId, source: unknown, size: number): SessionView {
+    this.line.post({ kind: "open", session: id, source });
+    const view = new SessionView(this, id);
+    view.answered(
+      {
+        size,
+        dirty: false,
+        canUndo: false,
+        canRedo: false,
+        selection: caretAt(0, size),
+        contentGeneration: 0,
+        baseSerial: 0,
+        historyVersion: { epoch: 0, serial: 0 },
+        cuts: { version: -1, partition: partitionData(wholeFile(size)) },
+      },
+      0
+    );
+    this.views.set(id, view);
+    return view;
+  }
+
   /** Stops showing a session here; the view hears nothing more. */
   hide(id: SessionId): void {
     if (!this.views.delete(id)) return;
@@ -169,6 +195,8 @@ export class SessionView {
   private ownCutsSeq = 0;
   private readonly cutsListeners = new Set<(partition: Segmentation) => void>();
   private closedValue = false;
+  /** Why the session ended before it began, when it did: its bytes could not be read. */
+  closedReason: string | undefined;
 
   private readonly contentListeners = new Set<(change: SessionContentChange) => void>();
   private readonly selectionListeners = new Set<(selection: Selection) => void>();
@@ -493,6 +521,7 @@ export class SessionView {
         return;
       case "closed":
         this.closedValue = true;
+        this.closedReason = event.reason;
         for (const listener of this.closeListeners) listener();
         return;
     }

@@ -172,7 +172,8 @@ export type SessionEvent =
   | { readonly kind: "committed" }
   /** The state changed without an edit: the history put back or emptied, the file saved. */
   | { readonly kind: "state" }
-  | { readonly kind: "closed" };
+  /** The session is over — or never began, its bytes unreadable, which `reason` says. */
+  | { readonly kind: "closed"; readonly reason?: string | undefined };
 
 /** @web-only see {@link SessionId} */
 export type ViewMessage =
@@ -184,6 +185,11 @@ export type ViewMessage =
     }
   | { readonly kind: "show"; readonly session: SessionId }
   | { readonly kind: "hide"; readonly session: SessionId }
+  /**
+   * Opens a session under the id the window chose, from bytes the platform names — a `File`, or
+   * nothing — and shows it to that window. Everything the window sends after it comes after it.
+   */
+  | { readonly kind: "open"; readonly session: SessionId; readonly source: unknown }
   /** Something the host does on no one session's account — the workspace's kept content. */
   | {
       readonly kind: "operate";

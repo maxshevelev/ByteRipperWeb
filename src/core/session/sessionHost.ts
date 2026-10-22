@@ -1,5 +1,6 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
-import type { BinaryDocument } from "@/core/document/binaryDocument";
+import { BinaryDocument } from "@/core/document/binaryDocument";
+import { caretAt } from "@/core/document/selectionModel";
 import type { UndoOperation } from "@/core/edit/undoHistory";
 import { SessionActs } from "@/core/session/sessionActs";
 import { CutHistory, partitionData, partitionFrom } from "@/core/session/sessionCuts";
@@ -17,7 +18,7 @@ import type {
   ViewMessage,
 } from "@/core/session/sessionProtocol";
 import { operationSpan } from "@/core/session/sessionProtocol";
-import type { ByteStorage } from "@/core/storage/byteStorage";
+import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorage";
 
 /** A window's line as the host holds it: which sessions it shows, and how far it has been heard. */
 interface Connection {
@@ -68,12 +69,22 @@ export class SessionHost {
   private readonly hostOperations = new Map<string, HostOperation>();
   /** The bytes of a join from outside the host's sessions: a `File`, a path, by the platform. */
   private readonly external: (reference: unknown) => Promise<ByteStorage>;
+  /** The storage a window's `open` names, made by the platform: a file's overlay, an empty one. */
+  private readonly storage: (source: unknown) => EditableByteStorage;
 
   constructor(
-    options: { readonly external?: ((reference: unknown) => Promise<ByteStorage>) | undefined } = {}
+    options: {
+      readonly external?: ((reference: unknown) => Promise<ByteStorage>) | undefined;
+      readonly storage?: ((source: unknown) => EditableByteStorage) | undefined;
+    } = {}
   ) {
     this.external =
       options.external ?? (() => Promise.reject(new Error("No outside source can be read here.")));
+    this.storage =
+      options.storage ??
+      (() => {
+        throw new Error("No document can be opened from a window here.");
+      });
   }
 
   /**
@@ -189,6 +200,24 @@ export class SessionHost {
         return;
       case "operate":
         void this.operate(connection, message.seq, message.name, message.args);
+        return;
+      case "open":
+        connection.shown.add(message.session);
+        try {
+          this.open(message.session, new BinaryDocument(this.storage(message.source)));
+          this.tell(message.session, { kind: "state" });
+        } catch (error) {
+          const failure = failureOf(error);
+          this.send(() =>
+            connection.line.post({
+              kind: "event",
+              session: message.session,
+              event: { kind: "closed", reason: failure.message },
+              state: CLOSED_STATE,
+              acked: connection.acked,
+            })
+          );
+        }
         return;
     }
   }
@@ -499,3 +528,16 @@ function failureOf(error: unknown): SessionFailure {
     message: error instanceof Error ? error.message : String(error),
   };
 }
+
+/** What a session that could not be opened says of itself: nothing in it. */
+const CLOSED_STATE: SessionState = {
+  size: 0,
+  dirty: false,
+  canUndo: false,
+  canRedo: false,
+  selection: caretAt(0, 0),
+  contentGeneration: 0,
+  baseSerial: 0,
+  historyVersion: { epoch: 0, serial: 0 },
+  cuts: { version: 0, partition: { contentSize: 0, pieces: [{ start: 0, name: "" }] } },
+};
