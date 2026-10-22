@@ -1,4 +1,3 @@
-import { type CarriedHistory, carryHistory, putBackHistory } from "@/core/session/carriedHistory";
 import type { RecordedAct } from "@/core/session/sessionActs";
 import { type PartitionData, partitionData, partitionFrom } from "@/core/session/sessionCuts";
 import type { SessionHost, SessionParts } from "@/core/session/sessionHost";
@@ -44,10 +43,6 @@ export interface SessionOperations {
   readonly residentBytes: { readonly args: undefined; readonly result: number };
   /** The content was put back from outside: whatever reads it starts over. */
   readonly contentReplaced: { readonly args: undefined; readonly result: undefined };
-  /** The undo history written out, its bytes read. */
-  readonly carryHistory: { readonly args: undefined; readonly result: CarriedHistory | undefined };
-  /** Puts a carried history back over the content; whether it went back. */
-  readonly putBackHistory: { readonly args: CarriedHistory; readonly result: boolean };
   /** Puts a partition back, its history untouched: not an undo step. */
   readonly restoreCuts: { readonly args: PartitionData; readonly result: undefined };
   /** What Undo and Redo take back, the cuts with them, as a workspace writes it down. */
@@ -171,12 +166,6 @@ const operations: {
   contentReplaced: (session) => {
     session.document.contentReplaced();
     return undefined;
-  },
-  carryHistory: (session) => carryHistory(session.document.undoHistory),
-  putBackHistory: (session, history) => {
-    const back = putBackHistory(session.document.undoHistory, history);
-    if (back) session.document.contentReplaced();
-    return back;
   },
   restoreCuts: (session, partition) => {
     session.cuts.restore(partitionFrom(partition));

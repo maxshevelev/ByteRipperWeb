@@ -184,7 +184,11 @@ function savedStorageFor(file: OpenedFile): ByteStorage {
 }
 
 function makeDocument(source: DocumentSource, pane: PaneId) {
-  const document = openSession(source);
+  return attachDocument(openSession(source), pane);
+}
+
+/** A session made a pane's document: its typing, and what the window hears of it. */
+function attachDocument(document: SessionView, pane: PaneId) {
   const typing = new TypingController(document, {
     // The comparison is between the workspace's two panes: an edit in a part
     // is not a difference between files.
@@ -1123,6 +1127,44 @@ export async function openKeptUntitledInPane(
   forgetJoins(pane);
   resetSegments(pane, document.size);
   clearSources(pane);
+  signalFullInvalidation(pane);
+}
+
+/**
+ * A session another window let go, shown in `pane` (`Design/FILE_SESSIONS.md`, S8): the same
+ * document — its bytes, its unsaved changes, its history, its cuts — with the pane's own record
+ * around it: its file and whether it is saved there.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
+ */
+export function adoptSessionInPane(
+  pane: SlotId,
+  document: SessionView,
+  record: {
+    readonly name: string;
+    readonly file: OpenedFile;
+    readonly untitled: boolean;
+    readonly writable: boolean;
+    readonly saved: boolean;
+  }
+): void {
+  const { typing } = attachDocument(document, pane);
+  workspaceStore.update((state) => ({
+    ...state,
+    panes: {
+      ...state.panes,
+      [pane]: {
+        name: record.name,
+        file: record.file,
+        document,
+        typing,
+        saved: record.saved ? savedStorageFor(record.file) : undefined,
+        untitled: record.untitled,
+        writable: record.writable,
+      },
+    },
+  }));
+  forgetJoins(pane);
   signalFullInvalidation(pane);
 }
 

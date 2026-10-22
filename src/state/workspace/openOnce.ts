@@ -1,14 +1,13 @@
 import { L } from "@/core/localization/localization";
-import type { CarriedHistory } from "@/core/session/carriedHistory";
-import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
-import type { PaneState } from "@/core/workspace/workspace";
 import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { PANE_IDS, type SlotId } from "@/state/paneId";
-import { partsLinkedTo } from "@/state/partUpdate";
-import { paneParcel } from "@/state/workspace/workspaceRecorder";
-import { adoptMovedPane } from "@/state/workspace/workspaceRestorer";
-import { closePane, paneState, reportAlert, setActivePane } from "@/state/workspaceStore";
+import {
+  adoptTaken,
+  thisWindow as panesHere,
+  type TakenPane,
+} from "@/state/workspace/paneTransfer";
+import { paneState, reportAlert, setActivePane } from "@/state/workspaceStore";
 
 /**
  * A file is open in one place in the app at a time (`Design/DESKTOP_WINDOWS.md`, D4), across the
@@ -36,12 +35,8 @@ export interface FileRef {
 
 /** A pane handed over by the window that had its file open, or why it was not. */
 export interface MovedPane {
-  /** The pane's workspace record. */
-  readonly pane?: PaneState | undefined;
-  /** Its unsaved changes. */
-  readonly edits?: OverlayEdits | undefined;
-  /** Its undo history, written out to cross between the windows. */
-  readonly history?: CarriedHistory | undefined;
+  /** The pane let go there: its session and its record (`Design/FILE_SESSIONS.md`, S8). */
+  readonly taken?: Extract<TakenPane, { readonly kind: "pane" }> | undefined;
   /** Why the pane was not let go: `parts` for one with parts open over it. */
   readonly refused?: "parts" | "unanswered" | undefined;
   /** The file was no longer open there. */
@@ -187,11 +182,10 @@ const thisWindow: OpenOnceWindow = {
   // a question — nothing of it is lost, it goes on in the other window.
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releasePane
   async release(slot) {
-    if (partsLinkedTo(slot).length > 0) return { refused: "parts" };
-    const parcel = await paneParcel(slot);
-    if (parcel === undefined) return { gone: true };
-    closePane(slot);
-    return parcel;
+    const taken = await panesHere.take(slot, false);
+    if (taken.kind === "pane") return { taken };
+    if (taken.kind === "refused" && taken.reason === "parts") return { refused: "parts" };
+    return { gone: true };
   },
 };
 
@@ -237,7 +231,7 @@ export async function openOnce(slot: SlotId, file: OpenedFile): Promise<boolean>
   const moved = await broker.move(holder, ref);
   // Gone from there meanwhile: nothing stands in the way of opening it here.
   if (moved.gone === true) return true;
-  if (moved.refused !== undefined || moved.pane === undefined) {
+  if (moved.refused !== undefined || moved.taken === undefined) {
     if (moved.refused === "parts") {
       reportAlert(
         L("“%1$@” could not be moved", file.name),
@@ -246,6 +240,6 @@ export async function openOnce(slot: SlotId, file: OpenedFile): Promise<boolean>
     }
     return false;
   }
-  await adoptMovedPane(slot, file, moved.pane, moved.edits, moved.history);
+  await adoptTaken(slot, moved.taken);
   return false;
 }

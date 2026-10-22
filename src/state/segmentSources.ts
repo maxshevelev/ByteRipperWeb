@@ -133,6 +133,45 @@ export function sourceIDForFile(pane: PaneId, file: OpenedFile): SegmentSourceID
 }
 
 /**
+ * The sources a pane's session knows, as they cross to another window with the session: the ids
+ * its partition names, each with its file.
+ *
+ * @web-only the registry is the page's; the session crosses to another page
+ */
+export interface CarriedSources {
+  readonly next: number;
+  readonly records: readonly {
+    readonly raw: number;
+    readonly name: string;
+    readonly file: OpenedFile;
+  }[];
+}
+
+/** @web-only see {@link CarriedSources} */
+export function carriedSources(pane: PaneId): CarriedSources {
+  const registry = registryOf(pane);
+  return {
+    next: registry?.nextRaw ?? 0,
+    records: [...(registry?.records.values() ?? [])].map((record) => ({
+      raw: record.id.raw,
+      name: record.name,
+      file: record.file,
+    })),
+  };
+}
+
+/** Takes up the sources a session brought from another window, under the ids it knew them by. */
+export function adoptSources(pane: PaneId, carried: CarriedSources): void {
+  const registry = registryFor(pane);
+  for (const record of carried.records) {
+    const id = { raw: record.raw };
+    registry.records.set(record.raw, { id, name: record.name, file: record.file });
+    registry.idsByKey.set(record.file.handle ?? record.file.source, record.raw);
+  }
+  registry.nextRaw = Math.max(registry.nextRaw, carried.next);
+}
+
+/**
  * The source `id` stands for, or `undefined` for one this pane never minted.
  *
  * @upstream ByteRipperApp/Segments/SegmentSources.swift#SegmentSources.source

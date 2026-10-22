@@ -1,7 +1,6 @@
 import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
 import { L } from "@/core/localization/localization";
-import type { CarriedHistory } from "@/core/session/carriedHistory";
-import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import type { PaneState } from "@/core/workspace/workspace";
 import { desktopWindowFocus, windowLaunch } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
@@ -15,8 +14,10 @@ import {
 } from "@/state/paneDragStore";
 import { isSlot, type PaneId, type PartId, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
-import { paneParcel } from "@/state/workspace/workspaceRecorder";
-import { adoptMovedPane, adoptMovedUntitled } from "@/state/workspace/workspaceRestorer";
+import { adoptSources, type CarriedSources, carriedSources } from "@/state/segmentSources";
+import { releaseSession, showSession } from "@/state/sessions/pageSessions";
+import { paneRecord } from "@/state/workspace/workspaceRecorder";
+import { adoptMovedSession } from "@/state/workspace/workspaceRestorer";
 import {
   closePane,
   closePart,
@@ -32,17 +33,18 @@ import {
  * A pane carried from one window of the desktop shell to another (`Design/DESKTOP_WINDOWS.md`,
  * D5): dropped on another window's pane, or torn off into a new window.
  *
- * Upstream moves the pane's object; two windows here share no objects, so a pane crosses as what
- * the workspace knows how to write and read back — its record, its file (a `File` and its handle
- * cross between windows of one origin), its unsaved changes, or an untitled document's bytes —
- * over a `BroadcastChannel`, and the window it left closes it only once it has handed it over.
+ * Upstream moves the pane's object. Here the document is the session host's, which every window
+ * reaches (`Design/FILE_SESSIONS.md`, S8), so a pane crosses as the name of its session and the
+ * pane's own record around it — its file, where the reader was — over a `BroadcastChannel`, and
+ * the window it left lets the pane go once it has handed it over; the session stays.
  *
  * The drag itself is announced on the same channel: a browser hides a drag's data from every
  * window until the drop, so the window the pointer reaches learns from the one it left what is in
  * flight, and its bands can say what they would do with it.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOff
- * @upstream-differs the pane crosses as its workspace record, its undo history staying behind
+ * @upstream-differs the pane crosses as its session's name and its record; the window it reaches
+ * shows the session itself
  */
 
 /** A pane in flight from another window, as that window announced it. */
@@ -57,18 +59,24 @@ export interface RemotePane {
 
 /** What a window hands over of one of its panes. */
 export type TakenPane =
-  /** The pane itself, let go there: a file's, with its unsaved changes, or an untitled one's bytes. */
+  /**
+   * The pane itself, let go there: its session, which every window reaches in the session host
+   * (`Design/FILE_SESSIONS.md`, S8) — the document, its changes, its history and its cuts are not
+   * carried, only named — and the pane's own record around it.
+   */
   | {
       readonly kind: "pane";
+      readonly session: SessionId;
       /** Where the reader was in it; nothing for a fragment panel, whose place is its parent's. */
       readonly pane?: PaneState | undefined;
-      readonly file?: OpenedFile | undefined;
-      readonly edits?: OverlayEdits | undefined;
-      /** Its undo history, written out to cross between the windows. */
-      readonly history?: CarriedHistory | undefined;
-      readonly untitled?:
-        | { readonly content: Blob; readonly name: string; readonly dirty: boolean }
-        | undefined;
+      readonly name: string;
+      readonly file: OpenedFile;
+      readonly untitled: boolean;
+      readonly writable: boolean;
+      /** Whether its file holds what it was last saved as — nothing does for a joined image. */
+      readonly saved: boolean;
+      /** The files its pieces' links name, under the ids the session's partition knows them by. */
+      readonly sources: CarriedSources;
       readonly marks: readonly Bookmark[];
     }
   /** A copy of its content, the pane left as it was. */
@@ -270,31 +278,14 @@ export const thisWindow: PaneHolder = {
     if (!isSlot(slot)) return releasePart(slot, pane);
     // A pane with parts open over it stays: their way home is this pane.
     if (partsLinkedTo(slot).length > 0) return { kind: "refused", reason: "parts" };
-    const parcel = await paneParcel(slot);
-    if (parcel === undefined) return { kind: "refused", reason: "gone" };
+    const record = await paneRecord(slot);
+    if (record === undefined) return { kind: "refused", reason: "gone" };
     // The pane being handed over may be the one this window is dragging: its header goes with it,
     // and a header taken out of the page hears no `dragend`, so the drag ends here.
     if (localDrag === slot) endLocalPaneDrag();
-    if (pane.untitled) {
-      const content = await contentOf(pane);
-      closePane(slot);
-      return {
-        kind: "pane",
-        pane: parcel.pane,
-        untitled: { content, name: pane.name, dirty: pane.document.isDirty },
-        history: parcel.history,
-        marks,
-      };
-    }
+    const taken = released(slot, pane, record, marks);
     closePane(slot);
-    return {
-      kind: "pane",
-      pane: parcel.pane,
-      file: pane.file,
-      edits: parcel.edits,
-      history: parcel.history,
-      marks,
-    };
+    return taken;
   },
   marks: () => bookmarksStore.getSnapshot().bookmarks,
 };
@@ -313,10 +304,32 @@ async function releasePart(part: PartId, pane: PaneSlot): Promise<TakenPane> {
   if (pane.origin !== undefined && (await pane.origin.hasChanges(pane.document))) {
     return { kind: "refused", reason: "unreturned" };
   }
-  const content = await contentOf(pane);
   if (localDrag === part) endLocalPaneDrag();
+  const taken = released(part, { ...pane, untitled: true, writable: false }, undefined, []);
   closePart(part);
-  return { kind: "pane", untitled: { content, name: pane.name, dirty: true }, marks: [] };
+  return taken;
+}
+
+/** A pane let go: its session named, and handed over so that its going here does not end it. */
+function released(
+  slot: PaneId,
+  pane: PaneSlot,
+  record: PaneState | undefined,
+  marks: readonly Bookmark[]
+): TakenPane {
+  releaseSession(pane.document);
+  return {
+    kind: "pane",
+    session: pane.document.id,
+    ...(record === undefined ? {} : { pane: record }),
+    name: pane.name,
+    file: pane.file,
+    untitled: pane.untitled,
+    writable: pane.writable,
+    saved: pane.saved !== undefined,
+    sources: carriedSources(slot),
+    marks,
+  };
 }
 
 /**
@@ -446,15 +459,20 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
     await openKeptUntitledInPane(slot, taken.content, copyName(taken.name), true);
     setActivePane(slot);
   } else if (taken.kind === "pane") {
-    if (taken.untitled !== undefined) {
-      const { content, name, dirty } = taken.untitled;
-      if (taken.pane === undefined) {
-        await openKeptUntitledInPane(slot, content, name, dirty);
-        setActivePane(slot);
-      } else await adoptMovedUntitled(slot, content, name, dirty, taken.pane, taken.history);
-    } else if (taken.file !== undefined && taken.pane !== undefined) {
-      await adoptMovedPane(slot, taken.file, taken.pane, taken.edits, taken.history);
-    }
+    const view = await showSession(taken.session);
+    await adoptMovedSession(
+      slot,
+      view,
+      {
+        name: taken.name,
+        file: taken.file,
+        untitled: taken.untitled,
+        writable: taken.writable,
+        saved: taken.saved,
+      },
+      taken.pane
+    );
+    adoptSources(slot, taken.sources);
   }
 }
 

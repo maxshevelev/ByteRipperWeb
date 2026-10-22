@@ -11,8 +11,7 @@ import {
 } from "@/state/workspace/paneTransfer";
 
 vi.mock("@/state/workspace/workspaceRestorer", () => ({
-  adoptMovedPane: async () => undefined,
-  adoptMovedUntitled: async () => undefined,
+  adoptMovedSession: async () => undefined,
 }));
 
 // `Design/DESKTOP_WINDOWS.md`, D5: a pane carried between the desktop shell's windows, over a
@@ -76,12 +75,24 @@ describe("a pane carried between windows", () => {
     const join = bus();
     const pane = { id: "a" } as unknown as PaneState;
     const file = { name: "bios.bin" } as unknown as OpenedFile;
-    const source = holder({ a: { kind: "pane", pane, file, marks } });
+    const handed = {
+      kind: "pane",
+      session: "s-1",
+      pane,
+      name: "bios.bin",
+      file,
+      untitled: false,
+      writable: true,
+      saved: true,
+      sources: { next: 0, records: [] },
+      marks,
+    } as const;
+    const source = holder({ a: handed });
     const sourcePeer = paneTransferPeer(join(), source.own);
     const target = paneTransferPeer(join(), holder().own);
     const taken = await target.take(sourcePeer.me, "a", false);
     expect(source.asked).toEqual([["a", false]]);
-    expect(taken).toEqual({ kind: "pane", pane, file, marks });
+    expect(taken).toEqual(handed);
   });
 
   // @upstream ByteRipperTests/PaneDragTests.swift#PaneDragTests.testOptionDroppingOnTheStripCopiesIntoTheNewTab

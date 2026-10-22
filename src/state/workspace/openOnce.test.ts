@@ -14,11 +14,27 @@ import {
 } from "@/state/workspace/openOnce";
 
 const adopted = vi.hoisted(() => [] as unknown[][]);
-vi.mock("@/state/workspace/workspaceRestorer", () => ({
-  adoptMovedPane: async (...args: unknown[]) => {
+vi.mock("@/state/workspace/paneTransfer", () => ({
+  adoptTaken: async (...args: unknown[]) => {
     adopted.push(args);
   },
+  thisWindow: {},
 }));
+
+/** A pane as a window lets it go: its session's name and its record. */
+const takenPane = (slot: string, pane?: PaneState) =>
+  ({
+    kind: "pane",
+    session: `s-${slot}`,
+    pane: pane ?? ({ id: slot } as unknown as PaneState),
+    name: "bios.bin",
+    file: { name: "bios.bin" } as unknown as OpenedFile,
+    untitled: false,
+    writable: true,
+    saved: true,
+    sources: { next: 0, records: [] },
+    marks: [],
+  }) as const;
 
 // `Design/DESKTOP_WINDOWS.md`, D4: a file open in another window of the desktop shell is shown
 // there or brought here, never opened twice. The windows ask one another over a channel.
@@ -57,7 +73,7 @@ function windowHolding(files: Record<string, FileRef>, release?: MovedPane) {
     reveal: (slot) => seen.revealed.push(slot),
     async release(slot) {
       seen.released.push(slot);
-      return release ?? { pane: { id: slot } as unknown as PaneState };
+      return release ?? { taken: takenPane(slot) };
     },
   };
   return { own, seen };
@@ -131,17 +147,17 @@ describe("a file open in another window", () => {
 
   // @upstream ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testMovingBringsThePaneItselfAcrossWindows
   // @upstream ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testMovingCarriesUnsavedEdits
-  it("is brought here with its place and its unsaved changes", async () => {
-    const edits = { baseSize: 4, runs: [], added: new Uint8Array([0x5a]) };
+  it("is brought here as its session — its unsaved changes and history in it — with its place", async () => {
     const pane = { id: "a", selectionStart: 7 } as unknown as PaneState;
-    const holding = windowHolding({ a: { path: "/d/bios.bin" } }, { pane, edits });
+    const taken = takenPane("a", pane);
+    const holding = windowHolding({ a: { path: "/d/bios.bin" } }, { taken });
     const other = openOnceBroker(join(), holding.own);
     installOpenOnceForTesting(openOnceBroker(join(), windowHolding({}).own));
     openOnceHooks.ask = async () => "move";
     const opened = file({ path: "/d/bios.bin" });
     expect(await openOnce("b", opened)).toBe(false);
     expect(holding.seen.released).toEqual(["a"]);
-    expect(adopted).toEqual([["b", opened, pane, edits, undefined]]);
+    expect(adopted).toEqual([["b", taken]]);
     other.close();
   });
 

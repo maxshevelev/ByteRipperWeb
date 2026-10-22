@@ -1,9 +1,8 @@
 import { L } from "@/core/localization/localization";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import { Segmentation, SegmentLink } from "@/core/segments/segmentation";
-import type { CarriedHistory } from "@/core/session/carriedHistory";
 import { partitionData } from "@/core/session/sessionCuts";
-import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
+import type { SessionView } from "@/core/session/sessionView";
 import {
   type FileStamp,
   type KeptContent,
@@ -59,6 +58,7 @@ import {
 } from "@/state/workspace/workspaceRecorder";
 import type { WorkspaceRecord } from "@/state/workspace/workspaceRecords";
 import {
+  adoptSessionInPane,
   applyKeptEdits,
   foldParts,
   keptContentLaid,
@@ -623,6 +623,16 @@ async function applyPane(
       cutsFuture: undo.cutsFuture.map(whole),
     });
   }
+  await applyPlace(slot, restore);
+}
+
+/**
+ * Where the reader was in a pane, put back: the caret and selection, the input, the mode, the
+ * row on top.
+ */
+async function applyPlace(slot: PaneId, restore: ReturnType<typeof paneRestore>): Promise<void> {
+  const pane = paneState(slot);
+  if (pane === undefined) return;
   // Queued behind whatever the pane's typing is doing as it mounts, and never waited on for long:
   // a restore that hung on one would keep the recorder paused for good.
   await settledWithin(pane.typing.setSelection(restore.selection.start, restore.selection.end));
@@ -641,78 +651,22 @@ async function applyPane(
 }
 
 /**
- * A pane carried here from another window (`Design/DESKTOP_WINDOWS.md`, D4): its file opened into
- * `slot`, its unsaved changes laid over it, and its place, input and segments as they were there.
- * The file is the same one, so everything measured on it holds. The undo history stays behind
- * until persistent undo keeps it where every window can read it.
+ * A session another window let go, shown here in `slot` (`Design/FILE_SESSIONS.md`, S8): the same
+ * document, history and cuts with it, and the reader's place in it as it was there.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.movePaneHere
- * @upstream-differs the pane's state crosses as its workspace record; upstream moves the object,
- * its undo history with it
  */
-export async function adoptMovedPane(
+export async function adoptMovedSession(
   slot: SlotId,
-  file: OpenedFile,
-  saved: PaneState,
-  edits: OverlayEdits | undefined,
-  history?: CarriedHistory | undefined
-): Promise<void> {
-  await adoptMoved(slot, saved, async () => {
-    openInPane(slot, file);
-    if (edits !== undefined) await applyKeptEdits(slot, edits);
-    await putBackCarried(slot, history);
-  });
-}
-
-/**
- * The undo history a pane brought from its window, put back over the content it came with.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
- */
-async function putBackCarried(slot: SlotId, history: CarriedHistory | undefined): Promise<void> {
-  const document = paneState(slot)?.document;
-  if (history === undefined || document === undefined) return;
-  await operate(document, "putBackHistory", history);
-}
-
-/**
- * A document never saved, carried here from another window (`Design/DESKTOP_WINDOWS.md`, D5): its
- * bytes, still unsaved, and its place and segments as they were there.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adoptPane
- */
-export async function adoptMovedUntitled(
-  slot: SlotId,
-  content: Blob,
-  name: string,
-  dirty: boolean,
-  saved: PaneState,
-  history?: CarriedHistory | undefined
-): Promise<void> {
-  await adoptMoved(slot, saved, async () => {
-    await openKeptUntitledInPane(slot, content, name, dirty);
-    await putBackCarried(slot, history);
-  });
-}
-
-async function adoptMoved(
-  slot: SlotId,
-  saved: PaneState,
-  open: () => Promise<void>
+  view: SessionView,
+  record: Parameters<typeof adoptSessionInPane>[2],
+  saved: PaneState | undefined
 ): Promise<void> {
   pauseWorkspaceRecorder(true);
   try {
-    await open();
-    const linkFiles = new Map<string, OpenedFile>();
-    for (const piece of saved.segments?.pieces ?? []) {
-      if (piece.link === undefined) continue;
-      const key = stampKey(piece.link.file);
-      if (linkFiles.has(key)) continue;
-      const one = await reach(piece.link.file, undefined, false);
-      if (one.kind === "opened") linkFiles.set(key, one.file);
-    }
+    adoptSessionInPane(slot, view, record);
     setActivePane(slot);
-    await applyPane(slot, saved, true, linkFiles);
+    if (saved !== undefined) await applyPlace(slot, paneRestore(saved, view.size, true));
   } finally {
     pauseWorkspaceRecorder(false);
   }

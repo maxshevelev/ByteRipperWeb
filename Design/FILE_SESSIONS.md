@@ -281,9 +281,25 @@ the renderer's chunk cache as it is.
   shell a file typed into, the process killed, came back and undid.
   Still one keeper folder per window, as before: one workspace across windows
   is S8's, with the panes.
-- [ ] **S8 — panes between windows are views.** D5, D6 and D4 on the host;
-  `paneParcel`, `carriedHistory`, the parcels' edits and the main process's
-  registry removed.
+- [x] **S8 — panes between windows are views.** A pane carried to another
+  window — dragged onto one of its panes, torn off into a new window, moved
+  there by Move to This Window, a fragment panel let go — crosses as its
+  session's id and the pane's record around it (its file, whether it is saved
+  there, where the reader was) and the sources its pieces' links name, under
+  the ids the partition knows them by. The window it leaves releases the
+  session (`releaseSession`), so the pane going there does not end it; the
+  window it reaches shows it (`showSession`, `adoptSessionInPane`,
+  `adoptMovedSession`). Nothing of the document is carried: `paneParcel`,
+  `carriedHistory`, `adoptMovedPane` / `adoptMovedUntitled` and the operations
+  that wrote a history out and put it back are gone. Checked in the shell: a
+  file typed into, Open in New Window, and two presses of Undo in the new
+  window took the bytes back and the file was clean again — the bug this plan
+  began with.
+  Left: the pane's record (file, saved copy, join marks) still crosses beside
+  the session rather than being the session's; the shell's windows still keep
+  one workspace record and kept folder each; Show in Its Window and Move to
+  This Window still ask the windows over a channel, which the host could
+  answer itself.
 - [ ] **S9 — the agent on the host.** Documents by session id, tools run
   against sessions, the window showing one brought forward.
 - [ ] **S10 — the browser edition** on the same host: tabs as windows of one

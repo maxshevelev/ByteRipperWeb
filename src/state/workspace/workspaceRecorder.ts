@@ -1,9 +1,7 @@
 import type { Segmentation } from "@/core/segments/segmentation";
-import type { CarriedHistory } from "@/core/session/carriedHistory";
 import type { RecordedAct } from "@/core/session/sessionActs";
 import { partitionFrom } from "@/core/session/sessionCuts";
 import type { SessionView } from "@/core/session/sessionView";
-import type { OverlayEdits } from "@/core/storage/editOverlayStorage";
 import {
   type DocumentSource,
   type FileStamp,
@@ -53,13 +51,7 @@ import {
   removeWorkspaceRecord,
   writeWorkspaceRecord,
 } from "@/state/workspace/workspaceRecords";
-import {
-  exportKeptEdits,
-  keptJoinsOf,
-  notesPanelIsUp,
-  paneState,
-  workspaceStore,
-} from "@/state/workspaceStore";
+import { keptJoinsOf, notesPanelIsUp, paneState, workspaceStore } from "@/state/workspaceStore";
 import { toolById } from "@/tools/registry";
 import { scrollLink } from "@/ui/pane/scrollLink";
 
@@ -472,33 +464,14 @@ async function undoSnapshot(
 }
 
 /**
- * One pane as another window is to take it up (`Design/DESKTOP_WINDOWS.md`, D4): what the
- * workspace would write of it, and its unsaved changes.
+ * Where the reader is in a pane, as the workspace would write it: what the window a pane is
+ * carried to puts back around the session it shows (`Design/FILE_SESSIONS.md`, S8).
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releasePane
- * @upstream-differs a record of the pane rather than the pane itself, two windows sharing no objects
+ * @upstream-differs the pane's record crosses with its session's name; upstream moves the pane
  */
-export async function paneParcel(slot: SlotId): Promise<
-  | {
-      readonly pane: PaneState;
-      readonly edits?: OverlayEdits | undefined;
-      readonly history?: CarriedHistory | undefined;
-    }
-  | undefined
-> {
-  const snapshot = await paneSnapshot(slot, {}, undefined);
-  const document = paneState(slot)?.document;
-  if (snapshot === undefined || document === undefined) return undefined;
-  const edits = document.isDirty ? await exportKeptEdits(slot) : undefined;
-  // The undo history goes with the pane, and with it what Undo takes back and the cuts it restores.
-  const history = await operate(document, "carryHistory");
-  const undo = history === undefined ? undefined : await undoSnapshot(slot, {});
-  const pane = undo === undefined ? snapshot : { ...snapshot, undo };
-  return {
-    pane,
-    ...(edits === undefined ? {} : { edits }),
-    ...(history === undefined ? {} : { history }),
-  };
+export function paneRecord(slot: SlotId): Promise<PaneState | undefined> {
+  return paneSnapshot(slot, {}, undefined);
 }
 
 /**

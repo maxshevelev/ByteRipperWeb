@@ -138,17 +138,36 @@ export function joinSourceOf(source: ByteStorage): JoinSource {
 
 const closedListeners = new Set<(session: SessionId) => void>();
 
-/** Hears of every session this window ends, for what the page keeps beside one. */
+/** Hears of every session this window stops showing, for what the page keeps beside one. */
 export function onSessionClosed(listener: (session: SessionId) => void): () => void {
   closedListeners.add(listener);
   return () => closedListeners.delete(listener);
 }
 
+/** Sessions this window let go to another, which are not to end when it stops showing them. */
+const carried = new Set<SessionId>();
+
 /**
- * Ends a session no pane here shows any more. The host ends it once no window shows it.
+ * A session this window hands to another: when its pane goes here, the session does not — the
+ * other window shows it next (`Design/FILE_SESSIONS.md`, S8).
+ */
+export function releaseSession(view: SessionView): void {
+  carried.add(view.id);
+}
+
+/** Shows here a session another window let go. */
+export function showSession(id: SessionId): Promise<SessionView> {
+  return client.show(id);
+}
+
+/**
+ * Stops showing a session no pane here shows any more. The host ends it once no window shows it —
+ * unless it was handed to another window, which shows it next.
  */
 export function closeSession(view: SessionView): void {
   client.hide(view.id);
-  void client.operate("session.closeUnshown", { session: view.id });
+  if (!carried.delete(view.id)) {
+    void client.operate("session.closeUnshown", { session: view.id });
+  }
   for (const listener of closedListeners) listener(view.id);
 }
