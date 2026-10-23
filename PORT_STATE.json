@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "21a28892163a8c3398127246fd656af902c5632c",
-  "baselineNote": "Set 0.9.4, and say in the README what it is (2026-10-22)"
+  "baseCommit": "0febe4131389c48a2ea064542db6f9cf6bc7fb42",
+  "baselineNote": "A fragment's pill in the dock is dragged off like the panel's header (2026-10-23)"
 }
