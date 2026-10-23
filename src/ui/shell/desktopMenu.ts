@@ -68,10 +68,12 @@ export interface DesktopBridge {
   /**
    * The newest release's tag and page, asked by the shell — which follows the
    * release page's own redirect and so meets no API limit and no CORS rule —
-   * or nothing when the repository has published none. Rejects when the shell
+   * or nothing when the repository has published none; `failed` when the shell
    * could not ask.
    */
-  latestRelease(): Promise<{ readonly tag: string; readonly page: string } | undefined>;
+  latestRelease(): Promise<
+    { readonly tag: string; readonly page: string } | { readonly failed: true } | undefined
+  >;
   /** Stops a download that is running; `installUpdate` then answers "cancelled". */
   cancelUpdate(): void;
   /** Hears how far `installUpdate` has got. Returns the way to stop listening. */

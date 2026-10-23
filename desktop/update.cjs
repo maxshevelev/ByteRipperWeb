@@ -245,7 +245,11 @@ function register(ipcMain, BrowserWindow, fromApp, quit) {
     if (fromApp(event)) abort?.abort();
   });
 
-  ipcMain.handle("update:latest", (event) => (fromApp(event) ? latestRelease() : undefined));
+  // A check that could not be made is an answer, not a throw: a rejected handler is logged by
+  // Electron in the main process, and a bench without network would log one on every start.
+  ipcMain.handle("update:latest", (event) =>
+    fromApp(event) ? latestRelease().catch(() => ({ failed: true })) : undefined
+  );
 
   ipcMain.handle("update:install", async (event, version) => {
     const window = BrowserWindow.fromWebContents(event.sender);

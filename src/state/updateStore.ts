@@ -54,6 +54,7 @@ async function askShell(bridge: DesktopBridge): Promise<Release | undefined> {
   } catch {
     throw new ReleaseCheckError("network");
   }
+  if (latest !== undefined && "failed" in latest) throw new ReleaseCheckError("network");
   const version = latest === undefined ? undefined : parseAppVersion(latest.tag);
   if (latest === undefined || version === undefined) return undefined;
   return { version, page: latest.page, assets: [] };
