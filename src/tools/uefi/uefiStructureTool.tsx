@@ -716,6 +716,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   const settleOn = useRef<number | undefined>(undefined);
   /** Whether the region has already been opened for a restored ME focus. */
   const openedForParkedFocus = useRef(false);
+  /** The region is being opened to bring a session back, which chose nothing in it. */
+  const quietMeOpen = useRef(false);
 
   const presented = useMemo(() => present(roots ?? []), [roots]);
   const rows = useMemo(
@@ -813,6 +815,28 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewItemDidExpand
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineViewItemDidCollapse
    */
+  /**
+   * Opens the ME region's row onto its sub-tree: the reading is started and the row held shut
+   * until it lands — and an open already in flight is not asked for a second time, which would be
+   * a second full read of the region.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegion
+   */
+  const openMeRegion = useCallback(
+    (key: string) => {
+      if (meOpening !== undefined) return;
+      setMeOpening(key);
+      wanted.current.add(key);
+      me.open();
+      window.setTimeout(() => {
+        if (!wanted.current.has(key)) return;
+        setLoading((current) => new Set([...current, key]));
+        setOpen((current) => new Set([...current, key]));
+      }, LOADING_ROW_DELAY);
+    },
+    [me, meOpening]
+  );
+
   const toggle = useCallback(
     (node: WireNode, immediately = false) => {
       const key = pathKey(node.id);
@@ -834,15 +858,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.outlineView
       // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openMERegion
       if (isMeRegion(node) && meRoots.length === 0) {
-        if (meOpening !== undefined) return;
-        setMeOpening(key);
-        wanted.current.add(key);
-        me.open();
-        window.setTimeout(() => {
-          if (!wanted.current.has(key)) return;
-          setLoading((current) => new Set([...current, key]));
-          setOpen((current) => new Set([...current, key]));
-        }, LOADING_ROW_DELAY);
+        openMeRegion(key);
         return;
       }
       if (node.children.length > 0 || !node.isExpandable || isMeRegion(node)) {
@@ -860,7 +876,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
         setOpen((current) => new Set([...current, key]));
       }, LOADING_ROW_DELAY);
     },
-    [open, context.pane, me, meOpening, meRoots]
+    [open, context.pane, meRoots, openMeRegion]
   );
 
   /**
@@ -918,8 +934,12 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     });
     const caret = settleOn.current;
     settleOn.current = undefined;
+    const quiet = quietMeOpen.current;
+    quietMeOpen.current = false;
     if (!landed) return;
     const covering = caret === undefined ? undefined : mePathCovering(meRoots, caret);
+    // A session brought back with the region open and nothing chosen in it keeps its choice.
+    if (quiet && covering === undefined && meFocus === undefined) return;
     const settled =
       covering ??
       (meFocus !== undefined && meNodeAt(meRoots, meFocus) !== undefined
@@ -940,22 +960,28 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     setScrollTarget(meKey(settled));
   }, [meOpening, meIsReading, meRoots, meFocus, chooseMe]);
 
-  // A session parked on an ME row comes back to it: the sub-tree it named is
-  // not there until the region is read, so the region is opened for it.
+  // A session parked on an ME row, or with the ME region open, comes back to it: the sub-tree is
+  // not there until the region is read, so the region is opened for it. Opened, not toggled: the
+  // region's row is among the rows the session kept open, and a toggle of a row already open
+  // shuts it — which is what left the region shut and nothing chosen after a restore.
   //
   // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.bind
   useEffect(() => {
     if (openedForParkedFocus.current) return;
-    if (meFocus === undefined || meRoots.length > 0 || meOpening !== undefined) return;
+    if (meRoots.length > 0 || meOpening !== undefined) return;
     if (status !== "ready" || roots === undefined) return;
     const regionPath = meRegionPath(roots);
-    const region = regionPath === undefined ? undefined : firmwareNodeAt(roots, regionPath);
-    if (region === undefined) return;
+    if (regionPath === undefined) return;
+    const key = pathKey(regionPath);
+    if (meFocus === undefined && !openRef.current.has(key)) return;
     // Once: a reading that came back with nothing would otherwise be asked for
     // again on the render that ended it, and again after that.
     openedForParkedFocus.current = true;
-    toggle(region);
-  }, [meFocus, meRoots, meOpening, status, roots, toggle]);
+    // Coming back to an open region with nothing in it chosen chooses nothing in it: the session's
+    // own choice, a node of the tree or none, stands.
+    quietMeOpen.current = meFocus === undefined;
+    openMeRegion(key);
+  }, [meFocus, meRoots, meOpening, status, roots, openMeRegion]);
 
   // The file in the pane was replaced by one with no ME region: there is no row
   // to graft a sub-tree under any more, so what the last file left goes with it
