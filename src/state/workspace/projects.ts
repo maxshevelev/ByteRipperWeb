@@ -52,6 +52,19 @@ function report(refusal: ProjectRefusal): void {
   const name = refusal.name ?? "";
   if (refusal.error === "unreadable") reportAlert(L("The project could not be read."), name);
   if (refusal.error === "unwritable") reportAlert(L("The project could not be written."), name);
+  // @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.openProject
+  if (refusal.error === "newer") {
+    reportAlert(
+      L("The project was saved by a newer version of ByteRipper. Open it in that version."),
+      name
+    );
+  }
+  if (refusal.error === "tooOld") {
+    reportAlert(
+      L("The project was saved by an early version of ByteRipper that this one cannot read."),
+      name
+    );
+  }
 }
 
 /**

@@ -527,8 +527,13 @@ function register({
     const chosen = given ?? (await pickProjectToOpen(issuer));
     if (chosen === undefined) return {};
     const folder = projects.locate(chosen);
-    const windows = folder === undefined ? undefined : projects.read(folder);
-    if (windows === undefined) return { error: "unreadable", name: projects.projectName(chosen) };
+    const loaded =
+      folder === undefined ? { failure: { kind: "unreadable" } } : projects.load(folder);
+    const windows = loaded.windows;
+    // A newer build's project, or one older than any this build reads, is refused with a reason.
+    if (windows === undefined) {
+      return { error: loaded.failure.kind, name: projects.projectName(chosen) };
+    }
     if (folder === project) return {};
     if (!(await leaveCurrent(issuer, suggestedName))) return {};
     projects.recent.record(folder);

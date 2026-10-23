@@ -5,6 +5,7 @@
 @covers settings.general.restore-workspace
 @covers workspace.restore-warning
 @covers workspace.restore-check
+@covers workspace.newer-version
 
 [[edition:**This page is about the Windows application.** A page in a browser cannot open a file again by itself, so the browser edition keeps no workspace: a reload starts from the empty window ([[topic:opening-files|Opening Files]]), and nothing below exists there.||]]
 
@@ -55,3 +56,9 @@ Each file is compared with its size and modification date at the time the worksp
 When either happens, or a file could not be reached, one message after the restore lists the files concerned.
 
 The changes ByteRipper keeps beside the workspace are checked the same way. Changes that cannot be read back exactly as they were written — the files beside the workspace were damaged — are not applied: the file opens as it is on disk, a part as its file holds it, and a document with no file is not opened. The message after the restore names them. When the kept history no longer leads back to its beginning, the content comes back as it was but without the steps to undo it, and the message says that too.
+
+## Other versions of ByteRipper
+
+A version of ByteRipper restores the workspace that an earlier version wrote: what is new in it simply starts empty.
+
+A workspace written by a newer version is left untouched — the older version cannot read it, and writing over it would lose that work. At launch a message says so, and until the program is quit it keeps no workspace: it opens with an empty window, and quitting asks about unsaved changes as it does with the switch off. The next launch of the newer version finds its workspace as it was.

@@ -24,9 +24,9 @@ if (OpfsScratchStore.isAvailable()) setJournalStoreProvider(() => new OpfsRecord
 
 const host = makeSessionHost({
   folderOf: (ref) => (disk.available ? new ShellKeptFolder(disk, ref) : undefined),
-  removeAllKept: async () => {
+  removeAllKept: async (except) => {
     if (disk.available)
-      await disk.ask({ folder: { kind: "session", workspace: "all" }, op: "removeAll" });
+      await disk.ask({ folder: { kind: "session", workspace: "all" }, op: "removeAll", except });
   },
 });
 

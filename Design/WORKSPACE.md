@@ -85,6 +85,51 @@ positions applied after layout, and one warning at the end listing files
 that are gone or changed (`RestoreIssue`). A file that changed since keeps
 its position only — upstream's `PaneRestore`.
 
+## Versions
+
+Upstream's promise (`a14d2377`, `9bfc827c`): a project and the session are the
+person's work — the session is work not yet saved under a name — so a build
+opens what the builds before it wrote. Here it starts at the first version a
+release writes: a window's workspace from version 2
+(`OLDEST_READABLE`, `src/core/workspace/workspaceMigration.ts`), and the shell's
+`Project.json` around the windows from version 2 (`OLDEST_PROJECT`,
+`desktop/projects.cjs`). Nothing earlier was released; it is refused.
+
+- **Earlier version** — read through the chain: the JSON is taken one version
+  at a time (`MIGRATION_STEPS[n]` makes n + 1 out of n) up to
+  `WORKSPACE_VERSION`. The steps work on the JSON, not on the types, which
+  describe only the newest version. A window's workspace is migrated by the page
+  that restores it; `Project.json`'s own envelope by the main process. The next
+  snapshot writes the current version.
+- **Newer version** — refused. A project is refused before any window is made,
+  with a message saying so: the main process knows the workspace version a
+  window is written in through a copy (`WORKSPACE_VERSION` in
+  `projects.cjs`) that a test keeps level with the page's.
+- **A newer session on an older build** — left untouched for the rest of the
+  launch (`isSessionNewer`): neither restored, nor written over, nor deleted,
+  the switch on or off — switching it off forgets every other workspace and
+  keeps this one. The front window of the launch says so once, and until quit
+  the session is kept no more than with the switch off: closing the last window
+  quits, and quitting asks about unsaved work.
+
+What may change without raising a version: an added optional field. What raises
+it, with a step: a required field added, a field renamed, removed or given
+another meaning, a case taken out of a union. Raising `WORKSPACE_VERSION` raises
+the copy in `projects.cjs` with it.
+
+`Kept/` follows the same promise without a version of its own: its log is
+upstream's, record for record, with the kind and format in each record's tag
+(`BRT1`, `BRS1`, `BRP1`, `BRB1`), so a record whose body changes gets a new tag
+and the reader goes on reading the old one. A file's edits (`<id>.edits` in `Kept/`: a
+JSON header of runs, then the added bytes) follow the JSON's rule for their
+header.
+
+Each readable version is kept as a fixture that is never rewritten:
+`src/core/workspace/fixtures/v<N>/Workspace.json` (with `version<N>Sample()`),
+and for `Kept/` upstream's own log of its version 4
+(`src/core/edit/fixtures/v4/history.log`), which this build reads — and writes
+the same transactions of, byte for byte.
+
 ## Projects
 
 > **Superseded in the shell (2026-10-22, D3 of `Design/DESKTOP_WINDOWS.md`).** A project is

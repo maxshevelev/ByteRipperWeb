@@ -23,17 +23,31 @@ test("a project holds every window, front to back, and is read back as it was wr
   assert.equal(JSON.parse(fs.readFileSync(path.join(folder, "Project.json"), "utf8")).version, 2);
 });
 
-test("a project written when it held one window comes back as that window", () => {
+// Upstream: WorkspaceVersionTests — a newer version is refused, and so is one from before
+// migrations; this build's reads as it is.
+test("a project of a newer build, or of one before projects were migrated, is refused with why", () => {
   const folder = temporary();
-  fs.writeFileSync(path.join(folder, "Project.json"), JSON.stringify(workspace("one")));
-  assert.deepEqual(projects.read(folder), [{ workspace: workspace("one") }]);
+  const file = path.join(folder, "Project.json");
+  assert.deepEqual(projects.load(folder), { failure: { kind: "unreadable" } });
+  assert.equal(projects.read(folder), undefined);
+  fs.writeFileSync(file, JSON.stringify({ version: projects.PROJECT_VERSION + 1, windows: [] }));
+  assert.deepEqual(projects.load(folder), {
+    failure: { kind: "newer", version: projects.PROJECT_VERSION + 1 },
+  });
+  // Written when it held one window, before the promise: not read.
+  fs.writeFileSync(file, JSON.stringify(workspace("one")));
+  assert.deepEqual(projects.load(folder), { failure: { kind: "tooOld", version: 1 } });
+  fs.writeFileSync(file, "{ not json");
+  assert.deepEqual(projects.load(folder), { failure: { kind: "unreadable" } });
 });
 
-test("a folder with no project, or one of another version, reads as nothing", () => {
+test("a project holding a window a newer build wrote is that build's", () => {
   const folder = temporary();
-  assert.equal(projects.read(folder), undefined);
-  fs.writeFileSync(path.join(folder, "Project.json"), JSON.stringify({ version: 9, windows: [] }));
-  assert.equal(projects.read(folder), undefined);
+  const newer = { version: projects.WORKSPACE_VERSION + 1, tab: { panes: [] } };
+  projects.write(folder, [{ workspace: workspace("this") }, { workspace: newer }]);
+  assert.deepEqual(projects.load(folder), {
+    failure: { kind: "newer", version: projects.WORKSPACE_VERSION + 1 },
+  });
 });
 
 // Upstream: ProjectTests — Open Project… takes a project folder, or a folder holding exactly one.

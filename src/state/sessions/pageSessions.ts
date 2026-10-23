@@ -66,7 +66,7 @@ function connect(): SessionLine<ViewMessage, HostMessage> {
       const project = currentProject();
       return project?.id === ref.project ? project.folder.kept : undefined;
     },
-    removeAllKept: () => OpfsKeptFolder.removeAll(),
+    removeAllKept: (except) => OpfsKeptFolder.removeAll(except),
     otherExternal: (reference) => {
       const storage = externals.get(reference as number);
       externals.delete(reference as number);

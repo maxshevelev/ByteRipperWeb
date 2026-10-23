@@ -17,8 +17,8 @@ import { installKeeperOperations, type KeptFolderRef } from "@/state/sessions/ke
 export function makeSessionHost(options: {
   /** The folder a keeper writes into, or nothing where content cannot be kept. */
   readonly folderOf: (ref: KeptFolderRef) => KeptFolder | undefined;
-  /** Every workspace's kept folder: the switch turned off. */
-  readonly removeAllKept: () => Promise<void>;
+  /** Every workspace's kept folder but `except`'s: the switch turned off. */
+  readonly removeAllKept: (except?: string) => Promise<void>;
   /** A join's bytes by a reference the platform gave that is not a `Blob`. */
   readonly otherExternal?: ((reference: unknown) => ByteStorage | undefined) | undefined;
 }): SessionHost {
@@ -41,7 +41,9 @@ export function makeSessionHost(options: {
       | undefined;
     await folder?.remove?.();
   });
-  host.defineHostOperation("keeper.removeAll", () => options.removeAllKept());
+  host.defineHostOperation("keeper.removeAll", (args) =>
+    options.removeAllKept((args as { except?: string } | undefined)?.except)
+  );
   // A window let a session go: it ends once no window shows it.
   host.defineHostOperation("session.closeUnshown", (args) => {
     const { session } = args as { session: string };

@@ -1,0 +1,237 @@
+{
+  "version": 2,
+  "tab": {
+    "panes": [
+      {
+        "id": "p1",
+        "document": {
+          "kind": "file",
+          "file": {
+            "name": "bios.bin",
+            "path": "/Jobs/T480/bios.bin",
+            "relativePath": "bios.bin",
+            "size": 16777216,
+            "modified": 1760000000000,
+            "handle": "h-1",
+            "sha256": "abababababababababababababababababababababababababababababababab"
+          }
+        },
+        "selectionStart": 16,
+        "selectionEnd": 32,
+        "inputRegion": "text",
+        "insertMode": true,
+        "topOffset": 4096,
+        "segments": {
+          "contentSize": 16777216,
+          "pieces": [
+            {
+              "start": 0,
+              "name": "Descriptor"
+            },
+            {
+              "start": 4096,
+              "name": "ME",
+              "link": {
+                "file": {
+                  "name": "me.bin",
+                  "path": "/Jobs/T480/me.bin",
+                  "size": 20480,
+                  "modified": 1760000000000
+                },
+                "sourceStart": 0,
+                "sourceEnd": 20480
+              }
+            }
+          ]
+        },
+        "kept": {
+          "id": "A1",
+          "base": {
+            "kind": "file",
+            "serial": 1
+          },
+          "head": 6,
+          "nextSerial": 10,
+          "saved": 1,
+          "log": {
+            "file": "A1-1.log",
+            "length": 812,
+            "hash": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+          },
+          "history": {
+            "undoBase": 1,
+            "redoTip": 9,
+            "redoSteps": [2, 1],
+            "savedState": 1,
+            "dirtyRegardless": false,
+            "joins": [
+              {
+                "serial": 5,
+                "file": {
+                  "name": "ec.bin",
+                  "path": "/Jobs/T480/ec.bin",
+                  "size": 65536,
+                  "modified": 1760000000000
+                },
+                "name": "ec.bin",
+                "readOnly": true
+              }
+            ],
+            "undoneJoins": []
+          }
+        },
+        "undo": {
+          "past": [
+            {
+              "kind": "document"
+            },
+            {
+              "kind": "group",
+              "parts": [
+                {
+                  "kind": "document"
+                },
+                {
+                  "kind": "segments"
+                }
+              ],
+              "before": {
+                "contentSize": 16777216,
+                "pieces": [
+                  {
+                    "start": 0,
+                    "name": "Descriptor"
+                  }
+                ]
+              }
+            }
+          ],
+          "future": [
+            {
+              "kind": "segments",
+              "after": {
+                "contentSize": 16777216,
+                "pieces": []
+              }
+            }
+          ],
+          "cutsPast": [
+            {
+              "contentSize": 16777216,
+              "pieces": [
+                {
+                  "start": 0,
+                  "name": "Descriptor"
+                }
+              ]
+            }
+          ],
+          "cutsFuture": []
+        }
+      },
+      {
+        "document": {
+          "kind": "untitled",
+          "untitled": {
+            "content": {
+              "id": "U1",
+              "base": {
+                "kind": "bytes",
+                "file": "U1-0.bin",
+                "serial": 0,
+                "hash": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"
+              },
+              "head": 0,
+              "nextSerial": 1
+            },
+            "name": "Join",
+            "size": 8192,
+            "dirty": true
+          }
+        },
+        "selectionStart": 4,
+        "selectionEnd": 4,
+        "inputRegion": "hex",
+        "insertMode": false,
+        "topOffset": 0
+      }
+    ],
+    "activePane": 1,
+    "dividerFraction": 0.4,
+    "surface": {
+      "minimapVisible": true,
+      "minimapMode": "overview",
+      "findPattern": {
+        "text": "$FPT",
+        "encoding": "ascii"
+      },
+      "tool": {
+        "identifier": "uefi",
+        "state": "AQID",
+        "pane": 0
+      }
+    },
+    "fragments": [
+      {
+        "pane": {
+          "id": "p2",
+          "document": {
+            "kind": "part",
+            "part": {
+              "parent": "p1",
+              "sourceStart": 4194304,
+              "sourceEnd": 4195328,
+              "name": "Setup",
+              "layout": "{\"kind\":\"lzma\"}",
+              "codec": "{\"lzma\":{}}",
+              "size": 2048,
+              "edits": {
+                "content": {
+                  "id": "P1",
+                  "base": {
+                    "kind": "bytes",
+                    "file": "P1-2.bin",
+                    "serial": 2,
+                    "hash": "2323232323232323232323232323232323232323232323232323232323232323"
+                  },
+                  "head": 2,
+                  "nextSerial": 3
+                },
+                "size": 2048,
+                "dirty": true
+              }
+            }
+          },
+          "selectionStart": 0,
+          "selectionEnd": 8,
+          "inputRegion": "hex",
+          "insertMode": false,
+          "topOffset": 0,
+          "kept": {
+            "id": "A2",
+            "base": {
+              "kind": "edits",
+              "file": "A2-3.edits",
+              "serial": 3,
+              "hash": "0101010101010101010101010101010101010101010101010101010101010101"
+            },
+            "head": 3,
+            "nextSerial": 4,
+            "saved": 3
+          }
+        },
+        "surface": {
+          "minimapVisible": false,
+          "tool": {
+            "identifier": "uefi"
+          }
+        }
+      }
+    ],
+    "expandedFragment": 0
+  },
+  "notes": {
+    "isUp": false,
+    "selected": ["n3"]
+  }
+}

@@ -17,10 +17,10 @@ import {
   stampIsUnchanged,
   type ToolState,
   type UndoActState,
-  WORKSPACE_VERSION,
   type Workspace,
   workspaceIsEmpty,
 } from "@/core/workspace/workspace";
+import { loadWorkspace } from "@/core/workspace/workspaceMigration";
 import type { UEFIRootLayout } from "@/firmware/uefi/rootLayout";
 import { desktopFiles, isMissingFile, readFileByPath } from "@/platform/desktop/desktopFiles";
 import { desktopOwnWindows, desktopProject, windowLaunch } from "@/platform/desktop/desktopWindows";
@@ -53,6 +53,7 @@ import { enterProject } from "@/state/workspace/projects";
 import {
   currentKeeper,
   keepWaitingWorkspace,
+  leaveNewerSession,
   pauseWorkspaceRecorder,
   readOwnWorkspace,
 } from "@/state/workspace/workspaceRecorder";
@@ -219,14 +220,45 @@ async function restoreKept(): Promise<void> {
     await openProjectWindow();
     return;
   }
-  if (!settingsStore.getSnapshot().restoresWorkspace) return;
+  // Read whatever the switch says: a newer build's session is left alone even with it off, which
+  // would otherwise forget it.
   const record = await readOwnWorkspace();
-  if (record === undefined || record.workspace.version !== WORKSPACE_VERSION) return;
-  if (workspaceIsEmpty(record.workspace)) return;
+  if (record === undefined) return;
+  const loaded = loadWorkspace(record.workspace);
+  if (!loaded.ok) {
+    if (loaded.failure.kind === "newer") {
+      leaveNewerSession();
+      if (settingsStore.getSnapshot().restoresWorkspace) presentNewerSessionNotice();
+    }
+    return;
+  }
+  if (!settingsStore.getSnapshot().restoresWorkspace) return;
+  const workspace = loaded.value;
+  if (workspaceIsEmpty(workspace)) return;
   // A file opened before the restore got here — dropped on the page while it loaded — is the
   // reader's answer: nothing is put back over it.
   if (PANE_IDS.some((slot) => paneState(slot) !== undefined)) return;
-  await restoreFrom(record, false, currentKeeper());
+  await restoreFrom({ ...record, workspace }, false, currentKeeper());
+}
+
+/**
+ * Says once, at launch, that the session is a newer build's and is left for it
+ * (`isSessionNewer`): by the window the launch made first — the front one of the windows it
+ * restored, or the one new window that takes up a workspace left — for every window, which one
+ * build wrote together.
+ *
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.presentNewerSessionNotice
+ */
+// help: workspace.newer-version
+function presentNewerSessionNotice(): void {
+  const launch = windowLaunch();
+  if (launch?.keep === undefined && launch?.adopt !== true) return;
+  reportAlert(
+    L("The workspace was saved by a newer version of ByteRipper."),
+    L(
+      "It is left as it is, for that version to reopen. Until you quit, this version does not keep the workspace: quitting asks about unsaved changes."
+    )
+  );
 }
 
 /**
@@ -252,8 +284,11 @@ async function openProjectWindow(): Promise<void> {
   if (bridge === undefined || project === undefined) return;
   enterProject(project);
   const written = await bridge.window().catch(() => undefined);
-  if (written === undefined || written.version !== WORKSPACE_VERSION) return;
-  const workspace = fromProjectFile(written);
+  // The shell refused a project of a newer build before any window was made; one of an earlier
+  // build is brought up to this one here, window by window.
+  const loaded = loadWorkspace(written);
+  if (!loaded.ok) return;
+  const workspace = fromProjectFile(loaded.value);
   await restoreFrom({ workspace, leftAt: 0, handles: {} }, false, currentKeeper());
 }
 

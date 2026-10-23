@@ -34,6 +34,8 @@ With [[topic:workspace|Reopen the workspace at launch]] on, the project open whe
 
 A project folder holds `Project.json` — a few kilobytes describing what was open — and, only while there are any, the bytes nothing else on disk has: untitled documents in `Untitled`, and unsaved changes of files in `Edits`. A project without unsaved work stays small. To send a project by mail or message, compress its folder first.
 
+A version of ByteRipper opens the projects that earlier versions saved. A project saved by a newer version is not opened: a message names the reason, and the project stays as it is for that version.
+
 ## Files that changed or are missing
 
 A file that cannot be found is not opened. A file that changed on disk while the project was closed opens without the project's unsaved changes to it, since those changes were made on other bytes. One message after opening lists both, as it does for the workspace.

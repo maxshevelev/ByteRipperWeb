@@ -556,6 +556,10 @@
 "Save…" = "Sichern…";
 "The project could not be read." = "Das Projekt konnte nicht gelesen werden.";
 "The project could not be written." = "Das Projekt konnte nicht geschrieben werden.";
+"The project was saved by a newer version of ByteRipper. Open it in that version." = "Das Projekt wurde mit einer neueren Version von ByteRipper gespeichert. Öffnen Sie es mit dieser Version.";
+"The project was saved by an early version of ByteRipper that this one cannot read." = "Das Projekt wurde mit einer frühen Version von ByteRipper gespeichert, die diese Version nicht lesen kann.";
+"The workspace was saved by a newer version of ByteRipper." = "Der Arbeitsbereich wurde mit einer neueren Version von ByteRipper gespeichert.";
+"It is left as it is, for that version to reopen. Until you quit, this version does not keep the workspace: quitting asks about unsaved changes." = "Er bleibt unverändert, damit jene Version ihn wieder öffnet. Bis zum Beenden speichert diese Version den Arbeitsbereich nicht: Beim Beenden fragt sie nach ungesicherten Änderungen.";
 "There is nothing to save here." = "Hier gibt es nichts zu sichern.";
 "Getting Started" = "Erste Schritte";
 "GitHub is rate-limiting this address. The names shown are the ones shipped in the build, and they will refresh on the next open." = "GitHub drosselt diese Adresse. Gezeigt werden die Namen aus dem Build; sie erneuern sich beim nächsten Öffnen.";

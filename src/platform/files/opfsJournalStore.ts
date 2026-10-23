@@ -131,15 +131,21 @@ export class OpfsKeptFolder implements KeptFolder {
     await ask({ kind: "sweep", id: nextId++, folder: this.folder });
   }
 
-  /** Every workspace's kept folder: the switch turned off, so none comes back months later. */
-  static async removeAll(): Promise<void> {
+  /**
+   * Every workspace's kept folder: the switch turned off, so none comes back months later — but
+   * `except`'s, a newer build's.
+   */
+  static async removeAll(except?: string): Promise<void> {
     if (!OpfsKeptFolder.isAvailable()) return;
     const root = (await navigator.storage.getDirectory().catch(() => undefined)) as
       | (FileSystemDirectoryHandle & { keys?: () => AsyncIterableIterator<string> })
       | undefined;
     if (root?.keys === undefined) return;
     const folders: string[] = [];
-    for await (const name of root.keys()) if (name.startsWith("kept-")) folders.push(name);
+    const kept = except === undefined ? undefined : `kept-${except}`;
+    for await (const name of root.keys()) {
+      if (name.startsWith("kept-") && name !== kept) folders.push(name);
+    }
     for (const folder of folders) {
       await ask({ kind: "sweep", id: nextId++, folder }).catch(() => undefined);
     }

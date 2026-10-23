@@ -55,7 +55,12 @@ export async function allWorkspaceRecords(
   return kept;
 }
 
-/** Forgets every workspace: the switch turned off, so none comes back months later. */
-export async function removeAllWorkspaceRecords(): Promise<void> {
-  for (const { key } of await records.entries().catch(() => [])) await removeWorkspaceRecord(key);
+/**
+ * Forgets every workspace: the switch turned off, so none comes back months later — all but
+ * `except`, a newer build's, which is that build's to keep.
+ */
+export async function removeAllWorkspaceRecords(except?: string): Promise<void> {
+  for (const { key } of await records.entries().catch(() => [])) {
+    if (key !== except) await removeWorkspaceRecord(key);
+  }
 }

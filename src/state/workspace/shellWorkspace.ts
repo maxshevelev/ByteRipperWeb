@@ -14,7 +14,12 @@ import {
   sessionHoldsAnything,
 } from "@/state/workspace/projects";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
-import { recordWorkspace, removeKeptFolder } from "@/state/workspace/workspaceRecorder";
+import {
+  keepsSession,
+  onSessionLeftAlone,
+  recordWorkspace,
+  removeKeptFolder,
+} from "@/state/workspace/workspaceRecorder";
 import { allWorkspaceRecords, removeWorkspaceRecord } from "@/state/workspace/workspaceRecords";
 
 /**
@@ -89,18 +94,26 @@ export function startShellWorkspace(): () => void {
     projectChanged: followProject,
   };
   const leaveOpenOnce = startOpenOnce();
-  let restores = settingsStore.getSnapshot().restoresWorkspace;
-  bridge.hold(workspaceId(), restores);
-  const stop = settingsStore.subscribe(() => {
-    const now = settingsStore.getSnapshot().restoresWorkspace;
-    if (now === restores) return;
-    restores = now;
-    bridge.hold(workspaceId(), restores);
-  });
+  // Whether the window keeps its session: the switch, unless the session is a newer build's —
+  // which also decides whether closing the last window is a quit and whether quitting asks.
+  // @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.keepsWindowsAtQuit
+  let holds = keepsSession();
+  bridge.hold(workspaceId(), holds);
+  const resend = () => {
+    const now = keepsSession();
+    if (now === holds) return;
+    holds = now;
+    bridge.hold(workspaceId(), holds);
+  };
+  const stop = settingsStore.subscribe(resend);
+  const stopHearing = onSessionLeftAlone(resend);
   const keep = windowLaunch()?.keep;
-  if (keep !== undefined && restores) void forgetWorkspacesExcept(keep);
+  if (keep !== undefined && settingsStore.getSnapshot().restoresWorkspace) {
+    void forgetWorkspacesExcept(keep);
+  }
   return () => {
     stop();
+    stopHearing();
     leaveOpenOnce();
     delete hooks.__byteripperShell;
   };

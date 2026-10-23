@@ -267,7 +267,8 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift": "src/state/duplicatePane.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts",
         "MaskedSearch.swift": "src/core/search/maskedSearch.ts",
-        "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts"
+        "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift": "src/core/edit/keptFormatVersion.test.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -336,7 +337,9 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/BinaryDocumentDuplicateTests.swift#BinaryDocumentDuplicateTests.testTheSnapshotOpensItsCloneOnItsFirstRead": "n/a — there is no clonefile(2) in a browser",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift#StorageSaverTests.testASaveAsFallsBackToWritingTheChosenFileDirectly": "n/a — the sandbox's directory permission and the direct-write fallback it forces: a writable is always a swap file the browser publishes",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.init": "n/a — a TypeScript object literal",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — the version is checked where the keeper uses it (src/state/workspace/contentKeeper.test.ts)"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — the version is checked where the keeper uses it (src/state/workspace/contentKeeper.test.ts)",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift#KeptFormatVersionTests.testEditsOfVersion4Read": "n/a — a file's edits are upstream's binary property list there and the web's own JSON-headed runs here; the web's encoding is what the workspace fixtures keep",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift#KeptFormatVersionTests.version4Edits": "n/a — what upstream's property-list edits fixture holds; see testEditsOfVersion4Read"
       }
     },
     {
@@ -4625,7 +4628,8 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testALinkInTheDetailsSelectsItsRowInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnEntryOpensItsBlockOnTheEntry": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheMenuStartsWithWhatADoubleClickOpens": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
-        "ByteRipperTests/FindPasteboardTests.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
+        "ByteRipperTests/FindPasteboardTests.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperTests/WorkspaceRestoreTests.swift#WorkspaceRestoreTests.testASessionOfANewerVersionIsLeftAlone": "later — an app flow test: the desktop shell's windows and their workspace records are driven by no test (G24); checked by hand in the shell (2026-10-23): a newer session was neither restored, written over, nor removed with the switch turned off"
       }
     },
     {
@@ -6025,12 +6029,14 @@
       "web": [
         "src/core/workspace/keptFolder.ts",
         "src/core/workspace/workspace.ts",
-        "src/platform/files/projectFolder.ts"
+        "src/platform/files/projectFolder.ts",
+        "src/core/workspace/workspaceMigration.ts"
       ],
       "status": "ported",
-      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts).",
+      "note": "The workspace's model and what a restore applies (Design/WORKSPACE.md): one tab, the page's, where upstream keeps windows of tabs; files stamped by name, size and date, with the browser's handle or the shell's path. The folder is a record per workspace id in IndexedDB (src/state/workspace/workspaceRecords.ts). A workspace of an earlier version is read through WorkspaceMigration's chain (workspaceMigration.ts, from version 2, the first a release writes); a newer one is refused, and a newer build's session is left alone (Design/WORKSPACE.md, \"Versions\"). Each readable version is a fixture never rewritten (src/core/workspace/fixtures).",
       "unported": {
-        "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel"
+        "Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.uefiOpenRows": "n/a — the UEFI panel's open rows are its parked state here (UEFIParkedState keeps them), so they travel in ToolState.state with the panel",
+        "Packages/Workspace/Tests/WorkspaceTests/WorkspaceVersionTests.swift#WorkspaceVersionTests.testAMigratedWorkspaceIsWrittenInThisVersion": "n/a — a snapshot is gathered from the live panes and stamped with this build's version; nothing writes a record back as it was read"
       }
     },
     {

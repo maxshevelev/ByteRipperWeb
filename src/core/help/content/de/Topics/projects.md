@@ -1,4 +1,4 @@
-@source-sha 1fc4712df0436ef15c8700f6688257b504fbba83f86e926207777731479f20b3
+@source-sha 7a689a3a1dbd175d654ac920fd044759da04a1cdc803e9069e7123eb94b083ee
 # Projekte
 
 > Ein Projekt ist ein Arbeitsbereich in einem eigenen Ordner: alles, was für einen Auftrag geöffnet ist, wird als Ganzes wieder geöffnet, und zwischen Projekten lässt sich wechseln.
@@ -34,6 +34,8 @@ Ist [[topic:workspace|Arbeitsbereich beim Start wiederherstellen]] eingeschaltet
 ## Was ein Projektordner enthält
 
 Ein Projektordner enthält `Project.json` — einige Kilobyte, die beschreiben, was geöffnet war — und, nur solange es sie gibt, die Bytes, die sonst nirgends auf dem Datenträger liegen: unbenannte Dokumente im Ordner `Untitled` und ungesicherte Änderungen an Dateien im Ordner `Edits`. Ein Projekt ohne ungesicherte Arbeit bleibt klein. Um ein Projekt per Mail oder Messenger zu verschicken, wird sein Ordner zuvor in ein Archiv gepackt.
+
+Eine Version von ByteRipper öffnet die Projekte, die frühere Versionen gespeichert haben. Ein Projekt, das eine neuere Version gespeichert hat, wird nicht geöffnet: Eine Meldung nennt den Grund, und das Projekt bleibt für jene Version unverändert.
 
 ## Geänderte und fehlende Dateien
 

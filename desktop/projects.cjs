@@ -18,8 +18,32 @@ const EDITS = "Edits";
  * @upstream ByteRipperApp/Workspace/ContentKeeper.swift#ContentKeeper.keptFolder
  */
 const KEPT = "Kept";
-/** The format `Project.json` is written in: every window. Version 1 was one window's workspace. */
+/**
+ * The format `Project.json` is written in: every window.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#Workspace.currentVersion
+ */
 const PROJECT_VERSION = 2;
+/**
+ * The oldest `Project.json` this build reads, the first a released build writes. Version 1, one
+ * window's workspace, was written before projects were migrated, and is refused.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/WorkspaceMigration.swift#WorkspaceMigration.oldestReadable
+ */
+const OLDEST_PROJECT = 2;
+/**
+ * The steps from one version of `Project.json` to the next, by the version each reads, on the
+ * file's JSON: one for every version from `OLDEST_PROJECT` up to `PROJECT_VERSION`.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/WorkspaceMigration.swift#WorkspaceMigration.steps
+ */
+const PROJECT_STEPS = {};
+/**
+ * The version of a window's workspace this build writes: `WORKSPACE_VERSION` in
+ * `src/core/workspace/workspace.ts`, which a test keeps this level with. A window of a later one
+ * makes the project a newer build's; one of an earlier is brought up by the page it opens in.
+ */
+const WORKSPACE_VERSION = 2;
 /** @upstream ByteRipperApp/Workspace/RecentProjectsStore.swift#RecentProjectsStore.limit */
 const RECENT_LIMIT = 10;
 
@@ -89,24 +113,51 @@ function prepare(chosen, fallbackName) {
 }
 
 /**
- * The windows the project holds, front to back — each `{ id?, frame?, workspace }` — or nothing
- * for a folder whose file is missing, unreadable, or of a version this build does not know. A
- * project written when it held one window comes back as that window.
+ * The windows the project holds, front to back — each `{ id?, frame?, workspace }` — written by
+ * this build or by an earlier one and migrated; or why there are none to read: `{ failure }`,
+ * `unreadable`, `tooOld` or `newer` with the version that is.
  *
- * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.read
+ * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.load
+ * @upstream Packages/Workspace/Sources/Workspace/WorkspaceMigration.swift#WorkspaceMigration.migrate
  */
-function read(folder) {
+function load(folder) {
+  const unreadable = { failure: { kind: "unreadable" } };
   let value;
   try {
     value = JSON.parse(fs.readFileSync(path.join(folder, FILE_NAME), "utf8"));
   } catch {
-    return undefined;
+    return unreadable;
   }
-  if (value?.version === PROJECT_VERSION && Array.isArray(value.windows)) {
-    return value.windows.filter((one) => one?.workspace !== undefined);
+  const version = value?.version;
+  if (typeof version !== "number") return unreadable;
+  if (version > PROJECT_VERSION) return { failure: { kind: "newer", version } };
+  if (version < OLDEST_PROJECT) return { failure: { kind: "tooOld", version } };
+  for (let from = version; from < PROJECT_VERSION; from++) {
+    // A version with no step is a hole in the chain, not a file to guess at.
+    const step = PROJECT_STEPS[from];
+    if (step === undefined) return unreadable;
+    try {
+      step(value);
+    } catch {
+      return unreadable;
+    }
+    value.version = from + 1;
   }
-  if (value?.version === 1 && value.tab !== undefined) return [{ workspace: value }];
-  return undefined;
+  if (!Array.isArray(value.windows)) return unreadable;
+  const windows = value.windows.filter((one) => one?.workspace !== undefined);
+  // A window a newer build wrote cannot be read here, so neither can the project it is part of.
+  const newest = Math.max(0, ...windows.map((one) => Number(one.workspace.version) || 0));
+  if (newest > WORKSPACE_VERSION) return { failure: { kind: "newer", version: newest } };
+  return { windows };
+}
+
+/**
+ * The windows the project holds, or nothing when there are none it can read (`load` says why).
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/WorkspaceFolder.swift#WorkspaceFolder.read
+ */
+function read(folder) {
+  return load(folder).windows;
 }
 
 /** What was last written into each project, so an identical one is not written again. */
@@ -273,12 +324,15 @@ function recentStore(file) {
 module.exports = {
   FILE_NAME,
   PROJECT_VERSION,
+  OLDEST_PROJECT,
+  WORKSPACE_VERSION,
   isKeptName,
   isProjectFolderName,
   projectName,
   holdsProject,
   locate,
   prepare,
+  load,
   read,
   write,
   removeKeptExcept,

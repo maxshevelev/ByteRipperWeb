@@ -63,9 +63,15 @@ function answer(request, userData, currentProject) {
       if (request.folder?.kind !== "session") throw new Error("Only a workspace's folder goes.");
       fs.rmSync(folder, { recursive: true, force: true });
       return undefined;
-    case "removeAll":
-      fs.rmSync(path.join(userData, "Workspace", "Windows"), { recursive: true, force: true });
+    case "removeAll": {
+      // All but a newer build's session, which is that build's to keep.
+      const windows = path.join(userData, "Workspace", "Windows");
+      const keep = typeof request.except === "string" ? `kept-${request.except}` : undefined;
+      for (const name of fs.existsSync(windows) ? fs.readdirSync(windows) : []) {
+        if (name !== keep) fs.rmSync(path.join(windows, name), { recursive: true, force: true });
+      }
       return undefined;
+    }
     default:
       throw new Error(`Unknown kept request: ${request.op}`);
   }

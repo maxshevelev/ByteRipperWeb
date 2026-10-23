@@ -80,7 +80,13 @@ export interface ShellProject {
 
 /** Why the shell could not do what a project command asked. */
 export interface ProjectRefusal {
-  readonly error?: "unreadable" | "unwritable" | undefined;
+  /**
+   * Why the project was not opened or saved: unreadable, unwritable, a newer build's, or older
+   * than any this build reads.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/WorkspaceMigration.swift#WorkspaceMigration.Failure
+   */
+  readonly error?: "unreadable" | "unwritable" | "newer" | "tooOld" | undefined;
   readonly name?: string | undefined;
 }
 

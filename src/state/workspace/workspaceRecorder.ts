@@ -482,11 +482,11 @@ export function paneRecord(slot: SlotId): Promise<PaneState | undefined> {
  */
 export async function recordWorkspace(leaving = false): Promise<boolean> {
   if (paused) return false;
-  const restores = settingsStore.getSnapshot().restoresWorkspace;
   const project = currentProject();
   // A project waiting for a click to reach its files is not written over with the empty tab.
   if (project !== undefined) return keepsWaiting ? false : recordProject(project);
-  if (!restores) return false;
+  // Neither written nor deleted when it is a newer build's.
+  if (!keepsSession()) return false;
   // Where the host cannot keep content — no disk it can write — the record goes without it.
   let keeper = sessionKeeper();
   await keeper?.beginSnapshot().catch(() => {
@@ -596,11 +596,50 @@ export function recordInto(project: { id: string; folder: ProjectFolder } | unde
 }
 
 /**
+ * Whether this tab's session was written by a newer build: this one cannot read it, and writing
+ * over it — or, with the switch off, deleting it — would lose that build's work. Found once, as
+ * the tab comes up, and it stays out of reach until the tab is left.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.isSessionNewer
+ * @upstream-differs found by the restore, which reads the record anyway, where upstream's
+ * recorder reads it as it is made
+ */
+let sessionNewer = false;
+
+/** @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.isSessionNewer */
+export const isSessionNewer = (): boolean => sessionNewer;
+
+/** The restore found this tab's session a newer build's: it is left alone from now on. */
+export function leaveNewerSession(): void {
+  sessionNewer = true;
+  lastWritten = undefined;
+  for (const listener of sessionKeptListeners) listener();
+}
+
+const sessionKeptListeners = new Set<() => void>();
+
+/** Hears `keepsSession` change other than by the switch. Answers the means to stop. */
+export function onSessionLeftAlone(listener: () => void): () => void {
+  sessionKeptListeners.add(listener);
+  return () => sessionKeptListeners.delete(listener);
+}
+
+/**
+ * Whether the session without a project is being kept: the switch is on, and the session is this
+ * build's to write.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.keepsSession
+ */
+export const keepsSession = (): boolean =>
+  settingsStore.getSnapshot().restoresWorkspace && !sessionNewer;
+
+/**
  * Forgets the session the tab kept by itself: it was saved as a project, or discarded for one.
  *
  * @upstream ByteRipperApp/Workspace/WorkspaceRecorder.swift#WorkspaceRecorder.discardSession
  */
 export async function discardSession(): Promise<void> {
+  if (sessionNewer) return;
   const id = workspaceId();
   lastWritten = undefined;
   void session?.keeper.forget();
@@ -640,9 +679,11 @@ export function startWorkspaceRecorder(): () => void {
     restores = now;
     lastWritten = undefined;
     if (!now) {
-      void removeAllWorkspaceRecords();
+      // Every workspace but this tab's when it is a newer build's: that one is its to keep.
+      const except = sessionNewer ? workspaceId() : undefined;
+      void removeAllWorkspaceRecords(except);
       session = undefined;
-      void operateHost("keeper.removeAll", undefined).catch(() => undefined);
+      void operateHost("keeper.removeAll", { except }).catch(() => undefined);
     } else void recordWorkspace(true);
   });
   return () => {
@@ -666,9 +707,7 @@ export const readOwnWorkspace = () => readWorkspaceRecord(workspaceId());
 export function workspaceHolds(document: SessionView): boolean {
   if (paused || keepsWaiting) return false;
   // A project holds what it has written whatever the switch says.
-  if (currentProject() === undefined && !settingsStore.getSnapshot().restoresWorkspace) {
-    return false;
-  }
+  if (currentProject() === undefined && !keepsSession()) return false;
   return currentKeeper()?.holdsCurrentBytes(document) === true;
 }
 

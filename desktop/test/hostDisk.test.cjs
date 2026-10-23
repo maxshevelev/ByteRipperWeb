@@ -44,3 +44,34 @@ test("the open project's kept files are its own", () => {
   ask({ op: "write", name: "d-2.bin", at: 0, bytes: Uint8Array.of(9) });
   assert.ok(fs.existsSync(path.join(project, "Kept", "d-2.bin")));
 });
+
+test("the switch turned off forgets every workspace's kept folder but a newer build's", () => {
+  const userData = profile();
+  const write = (workspace) =>
+    hostDisk.answer(
+      {
+        folder: { kind: "session", workspace },
+        op: "write",
+        name: "d-1.log",
+        at: 0,
+        bytes: Uint8Array.of(1),
+      },
+      userData,
+      noProject
+    );
+  write("w-1");
+  write("w-2");
+  write("w-newer");
+  hostDisk.answer(
+    { folder: { kind: "session", workspace: "all" }, op: "removeAll", except: "w-newer" },
+    userData,
+    noProject
+  );
+  assert.deepEqual(fs.readdirSync(path.join(userData, "Workspace", "Windows")), ["kept-w-newer"]);
+  hostDisk.answer(
+    { folder: { kind: "session", workspace: "all" }, op: "removeAll" },
+    userData,
+    noProject
+  );
+  assert.deepEqual(fs.readdirSync(path.join(userData, "Workspace", "Windows")), []);
+});

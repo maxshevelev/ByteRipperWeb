@@ -51,6 +51,18 @@ Architecture:
   `src/firmware/` and on shared code, never on the app and never on another
   tool. Code two tools both need moves to shared code.
 
+Workspace and project format (`Design/WORKSPACE.md`, "Versions"):
+- A build opens the session and projects every earlier released build wrote —
+  a window's workspace and `Project.json` from version 2 on. A newer version is
+  refused, never guessed at.
+- An added optional field needs nothing. Anything else an earlier record cannot
+  be read through — a required field, a rename, a changed meaning — raises
+  `WORKSPACE_VERSION` (and its copy in `desktop/projects.cjs`), adds a step to
+  `MIGRATION_STEPS`, and adds the new version's fixture. Fixtures already there
+  are never rewritten.
+- A `Kept/` log record whose body changes gets a new tag; the old tag stays
+  readable.
+
 Important rules:
 - Domain code is pure TypeScript, modular, and unit-testable.
 - Internal byte ranges are half-open: [start, end). Dialogs may use an inclusive
