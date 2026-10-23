@@ -2,7 +2,6 @@ import { L } from "@/core/localization/localization";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import type { PanelId } from "@/state/fragmentDock";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
-import { setPaneDragImage } from "@/ui/drag/paneDragImage";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { PartBadge } from "@/ui/parts/PartBadge";
@@ -128,9 +127,16 @@ function FragmentPill({
       <button
         type="button"
         className="fragment-pill-face"
+        // A press is a click until it moves: the browser fires no click for a press that became a
+        // drag, so the panel is chosen as the button comes up and a drag never raises or folds it.
+        // @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.mouseUp
+        // @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.mouseDown
+        // @upstream-differs the browser keeps the press and the threshold, where upstream counts
+        // them itself
         onClick={onSelect}
-        // The pill is how a panel is carried to another window, or onto a pane: its header is where
-        // a pull folds it, so it is not picked up by that, as upstream's is (D6).
+        // The pill is how a panel is carried to another window, or onto a pane, as its header is
+        // upstream; here the header is where a pull folds the panel, so the pill alone carries it.
+        // @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.mouseDragged
         draggable={carried === undefined ? undefined : true}
         onDragStart={
           carried === undefined
@@ -138,8 +144,7 @@ function FragmentPill({
             : (event) => {
                 event.dataTransfer.setData(PANE_DRAG_TYPE, String(item.id));
                 event.dataTransfer.effectAllowed = "copyMove";
-                setPillDragImage(event.dataTransfer, item, event.currentTarget);
-                carried.onDragStart(item.id);
+                carried.onDragStart(item.id, event.dataTransfer);
               }
         }
         onDragEnd={carried?.onDragEnd}
@@ -174,10 +179,8 @@ function FragmentPill({
           /* Upstream's `doc` symbol. The part is a document like any other, and
              the pill is where it waits. */
           <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            {/* The pane's own names for the two strokes, so the plate a pill is carried by fills
-                the page as a pane's glyph does (`setPillDragImage`). */}
-            <path className="pane-document-page" d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
-            <path className="pane-document-fold" d="M9.3 1.5v3.2h3.2" />
+            <path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
+            <path d="M9.3 1.5v3.2h3.2" />
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
@@ -230,27 +233,6 @@ function FragmentPill({
   );
 }
 
-/**
- * The picture a pill is carried by: the plate a pane's header is carried by, rather than the
- * browser's snapshot of the pill, which is cut to the strip it sits in. Its glyph is the pill's
- * own, filled as a pane's is when the part holds changes, and it is as tall as a pane's header,
- * so the panel in flight reads as the pane it becomes when it is let go (D6).
- *
- * @web-only upstream's pill is not dragged
- */
-function setPillDragImage(transfer: DataTransfer, item: DockItem, pill: Element): void {
-  const glyph = pill.querySelector(".fragment-pill-glyph")?.cloneNode(true) as Element | undefined;
-  glyph?.setAttribute("class", "pane-document");
-  if (item.hasChanges) glyph?.setAttribute("data-dirty", "");
-  const header = document.querySelector(".pane-header");
-  setPaneDragImage(
-    transfer,
-    item.title,
-    glyph ?? null,
-    header?.getBoundingClientRect().height ?? 0
-  );
-}
-
 /** How a part's pill carries its panel to another window (`Design/DESKTOP_WINDOWS.md`, D6). */
 export interface PillCarry {
   /**
@@ -261,7 +243,14 @@ export interface PillCarry {
    * @upstream-differs a window where upstream opens a tab
    */
   readonly onTearOff: (id: PanelId) => void;
-  readonly onDragStart: (id: PanelId) => void;
+  /**
+   * The pill is picked up: the panel's pane is carried off as its header carries it, `transfer`
+   * given the pane's picture.
+   *
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onDrag
+   * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.onDrag
+   */
+  readonly onDragStart: (id: PanelId, transfer: DataTransfer) => void;
   readonly onDragEnd: () => void;
 }
 
@@ -281,7 +270,10 @@ export function FragmentDockStrip({
   readonly onSelect: (id: PanelId) => void;
   /** @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onClose */
   readonly onClose: (id: PanelId) => void;
-  /** Where a panel can be carried to another window: the desktop shell (D6). */
+  /**
+   * Where a panel can be carried to another window: the desktop shell, and a browser whose tabs
+   * share the session host (D6).
+   */
   readonly carry?: PillCarry | undefined;
 }) {
   // help: shell.fragment-dock

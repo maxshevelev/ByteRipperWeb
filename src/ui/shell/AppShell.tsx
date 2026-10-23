@@ -2922,7 +2922,8 @@ export function AppShell() {
           />
         ) : null}
         {/* Last, so the panes stay the first of their kind for the grid's rules (D5). */}
-        {panes.length > 0 && panePeer() !== undefined ? (
+        {/* The shell's alone: a browser opens a tab only inside a click, and a drop is not one. */}
+        {panes.length > 0 && panePeer() !== undefined && inDesktopShell() ? (
           <NewWindowStrip onPane={paneToNewWindow} onFiles={filesToNewWindow} />
         ) : null}
       </main>

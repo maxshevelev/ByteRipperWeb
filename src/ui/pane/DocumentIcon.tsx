@@ -14,6 +14,12 @@
  */
 
 import { L } from "@/core/localization/localization";
+
+/** The page, its folded corner, and the never-saved badge: the strokes both forms below draw. */
+const PAGE = "M3.5 1.5h5.8l3.2 3.2v9.8h-9Z";
+const FOLD = "M9.3 1.5v3.2h3.2";
+const BADGE = { cx: "11.6", cy: "11.6", r: "3.7", plus: "M11.6 9.7v3.8M9.7 11.6h3.8" };
+
 export function DocumentIcon({
   slot,
   dirty,
@@ -43,14 +49,48 @@ export function DocumentIcon({
       aria-label={label}
     >
       <title>{label}</title>
-      <path className="pane-document-page" d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
-      <path className="pane-document-fold" d="M9.3 1.5v3.2h3.2" />
+      <path className="pane-document-page" d={PAGE} />
+      <path className="pane-document-fold" d={FOLD} />
       {untitled ? (
         <g className="pane-document-badge">
-          <circle cx="11.6" cy="11.6" r="3.7" />
-          <path d="M11.6 9.7v3.8M9.7 11.6h3.8" />
+          <circle cx={BADGE.cx} cy={BADGE.cy} r={BADGE.r} />
+          <path d={BADGE.plus} />
         </g>
       ) : null}
     </svg>
   );
+}
+
+const SVG = "http://www.w3.org/2000/svg";
+
+/**
+ * The same glyph as an element of its own, for a pane whose header is not on screen to lend its
+ * own — a folded fragment panel, carried by its pill (`setPaneDragImage`).
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.paneDragGlyph
+ */
+export function documentGlyphElement(state: {
+  readonly dirty: boolean;
+  readonly untitled: boolean;
+}): SVGSVGElement {
+  const make = (name: string, attributes: Readonly<Record<string, string>>) => {
+    const element = document.createElementNS(SVG, name);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+    return element;
+  };
+  const glyph = make("svg", { class: "pane-document", viewBox: "0 0 16 16" }) as SVGSVGElement;
+  if (state.dirty) glyph.setAttribute("data-dirty", "");
+  glyph.append(
+    make("path", { class: "pane-document-page", d: PAGE }),
+    make("path", { class: "pane-document-fold", d: FOLD })
+  );
+  if (state.untitled) {
+    const badge = make("g", { class: "pane-document-badge" });
+    badge.append(
+      make("circle", { cx: BADGE.cx, cy: BADGE.cy, r: BADGE.r }),
+      make("path", { d: BADGE.plus })
+    );
+    glyph.append(badge);
+  }
+  return glyph;
 }

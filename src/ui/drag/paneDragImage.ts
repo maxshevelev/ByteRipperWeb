@@ -16,9 +16,9 @@ import {
  * crosses into another pane. The glyph is the header's own, so a modified or
  * untitled pane is still recognisable as itself while it is in flight.
  *
- * A fragment panel carried by its pill wears the same plate (D6): the pill's own
- * document glyph at the header's size, so a panel in flight reads as the pane it
- * becomes wherever it is let go.
+ * A folded fragment panel carried by its pill wears the same plate: its pane is
+ * off screen, but it is a pane, so the plate is drawn from what its header would
+ * show — the glyph handed in rather than lifted out of a header on screen.
  *
  * Upstream draws into an image and hands the window a frame; a browser wants an
  * element and lifts its own picture out of it, so the pill is assembled here,

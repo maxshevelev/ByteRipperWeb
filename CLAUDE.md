@@ -66,10 +66,11 @@ Important rules:
 - Very large files are read in chunks and never loaded whole.
 - The hex grid draws through a glyph atlas and repaints dirty regions only. When
   drawing lags, fix what is repainted; do not cache what was painted.
-- One workspace per browser tab. No in-app tabs, no window management, no pane
-  dragging between tabs — that was a deliberate decision, not an omission; the
-  one way out of a tab is **Open in New Tab** on a pane or a fragment panel,
-  which sends it on into a new tab (the owner's decision, 2026-10-23). The file sessions
+- One workspace per browser tab. No in-app tabs and no window management —
+  that was a deliberate decision, not an omission. A pane or a fragment panel
+  leaves a tab one of two ways: dragged — a pane by its header, a panel by its
+  pill — onto another tab of the app, or **Open in New Tab**, which sends it on
+  into a new tab (the owner's decisions, 2026-10-23). The file sessions
   under the panes are not the page's, though: every document lives in the
   session host, one `SharedWorker` for every tab and every window of the app,
   and a pane is a view of one (`Design/FILE_SESSIONS.md`). Nothing in the page

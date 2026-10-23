@@ -64,6 +64,7 @@ From upstream's `TABS_PLAN.md`, `PANE_DRAG_PLAN.md`, `WORKSPACE_PLAN.md` and
 | A pane into a new window: the pane header's Open in New Tab, the New Tab strip | **Open in New Window**, the **New Window strip** while a pane is dragged | D5 |
 | A fragment panel into a new window: the pill's Open in New Tab, the strip | **Open in New Window** on the pill, the strip | D6 |
 | A panel let go on another window's free half becomes that pane (`7a11bed`) | Same | D6 |
+| A folded panel dragged off by its pill as by its header, in the pane's own drag picture (`0febe41`) | Same; the pill alone carries it, the panel's header being where a pull folds it | D6 |
 | Bookmarks: copied with a torn-off pane, a moved pane adopting the receiving window's | Same | D5 |
 | The agent sees every window's documents (`AgentDesk`, front to back), brings a window forward | Same, the main process routing a call to the window that holds the document | D7 |
 | App-wide: the annotations, the find string, the settings | Kept in step across windows (`BroadcastChannel`, `storage` events) | D7 |
@@ -151,7 +152,9 @@ the module map moved.
   another window (move, swap, join, duplicate); Open in New Window from the
   pane header in a comparison; the New Window strip while dragging; bookmarks.
 - [x] **D6 — a fragment panel carried.** Open in New Window on the pill, the
-  strip, a panel let go on another window's free half.
+  strip, a panel let go on another window's free half. Upstream's `0febe41`
+  made its pill a drag source too: the pill here wears the plate the panel's
+  pane would wear dragged by its header, its own glyph and name.
 - [x] **D7 — app-wide state.** The owner's decision on 2026-10-22: the
   annotations, the agent and the help are the app's, so in the shell each is a
   window of its own, as upstream's are, rather than a panel of every window's

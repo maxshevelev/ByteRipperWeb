@@ -19,6 +19,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { AgentWindow } from "@/ui/agent/AgentWindow";
+import { setPaneDragImage } from "@/ui/drag/paneDragImage";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import {
   FragmentPanel,
@@ -29,6 +30,7 @@ import { partTransform } from "@/ui/fragments/partTransform";
 import { usePartsWithChanges } from "@/ui/fragments/usePartLink";
 import { HelpPanel } from "@/ui/help/HelpPanel";
 import { NotesPanel } from "@/ui/notes/NotesPanel";
+import { documentGlyphElement } from "@/ui/pane/DocumentIcon";
 
 /**
  * The workspace's panels: the dock of pills, and the one panel that is up over
@@ -227,11 +229,30 @@ export function FragmentPanels({
             ? undefined
             : {
                 onTearOff: (id) => onTearOff(partPane(id)),
-                // The panel up over the panes folds as its pill is picked up: what it is carried
-                // to may be one of the panes it covers.
-                onDragStart: (id) => {
+                // The pill carries off the panel's pane exactly as its header does, in the
+                // picture the header's drag wears.
+                // @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.beginPaneDrag
+                onDragStart: (id, transfer) => {
+                  const pane = partPane(id);
+                  const part = workspaceStore.getSnapshot().parts[pane];
+                  if (part !== undefined) {
+                    // A folded panel's pane is off screen, but it is a pane: a header's height,
+                    // its name, and its document glyph as its own header would draw it.
+                    const header = document.querySelector(".pane-header");
+                    setPaneDragImage(
+                      transfer,
+                      part.name,
+                      documentGlyphElement({
+                        dirty: part.document.isDirty,
+                        untitled: part.untitled === true,
+                      }),
+                      header?.getBoundingClientRect().height ?? 0
+                    );
+                  }
+                  // The panel up over the panes folds as its pill is picked up: what it is
+                  // carried to may be one of the panes it covers.
                   if (workspaceStore.getSnapshot().dock.expanded !== undefined) foldParts();
-                  beginPartDrag(partPane(id));
+                  beginPartDrag(pane);
                 },
                 onDragEnd: endLocalPaneDrag,
               }
