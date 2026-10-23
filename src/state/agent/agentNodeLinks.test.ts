@@ -201,3 +201,46 @@ describe("a node of a parent and of its decoded part", () => {
     expect(await new AgentNodeLinks(desk).documents("0.1.2.0", secondPlace)).toEqual([]);
   });
 });
+
+describe("a node of a parent and of its part in another window (D7d)", () => {
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testANodeNamesItsDecodedCounterpartAndTheOtherWayRound
+  it("names the part there, as that window answers for its tree", async () => {
+    const parentPlace = desk.placeOf("a");
+    if (parentPlace === undefined) throw new Error("not open");
+    // The part here stands for the one another window holds, which is asked for its tree.
+    {
+      const asked: string[] = [];
+      const held = paneState(part);
+      const theirs = (await held?.document.read(0, held.document.size)) ?? new Uint8Array();
+      desk.others = {
+        documents: () => [
+          {
+            document: {
+              id: "d99",
+              name: "lenovo_block (decoded).bin",
+              slot: "A",
+              part: { parent: parentPlace.id, source: BLOCK_2, keepsOffsets: true, decodes: true },
+            },
+            tab: 2,
+          },
+        ],
+        tab: () => 1,
+        ask: async (document, query, values) => {
+          asked.push(document);
+          return runUefiAgentQuery(
+            query as "uefi_at",
+            agentTreeOver(theirs),
+            new AgentArguments(values),
+            { contentVersion: 1 }
+          );
+        },
+      };
+      closePart(part);
+      const chain = await chainAt("a", SERIAL_AT);
+      const answer = await new AgentNodeLinks(desk).annotate({ chain }, parentPlace);
+      const entry = (member(answer, "chain") as Json[]).at(-1);
+      expect(member(member(entry, "decoded_in"), "document")).toBe("d99");
+      expect(asked).toContain("d99");
+    }
+  });
+});

@@ -1,5 +1,7 @@
+import type { FileIdentity } from "@/core/agent/agentAnnotation";
 import { baseName } from "@/core/agent/agentSurvey";
 import { AgentToolError } from "@/core/agent/agentTool";
+import type { Json } from "@/core/agent/json";
 import type { SessionView } from "@/core/session/sessionView";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { operate } from "@/platform/sessions/sessionOperations";
@@ -124,7 +126,8 @@ export class AgentDesk {
       place.path = entry.path;
       result.push(place);
     }
-    return labelled(result);
+    const others = this.others;
+    return labelled(result, others?.documents() ?? [], others?.tab() ?? 1);
   }
 
   private place(pane: PaneId, document: SessionView, name: string, slot: AgentSlot): AgentPlace {
@@ -219,6 +222,28 @@ export class AgentDesk {
         Math.abs(held.file.lastModified - stat.modified) < 2
       );
     });
+  }
+
+  /**
+   * The other windows of the desktop shell, where this desk is one window's (D7d): their
+   * documents and their trees. Nothing in a browser's tab, which is a workspace of its own.
+   */
+  others: OtherWindows | undefined;
+
+  /**
+   * The id of the document a part was taken out of, wherever it is open — this window or another:
+   * the name is the session's, the same in every window. Nothing once the parent has closed.
+   *
+   * @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.documents
+   */
+  parentIdOf(origin: { readonly parentView: SessionView | undefined }): string | undefined {
+    const parent = origin.parentView;
+    return parent === undefined ? undefined : this.id(parent);
+  }
+
+  /** A document another window holds, by its id. */
+  elsewhere(id: string): ElsewhereDocument | undefined {
+    return this.others?.documents().find((one) => one.document.id === id)?.document;
   }
 
   /** The place of a pane, if its document is open. */
@@ -327,13 +352,19 @@ export class AgentPlace {
  * different files; the pane, or "not on screen", when they are one file open twice.
  *
  * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.labelled
- * @upstream-differs no tab to name, the web having one workspace per tab; and only a file an
- * agent opened by path has a folder to tell it apart by, a page never being told the path of a
- * file it opens
+ * @upstream-differs only a file an agent opened by path has a folder to tell it apart by, a page
+ * never being told the path of a file it opens; and the other windows' documents are known by what
+ * they say of themselves
  */
-export function labelled(places: AgentPlace[]): AgentPlace[] {
+export function labelled(
+  places: AgentPlace[],
+  elsewhere: readonly { readonly document: ElsewhereDocument }[] = [],
+  tab = 1
+): AgentPlace[] {
   for (const [index, place] of places.entries()) {
-    const twins = places.filter((other, at) => at !== index && other.name === place.name);
+    const here = places.filter((other, at) => at !== index && other.name === place.name);
+    const there = elsewhere.map((one) => one.document).filter((other) => other.name === place.name);
+    const twins: { readonly path?: string | undefined }[] = [...here, ...there];
     if (twins.length === 0) {
       place.label = place.name;
       continue;
@@ -344,12 +375,53 @@ export function labelled(places: AgentPlace[]): AgentPlace[] {
     if (path !== undefined && others && !samePath) {
       place.label = `${folderName(path)}/${place.name}`;
     } else if (place.isOnScreen) {
-      place.label = `${place.name}, ${place.slot}`;
+      // One file twice in this window is told apart by its pane; in two windows, by the window.
+      place.label = here.length > 0 ? `${place.name}, ${place.slot}` : `${place.name}, tab ${tab}`;
     } else {
       place.label = `${place.name}, not on screen`;
     }
   }
   return places;
+}
+
+/**
+ * A document of another window of the desktop shell, as that window describes it (D7d): enough
+ * for this window to name it, to tell its own documents apart from it, and to follow a part of
+ * this window out to the file it was taken from there.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.Place
+ * @upstream-differs a description sent between windows, where upstream's desk holds every window's
+ * panes in one process
+ */
+export interface ElsewhereDocument {
+  readonly id: string;
+  readonly name: string;
+  readonly slot: AgentSlot;
+  readonly path?: string | undefined;
+  /** The file on disk it is; nothing for one never saved, or a part. */
+  readonly file?: FileIdentity | undefined;
+  /** Where its bytes came from, when it is a part whose parent is still open. */
+  readonly part?:
+    | {
+        readonly parent: string;
+        readonly source: readonly [number, number];
+        readonly keepsOffsets: boolean;
+        readonly decodes: boolean;
+      }
+    | undefined;
+}
+
+/** The other windows, as the desk asks them; set by `agentWindows` in a window of the shell. */
+export interface OtherWindows {
+  /** Every other window's documents, each with its window's tab: front to back, from 1. */
+  documents(): readonly { readonly document: ElsewhereDocument; readonly tab: number }[];
+  /** This window's own tab. */
+  tab(): number;
+  /**
+   * A query of the UEFI tree of `document`, asked of the window holding it: its answer, or the
+   * refusal thrown as the tool's own would be.
+   */
+  ask(document: string, query: string, values: { readonly [key: string]: Json }): Promise<Json>;
 }
 
 /** The last folder of a path, either separator. */

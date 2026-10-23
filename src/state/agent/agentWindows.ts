@@ -9,9 +9,20 @@ import {
 } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
 import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
+import { fileIdentityOf } from "@/state/agent/agentAnnotationStore";
+import {
+  type AgentPlace,
+  type ElsewhereDocument,
+  noSuchDocument,
+  type OtherWindows,
+} from "@/state/agent/agentDesk";
+import { decodes } from "@/state/agent/agentNodeLinks";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
+import { readyFirmware } from "@/state/firmwareReady";
+import { askUefiAgent } from "@/state/firmwareStore";
 import { workspaceStore } from "@/state/workspaceStore";
+import type { AgentUefiRequest } from "@/workers/protocol";
 
 /**
  * The agent's desk over every window of the desktop shell (`Design/DESKTOP_WINDOWS.md`, D7d).
@@ -38,6 +49,8 @@ const me =
 export interface Runner {
   readonly ids: readonly string[];
   readonly focusedAt: number;
+  /** Its documents as the other windows' desks need them: to name, and to follow a part out. */
+  readonly documents?: readonly ElsewhereDocument[] | undefined;
 }
 
 /** What the Agent window's page says of the service, for the other windows' buttons and settings. */
@@ -78,6 +91,20 @@ type Message =
     }
   | { readonly type: "status"; readonly status: ServiceStatus }
   | { readonly type: "status?" }
+  | {
+      readonly type: "ask";
+      readonly to: string;
+      readonly id: string;
+      readonly document: string;
+      readonly query: AgentUefiRequest["query"];
+      readonly values: { readonly [key: string]: Json };
+    }
+  | {
+      readonly type: "asked";
+      readonly id: string;
+      readonly answer: Json;
+      readonly error: string | undefined;
+    }
   | { readonly type: "settings"; readonly to: string };
 
 let channel: BroadcastChannel | undefined;
@@ -279,7 +306,12 @@ let focusedAt = 0;
 let lastRunner = "";
 
 function sendRunner(always: boolean): void {
-  const runner: Runner = { ids: agentService.desk.places().map((place) => place.id), focusedAt };
+  const places = agentService.desk.places();
+  const runner: Runner = {
+    ids: places.map((place) => place.id),
+    focusedAt,
+    documents: places.map(describe),
+  };
   const text = JSON.stringify(runner);
   if (!always && text === lastRunner) return;
   lastRunner = text;
@@ -322,6 +354,31 @@ function receiveAsRunner(message: Message): void {
     case "hello":
       sendRunner(true);
       return;
+    case "runner": {
+      // A window this one has not heard from yet has not heard from this one either.
+      const known = others.has(message.from);
+      others.set(message.from, message.runner);
+      if (!known) sendRunner(true);
+      return;
+    }
+    case "gone":
+      others.delete(message.from);
+      for (const [id, one] of asking) {
+        if (one.runner !== message.from) continue;
+        asking.delete(id);
+        one.reject(new AgentToolError("The window holding that document was closed."));
+      }
+      return;
+    case "ask":
+      if (message.to === me) void answerAsk(message);
+      return;
+    case "asked": {
+      const one = asking.get(message.id);
+      asking.delete(message.id);
+      if (message.error !== undefined) one?.reject(new AgentToolError(message.error));
+      else one?.resolve(message.answer);
+      return;
+    }
     case "call":
       if (message.to === me) void runCall(message);
       return;
@@ -349,6 +406,7 @@ function receiveAsRunner(message: Message): void {
  */
 export function runAgentCallsForHost(): void {
   if (!open(receiveAsRunner)) return;
+  agentService.desk.others = otherWindows;
   let scheduled = false;
   workspaceStore.subscribe(() => {
     if (scheduled) return;
@@ -368,4 +426,105 @@ export function runAgentCallsForHost(): void {
   }
   sendRunner(true);
   post({ type: "status?" });
+}
+
+// MARK: - The other windows of the workspace
+
+/** The other windows of the workspace, as each last said what it holds. */
+const others = new Map<string, Runner>();
+/** The questions this window asked of another, by their id. */
+const asking = new Map<
+  string,
+  { readonly runner: string; resolve: (answer: Json) => void; reject: (error: Error) => void }
+>();
+let nextAsk = 1;
+
+/**
+ * One of this window's documents as another window needs it: its name, the file it is, and —
+ * for a part — the document it was taken out of, by the id that names it in every window.
+ */
+function describe(place: AgentPlace): ElsewhereDocument {
+  const desk = agentService.desk;
+  const pane = place.pane;
+  const origin = place.state?.origin;
+  const parent = origin === undefined ? undefined : desk.parentIdOf(origin);
+  const file = pane === undefined ? undefined : fileIdentityOf(pane);
+  return {
+    id: place.id,
+    name: place.name,
+    slot: place.slot,
+    ...(place.path === undefined ? {} : { path: place.path }),
+    ...(file === undefined ? {} : { file }),
+    ...(origin === undefined || parent === undefined
+      ? {}
+      : {
+          part: {
+            parent,
+            source: [origin.sourceRange[0], origin.sourceRange[1]],
+            keepsOffsets: origin.codec.keepsOffsets,
+            decodes: decodes(origin.codec),
+          },
+        }),
+  };
+}
+
+/** The windows of the workspace, this one among them, the one in front first. */
+function tabs(): string[] {
+  return [[me, focusedAt] as const, ...[...others].map(([id, one]) => [id, one.focusedAt] as const)]
+    .sort(([, one], [, other]) => other - one)
+    .map(([id]) => id);
+}
+
+/**
+ * The other windows, as this window's desk asks them (D7d).
+ *
+ * @upstream ByteRipperApp/Agent/AgentDesk.swift#AgentDesk.places
+ * @upstream-differs each window says what it holds over a channel, and is asked about its trees
+ * there, where upstream's desk walks every window in one process
+ */
+const otherWindows: OtherWindows = {
+  documents() {
+    const order = tabs();
+    return [...others].flatMap(([id, one]) =>
+      (one.documents ?? []).map((document) => ({ document, tab: order.indexOf(id) + 1 }))
+    );
+  },
+  tab: () => tabs().indexOf(me) + 1,
+  ask(document, query, values) {
+    const runner = [...others].find(([, one]) => one.ids.includes(document))?.[0];
+    if (runner === undefined) return Promise.reject(new AgentToolError(noSuchDocument(document)));
+    const id = `${me}:${nextAsk++}`;
+    return new Promise<Json>((resolve, reject) => {
+      asking.set(id, { runner, resolve, reject });
+      post({
+        type: "ask",
+        to: runner,
+        id,
+        document,
+        query: query as AgentUefiRequest["query"],
+        values,
+      });
+    });
+  },
+};
+
+/** A question of one of this window's trees, from another window: answered from its worker. */
+async function answerAsk(message: Extract<Message, { type: "ask" }>): Promise<void> {
+  const reply = (answer: Json, error: string | undefined) =>
+    post({ type: "asked", id: message.id, answer, error });
+  try {
+    const place = agentService.desk.places().find((one) => one.id === message.document);
+    if (place === undefined) throw new AgentToolError(noSuchDocument(message.document));
+    const pane = place.onScreenOrBackground();
+    await readyFirmware(pane);
+    const response = await askUefiAgent(pane, {
+      query: message.query,
+      values: message.values,
+      answerBound: 1 << 20,
+      contentVersion: place.document.contentGeneration,
+    });
+    reply((response.answer ?? null) as Json, response.error);
+  } catch (error) {
+    reply(null, error instanceof Error ? error.message : String(error));
+  }
 }

@@ -28,7 +28,12 @@ import {
   fileIdentityOf,
   removeAnnotations,
 } from "@/state/agent/agentAnnotationStore";
-import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
+import {
+  type AgentDesk,
+  type AgentPlace,
+  type ElsewhereDocument,
+  noSuchDocument,
+} from "@/state/agent/agentDesk";
 import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
@@ -238,6 +243,10 @@ export class AgentAnnotationTools {
     let size: number | undefined;
     /** The place on screen or in the background that holds the file whole, to read its tree. */
     let root: AgentPlace | undefined;
+    /** The file's document in another window, when that is where it is open; asked there. */
+    let rootElsewhere: string | undefined;
+    /** That file, as that window describes it. */
+    let fileThere: FileIdentity | undefined;
 
     const path = args.optionalString("path");
     if (path !== undefined) {
@@ -306,24 +315,47 @@ export class AgentAnnotationTools {
         let exact = true;
         let mapped = range;
         let reachesFile = true;
-        for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
-          const parent = origin.parent;
-          if (parent === undefined || paneState(parent) === undefined) {
-            reachesFile = false;
-            break;
-          }
-          const source = origin.sourceRange;
-          if (mapped !== undefined && origin.codec.keepsOffsets && exact) {
+        const follow = (source: readonly [number, number], keepsOffsets: boolean) => {
+          if (mapped !== undefined && keepsOffsets && exact) {
             mapped = [source[0] + mapped[0], source[0] + mapped[1]];
           } else {
             mapped = source;
             exact = false;
           }
+        };
+        /** The file it reaches in another window, when the way out leaves this one. */
+        let fileElsewhere: ElsewhereDocument | undefined;
+        for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
+          const parent = origin.parent;
+          if (parent === undefined) {
+            // The rest of the way is another window's, followed by what it says of its documents.
+            let step = this.desk.elsewhere(this.desk.parentIdOf(origin) ?? "");
+            if (step !== undefined) follow(origin.sourceRange, origin.codec.keepsOffsets);
+            for (let hops = 0; step?.part !== undefined && hops < 64; hops++) {
+              follow(step.part.source, step.part.keepsOffsets);
+              step = this.desk.elsewhere(step.part.parent);
+            }
+            if (step?.file !== undefined) fileElsewhere = step;
+            else reachesFile = false;
+            break;
+          }
+          if (paneState(parent) === undefined) {
+            reachesFile = false;
+            break;
+          }
+          follow(origin.sourceRange, origin.codec.keepsOffsets);
           pane = parent;
           origin = paneState(pane)?.origin;
         }
         const top = paneState(pane);
-        if (reachesFile && top !== undefined && !top.untitled) {
+        if (reachesFile && fileElsewhere?.file !== undefined) {
+          range = exact || decoded === undefined ? mapped : undefined;
+          answered.exact = exact;
+          fromPart = answered;
+          fileThere = fileElsewhere.file;
+          rootElsewhere = fileElsewhere.id;
+          size = fileElsewhere.file.size;
+        } else if (reachesFile && top !== undefined && !top.untitled) {
           // Bytes that are no bytes of the file are not drawn over the whole section they came
           // out of.
           range = exact || decoded === undefined ? mapped : undefined;
@@ -337,7 +369,10 @@ export class AgentAnnotationTools {
       }
       const held = paneState(pane);
       if (held === undefined) throw new AgentToolError(`${place.named} holds no bytes.`);
-      if (held.untitled || held.origin !== undefined) {
+      if (fileThere !== undefined) {
+        // The file and its size are the ones the window that has it open says.
+        file = { kind: "disk", identity: fileThere };
+      } else if (held.untitled || held.origin !== undefined) {
         file = { kind: "document", document: new WeakRef(held.document), name: held.name };
       } else {
         const identity = fileIdentityOf(pane) as FileIdentity;
@@ -348,7 +383,7 @@ export class AgentAnnotationTools {
         };
         root = this.desk.placeOf(pane);
       }
-      size = held.document.size;
+      if (rootElsewhere === undefined) size = held.document.size;
     }
     if (range !== undefined && size !== undefined && range[1] > size) {
       throw new AgentToolError(
@@ -366,19 +401,25 @@ export class AgentAnnotationTools {
     }
     // Bytes of the file inside a LENV block stored encoded are read decoded, however the place was
     // given: by a node, or — as a survey's answers give it — by its addresses.
+    const askRoot =
+      rootElsewhere !== undefined
+        ? (values: { [key: string]: Json }) => this.askElsewhere(rootElsewhere, values)
+        : root === undefined
+          ? undefined
+          : (values: { [key: string]: Json }) => this.ask(root, values);
     if (
       decoded === undefined &&
       range !== undefined &&
-      root !== undefined &&
+      askRoot !== undefined &&
       file.kind === "disk"
     ) {
-      decoded = await this.ask(root, { ask: "encodedPlace", range: [...range] }).then(
+      decoded = await askRoot({ ask: "encodedPlace", range: [...range] }).then(
         (json) => toDecoded(decodedFromWire(json)),
         () => undefined
       );
     }
-    if (site === undefined && root !== undefined && file.kind === "disk") {
-      site = await this.ask(root, {
+    if (site === undefined && askRoot !== undefined && file.kind === "disk") {
+      site = await askRoot({
         ask: "site",
         ...(node === undefined ? {} : { node }),
         ...(range === undefined ? {} : { range: [...range] }),
@@ -415,6 +456,13 @@ export class AgentAnnotationTools {
       return sameFile(entry === undefined ? own : { ...own, path: entry.path }, identity);
     });
     return places.find((place) => place.isOnScreen) ?? places[0];
+  }
+
+  /** A question of the annotations asked of the tree of `document`, in the window holding it. */
+  private askElsewhere(document: string, values: { [key: string]: Json }): Promise<Json> {
+    const others = this.desk.others;
+    if (others === undefined) return Promise.reject(new AgentToolError(noSuchDocument(document)));
+    return others.ask(document, "uefi_annotation", values);
   }
 
   /** A question of the annotations asked of `place`'s tree, where the tree is. */
@@ -469,20 +517,31 @@ export class AgentAnnotationTools {
     range: readonly [number, number]
   ): Promise<AnnotationDecoded | undefined> {
     const origin = paneState(pane)?.origin;
-    if (origin?.parent === undefined) return undefined;
-    const parent = this.desk.placeOf(origin.parent);
-    const parentState = paneState(origin.parent);
-    if (
-      parent === undefined ||
-      parentState?.origin !== undefined ||
-      parentState?.untitled !== false
-    ) {
-      return undefined;
+    if (origin === undefined) return undefined;
+    let ask: (values: { [key: string]: Json }) => Promise<Json>;
+    if (origin.parent === undefined) {
+      // A file another window holds is asked there.
+      const parent = this.desk.elsewhere(this.desk.parentIdOf(origin) ?? "");
+      if (parent === undefined || parent.part !== undefined || parent.file === undefined) {
+        return undefined;
+      }
+      ask = (values) => this.askElsewhere(parent.id, values);
+    } else {
+      const parent = this.desk.placeOf(origin.parent);
+      const parentState = paneState(origin.parent);
+      if (
+        parent === undefined ||
+        parentState?.origin !== undefined ||
+        parentState?.untitled !== false
+      ) {
+        return undefined;
+      }
+      ask = (values) => this.ask(parent, values);
     }
     const codec = origin.codec;
     try {
       if (codec instanceof UEFIPartCodec && codec.target.space.length > 0) {
-        const answer = (await this.ask(parent, {
+        const answer = (await ask({
           ask: "spacePlace",
           space: [...codec.target.space],
         })) as { holder: string; codecs: (string | null)[] } | null;
@@ -498,7 +557,7 @@ export class AgentAnnotationTools {
         };
       }
       if (codec instanceof LenovoDMIBlockCodec && codec.encodes) {
-        const holder = (await this.ask(parent, {
+        const holder = (await ask({
           ask: "blockAt",
           source: [...origin.sourceRange],
         })) as string | null;
@@ -565,6 +624,16 @@ export class AgentAnnotationTools {
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.place
    */
+  /** The document of another window that is the annotation's file, if one is. */
+  private documentElsewhere(annotation: AgentAnnotation): string | undefined {
+    const file = annotation.file;
+    if (file.kind !== "disk") return undefined;
+    return this.desk.others
+      ?.documents()
+      .find(({ document }) => document.file !== undefined && sameFile(file.identity, document.file))
+      ?.document.id;
+  }
+
   placeOf(annotation: AgentAnnotation): AgentPlace | undefined {
     return this.desk.places().find((place) => {
       const pane = place.pane;
@@ -778,7 +847,8 @@ export class AgentAnnotationTools {
     if (path !== undefined) entry.path = path;
     else entry.file = annotationFileName(annotation.file);
     const place = this.placeOf(annotation);
-    if (place !== undefined) entry.document = place.id;
+    const document = place?.id ?? this.documentElsewhere(annotation);
+    if (document !== undefined) entry.document = document;
     if (annotation.range !== undefined) {
       entry.range = rangeJson(annotation.range[0], annotation.range[1]);
     }

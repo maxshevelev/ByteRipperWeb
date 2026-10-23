@@ -104,8 +104,9 @@ export class AgentHostTools {
       }
       const origin = place.state?.origin;
       if (origin !== undefined) {
-        const parent = origin.parent === undefined ? undefined : this.desk.placeOf(origin.parent);
-        if (parent !== undefined) entry.part_of = parent.id;
+        // Wherever the parent is open — this window or another — it goes by one id.
+        const parent = this.desk.parentIdOf(origin);
+        if (parent !== undefined) entry.part_of = parent;
         entry.source = rangeJson(origin.sourceRange[0], origin.sourceRange[1]);
         const badge = origin.codec.badge;
         // The badge's text is in the app's language; the agent gets the word as the codec says it,

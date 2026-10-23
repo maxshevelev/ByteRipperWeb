@@ -57,7 +57,7 @@ export class AgentNodeLinks {
     if (text === "" || !/^[0-9]+(\.[0-9]+)*$/.test(text)) return [];
     const holders: { document: string; name: string }[] = [];
     for (const other of this.related(place)) {
-      const found = await ask(other.pane, "uefi_tree", { node: text, limit: 1 });
+      const found = await this.query(other, "uefi_tree", { node: text, limit: 1 });
       const node = isObject(found) ? found.node : undefined;
       if (!isObject(node) || typeof node.name !== "string") continue;
       holders.push({ document: other.id, name: node.name });
@@ -83,14 +83,32 @@ export class AgentNodeLinks {
         keepsOffsets: origin.codec.keepsOffsets,
       });
     }
+    // The parts of it another window holds, as that window says.
+    for (const { document } of this.desk.others?.documents() ?? []) {
+      const part = document.part;
+      if (part?.parent !== place.id) continue;
+      list.push({
+        id: document.id,
+        pane: undefined,
+        covers: part.source,
+        shift: -part.source[0],
+        relation: part.decodes ? "decoded" : "same",
+        keepsOffsets: part.keepsOffsets,
+      });
+    }
     const origin = paneState(pane)?.origin;
     const parent = origin?.parent;
     const holder = parent === undefined ? undefined : this.desk.placeOf(parent);
-    if (origin !== undefined && parent !== undefined && holder !== undefined) {
+    // A parent another window holds is asked there.
+    const elsewhere =
+      origin === undefined || holder !== undefined ? undefined : this.desk.parentIdOf(origin);
+    const id =
+      holder?.id ?? (elsewhere === undefined ? undefined : this.desk.elsewhere(elsewhere)?.id);
+    if (origin !== undefined && id !== undefined) {
       const source = origin.sourceRange;
       list.push({
-        id: holder.id,
-        pane: parent,
+        id,
+        pane: holder === undefined ? undefined : parent,
         covers: [0, source[1] - source[0]],
         shift: source[0],
         relation: decodes(origin.codec) ? "encoded" : "same",
@@ -134,7 +152,7 @@ export class AgentNodeLinks {
     // ways.
     const ownKey = `${place.id}:${start}:${end}`;
     if (!found.has(ownKey) && place.pane !== undefined) {
-      found.set(ownKey, await this.node(place.pane, start, end));
+      found.set(ownKey, await this.node({ id: place.id, pane: place.pane }, start, end));
     }
     if (found.get(ownKey) !== id) return members;
     const counterparts: Json[] = [];
@@ -142,7 +160,7 @@ export class AgentNodeLinks {
       if (!(other.covers[0] <= start && end <= other.covers[1])) continue;
       const key = `${other.id}:${start}:${end}`;
       if (!found.has(key)) {
-        found.set(key, await this.node(other.pane, start + other.shift, end + other.shift));
+        found.set(key, await this.node(other, start + other.shift, end + other.shift));
       }
       const node = found.get(key);
       if (node === undefined) continue;
@@ -154,13 +172,34 @@ export class AgentNodeLinks {
   }
 
   /**
+   * A query of the tree of `target`: here, or in the window that holds it — nothing where it is
+   * refused there, as one here is.
+   */
+  private async query(
+    target: Pick<Related, "id" | "pane">,
+    query: "uefi_at" | "uefi_tree",
+    values: { [key: string]: Json }
+  ): Promise<Json | undefined> {
+    if (target.pane !== undefined) return ask(target.pane, query, values);
+    const others = this.desk.others;
+    if (others === undefined) return undefined;
+    return others.ask(target.id, query, values).catch(() => undefined);
+  }
+
+  /**
    * The id of the innermost node of `pane` whose bytes are exactly `start..end`, or nothing
    * when its tree has none — a stretch of a part that its own tree reads differently.
    */
-  private async node(pane: PaneId, start: number, end: number): Promise<string | undefined> {
-    const state = paneState(pane);
-    if (state === undefined || start >= state.document.size) return undefined;
-    const chain = await ask(pane, "uefi_at", { offset: hex(start) });
+  private async node(
+    target: Pick<Related, "id" | "pane">,
+    start: number,
+    end: number
+  ): Promise<string | undefined> {
+    if (target.pane !== undefined) {
+      const state = paneState(target.pane);
+      if (state === undefined || start >= state.document.size) return undefined;
+    }
+    const chain = await this.query(target, "uefi_at", { offset: hex(start) });
     const items = isObject(chain) && Array.isArray(chain.chain) ? chain.chain : [];
     for (let at = items.length - 1; at >= 0; at--) {
       const item = items[at];
@@ -183,7 +222,8 @@ export class AgentNodeLinks {
  */
 interface Related {
   readonly id: string;
-  readonly pane: PaneId;
+  /** Its pane in this window; nothing for one another window holds, which is asked there. */
+  readonly pane: PaneId | undefined;
   /** The answer's addresses that are this document's too. */
   readonly covers: readonly [number, number];
   /** What to add to an address of the answer's document to get this one's. */
@@ -201,7 +241,7 @@ interface Related {
 }
 
 /** A block opened decoded, not one stored in the clear. */
-const decodes = (codec: PartCodec): boolean =>
+export const decodes = (codec: PartCodec): boolean =>
   codec instanceof LenovoDMIBlockCodec && codec.encodes;
 
 const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;

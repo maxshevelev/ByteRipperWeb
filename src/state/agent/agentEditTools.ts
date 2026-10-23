@@ -15,7 +15,7 @@ import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
 import { aDialogIsOpen, updateInParentQuietly, updateStepName } from "@/state/partUpdate";
 import { applyTransaction } from "@/state/toolEdits";
-import type { PartId } from "@/state/workspaceStore";
+import { revealElsewhere } from "@/state/workspace/parentLinks";
 import {
   type ToolTransaction,
   transactionProblemMessage,
@@ -290,7 +290,8 @@ export class AgentEditTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const pane = place.onScreen();
     const origin = place.state?.origin;
-    if (origin === undefined || place.slot !== "part") {
+    // A part let go on a pane is still a part: its link went with it.
+    if (origin === undefined) {
       throw new AgentToolError(
         `${place.named} is not a part, so it has no parent to go back into. ` +
           "`open_part` opens a part; `documents` lists which documents are parts."
@@ -302,7 +303,7 @@ export class AgentEditTools {
           '"Let agents edit open files". Say what you would put back instead.'
       );
     }
-    const parentId = origin.parent === undefined ? undefined : this.desk.placeOf(origin.parent)?.id;
+    const parentId = this.desk.parentIdOf(origin);
     const parentName = parentId ?? "the parent";
     if (aDialogIsOpen()) {
       throw new AgentToolError(
@@ -314,7 +315,7 @@ export class AgentEditTools {
     const sourceBefore = origin.sourceRange;
     const answer: { [key: string]: Json } = { document: place.id };
     if (parentId !== undefined) answer.parent = parentId;
-    const outcome = await updateInParentQuietly(pane as PartId, overwrite, anyway);
+    const outcome = await updateInParentQuietly(pane, overwrite, anyway);
     switch (outcome.kind) {
       case "unchanged":
         answer.updated = false;
@@ -364,8 +365,11 @@ export class AgentEditTools {
         // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination
         // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
         const [start, end] = origin.sourceRange;
+        // A parent another window shows is shown there, that window brought forward.
         if (origin.parent !== undefined) {
           await agentShell.reveal?.(origin.parent, start, end, true);
+        } else {
+          revealElsewhere(origin.parentSession, origin.sourceRange);
         }
         return answer;
       }
