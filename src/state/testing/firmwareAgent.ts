@@ -66,7 +66,8 @@ let workerCount = 0;
 let made: Promise<unknown> = Promise.resolve();
 
 /**
- * `firmware.worker.ts` behind the `Worker` interface the store uses: a module instance of its own
+ * `firmware.worker.ts` — or `me.worker.ts`, for the ME worker the store makes beside it — behind
+ * the `Worker` interface the store uses: a module instance of its own
  * (the query makes it one), its messages delivered in the order they were sent and its answers a
  * turn later, as a worker's are. A blob crosses as one whose bytes are held, which is all the
  * worker's `FileReaderSync` needs.
@@ -76,8 +77,9 @@ class InProcessWorker {
   private delivered: Promise<(data: unknown) => void>;
   private terminated = false;
 
-  constructor() {
+  constructor(url: URL | string) {
     workerCount += 1;
+    const module = String(url).includes("me.worker") ? "me.worker.ts" : "firmware.worker.ts";
     const instance = workerCount;
     const scope = {
       onmessage: undefined as ((event: { data: unknown }) => void) | undefined,
@@ -85,7 +87,7 @@ class InProcessWorker {
     };
     const making = made.then(async () => {
       (globalThis as { self?: unknown }).self = scope;
-      await import(/* @vite-ignore */ `../../workers/firmware.worker.ts?instance=${instance}`);
+      await import(/* @vite-ignore */ `../../workers/${module}?instance=${instance}`);
       return (data: unknown) => scope.onmessage?.({ data });
     });
     made = making;

@@ -564,16 +564,16 @@ export interface MeAnalyzeRequest {
   readonly id: JobId;
   readonly databaseText: string | undefined;
   /**
-   * `Huffman.dat`, likewise as text, for the checks that decompress a module. The
-   * panel fetches it only for an analysis that says it wants one.
+   * `Huffman.dat`, likewise as text, for the checks that decompress a module: only for an
+   * analysis that says it wants one (`textsFor`).
    */
   readonly huffmanText: string | undefined;
   /**
    * `FileTable.dat`, likewise as text, for the two splits that wait on it: an
    * FTBL volume's files from the Integrity table they end with, and an EFS
-   * volume's out of its data area. The panel fetches it only for a volume that
-   * cannot name its own files — the same table names its rows, and the store
-   * holds the parsed half for that.
+   * volume's out of its data area: only for a volume that cannot name its own
+   * files (`textsFor`) — the same table names its rows, and the store holds the
+   * parsed half for that.
    */
   readonly fileTableText: string | undefined;
 }
@@ -604,6 +604,28 @@ export interface MeChecksumsRequest {
   readonly kind: "meChecksums";
   readonly id: JobId;
 }
+
+/**
+ * The image the ME worker reads its region from: the blob the pane's tree is read from, handed
+ * over again whenever that one is replaced.
+ *
+ * @web-only the ME reading has a worker of its own (`me.worker.ts`)
+ */
+export interface MeOpenRequest {
+  readonly kind: "meOpen";
+  readonly content: Blob;
+}
+
+/** What the ME worker is asked. @web-only see {@link MeOpenRequest} */
+export type MeWorkerRequest =
+  | SpeakLanguageRequest
+  | MeOpenRequest
+  | MeAnalyzeRequest
+  | MeChecksumsRequest
+  | MeFileNamesRequest;
+
+/** What the ME worker answers. @web-only see {@link MeOpenRequest} */
+export type MeWorkerResponse = MeAnalyzeResponse | MeChecksumsResponse | MeFileNamesResponse;
 
 /**
  * The words the worker is to speak.
@@ -686,7 +708,6 @@ export type FirmwareWorkerRequest =
   | FirmwareHeldBytesRequest
   | FirmwareOpenRequest
   | SpeakLanguageRequest
-  | MeChecksumsRequest
   | FirmwareDetailRequest
   | FirmwareLayoutRequest
   | FirmwareSpaceBytesRequest
@@ -705,8 +726,6 @@ export type FirmwareWorkerRequest =
   | FirmwareRebuildRequest
   | FitReadRequest
   | FitEditRequest
-  | MeAnalyzeRequest
-  | MeFileNamesRequest
   | CancelRequest;
 
 /**
@@ -1170,9 +1189,6 @@ export interface MeChecksumsResponse {
 export type FirmwareWorkerResponse =
   | AgentUefiResponse
   | FirmwareHeldBytesResponse
-  | MeAnalyzeResponse
-  | MeFileNamesResponse
-  | MeChecksumsResponse
   | FitEditResponse
   | FitReportResponse
   | FirmwareRootsResponse

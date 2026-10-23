@@ -5,9 +5,9 @@ import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import { readyFirmware } from "@/state/firmwareReady";
 import { fileNamesPaneMe, readPaneMe } from "@/state/firmwareStore";
 import { huffmanDictionaryStore, loadHuffmanDictionaries } from "@/state/huffmanDictionaryStore";
+import { fixedMeData, settled } from "@/state/meData";
 import { loadMEDatabase, meDatabaseStore } from "@/state/meDatabaseStore";
 import type { PaneId } from "@/state/paneId";
-import type { Store } from "@/state/store";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
 import type { MeTexts } from "@/tools/meReads";
@@ -33,35 +33,12 @@ export interface MeAgentReading {
   readonly configPaths: ConfigRecordPaths;
 }
 
-/** Waits until a data file's store has settled, one way or the other. */
-function settled<T extends { readonly status: string }>(
-  store: Store<T>,
-  start: () => void
-): Promise<T> {
-  start();
-  return new Promise((resolve) => {
-    const done = () => {
-      const state = store.getSnapshot();
-      return state.status === "ready" || state.status === "failed";
-    };
-    if (done()) {
-      resolve(store.getSnapshot());
-      return;
-    }
-    const stop = store.subscribe(() => {
-      if (!done()) return;
-      stop();
-      resolve(store.getSnapshot());
-    });
-  });
-}
-
 /** @upstream Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.analysis */
 export async function meAgentReading(pane: PaneId): Promise<MeAgentReading> {
   await readyFirmware(pane);
   const database = (await settled(meDatabaseStore, () => loadMEDatabase())).text;
   let texts: MeTexts = { database, huffman: undefined, fileTable: undefined };
-  const first = await readPaneMe(pane, texts, false, () => undefined);
+  const first = await readPaneMe(pane, fixedMeData(texts), false, () => undefined);
   if (first === undefined) throw new AgentToolError("This document has no ME region to read.");
   if (first.response.analysis === undefined) {
     throw new AgentToolError(first.response.problem ?? "The ME region could not be analysed.");
@@ -73,7 +50,7 @@ export async function meAgentReading(pane: PaneId): Promise<MeAgentReading> {
     const huffman = (await settled(huffmanDictionaryStore, () => loadHuffmanDictionaries())).text;
     if (huffman !== undefined) {
       texts = { ...texts, huffman };
-      reading = (await readPaneMe(pane, texts, false, () => undefined)) ?? reading;
+      reading = (await readPaneMe(pane, fixedMeData(texts), false, () => undefined)) ?? reading;
     }
   }
   const analysis = reading.response.analysis ?? first.response.analysis;

@@ -5,6 +5,7 @@ import { Sub } from "@/firmware/uefi/uefiTypes";
 import { fileTableStore, loadFileTable } from "@/state/fileTableStore";
 import { checksumPaneMe, fileNamesPaneMe, readPaneMe } from "@/state/firmwareStore";
 import { huffmanDictionaryStore, loadHuffmanDictionaries } from "@/state/huffmanDictionaryStore";
+import { liveMeData, useMeDataReplaced } from "@/state/meData";
 import { loadMEDatabase, meDatabaseStore } from "@/state/meDatabaseStore";
 import { useStore } from "@/state/useStore";
 import type { PaneId } from "@/state/workspaceStore";
@@ -253,6 +254,7 @@ export function useMeSubtree(
   const shown = useRef<FirmwareAnalysis | undefined>(undefined);
 
   const databaseText = database.text;
+  const replaced = useMeDataReplaced();
   const huffmanText = huffman.text;
   const fileTableText = fileTable.body?.text;
 
@@ -262,18 +264,18 @@ export function useMeSubtree(
     if (wanted) loadMEDatabase();
   }, [wanted]);
 
-  // Read again when the image changes and when a data file lands: MEA.dat turns
-  // a structure into an identity, Huffman.dat and FileTable.dat let the modules
-  // be checked and the FTBL files named, and none of them must wait for a
-  // click. The tree is the content's own change signal — a byte edit hands a
+  // Read when the region is opened, and again when the image changes or a data
+  // file in hand is replaced by a newer one. The reading itself asks for every
+  // data file at once and waits for those it wants (`readMe`): MEA.dat before
+  // the first reading, Huffman.dat and FileTable.dat for the one that follows
+  // when the first wanted them — so a file landing is not a reason to start
+  // over. The tree is the content's own change signal — a byte edit hands a
   // fresh one (`firmwareInvalidate` drops and re-reads only what the edit
   // made stale) — so a region the edit touched is re-read without a click, and
   // a region it did not touch is answered from the pane rather than re-read.
   // The reading is the pane's — a second panel, or a re-open of this one, is
-  // answered from there rather than reading the region again. The ask crosses
-  // every data file it has: the pane's cache is keyed on all of them, so a
-  // reading made before one of them landed is not the answer to the question
-  // that now includes it.
+  // answered from there rather than reading the region again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `replaced` is a reason to read again, not something the body reads — the reading takes the files from their stores
   useEffect(() => {
     if (!wanted) return;
     if (!ready || uefiRoots === undefined) {
@@ -316,23 +318,20 @@ export function useMeSubtree(
     // replaces it. The row opens onto the first, and the reading goes on.
     //
     // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.runMEAnalysis
-    void readPaneMe(
-      pane,
-      { database: databaseText, huffman: huffmanText, fileTable: fileTableText },
-      shown.current === undefined,
-      (first) => {
-        if (job !== run.current) return;
-        // The row opens onto what is known, and the reading goes on behind it: the
-        // panel holds the row shut for as long as there is nothing to open it onto.
-        land(first);
-        setIsReading(false);
-      }
-    ).then((read) => {
+    void readPaneMe(pane, liveMeData, shown.current === undefined, (first) => {
+      if (job !== run.current) return;
+      // The row opens onto what is known, and the reading goes on behind it: the
+      // panel holds the row shut for as long as there is nothing to open it onto.
+      land(first);
+      setIsReading(false);
+    }).then((read) => {
       if (job !== run.current) return;
       setIsReading(false);
       if (read !== undefined) land(read);
     });
-  }, [wanted, ready, uefiRoots, pane, databaseText, huffmanText, fileTableText]);
+    // A data file replaced by a newer one is read again with; its first landing is not — the
+    // reading waits for the files it wants rather than starting over as each one comes.
+  }, [wanted, ready, uefiRoots, pane, replaced]);
 
   // Huffman.dat only for an analysis that has something to decompress with it,
   // the way the ME Analyzer fetches it and no other: most dumps never ask, and

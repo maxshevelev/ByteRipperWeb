@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { CodePartition } from "@/firmware/me/models/firmwareAnalysis";
 import { analysisWith, efsVolumeFixture } from "@/tools/meaTesting";
-import { type MeAsks, type MeReading, type MeTexts, pendingOf, readMe } from "@/tools/meReads";
+import {
+  type MeAsks,
+  type MeData,
+  type MeReading,
+  type MeTexts,
+  pendingOf,
+  readMe,
+  textsFor,
+} from "@/tools/meReads";
 import type { MeAnalyzeResponse } from "@/workers/protocol";
 
 /** Ported from upstream's `MEReadsTests` — which database a reading is pending on. */
@@ -69,13 +77,36 @@ const response = (analysis = analysisWith(), problem?: string): MeAnalyzeRespons
 
 const texts: MeTexts = { database: "db", huffman: "huffman", fileTable: undefined };
 
+/** The files as `texts` has them, every one already landed; what was waited for is recorded. */
+function dataOf(files: MeTexts, held: MeTexts = files) {
+  const waited: string[] = [];
+  const data: MeData = {
+    prefetch: () => waited.push("prefetch"),
+    held: () => held,
+    database: async () => {
+      waited.push("database");
+      return files.database;
+    },
+    huffman: async () => {
+      waited.push("huffman");
+      return files.huffman;
+    },
+    fileTable: async () => {
+      waited.push("fileTable");
+      return files.fileTable;
+    },
+    failed: () => ({ fileTable: false, huffman: false }),
+  };
+  return { data, waited };
+}
+
 describe("reading the region", () => {
   // @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.read
   it("shows a first reading made without the dictionaries, then reads with them", async () => {
     const wanting = response(analysisWith({ codePartition: huffmanPartition() }));
     const { asked, result } = asks(() => wanting);
     const shown: MeReading[] = [];
-    const last = await readMe(result, texts, true, (first) => shown.push(first));
+    const last = await readMe(result, dataOf(texts).data, true, (first) => shown.push(first));
     expect(asked.map((one) => one.huffman)).toEqual([undefined, "huffman"]);
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ usedHuffman: false });
@@ -85,7 +116,7 @@ describe("reading the region", () => {
   it("is done with the first reading when nothing wants the dictionaries", async () => {
     const { asked, result } = asks(() => response());
     const shown: MeReading[] = [];
-    const last = await readMe(result, texts, true, (first) => shown.push(first));
+    const last = await readMe(result, dataOf(texts).data, true, (first) => shown.push(first));
     expect(asked).toHaveLength(1);
     expect(shown).toEqual([]);
     expect(last?.response.analysis).toBeDefined();
@@ -93,7 +124,7 @@ describe("reading the region", () => {
 
   it("does not read again what failed the first time", async () => {
     const { asked, result } = asks(() => response(undefined, "The ME region could not be read."));
-    const last = await readMe(result, texts, true, () => {});
+    const last = await readMe(result, dataOf(texts).data, true, () => {});
     expect(asked).toHaveLength(1);
     expect(last?.response.problem).toBe("The ME region could not be read.");
   });
@@ -103,7 +134,7 @@ describe("reading the region", () => {
       response(analysisWith({ codePartition: huffmanPartition() }))
     );
     const shown: MeReading[] = [];
-    await readMe(result, texts, false, (first) => shown.push(first));
+    await readMe(result, dataOf(texts).data, false, (first) => shown.push(first));
     expect(asked).toEqual([texts]);
     expect(shown).toEqual([]);
   });
@@ -111,13 +142,55 @@ describe("reading the region", () => {
   it("answers what the pane holds without reading anything", async () => {
     const held = response();
     const { asked, result } = asks(() => response(), held);
-    const last = await readMe(result, texts, true, () => {});
+    const last = await readMe(result, dataOf(texts).data, true, () => {});
     expect(asked).toEqual([]);
     expect(last?.response).toBe(held);
   });
 
   it("has nothing to say when the pane has no image", async () => {
     const result: MeAsks = { ask: () => Promise.resolve(undefined), held: () => undefined };
-    expect(await readMe(result, texts, true, () => {})).toBeUndefined();
+    expect(await readMe(result, dataOf(texts).data, true, () => {})).toBeUndefined();
+  });
+});
+
+describe("waiting for the data files", () => {
+  // @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.firstReading
+  it("asks for every file at once, and makes the first reading once the database is in", async () => {
+    const { asked, result } = asks(() => response());
+    const { data, waited } = dataOf(texts, {
+      database: undefined,
+      huffman: undefined,
+      fileTable: undefined,
+    });
+    await readMe(result, data, true, () => {});
+    expect(waited).toEqual(["prefetch", "database"]);
+    expect(asked).toEqual([{ database: "db", huffman: undefined, fileTable: undefined }]);
+  });
+
+  it("waits, for the reading in full, only for what the first one wanted", async () => {
+    const wanting = response(analysisWith({ codePartition: huffmanPartition() }));
+    const { asked, result } = asks(() => wanting);
+    const { data, waited } = dataOf(
+      { ...texts, fileTable: "table" },
+      { database: "db", huffman: undefined, fileTable: undefined }
+    );
+    await readMe(result, data, true, () => {});
+    expect(waited).toEqual(["prefetch", "database", "huffman"]);
+    expect(asked.at(-1)).toEqual({ database: "db", huffman: "huffman", fileTable: undefined });
+  });
+});
+
+describe("what tells two readings apart", () => {
+  it("is the database, and a dictionary or the table only where the analysis reads with it", () => {
+    const all = { database: "db", huffman: "huffman", fileTable: "table" };
+    expect(textsFor(analysisWith(), all)).toEqual({
+      database: "db",
+      huffman: undefined,
+      fileTable: undefined,
+    });
+    expect(textsFor(analysisWith({ codePartition: huffmanPartition() }), all).huffman).toBe(
+      "huffman"
+    );
+    expect(textsFor(analysisWith({ efsVolume: efsVolumeFixture() }), all).fileTable).toBe("table");
   });
 });

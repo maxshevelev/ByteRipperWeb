@@ -29,6 +29,43 @@ export interface MeTexts {
   readonly fileTable: string | undefined;
 }
 
+/**
+ * The data files as a reading reaches them: asked for all at once, each waited for when it is
+ * needed, and what has landed so far.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEADownloads
+ */
+export interface MeData {
+  /** Every file a reading may ask for starts downloading, side by side. */
+  readonly prefetch: () => void;
+  /** What has landed so far. */
+  readonly held: () => MeTexts;
+  /** Each file once it has landed or failed: undefined for one that cannot be had. */
+  readonly database: () => Promise<string | undefined>;
+  readonly huffman: () => Promise<string | undefined>;
+  readonly fileTable: () => Promise<string | undefined>;
+  /** Which files could not be downloaded, so a reading does not stand waiting for them. */
+  readonly failed: () => { readonly fileTable: boolean; readonly huffman: boolean };
+}
+
+/**
+ * The texts an analysis is told apart by: the database always, and a dictionary or the file
+ * table only when the analysis has something to read with it. A reading made without
+ * `Huffman.dat` of an image with no Huffman module is the reading with it too, so a file that
+ * lands later, or one the asker happens to hold, does not make it a different question.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.huffmanDictionariesWanted
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.fileTableWanted
+ */
+export function textsFor(analysis: FirmwareAnalysis | undefined, texts: MeTexts): MeTexts {
+  return {
+    database: texts.database,
+    huffman:
+      analysis !== undefined && huffmanDictionariesWanted(analysis) ? texts.huffman : undefined,
+    fileTable: analysis !== undefined && fileTableWanted(analysis) ? texts.fileTable : undefined,
+  };
+}
+
 /** An analysis, and which databases it was read with. */
 export interface MeReading {
   readonly response: MeAnalyzeResponse;
@@ -73,37 +110,54 @@ export function pendingOf(
 /**
  * Reads the region.
  *
- * With `quick` — nothing is on screen yet — a reading that is not already held is
- * made first without `Huffman.dat` and handed to `shown` when an analysis wants it, and
- * the one with it follows. Without `quick` the panel has an analysis up, which stays
- * until the one asked for lands. What the pane already holds is answered without
- * reading anything.
+ * Every data file starts downloading at once (`MeData.prefetch`). With `quick` — nothing is on
+ * screen yet — a first reading follows as soon as the database is in, with the file table if it
+ * is already held and without the dictionaries: when it went without nothing it wanted, it is
+ * the reading; otherwise it goes to `shown`, and one reading follows with what it wanted, waited
+ * for. Without `quick` the panel has an analysis up, which stays until the one asked for lands.
+ * What the pane already holds is answered without reading anything.
  *
- * Resolves with the reading to keep: the last one, or nothing when the pane has no
- * image to read.
+ * At most two readings, then, where reading again as each file landed made four — each a full
+ * pass over the region, the dictionaries' most of all.
+ *
+ * Resolves with the reading to keep: the last one, or nothing when the pane has no image to read.
  *
  * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.read
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.firstReading
  */
 export async function readMe(
   asks: MeAsks,
-  texts: MeTexts,
+  data: MeData,
   quick: boolean,
   shown: (first: MeReading) => void
 ): Promise<MeReading | undefined> {
-  const wholeHeld = asks.held(texts);
-  if (wholeHeld !== undefined) return reading(wholeHeld, texts);
-  if (quick && texts.huffman !== undefined) {
-    const first = { ...texts, huffman: undefined };
-    const answer = await asks.ask(first);
-    if (answer === undefined) return undefined;
-    // The bytes or `MEA.dat` failed it, and the reading with the dictionaries needs both:
-    // it would fail the same way, after a second wait. And an image that has nothing to
-    // check with them is read in full already.
-    if (answer.analysis === undefined || !huffmanDictionariesWanted(answer.analysis)) {
-      return reading(answer, first);
-    }
-    shown(reading(answer, first));
+  data.prefetch();
+  const wholeHeld = asks.held(data.held());
+  if (wholeHeld !== undefined) return reading(wholeHeld, data.held());
+  const database = await data.database();
+  if (!quick) {
+    const texts = {
+      database,
+      huffman: await data.huffman(),
+      fileTable: await data.fileTable(),
+    };
+    const answer = await asks.ask(texts);
+    return answer === undefined ? undefined : reading(answer, texts);
   }
-  const answer = await asks.ask(texts);
-  return answer === undefined ? undefined : reading(answer, texts);
+  const first: MeTexts = { database, huffman: undefined, fileTable: data.held().fileTable };
+  const answer = await asks.ask(first);
+  if (answer === undefined) return undefined;
+  // The bytes or `MEA.dat` failed it, and the reading with the rest needs both: it would fail the
+  // same way, after a second wait. And an image that has nothing more to read with is read in full.
+  if (answer.analysis === undefined) return reading(answer, first);
+  const missing = pendingOf(answer.analysis, reading(answer, first), data.failed());
+  if (!missing.huffman && !missing.fileTable) return reading(answer, first);
+  shown(reading(answer, first));
+  const full: MeTexts = {
+    database,
+    huffman: missing.huffman ? await data.huffman() : undefined,
+    fileTable: missing.fileTable ? await data.fileTable() : first.fileTable,
+  };
+  const whole = await asks.ask(full);
+  return whole === undefined ? undefined : reading(whole, full);
 }

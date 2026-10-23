@@ -20,6 +20,7 @@ import {
   loadHuffmanDictionaries,
 } from "@/state/huffmanDictionaryStore";
 import { toggleLargeDetail, useLargeDetailOf } from "@/state/largeDetailStore";
+import { liveMeData, useMeDataReplaced } from "@/state/meData";
 import {
   cancelMEDatabase,
   loadMEDatabase,
@@ -312,7 +313,9 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const databaseText = database.text;
   const huffmanText = huffman.text;
   const fileTableText = fileTable.body?.text;
+  const replaced = useMeDataReplaced();
   /** @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onRetry */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `replaced` is a reason to read again, not something the body reads — the reading takes the files from their stores
   const analyze = useCallback(() => {
     const job = ++request.current;
     setBusy(true);
@@ -341,19 +344,16 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     // The first reading of a file is made without the dictionaries and shown at once —
     // they are most of an analysis — and the one with them replaces it. An analysis
     // already on screen stays until the one asked for lands.
-    void readPaneMe(
-      pane,
-      { database: databaseText, huffman: huffmanText, fileTable: fileTableText },
-      shown.current === undefined,
-      (first) => {
-        if (job === request.current) land(first);
-      }
-    ).then((read) => {
+    void readPaneMe(pane, liveMeData, shown.current === undefined, (first) => {
+      if (job === request.current) land(first);
+    }).then((read) => {
       if (job !== request.current) return;
       setBusy(false);
       if (read !== undefined) land(read);
     });
-  }, [pane, databaseText, huffmanText, fileTableText]);
+    // A data file replaced by a newer one is read again with (`useMeDataReplaced`); its first
+    // landing is not — the reading waits for what it wants.
+  }, [pane, replaced]);
 
   // Read again when the image changes and when a database lands: MEA.dat turns a
   // structure into an identity, Huffman.dat lets the modules be checked, and

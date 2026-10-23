@@ -15,7 +15,7 @@ import { type PaneId, paneState } from "@/state/workspaceStore";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { changeOfOperations, mergedWith, type ToolContentChange } from "@/tools/contentChange";
 import { EFSFileNames } from "@/tools/efsFileNames";
-import { type MeReading, type MeTexts, readMe } from "@/tools/meReads";
+import { type MeData, type MeReading, readMe, textsFor } from "@/tools/meReads";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { dvarSettingsFromWire } from "@/workers/dvarWire";
 import type {
@@ -29,9 +29,15 @@ import type {
   FirmwareWorkerResponse,
   FitEditRequest,
   FitEditResponse,
+  JobId,
+  MeAnalyzeRequest,
   MeAnalyzeResponse,
+  MeChecksumsRequest,
   MeChecksumsResponse,
+  MeFileNamesRequest,
   MeFileNamesResponse,
+  MeWorkerRequest,
+  MeWorkerResponse,
   WireDiagnostic,
   WireNode,
 } from "@/workers/protocol";
@@ -165,9 +171,98 @@ interface PaneWorker {
    * kind*, rather than by any ask at all.
    */
   readonly latest: Map<string, number>;
+  /** The image the tree is being read from: what the ME worker is handed too. */
+  content: Blob | undefined;
 }
 
 const workers: Partial<Record<PaneId, PaneWorker>> = {};
+
+/**
+ * A pane's ME worker (`me.worker.ts`): the region read, digested and its files named beside the
+ * tree's worker, so a branch opened while an analysis runs is not kept waiting for it. Handed the
+ * very blob the tree is read from, and nothing else — it builds no tree.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.analyze
+ * @upstream-differs a worker of its own where upstream runs a detached task
+ */
+interface PaneMeWorker {
+  readonly worker: Worker;
+  /** The job of each kind's latest ask, as the tree's worker keeps it (`latest`). */
+  readonly latest: Map<string, number>;
+  /** The blob it was last handed. */
+  content: Blob | undefined;
+}
+
+const meWorkers: Partial<Record<PaneId, PaneMeWorker>> = {};
+
+/** The ME asks' jobs: their own count, shared by every pane. */
+let meJob = 0;
+
+function ensureMeWorker(pane: PaneId): PaneMeWorker {
+  const existing = meWorkers[pane];
+  if (existing !== undefined) return existing;
+  const worker = new Worker(new URL("../workers/me.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  const held: PaneMeWorker = { worker, latest: new Map(), content: undefined };
+  worker.postMessage({ kind: "speakLanguage", catalogue: currentCatalogue() });
+  worker.addEventListener("message", (event: MessageEvent<MeWorkerResponse>) =>
+    meAnswered(pane, held, event.data)
+  );
+  meWorkers[pane] = held;
+  return held;
+}
+
+/** An ME ask, under a job of its own kind, with the pane's image first when the worker lacks it. */
+function askMeWorker(
+  pane: PaneId,
+  request:
+    | Omit<MeAnalyzeRequest, "id">
+    | Omit<MeChecksumsRequest, "id">
+    | Omit<MeFileNamesRequest, "id">
+): void {
+  const held = ensureMeWorker(pane);
+  const content = workers[pane]?.content;
+  if (content !== undefined && content !== held.content) {
+    held.content = content;
+    held.worker.postMessage({ kind: "meOpen", content });
+  }
+  meJob += 1;
+  held.latest.set(request.kind, meJob);
+  held.worker.postMessage({ ...request, id: meJob as JobId } as MeWorkerRequest);
+}
+
+/** What the ME worker found, taken up when it answers the latest ask of its kind. */
+function meAnswered(pane: PaneId, held: PaneMeWorker, response: MeWorkerResponse): void {
+  if (meWorkers[pane] !== held || held.latest.get(response.kind) !== response.id) return;
+  switch (response.kind) {
+    case "meAnalyze": {
+      meWaiters.get(pane)?.(response);
+      meWaiters.delete(pane);
+      return;
+    }
+    case "meChecksums": {
+      checksumWaiters.get(pane)?.(response);
+      checksumWaiters.delete(pane);
+      return;
+    }
+    case "meFileNames": {
+      // The three name tables are values with behaviour, and a structured
+      // clone carries only their fields: what arrives has the right shape and
+      // none of the methods the rows call. They are put back together here,
+      // at the boundary, rather than by every panel that asks.
+      meFileNamesWaiters.get(pane)?.({
+        ...response,
+        mfs: response.mfs === undefined ? undefined : MFSFileNames.received(response.mfs),
+        efs: response.efs === undefined ? undefined : EFSFileNames.received(response.efs),
+        config:
+          response.config === undefined ? undefined : ConfigRecordPaths.received(response.config),
+      });
+      meFileNamesWaiters.delete(pane);
+      return;
+    }
+  }
+}
 
 /**
  * Hands the worker the words it names nodes with.
@@ -185,6 +280,9 @@ function teachLanguage(held: PaneWorker): void {
 }
 
 languageStore.subscribe(() => {
+  for (const held of Object.values(meWorkers)) {
+    held?.worker.postMessage({ kind: "speakLanguage", catalogue: currentCatalogue() });
+  }
   for (const [pane, held] of Object.entries(workers)) {
     if (held === undefined) continue;
     teachLanguage(held);
@@ -201,7 +299,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
   const worker = new Worker(new URL("../workers/firmware.worker.ts", import.meta.url), {
     type: "module",
   });
-  const held: PaneWorker = { worker, job: 0, tree: 0, latest: new Map() };
+  const held: PaneWorker = { worker, job: 0, tree: 0, latest: new Map(), content: undefined };
   teachLanguage(held);
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
@@ -289,31 +387,6 @@ function ensureWorker(pane: PaneId): PaneWorker {
         });
         offsetWaiters.get(pane)?.(response.path);
         offsetWaiters.delete(pane);
-        return;
-      }
-      case "meAnalyze": {
-        meWaiters.get(pane)?.(response);
-        meWaiters.delete(pane);
-        return;
-      }
-      case "meChecksums": {
-        checksumWaiters.get(pane)?.(response);
-        checksumWaiters.delete(pane);
-        return;
-      }
-      case "meFileNames": {
-        // The three name tables are values with behaviour, and a structured
-        // clone carries only their fields: what arrives has the right shape and
-        // none of the methods the rows call. They are put back together here,
-        // at the boundary, rather than by every panel that asks.
-        meFileNamesWaiters.get(pane)?.({
-          ...response,
-          mfs: response.mfs === undefined ? undefined : MFSFileNames.received(response.mfs),
-          efs: response.efs === undefined ? undefined : EFSFileNames.received(response.efs),
-          config:
-            response.config === undefined ? undefined : ConfigRecordPaths.received(response.config),
-        });
-        meFileNamesWaiters.delete(pane);
         return;
       }
       case "fitEdit": {
@@ -434,6 +507,7 @@ function dropAsks(pane: PaneId, failure?: { readonly id: number; readonly proble
   // which is the stale-session guard, and it only holds while nothing still
   // calls itself the freshest of its kind.
   workers[pane]?.latest.clear();
+  meWorkers[pane]?.latest.clear();
   fitWaiters.get(pane)?.(undefined);
   fitWaiters.delete(pane);
   spaceBytesWaiters.get(pane)?.(undefined);
@@ -493,6 +567,7 @@ export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayou
   const held = ensureWorker(pane);
   held.job += 1;
   held.tree = held.job;
+  held.content = content;
   // The job this bump supersedes may have been somebody's question; its reply
   // is dropped on arrival, so the asker is told now rather than left waiting.
   dropAsks(pane);
@@ -825,7 +900,7 @@ async function askHelper(
     });
     helper = { worker, job: held.tree };
     helpers[pane] = helper;
-    teachLanguage({ worker, job: 0, tree: 0, latest: new Map() });
+    teachLanguage({ worker, job: 0, tree: 0, latest: new Map(), content: undefined });
     worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) =>
       helperAnswered(pane, helper as Helper, event.data)
     );
@@ -1360,10 +1435,19 @@ export function heldPaneMe(
   fileTableText: string | undefined
 ): MeAnalyzeResponse | undefined {
   const cached = meAnalysisCache.get(pane);
-  return cached?.generation === contentGenerationOf(pane) &&
-    cached.database === databaseText &&
-    cached.huffman === huffmanText &&
-    cached.fileTable === fileTableText
+  if (cached?.generation !== contentGenerationOf(pane)) return undefined;
+  // Told apart by what the analysis reads with: a file it has no use for, landed since or held by
+  // the asker, does not make it another question (`textsFor`).
+  const analysis = cached.response.analysis;
+  const asked = textsFor(analysis, {
+    database: databaseText,
+    huffman: huffmanText,
+    fileTable: fileTableText,
+  });
+  const had = textsFor(analysis, cached);
+  return asked.database === had.database &&
+    asked.huffman === had.huffman &&
+    asked.fileTable === had.fileTable
     ? cached.response
     : undefined;
 }
@@ -1415,9 +1499,8 @@ export function analyzePaneMe(
     // A second ask supersedes the first, which is then told nothing was analysed.
     meWaiters.get(pane)?.(undefined);
     meWaiters.set(pane, resolve);
-    send(pane, {
+    askMeWorker(pane, {
       kind: "meAnalyze",
-      id: nextAskJob(pane, "meAnalyze"),
       databaseText,
       huffmanText,
       fileTableText,
@@ -1455,7 +1538,7 @@ export function analyzePaneMe(
  */
 export function readPaneMe(
   pane: PaneId,
-  texts: MeTexts,
+  data: MeData,
   quick: boolean,
   shown: (first: MeReading) => void
 ): Promise<MeReading | undefined> {
@@ -1464,7 +1547,7 @@ export function readPaneMe(
       ask: (one) => analyzePaneMe(pane, one.database, one.huffman, one.fileTable),
       held: (one) => heldPaneMe(pane, one.database, one.huffman, one.fileTable),
     },
-    texts,
+    data,
     quick,
     shown
   );
@@ -1495,7 +1578,7 @@ export function checksumPaneMe(pane: PaneId): Promise<MeChecksumsResponse | unde
   const promise = new Promise<MeChecksumsResponse | undefined>((resolve) => {
     checksumWaiters.get(pane)?.(undefined);
     checksumWaiters.set(pane, resolve);
-    send(pane, { kind: "meChecksums", id: nextAskJob(pane, "meChecksums") });
+    askMeWorker(pane, { kind: "meChecksums" });
   }).then((response) => {
     if (meChecksumsInFlight.get(pane)?.promise === promise) meChecksumsInFlight.delete(pane);
     if (response !== undefined && contentGenerationOf(pane) === generation) {
@@ -1613,9 +1696,8 @@ export function fileNamesPaneMe(
     // A second ask supersedes the first, which is then told nothing was named.
     meFileNamesWaiters.get(pane)?.(undefined);
     meFileNamesWaiters.set(pane, resolve);
-    send(pane, {
+    askMeWorker(pane, {
       kind: "meFileNames",
-      id: nextAskJob(pane, "meFileNames"),
       mfs: options.mfs,
       efs: options.efs,
       configIDs: options.configIDs,
@@ -1816,6 +1898,7 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
   // about — the stale-session guard.
   held.job += 1;
   held.tree = held.job;
+  held.content = content;
   // Nothing that was being read is being read against this tree any more —
   // including the one-at-a-time asks, whose replies this bump drops.
   dropAsks(pane);
@@ -1837,8 +1920,10 @@ export function closeFirmware(pane: PaneId): void {
   delete heldBytesKnown[pane];
   workers[pane]?.worker.terminate();
   helpers[pane]?.worker.terminate();
+  meWorkers[pane]?.worker.terminate();
   delete helpers[pane];
   delete workers[pane];
+  delete meWorkers[pane];
   forgetMeAnalysis(pane);
   forgetFitTable(pane);
   firmwareStore.update((state) => ({ panes: { ...state.panes, [pane]: undefined } }));

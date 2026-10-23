@@ -11,6 +11,8 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
+import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
+import { analysisWith, efsVolumeFixture } from "@/tools/meaTesting";
 import type { FirmwareWorkerRequest, JobId } from "@/workers/protocol";
 
 let posted: FirmwareWorkerRequest[] = [];
@@ -68,17 +70,32 @@ function answerFileNames(): void {
 }
 
 /** Answers the ME ask that is outstanding, as the worker would. */
-function answerAnalysis(): void {
+function answerAnalysis(analysis?: FirmwareAnalysis): void {
   const ask = sent("meAnalyze").at(-1);
   if (ask === undefined) throw new Error("an analysis should have been asked for");
   reply({
     kind: "meAnalyze",
     id: ask.id,
     regionOffset: 0x1000,
-    analysis: undefined,
-    problem: "no ME region",
+    analysis,
+    problem: analysis === undefined ? "no ME region" : undefined,
   });
 }
+
+/** An analysis with a Huffman module to check, which the dictionaries read more of. */
+const wantingDictionaries = (): FirmwareAnalysis =>
+  analysisWith({
+    codePartition: {
+      name: "FTPR",
+      offset: 0x1000,
+      headerVersion: 2,
+      headerLength: 0x14,
+      numModules: 1,
+      checksumValid: true,
+      modules: [{ name: "pm", offset: 0x100, size: 0x100, isHuffman: true }],
+      extensions: [],
+    },
+  });
 
 /** The pane, with a tree the worker has answered for: asks go out only then. */
 function readyPane(): void {
@@ -206,7 +223,7 @@ describe("the pane's ME analysis", () => {
   // them. Same for the FileTable, which changes which files an FTBL volume reads.
   it("is read again when the Huffman dictionaries land", async () => {
     const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
-    answerAnalysis();
+    answerAnalysis(wantingDictionaries());
     await first;
 
     void analyzePaneMe("a", "MEA.dat", "Huffman.dat", undefined);
@@ -215,11 +232,24 @@ describe("the pane's ME analysis", () => {
 
   it("is read again when the FileTable lands", async () => {
     const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
-    answerAnalysis();
+    answerAnalysis(analysisWith({ efsVolume: efsVolumeFixture() }));
     await first;
 
     void analyzePaneMe("a", "MEA.dat", undefined, "FileTable.dat");
     expect(sent("meAnalyze")).toHaveLength(2);
+  });
+
+  // But a file the analysis has nothing to read with is no new question: an image with no
+  // Huffman module and no FTBL volume is the same reading with them as without, and asking it
+  // again with them — the files are fetched side by side, so they land anyway — read the whole
+  // region again for nothing.
+  it("is not read again for a data file the analysis has no use for", async () => {
+    const first = analyzePaneMe("a", "MEA.dat", undefined, undefined);
+    answerAnalysis(analysisWith());
+    await first;
+
+    await analyzePaneMe("a", "MEA.dat", "Huffman.dat", "FileTable.dat");
+    expect(sent("meAnalyze")).toHaveLength(1);
   });
 
   // And the re-read, once it has landed, is the answer the second panel is
