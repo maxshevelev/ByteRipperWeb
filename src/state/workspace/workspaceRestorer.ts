@@ -9,6 +9,7 @@ import {
   type KeptJoin,
   type NotesState,
   type PaneState,
+  type PartOrigin,
   paneRestore,
   type RestoreIssue,
   type SegmentationState,
@@ -28,6 +29,8 @@ import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { operate, type RecordedActData } from "@/platform/sessions/sessionOperations";
 import { BYTES_PER_ROW } from "@/render/hexGrid/hexLayout";
 import { restoreAnnotations, selectAnnotations } from "@/state/agent/agentAnnotationStore";
+import { DocumentOrigin } from "@/state/documentOrigin";
+import { documentPartReader } from "@/state/documentPartReader";
 import { setMinimapMode, setMinimapVisible } from "@/state/minimapStore";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
@@ -48,8 +51,10 @@ import { settingsStore } from "@/state/settingsStore";
 import { createStore } from "@/state/store";
 import { activate } from "@/state/toolController";
 import { fileSha256 } from "@/state/workspace/fileDigest";
+import { openLinkElsewhere, paneNamed, parentLinkHost } from "@/state/workspace/parentLinks";
 import { codecOf, type PartCodecState } from "@/state/workspace/partCodecState";
 import { enterProject } from "@/state/workspace/projects";
+import { workspaceId } from "@/state/workspace/workspaceIdentity";
 import {
   currentKeeper,
   keepWaitingWorkspace,
@@ -72,6 +77,7 @@ import {
   reportAlert,
   restoreJoinMarks,
   setActivePane,
+  setPaneOrigin,
   setSplitFraction,
   workspaceStore,
 } from "@/state/workspaceStore";
@@ -194,7 +200,7 @@ let waiting:
  */
 export function restoreWorkspace(): Promise<void> {
   // Once a page: the window coming up twice — React's strict mode does it — restores once.
-  restoring ??= restoreOnce();
+  restoring ??= restoreOnce().finally(settleRestore);
   return restoring;
 }
 
@@ -355,9 +361,15 @@ export async function restoreFrom(
 
     const issues: RestoreIssue[] = [];
     const opened: { slot: SlotId; saved: PaneState; unchanged: boolean }[] = [];
+    const partSlots: { slot: SlotId; saved: PaneState; origin: PartOrigin }[] = [];
     for (const [index, saved] of tab.panes.entries()) {
       const slot = PANE_IDS[index];
       if (saved === undefined || slot === undefined) continue;
+      // A part let go on a pane waits for the pane it came out of.
+      if (saved.document.kind === "part") {
+        partSlots.push({ slot, saved, origin: saved.document.part });
+        continue;
+      }
       // A document never saved: its bytes, from beside the workspace, still unsaved.
       // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceDocument
       if (saved.document.kind === "untitled") {
@@ -408,6 +420,13 @@ export async function restoreFrom(
       }
       opened.push({ slot, saved, unchanged });
     }
+    for (const one of opened) noteRestored(one.saved.id, one.slot, one.unchanged);
+    for (const { slot, saved, origin } of partSlots) {
+      const unchanged = await restorePartSlot(slot, origin, opened, issues, keeper, record);
+      if (unchanged === undefined) continue;
+      opened.push({ slot, saved, unchanged });
+      noteRestored(saved.id, slot, unchanged);
+    }
     const active = PANE_IDS[tab.activePane];
     if (active !== undefined && paneState(active) !== undefined) setActivePane(active);
     // The divider where it was, in a comparison that came back as one.
@@ -438,6 +457,198 @@ export async function restoreFrom(
     pauseWorkspaceRecorder(false);
   }
 }
+
+/**
+ * A part let go on a pane, put back there: taken out of its parent again — the other pane, or a
+ * pane of another window — with the changes it held laid over it; with no parent to come out of,
+ * its changes as bytes with no way home, or reported when it had none. Whether it holds the bytes
+ * it was written with, or nothing when nothing came back.
+ *
+ * @upstream ByteRipperApp/Workspace/WorkspaceRestorer.swift#WorkspaceRestorer.openParts
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspacePart
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspaceOrphan
+ */
+async function restorePartSlot(
+  slot: SlotId,
+  origin: PartOrigin,
+  opened: readonly { slot: SlotId; saved: PaneState; unchanged: boolean }[],
+  issues: RestoreIssue[],
+  keeper: KeptContentClient | undefined,
+  record: WorkspaceRecord
+): Promise<boolean | undefined> {
+  const id = ownPaneId(origin.parent);
+  const parent = opened.find((one) => one.saved.id === id);
+  const linked =
+    parent === undefined
+      ? await linkElsewhere(origin)
+      : parent.unchanged
+        ? await linkHere(origin, parent.slot)
+        : undefined;
+  const edits = origin.edits;
+  if (linked !== undefined) {
+    await openKeptUntitledInPane(slot, new Blob([linked.bytes.slice()]), origin.name, false);
+    setPaneOrigin(slot, linked.link);
+    if (edits !== undefined) {
+      const bytes = await keeper?.bytesOf(edits.content).catch(() => undefined);
+      if (bytes !== undefined) {
+        await layOver(slot, bytes);
+        await adoptKept(slot, edits.content, origin.name, true, keeper, record);
+      } else issues.push({ kind: "keptUnreadable", name: origin.name });
+    }
+    return true;
+  }
+  // No way home: its own changes come back as bytes of their own, or nothing does.
+  const bytes =
+    edits === undefined ? undefined : await keeper?.bytesOf(edits.content).catch(() => undefined);
+  if (bytes === undefined || edits === undefined) {
+    issues.push({ kind: "missing", name: origin.name });
+    return undefined;
+  }
+  await openKeptUntitledInPane(slot, new Blob([bytes.slice()]), origin.name, true);
+  await adoptKept(slot, edits.content, origin.name, true, keeper, record);
+  return parent?.unchanged ?? true;
+}
+
+/**
+ * A part's bytes and its link, taken out of `parent` of this window as the workspace wrote them.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspacePart
+ */
+async function linkHere(
+  origin: PartOrigin,
+  parent: PaneId
+): Promise<{ readonly bytes: Uint8Array; readonly link: DocumentOrigin } | undefined> {
+  const state = parsed<PartCodecState>(origin.codec);
+  const held = paneState(parent);
+  if (state === undefined || held === undefined) return undefined;
+  const source: readonly [number, number] = [origin.sourceStart, origin.sourceEnd];
+  const codec = codecOf(state, parent);
+  let bytes: Uint8Array;
+  try {
+    bytes = await codec.decode({
+      content: documentPartReader(held.document),
+      source,
+      name: held.name,
+      partName: origin.name,
+    });
+  } catch {
+    return undefined;
+  }
+  const layout = parsed<UEFIRootLayout>(origin.layout);
+  const link = await DocumentOrigin.of({
+    parent,
+    source,
+    partName: origin.name,
+    codec,
+    ...(layout === undefined ? {} : { layout }),
+    content: bytes,
+  });
+  return link === undefined ? undefined : { bytes, link };
+}
+
+/**
+ * A part's bytes and its link, taken out of a pane of another window by that window, once it has
+ * put the pane back: what upstream's one restore over every window does in place.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.openWorkspacePart
+ * @upstream-differs the parent's window decodes the part and hands over its bytes and its
+ * session's name: each window here restores its own record
+ */
+async function linkElsewhere(
+  origin: PartOrigin
+): Promise<{ readonly bytes: Uint8Array; readonly link: DocumentOrigin } | undefined> {
+  const named = paneNamed(origin.parent);
+  const state = parsed<PartCodecState>(origin.codec);
+  if (named.workspace === undefined || origin.codec === undefined || state === undefined) {
+    return undefined;
+  }
+  const source: readonly [number, number] = [origin.sourceStart, origin.sourceEnd];
+  const answer = await openLinkElsewhere(named.workspace, named.pane, {
+    source,
+    codec: origin.codec,
+    name: origin.name,
+  });
+  if (answer === undefined) return undefined;
+  const link = await DocumentOrigin.ofSession({
+    session: answer.session,
+    parentName: answer.parentName,
+    source,
+    partName: origin.name,
+    codec: codecOf(state, { session: answer.session }),
+    layout: parsed<UEFIRootLayout>(origin.layout),
+    content: answer.bytes,
+  });
+  return link === undefined ? undefined : { bytes: answer.bytes, link };
+}
+
+/** A written parent's id as this record has it: one this window wrote names it bare. */
+function ownPaneId(id: string): string {
+  const named = paneNamed(id);
+  return named.workspace === workspaceId() ? named.pane : id;
+}
+
+/**
+ * The panes this window's restore has put back, by the id its record wrote each under — what a
+ * part in another window names its parent by — and whether each is still the document it was.
+ */
+const restoredHere = new Map<string, { readonly pane: PaneId; readonly unchanged: boolean }>();
+let restoreSettled = false;
+const restoreHeard = new Set<() => void>();
+
+function noteRestored(id: string | undefined, pane: PaneId, unchanged: boolean): void {
+  if (id === undefined) return;
+  restoredHere.set(id, { pane, unchanged });
+  for (const heard of restoreHeard) heard();
+}
+
+/** Says a pane is back under `id`, as a restore would: for a test of the questions it answers. */
+export function noteRestoredForTesting(id: string, pane: PaneId): void {
+  noteRestored(id, pane, true);
+}
+
+function settleRestore(): void {
+  restoreSettled = true;
+  for (const heard of restoreHeard) heard();
+}
+
+/** The pane put back for `id`, once it is; nothing once the restore is over without it. */
+function restoredPane(
+  id: string
+): Promise<{ readonly pane: PaneId; readonly unchanged: boolean } | undefined> {
+  return new Promise((resolve) => {
+    const look = () => {
+      const found = restoredHere.get(id);
+      if (found === undefined && !restoreSettled) return false;
+      restoreHeard.delete(look);
+      resolve(found);
+      return true;
+    };
+    if (!look()) restoreHeard.add(look);
+  });
+}
+
+// A window restoring a part whose parent this window holds asks for it here: the part is taken
+// out of the pane once that is back, as this window would take it out for a panel of its own.
+parentLinkHost.openLink = async (id, request) => {
+  const found = await restoredPane(id);
+  if (found === undefined || !found.unchanged) return undefined;
+  const linked = await linkHere(
+    {
+      parent: id,
+      sourceStart: request.source[0],
+      sourceEnd: request.source[1],
+      name: request.name,
+      codec: request.codec,
+      size: 0,
+    },
+    found.pane
+  );
+  const held = paneState(found.pane);
+  if (linked === undefined || held === undefined) return undefined;
+  // The link made here only stood for the reading: the window that asked holds its own.
+  linked.link.release();
+  return { session: held.document.id, parentName: held.name, bytes: linked.bytes };
+};
 
 /**
  * The panels, parents first: a part taken out of its parent again — decoded from it as it is now,
@@ -475,7 +686,7 @@ async function restoreFragments(
     let unchanged = true;
     if (source.kind === "part") {
       const origin = source.part;
-      const parent = panes.get(origin.parent);
+      const parent = panes.get(ownPaneId(origin.parent));
       const codec = parsed<PartCodecState>(origin.codec);
       const layout = parsed<UEFIRootLayout>(origin.layout);
       if (parent?.unchanged && codec !== undefined) {
@@ -486,14 +697,18 @@ async function restoreFragments(
           codec: codecOf(codec, parent.pane),
           ...(layout === undefined ? {} : { layout }),
         });
-        const edits = origin.edits;
-        if (part !== undefined && edits !== undefined) {
-          const bytes = await keeper?.bytesOf(edits.content).catch(() => undefined);
-          if (bytes !== undefined) {
-            await layOver(part, bytes);
-            await adoptKept(part, edits.content, origin.name, true, keeper, record);
-          } else issues.push({ kind: "keptUnreadable", name: origin.name });
-        }
+      } else if (parent === undefined) {
+        // Its parent is a pane of another window, which takes it out of its own.
+        const linked = await linkElsewhere(origin);
+        if (linked !== undefined) part = openPart(linked.bytes, origin.name, linked.link);
+      }
+      const edits = origin.edits;
+      if (part !== undefined && edits !== undefined) {
+        const bytes = await keeper?.bytesOf(edits.content).catch(() => undefined);
+        if (bytes !== undefined) {
+          await layOver(part, bytes);
+          await adoptKept(part, edits.content, origin.name, true, keeper, record);
+        } else issues.push({ kind: "keptUnreadable", name: origin.name });
       }
       if (part === undefined) {
         // No way home: its own changes come back as bytes of their own, or nothing does.
@@ -518,8 +733,10 @@ async function restoreFragments(
       } else issues.push({ kind: "keptUnreadable", name });
     }
     if (part === undefined) continue;
-    if (fragment.pane.id !== undefined)
+    if (fragment.pane.id !== undefined) {
       panes.set(fragment.pane.id, { pane: part, unchanged: true });
+      noteRestored(fragment.pane.id, part, true);
+    }
     if (index === tab.expandedFragment) expanded = part;
     await applyPane(part, fragment.pane, true, new Map());
     if (fragment.surface.minimapVisible) applyMinimap(surfaceOf(part), fragment.surface);
@@ -562,7 +779,7 @@ async function isTheSameFile(
 }
 
 /** A part's changes, kept as its whole content, laid over what its parent gives. */
-async function layOver(part: PartId, added: Uint8Array): Promise<void> {
+async function layOver(part: PaneId, added: Uint8Array): Promise<void> {
   await applyKeptEdits(part, {
     baseSize: 0,
     runs: added.length === 0 ? [] : [{ kind: "added", start: 0, end: added.length }],

@@ -311,6 +311,41 @@ export class DocumentOrigin {
     );
   }
 
+  /**
+   * A link to a parent another window shows, made at restore from what that window decoded: its
+   * session by name, and the part's bytes as they open. Nothing where that session has ended.
+   *
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.init
+   * @upstream-differs the parent by its session's name, where upstream holds the parent pane
+   */
+  static async ofSession(options: {
+    readonly session: SessionId;
+    readonly parentName: string;
+    readonly source: readonly [number, number];
+    readonly partName: string;
+    readonly codec: PartCodec;
+    readonly layout?: UEFIRootLayout | undefined;
+    readonly content: Uint8Array;
+  }): Promise<DocumentOrigin | undefined> {
+    let view: SessionView;
+    try {
+      view = await watchSession(options.session);
+    } catch {
+      return undefined;
+    }
+    const held = await readRange(view, options.source[0], options.source[1]);
+    return new DocumentOrigin(
+      view,
+      options.parentName,
+      options.source,
+      options.partName,
+      options.codec,
+      options.layout ?? IMAGE_LAYOUT,
+      held === undefined ? undefined : snapshotOf(held),
+      snapshotOf(options.content)
+    );
+  }
+
   /** The link as it leaves for another window; `release` lets this window's hold on it go. */
   carry(): CarriedOrigin {
     return {

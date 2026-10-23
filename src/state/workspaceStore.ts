@@ -493,6 +493,17 @@ export const paneState = (pane: PaneId): PaneState | undefined =>
   paneIn(workspaceStore.getSnapshot(), pane);
 
 /**
+ * Gives `pane` a way home: a part's bytes put back into a pane of the workspace at restore, linked
+ * to where they came from.
+ */
+export function setPaneOrigin(pane: PaneId, origin: DocumentOrigin): void {
+  workspaceStore.update((state) => {
+    const held = paneIn(state, pane);
+    return held === undefined ? state : withPane(state, pane, { ...held, origin });
+  });
+}
+
+/**
  * The pane of this window that shows `document` — a file slot, or a part — or nothing where none
  * does here: the session may be shown in another window, or by none.
  */

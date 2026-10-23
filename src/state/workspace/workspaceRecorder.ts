@@ -10,6 +10,7 @@ import {
   type NotesState,
   type PaneState,
   type PaneUndoState,
+  type PartOrigin,
   type SegmentationState,
   type SurfaceState,
   type TabState,
@@ -42,6 +43,7 @@ import { KeptContentClient } from "@/state/sessions/keptContent";
 import { operateHost } from "@/state/sessions/pageSessions";
 import { settingsStore } from "@/state/settingsStore";
 import { sessionOn, toolController } from "@/state/toolController";
+import { nameThisWorkspace, whoseIs } from "@/state/workspace/parentLinks";
 import { partCodecState } from "@/state/workspace/partCodecState";
 import { currentProject, switchToProject } from "@/state/workspace/projectRecords";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
@@ -107,7 +109,10 @@ export async function snapshotWorkspace(keeper?: KeptContentClient): Promise<{
 }> {
   const handles: Record<string, FileSystemFileHandle> = {};
   const panes: (PaneState | undefined)[] = [];
-  for (const slot of PANE_IDS) panes.push(await paneSnapshot(slot, handles, keeper));
+  // A part let go on a pane names its parent as a panel's part does: the other pane, or a pane of
+  // another window.
+  const open = new Set<PaneId>(PANE_IDS.filter((slot) => paneState(slot) !== undefined));
+  for (const slot of PANE_IDS) panes.push(await paneSnapshot(slot, handles, keeper, open));
   const state = workspaceStore.getSnapshot();
   const { fragments, expandedFragment } = await fragmentsSnapshot(
     new Set(PANE_IDS.filter((_, index) => panes[index] !== undefined)),
@@ -185,37 +190,14 @@ async function fragmentsSnapshot(
     const part = paneState(pane);
     if (part === undefined) continue;
     const { document } = part;
-    const origin = part.origin;
-    const codec = origin === undefined ? undefined : partCodecState(origin.codec);
-    const changed = origin === undefined ? true : await origin.hasChanges(document);
     let source: DocumentSource;
     const kept = async () => {
       const shape = keptPane(pane, true);
       return (shape === undefined ? undefined : await keeper?.keep(shape)) ?? UNKEPT;
     };
-    const parent = origin?.parent;
-    if (
-      origin !== undefined &&
-      codec !== undefined &&
-      parent !== undefined &&
-      written.has(parent)
-    ) {
-      const content = changed ? await kept() : undefined;
-      source = {
-        kind: "part",
-        part: {
-          parent,
-          sourceStart: origin.sourceRange[0],
-          sourceEnd: origin.sourceRange[1],
-          name: origin.partName,
-          layout: JSON.stringify(origin.layout),
-          codec: JSON.stringify(codec),
-          size: document.size,
-          ...(content === undefined
-            ? {}
-            : { edits: { content, name: part.name, size: document.size, dirty: true } }),
-        },
-      };
+    const origin = await partOriginOf(pane, written, kept);
+    if (origin !== undefined) {
+      source = { kind: "part", part: origin };
     } else {
       source = {
         kind: "untitled",
@@ -235,6 +217,45 @@ async function fragmentsSnapshot(
     });
   }
   return { fragments, expandedFragment };
+}
+
+/**
+ * Where a part came from, as the workspace writes it: its parent — a pane written in this record
+ * before it, or a pane of another window, named as that window writes it — the stretch, the codec,
+ * and the changes the parent has not got. Nothing for a part with no way home to write: no parent,
+ * a parent not written, or a codec this cannot write.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.partOrigin
+ */
+async function partOriginOf(
+  pane: PaneId,
+  written: ReadonlySet<PaneId>,
+  kept: () => Promise<KeptContent>
+): Promise<PartOrigin | undefined> {
+  const held = paneState(pane);
+  const origin = held?.origin;
+  if (held === undefined || origin === undefined || origin.parentView === undefined) {
+    return undefined;
+  }
+  const codec = partCodecState(origin.codec);
+  if (codec === undefined) return undefined;
+  const here = origin.parent;
+  const parent =
+    here === undefined ? await whoseIs(origin.parentSession) : written.has(here) ? here : undefined;
+  if (parent === undefined) return undefined;
+  const content = (await origin.hasChanges(held.document)) ? await kept() : undefined;
+  return {
+    parent,
+    sourceStart: origin.sourceRange[0],
+    sourceEnd: origin.sourceRange[1],
+    name: origin.partName,
+    layout: JSON.stringify(origin.layout),
+    codec: JSON.stringify(codec),
+    size: held.document.size,
+    ...(content === undefined
+      ? {}
+      : { edits: { content, name: held.name, size: held.document.size, dirty: true } }),
+  };
 }
 
 /** Where the reader was in a pane: the selection, the typing mode and the first row on screen. */
@@ -369,12 +390,33 @@ function partitionState(
 async function paneSnapshot(
   slot: SlotId,
   handles: Record<string, FileSystemFileHandle>,
-  keeper: KeptContentClient | undefined
+  keeper: KeptContentClient | undefined,
+  written?: ReadonlySet<PaneId>
 ): Promise<PaneState | undefined> {
   const pane = paneState(slot);
   if (pane === undefined) return undefined;
   const { file, document, typing } = pane;
   const { start, end } = document.selection;
+  // A part let go on a pane is written as where it came from, as a panel's part is.
+  // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspacePane
+  const part =
+    written === undefined || !pane.untitled
+      ? undefined
+      : await partOriginOf(slot, written, async () => {
+          const shape = keptPane(slot, true);
+          return (shape === undefined ? undefined : await keeper?.keep(shape)) ?? UNKEPT;
+        });
+  if (part !== undefined) {
+    return {
+      id: slot,
+      document: { kind: "part", part },
+      selectionStart: start,
+      selectionEnd: end,
+      inputRegion: typing.inputRegion,
+      insertMode: typing.isInsertMode,
+      topOffset: scrollLink.visibleRange(slot, BYTES_PER_ROW)?.start ?? start,
+    };
+  }
   const segments = segmentsSnapshot(slot, handles);
   // A document's content beyond the file — an untitled one's whole, a file's unsaved changes and
   // the history that made them — kept beside the workspace.
@@ -669,6 +711,8 @@ export async function removeKeptFolder(id: string): Promise<void> {
  * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.applicationDidResignActive
  */
 export function startWorkspaceRecorder(): () => void {
+  // Another window's parts name this window's panes by it.
+  nameThisWorkspace(workspaceId);
   const timer = setInterval(() => {
     if (document.visibilityState === "visible") void recordWorkspace();
   }, INTERVAL_MS);

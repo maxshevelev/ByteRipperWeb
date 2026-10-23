@@ -51,7 +51,37 @@ type Message =
       readonly kind: "edited";
       readonly session: SessionId;
       readonly spans: readonly (readonly [number, number])[];
-    };
+    }
+  | { readonly kind: "whose"; readonly ask: string; readonly session: SessionId }
+  | { readonly kind: "held"; readonly ask: string; readonly id: string }
+  | { readonly kind: "linked"; readonly ask: string; readonly session: SessionId }
+  | { readonly kind: "linkedCount"; readonly ask: string; readonly count: number }
+  | {
+      readonly kind: "openLink";
+      readonly ask: string;
+      readonly workspace: string;
+      readonly pane: string;
+      readonly request: LinkRequest;
+    }
+  | { readonly kind: "linkOpened"; readonly ask: string; readonly answer: LinkAnswer | undefined };
+
+/**
+ * A part's link as the workspace wrote it, asked at restore of the window its parent is in: the
+ * stretch of the parent, how it was read, and what the part is called.
+ */
+export interface LinkRequest {
+  readonly source: readonly [number, number];
+  /** The codec's workspace state, as the record holds it. */
+  readonly codec: string;
+  readonly name: string;
+}
+
+/** The parent's answer: its session, its name, and the part's bytes decoded out of it. */
+export interface LinkAnswer {
+  readonly session: SessionId;
+  readonly parentName: string;
+  readonly bytes: Uint8Array;
+}
 
 /** The part of a `BroadcastChannel` this uses. */
 export interface ParentChannel {
@@ -70,11 +100,44 @@ const HOLDER_TIMEOUT_MS = 2_000;
  */
 export const parentLinkHost: {
   reveal?: ((pane: PaneId, range: readonly [number, number]) => void) | undefined;
+  /**
+   * The part a window restoring asks of this one: out of the pane this window wrote down as
+   * `pane`, once it is back. The restorer's (`workspaceRestorer`).
+   */
+  openLink?: ((pane: string, request: LinkRequest) => Promise<LinkAnswer | undefined>) | undefined;
+  /** How many panes of this window link to the session another window is closing. */
+  linkedTo?: ((session: SessionId) => number) | undefined;
 } = {};
+
+/**
+ * What a pane of another window is written down as in this one's record: that window's workspace
+ * and the id it writes the pane under — upstream's ids are one workspace's, and here each window
+ * writes its own record.
+ *
+ * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#PaneState.id
+ * @upstream-differs qualified by the window's workspace, which upstream's one record needs not
+ */
+export const paneElsewhere = (workspace: string, pane: string): string => `${workspace}#${pane}`;
+
+/** The window and the pane a written parent names; no window for a pane of the same record. */
+export function paneNamed(id: string): { readonly workspace?: string; readonly pane: string } {
+  const at = id.indexOf("#");
+  return at < 0 ? { pane: id } : { workspace: id.slice(0, at), pane: id.slice(at + 1) };
+}
+
+/** What this window is in the shell's workspace; the recorder's, given once it starts. */
+let thisWorkspace: (() => string) | undefined;
+
+/** Says which workspace this window writes, so another can name its panes. */
+export function nameThisWorkspace(name: () => string): void {
+  thisWorkspace = name;
+}
 
 const token = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 let channel: ParentChannel | undefined;
+/** The restoring windows' asks this one has taken up. */
+const answering = new Set<string>();
 
 /**
  * Joins the other windows' links. Answers the means to leave. `opened` stands in for a channel in
@@ -102,6 +165,31 @@ export function startParentLinks(
       for (const [start, end] of message.spans) {
         editingHooks.onEdit?.(pane, { kind: "overwrite", start, end });
       }
+      return;
+    }
+    if (message.kind === "whose") {
+      const pane = paneShowing(message.session);
+      const workspace = thisWorkspace?.();
+      if (pane === undefined || workspace === undefined) return;
+      joined.postMessage({ kind: "held", ask: message.ask, id: paneElsewhere(workspace, pane) });
+      return;
+    }
+    if (message.kind === "linked") {
+      const count = parentLinkHost.linkedTo?.(message.session) ?? 0;
+      if (count > 0) joined.postMessage({ kind: "linkedCount", ask: message.ask, count });
+      return;
+    }
+    if (message.kind === "openLink") {
+      const open = parentLinkHost.openLink;
+      if (open === undefined || message.workspace !== thisWorkspace?.()) return;
+      // The ask is sent again until it is heard: one heard already is being answered.
+      if (answering.has(message.ask)) return;
+      answering.add(message.ask);
+      joined.postMessage({ kind: "holding", ask: message.ask });
+      void open(message.pane, message.request).then(
+        (answer) => joined.postMessage({ kind: "linkOpened", ask: message.ask, answer }),
+        () => joined.postMessage({ kind: "linkOpened", ask: message.ask, answer: undefined })
+      );
       return;
     }
     if (message.kind !== "rebuild") return;
@@ -181,4 +269,96 @@ export function tellEdited(
   spans: readonly (readonly [number, number])[]
 ): void {
   channel?.postMessage({ kind: "edited", session, spans });
+}
+
+/** How long a question every window may answer is listened for. */
+const ANSWERS_MS = 400;
+
+/**
+ * What another window writes the pane that shows `session` down as — `<workspace>#<pane>` — or
+ * nothing where no window that writes its workspace shows it.
+ */
+export function whoseIs(session: SessionId): Promise<string | undefined> {
+  const line = channel;
+  if (line === undefined) return Promise.resolve(undefined);
+  const ask = token();
+  return new Promise((resolve) => {
+    const done = (id: string | undefined) => {
+      clearTimeout(timer);
+      line.removeEventListener("message", on);
+      resolve(id);
+    };
+    const on = (event: { data: unknown }) => {
+      const message = event.data as Message;
+      if (message.kind === "held" && message.ask === ask) done(message.id);
+    };
+    const timer = setTimeout(() => done(undefined), ANSWERS_MS);
+    line.addEventListener("message", on);
+    line.postMessage({ kind: "whose", ask, session });
+  });
+}
+
+/** How many panes of the other windows link to `session`. */
+export function linkedElsewhere(session: SessionId): Promise<number> {
+  const line = channel;
+  if (line === undefined) return Promise.resolve(0);
+  const ask = token();
+  return new Promise((resolve) => {
+    let count = 0;
+    const on = (event: { data: unknown }) => {
+      const message = event.data as Message;
+      if (message.kind === "linkedCount" && message.ask === ask) count += message.count;
+    };
+    line.addEventListener("message", on);
+    line.postMessage({ kind: "linked", ask, session });
+    setTimeout(() => {
+      line.removeEventListener("message", on);
+      resolve(count);
+    }, ANSWERS_MS);
+  });
+}
+
+/** How long a restoring window asks for the window its parent is in to come up. */
+const OPEN_LINK_FIND_MS = 10_000;
+/** How long that window then has to open the parent and decode the part. */
+const OPEN_LINK_ANSWER_MS = 120_000;
+
+/**
+ * The part `request` names, out of the pane `pane` of the window that writes `workspace` — asked
+ * as both restore, so asked again until that window is up to hear it. Nothing where it does not
+ * come up, or its pane did not come back as the document the part was taken out of.
+ */
+export function openLinkElsewhere(
+  workspace: string,
+  pane: string,
+  request: LinkRequest
+): Promise<LinkAnswer | undefined> {
+  const line = channel;
+  if (line === undefined) return Promise.resolve(undefined);
+  const ask = token();
+  return new Promise((resolve) => {
+    const post = () => line.postMessage({ kind: "openLink", ask, workspace, pane, request });
+    let again: ReturnType<typeof setInterval> | undefined = setInterval(post, 500);
+    let timer = setTimeout(() => done(undefined), OPEN_LINK_FIND_MS);
+    const done = (answer: LinkAnswer | undefined) => {
+      clearInterval(again);
+      clearTimeout(timer);
+      line.removeEventListener("message", on);
+      resolve(answer);
+    };
+    const on = (event: { data: unknown }) => {
+      const message = event.data as Message;
+      if (!("ask" in message) || message.ask !== ask) return;
+      if (message.kind === "holding" && again !== undefined) {
+        clearInterval(again);
+        again = undefined;
+        clearTimeout(timer);
+        timer = setTimeout(() => done(undefined), OPEN_LINK_ANSWER_MS);
+      } else if (message.kind === "linkOpened") {
+        done(message.answer);
+      }
+    };
+    line.addEventListener("message", on);
+    post();
+  });
 }

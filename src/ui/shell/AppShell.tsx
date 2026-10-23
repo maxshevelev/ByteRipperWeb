@@ -51,6 +51,7 @@ import {
 } from "@/state/paneDragStore";
 import { PANE_IDS } from "@/state/paneId";
 import {
+  partsLinkedAnywhere,
   partsLinkedTo,
   strandingCloseButton,
   strandingSentence,
@@ -1411,7 +1412,7 @@ export function AppShell() {
     // the second half goes unread — which is the same as not asking.
     //
     // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
-    const stranded = partsLinkedTo(pane).length;
+    const stranded = await partsLinkedAnywhere(pane);
     if (stranded > 0) {
       const answered = await new Promise<boolean>((resolve) =>
         setCloseAsk({

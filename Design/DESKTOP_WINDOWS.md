@@ -64,7 +64,7 @@ From upstream's `TABS_PLAN.md`, `PANE_DRAG_PLAN.md`, `WORKSPACE_PLAN.md` and
 | A pane into a new window: the pane header's Open in New Tab, the New Tab strip | **Open in New Window**, the **New Window strip** while a pane is dragged | D5 |
 | A fragment panel into a new window: the pill's Open in New Tab, the strip | **Open in New Window** on the pill, the strip | D6 |
 | A panel let go on another window's free half becomes that pane (`7a11bed`) | Same | D6 |
-| A folded panel dragged off by its pill as by its header, in the pane's own drag picture (`0febe41`) | Same; the pill alone carries it, the panel's header being where a pull folds it | D6 |
+| A folded panel dragged off by its pill as by its header, in the pane's own drag picture (`0febe41`) | Same; the raised panel's header carries it too, dragged sideways or up — a pull down is the fold | D6 |
 | Bookmarks: copied with a torn-off pane, a moved pane adopting the receiving window's | Same | D5 |
 | The agent sees every window's documents (`AgentDesk`, front to back), brings a window forward | Same, the main process routing a call to the window that holds the document | D7 |
 | App-wide: the annotations, the find string, the settings | Kept in step across windows (`BroadcastChannel`, `storage` events) | D7 |
@@ -97,7 +97,9 @@ link names the parent's session, which a window can watch without showing it,
 so a part carried away keeps its way home and a parent carried away keeps its
 parts. The parent's bytes are read and written in the session itself; the UEFI
 planner and showing the source are asked of the window that shows the parent
-(`parentLinks.ts`). Writing the link down across windows is G112.
+(`parentLinks.ts`). The link is written down too (G112): a parent in another
+window is named by that window's workspace and its pane's id there, and at
+restore that window takes the part out of the pane once it is back.
 
 ## Where the workspace is written
 

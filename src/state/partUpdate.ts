@@ -6,6 +6,7 @@ import {
   PartRefusal,
   type PartUpdate,
 } from "@/core/parts/partCodec";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import type { SessionView } from "@/core/session/sessionView";
 import { agentShell } from "@/state/agent/agentShell";
 import type { DocumentOrigin } from "@/state/documentOrigin";
@@ -16,7 +17,7 @@ import {
   presentBlocking,
 } from "@/state/operationStore";
 import { applyDocumentTransaction, applyTransaction } from "@/state/toolEdits";
-import { tellEdited } from "@/state/workspace/parentLinks";
+import { linkedElsewhere, parentLinkHost, tellEdited } from "@/state/workspace/parentLinks";
 import {
   askAlertChoice,
   type PaneId,
@@ -617,6 +618,30 @@ export function partsLinkedTo(pane: PaneId): PartId[] {
   return Object.entries(state.parts)
     .filter(([, part]) => part.origin?.parentView === document)
     .map(([id]) => id as PartId);
+}
+
+/** The panes of this window — panels and panes alike — whose link leads to `session`. */
+function linkedHere(session: SessionId): number {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  return [...Object.values(panes), ...Object.values(parts)].filter(
+    (held) => held?.origin?.parentView !== undefined && held.origin.parentSession === session
+  ).length;
+}
+
+// Another window closing a pane asks how many of this window's link to it.
+parentLinkHost.linkedTo = linkedHere;
+
+/**
+ * How many parts closing `pane` would leave without their way home: in this window and in every
+ * other, as upstream's question counts the panels of every window.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.panelsLinked
+ * @upstream-differs the other windows are asked over a channel, where upstream walks them
+ */
+export async function partsLinkedAnywhere(pane: PaneId): Promise<number> {
+  const session = paneState(pane)?.document.id;
+  if (session === undefined) return 0;
+  return linkedHere(session) + (await linkedElsewhere(session));
 }
 
 /**

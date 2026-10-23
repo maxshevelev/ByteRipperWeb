@@ -48,7 +48,7 @@ Upstream's model (`Packages/Workspace`), one tab instead of windows of tabs:
 | bookmarks | already kept per workspace id | — |
 | segments, minimap, find bar | per pane / surface | W3 |
 | untitled documents, unsaved changes | bytes in IndexedDB | W4 |
-| fragment panels | decoded again from their parents | W5 |
+| fragment panels, and a part let go on a pane | decoded again from their parents — a parent in another window of the shell is named `<workspace>#<pane>` and that window decodes the part once it is back (G112) | W5 |
 | tool panel, the Annotations panel | the parked state, the chosen cards | W6 |
 
 Not kept, as upstream: undo history, search results, Back/Forward, app-wide
