@@ -113,6 +113,22 @@ textarea,
   overflow: hidden;
   background: var(--surface);
   gap: 1px;
+  /* The New Window strip takes its own height above the panes, which glide
+     down to make it, rather than lying over their headers — upstream's
+     `setNewTabStripVisible`. Slightly quicker on the way out than in: the panes
+     do not dawdle once the drag is over. The height is the strip's own, set on
+     the element. */
+  transition: padding-top 0.1s ease-out;
+}
+
+.app-workspace[data-new-window-strip] {
+  transition-duration: 0.12s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-workspace {
+    transition: none;
+  }
 }
 
 /*

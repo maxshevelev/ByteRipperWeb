@@ -161,7 +161,12 @@ import {
   type SingleFileDropTarget,
   singleFilePaneDrop,
 } from "@/ui/drag/dragDrop";
-import { NewWindowStrip, type StripPane } from "@/ui/drag/NewWindowStrip";
+import {
+  NEW_WINDOW_STRIP_HEIGHT,
+  NewWindowStrip,
+  newWindowStripStore,
+  type StripPane,
+} from "@/ui/drag/NewWindowStrip";
 import {
   type PaneDropOutcomeResolver,
   type PaneDropRegion,
@@ -2472,6 +2477,7 @@ export function AppShell() {
   );
 
   const panes = (["a", "b"] as const).filter((id) => state.panes[id] !== undefined);
+  const stripShown = useStore(newWindowStripStore).shown;
   /** The one open pane of a single-file workspace, when there is exactly one. */
   const lone = panes.length === 1 ? panes[0] : undefined;
 
@@ -2882,14 +2888,20 @@ export function AppShell() {
         className="app-workspace"
         data-layout={state.layout}
         data-panes={panes.length}
-        style={
-          panes.length === 2
+        data-new-window-strip={stripShown ? "" : undefined}
+        style={{
+          ...(panes.length === 2
             ? ({
                 "--split": `${state.splitFraction}fr`,
                 "--split-rest": `${1 - state.splitFraction}fr`,
               } as React.CSSProperties)
-            : undefined
-        }
+            : {}),
+          // The strip's own height above the panes while it is up, which they glide down to
+          // make (`.app-workspace`'s transition).
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.setNewTabStripVisible
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.newTabDropStripHeight
+          paddingTop: stripShown ? NEW_WINDOW_STRIP_HEIGHT : 0,
+        }}
       >
         {panes.length === 0 ? (
           <EmptyState onOpen={() => void open()} onOpenRecent={openRecentFile} />

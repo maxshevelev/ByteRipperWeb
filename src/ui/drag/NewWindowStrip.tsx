@@ -38,10 +38,14 @@ export const NEW_WINDOW_STRIP_HEIGHT = 44;
 /** How long after a drag starts the strip comes up. */
 const STRIP_DELAY_MS = 150;
 
-/** Where the strip ends, in the viewport, while it is up: what the bands under it start below. */
-export const newWindowStripStore = createStore<{ readonly bottom: number | undefined }>({
-  bottom: undefined,
-});
+/**
+ * Whether the strip is up — the panes then make room for it below — and where it ends, in the
+ * viewport: what the bands under it start below.
+ */
+export const newWindowStripStore = createStore<{
+  readonly shown: boolean;
+  readonly bottom: number | undefined;
+}>({ shown: false, bottom: undefined });
 
 /**
  * How much of the top of a box that starts at `top` the strip covers: what a pane's bands give up.
@@ -98,6 +102,7 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
   useLayoutEffect(() => {
     const element = ref.current;
     newWindowStripStore.update(() => ({
+      shown,
       bottom: shown && element !== null ? element.getBoundingClientRect().bottom : undefined,
     }));
     if (!shown) setHovered(false);
@@ -118,6 +123,8 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
       ref={ref}
       className="new-window-strip"
       style={{ height: NEW_WINDOW_STRIP_HEIGHT }}
+      // @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.draggingEntered
+      // @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.draggingUpdated
       onDragOver={(event) => {
         const pane = dragCarriesPane(event.dataTransfer);
         if (!pane && !dragCarriesFiles(event.dataTransfer)) return;
@@ -127,11 +134,13 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
         event.dataTransfer.dropEffect = pane && !event.altKey ? "move" : "copy";
         setHovered(true);
       }}
+      // @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.draggingExited
       onDragLeave={(event) => {
         const related = event.relatedTarget as Node | null;
         if (related !== null && event.currentTarget.contains(related)) return;
         setHovered(false);
       }}
+      // @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.performDragOperation
       onDrop={(event) => {
         event.preventDefault();
         event.stopPropagation();
