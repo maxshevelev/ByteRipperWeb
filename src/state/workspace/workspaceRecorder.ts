@@ -193,12 +193,18 @@ async function fragmentsSnapshot(
       const shape = keptPane(pane, true);
       return (shape === undefined ? undefined : await keeper?.keep(shape)) ?? UNKEPT;
     };
-    if (origin !== undefined && codec !== undefined && written.has(origin.parent)) {
+    const parent = origin?.parent;
+    if (
+      origin !== undefined &&
+      codec !== undefined &&
+      parent !== undefined &&
+      written.has(parent)
+    ) {
       const content = changed ? await kept() : undefined;
       source = {
         kind: "part",
         part: {
-          parent: origin.parent,
+          parent,
           sourceStart: origin.sourceRange[0],
           sourceEnd: origin.sourceRange[1],
           name: origin.partName,

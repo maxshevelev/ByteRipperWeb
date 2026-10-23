@@ -1,16 +1,20 @@
 import { L, LocalizedText } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec, PartRefusal } from "@/core/parts/partCodec";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import type { SessionView } from "@/core/session/sessionView";
 import { IMAGE_LAYOUT, type UEFIRootLayout } from "@/firmware/uefi/rootLayout";
-import { type PaneId, type PaneState, paneState } from "@/state/workspaceStore";
+import { endedHere, unwatchSession, watchSession } from "@/state/sessions/pageSessions";
+import { type PaneId, paneShowing, paneState } from "@/state/workspaceStore";
 
 /**
  * Where a part's bytes came from — a zone, a node of the tree, what a
  * compressed section decompressed to — and the way back
  * (`Design/UEFI/UPDATE_IN_PARENT.md` §2, §3).
  *
- * The parent is held by its pane *and* by the document that pane had at the
- * time: a pane that has been closed, or has another file in it now, is no
+ * The parent is held by its session, which every window reaches in the session
+ * host: the link goes wherever the part goes and finds the parent wherever it is
+ * shown, in this window or another, as upstream's holds the parent pane itself. A
+ * session that has ended — its pane closed, another file opened over it — is no
  * longer the parent. The link lives in memory with the documents and is never
  * written down — a part saved to disk is a file, and a file has no parent.
  *
@@ -128,6 +132,23 @@ async function same(
 }
 
 /**
+ * What a link is once it leaves its window for another, but for its codec, which the carrier says
+ * in words of its own: the parent's session by name, and the link's snapshots as they stand.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.release
+ * @upstream-differs the link crosses as a record, where upstream's pane takes its object along
+ */
+export interface CarriedOrigin {
+  readonly session: SessionId;
+  readonly parentName: string;
+  readonly source: readonly [number, number];
+  readonly partName: string;
+  readonly layout: UEFIRootLayout;
+  readonly sourceBytes: Blob | undefined;
+  readonly content: Blob;
+}
+
+/**
  * The link one part carries.
  *
  * Everything it answers is asked of the two documents as they are now, and the
@@ -135,14 +156,6 @@ async function same(
  * hashed again only once its bytes could have changed.
  */
 export class DocumentOrigin {
-  /**
-   * The pane the bytes came out of. A part opened from a panel names that
-   * panel's pane, not the dump behind it — the dock stays flat and the links
-   * form the chain.
-   *
-   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.parent
-   */
-  readonly parent: PaneId;
   /**
    * The source's bytes in the parent: the zone, the node, or the outermost
    * compressed section a decompressed body came out of. It moves with an update
@@ -173,8 +186,13 @@ export class DocumentOrigin {
    */
   readonly layout: UEFIRootLayout;
 
-  /** The document the parent pane held when the part was taken out of it. */
+  /**
+   * The parent's session as this window hears it — watched, so the link hears it end wherever it
+   * is shown.
+   */
   private readonly parentDocument: SessionView;
+  /** Whether the watch has been let go: the part is closed, or carried on to another window. */
+  private released = false;
   /**
    * The source's bytes as last taken out or put back; nothing where they could
    * not be read at all.
@@ -208,7 +226,6 @@ export class DocumentOrigin {
   private childChecked: { generation: number; changed: boolean } | undefined;
 
   private constructor(
-    parent: PaneId,
     parentDocument: SessionView,
     parentName: string,
     source: readonly [number, number],
@@ -218,7 +235,6 @@ export class DocumentOrigin {
     sourceBytes: Blob | undefined,
     content: Blob
   ) {
-    this.parent = parent;
     this.parentDocument = parentDocument;
     this.lastParentName = parentName;
     this.source = source;
@@ -251,10 +267,15 @@ export class DocumentOrigin {
   }): Promise<DocumentOrigin | undefined> {
     const slot = paneState(options.parent);
     if (slot === undefined) return undefined;
-    const held = await readRange(slot.document, options.source[0], options.source[1]);
+    let view: SessionView;
+    try {
+      view = await watchSession(slot.document.id);
+    } catch {
+      return undefined;
+    }
+    const held = await readRange(view, options.source[0], options.source[1]);
     return new DocumentOrigin(
-      options.parent,
-      slot.document,
+      view,
       slot.name,
       options.source,
       options.partName,
@@ -263,6 +284,87 @@ export class DocumentOrigin {
       held === undefined ? undefined : snapshotOf(held),
       snapshotOf(options.content)
     );
+  }
+
+  /**
+   * A link carried in from another window, its parent taken up by its session's name; nothing
+   * where that session has ended on the way.
+   */
+  static async carried(
+    carried: CarriedOrigin & { readonly codec: PartCodec }
+  ): Promise<DocumentOrigin | undefined> {
+    let view: SessionView;
+    try {
+      view = await watchSession(carried.session);
+    } catch {
+      return undefined;
+    }
+    return new DocumentOrigin(
+      view,
+      carried.parentName,
+      carried.source,
+      carried.partName,
+      carried.codec,
+      carried.layout,
+      carried.sourceBytes,
+      carried.content
+    );
+  }
+
+  /** The link as it leaves for another window; `release` lets this window's hold on it go. */
+  carry(): CarriedOrigin {
+    return {
+      session: this.parentDocument.id,
+      parentName: this.parentName,
+      source: this.source,
+      partName: this.partName,
+      layout: this.layout,
+      sourceBytes: this.sourceBytes,
+      content: this.content,
+    };
+  }
+
+  /** Stops hearing the parent: the part has closed, or gone on to another window. */
+  release(): void {
+    if (this.released) return;
+    this.released = true;
+    unwatchSession(this.parentDocument.id);
+  }
+
+  /**
+   * The pane of this window that shows the parent — a file slot, or another part: a part opened
+   * from a panel names that panel's pane, not the dump behind it, so the dock stays flat and the
+   * links form the chain. Nothing while the parent is shown only in another window, or ended.
+   *
+   * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.parent
+   * @upstream-differs found by the session, where upstream holds the pane
+   */
+  get parent(): PaneId | undefined {
+    return this.parentAlive ? paneShowing(this.parentDocument) : undefined;
+  }
+
+  /** The parent's session, as long as it has not ended: what an update reads and writes. */
+  get parentView(): SessionView | undefined {
+    return this.parentAlive ? this.parentDocument : undefined;
+  }
+
+  /** The parent's session's name, which another window finds it by. */
+  get parentSession(): SessionId {
+    return this.parentDocument.id;
+  }
+
+  /**
+   * Hears the parent change or end, wherever it is shown: a parent in another window moves no
+   * pane of this one, so nothing else here would ask the link again. Answers the means to stop.
+   */
+  onParentChanged(listener: () => void): () => void {
+    const stops = [
+      this.parentDocument.onContentChanged(listener),
+      this.parentDocument.onClosed(listener),
+    ];
+    return () => {
+      for (const stop of stops) stop();
+    };
   }
 
   /** The bytes this part came from, in the parent. */
@@ -277,18 +379,15 @@ export class DocumentOrigin {
    * @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.state
    */
   async state(): Promise<OriginState> {
-    const slot = this.livingParent();
-    if (slot === undefined) return "parentClosed";
-    const generation = slot.document.contentGeneration;
+    // A pane closed in this very turn has its session ended once the turn's own work is done
+    // (`workspaceStore`, the sessions no pane shows): that is let happen first.
+    await Promise.resolve();
+    const document = this.parentView;
+    if (document === undefined) return "parentClosed";
+    const generation = document.contentGeneration;
     const checked = this.checked;
     if (checked !== undefined && checked.generation === generation) return checked.state;
-    const found = await same(
-      slot.document,
-      this.source[0],
-      this.source[1],
-      this.sourceBytes,
-      undefined
-    );
+    const found = await same(document, this.source[0], this.source[1], this.sourceBytes, undefined);
     const state: OriginState = found.same ? "intact" : "sourceChanged";
     this.checked = { generation, state };
     return state;
@@ -296,7 +395,8 @@ export class DocumentOrigin {
 
   /** @upstream ByteRipperApp/Documents/DocumentOrigin.swift#DocumentOrigin.parentName */
   get parentName(): string {
-    const slot = this.livingParent();
+    const pane = this.parent;
+    const slot = pane === undefined ? undefined : paneState(pane);
     if (slot !== undefined) this.lastParentName = slot.name;
     return this.lastParentName;
   }
@@ -352,8 +452,7 @@ export class DocumentOrigin {
    */
   async planUpdate(child: SessionView): Promise<OriginUpdate> {
     const state = await this.state();
-    const slot = this.livingParent();
-    if (slot === undefined || state === "parentClosed") {
+    if (this.parentView === undefined || state === "parentClosed") {
       return {
         kind: "refused",
         refusal: new PartRefusal(
@@ -418,9 +517,11 @@ export class DocumentOrigin {
     this.childDifference = undefined;
   }
 
-  /** The parent pane, while it is still holding the document this came from. */
-  private livingParent(): PaneState | undefined {
-    const slot = paneState(this.parent);
-    return slot !== undefined && slot.document === this.parentDocument ? slot : undefined;
+  /**
+   * Whether the parent's session is still open: the host's word that it closed, or this window's
+   * own knowledge that it ended it, which comes first.
+   */
+  private get parentAlive(): boolean {
+    return !this.parentDocument.closed && !endedHere(this.parentDocument.id);
   }
 }

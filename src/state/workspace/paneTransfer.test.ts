@@ -123,12 +123,12 @@ describe("a pane carried between windows", () => {
 
   it("stays where it is when its window keeps it", async () => {
     const join = bus();
-    const source = holder({ a: { kind: "refused", reason: "parts" } });
+    const source = holder({ a: { kind: "refused", reason: "gone" } });
     const sourcePeer = paneTransferPeer(join(), source.own);
     const target = paneTransferPeer(join(), holder().own);
     expect(await target.take(sourcePeer.me, "a", false)).toEqual({
       kind: "refused",
-      reason: "parts",
+      reason: "gone",
     });
   });
 

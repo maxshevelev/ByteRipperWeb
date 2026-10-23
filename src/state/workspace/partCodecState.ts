@@ -1,5 +1,6 @@
 import { LocalizedText, type LocalizedTextData } from "@/core/localization/localization";
 import { CopyPartCodec, type PartCodec, ReadOnlyPartCodec } from "@/core/parts/partCodec";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import type { LENVBlock } from "@/firmware/lenovoDmi/lenvBlock";
 import type { RebuildTarget } from "@/firmware/uefi/uefiRebuild";
@@ -51,11 +52,14 @@ export function partCodecState(codec: PartCodec): PartCodecState | undefined {
 
 /**
  * The codec a state stands for, reading from `pane` — the parent as it is now, whose worker a
- * UEFI part's codec asks.
+ * UEFI part's codec asks: a pane of this window, or the session a pane of another window shows.
  *
  * @upstream ByteRipperApp/Workspace/PartCodecState.swift#PartCodecState.codec
  */
-export function codecOf(state: PartCodecState, pane: PaneId): PartCodec {
+export function codecOf(
+  state: PartCodecState,
+  pane: PaneId | { readonly session: SessionId }
+): PartCodec {
   switch (state.kind) {
     case "copy":
       return new CopyPartCodec();

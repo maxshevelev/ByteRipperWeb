@@ -1,4 +1,3 @@
-import { L } from "@/core/localization/localization";
 import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { PANE_IDS, type SlotId } from "@/state/paneId";
@@ -7,7 +6,7 @@ import {
   thisWindow as panesHere,
   type TakenPane,
 } from "@/state/workspace/paneTransfer";
-import { paneState, reportAlert, setActivePane } from "@/state/workspaceStore";
+import { paneState, setActivePane } from "@/state/workspaceStore";
 
 /**
  * A file is open in one place in the app at a time (`Design/DESKTOP_WINDOWS.md`, D4), across the
@@ -37,8 +36,8 @@ export interface FileRef {
 export interface MovedPane {
   /** The pane let go there: its session and its record (`Design/FILE_SESSIONS.md`, S8). */
   readonly taken?: Extract<TakenPane, { readonly kind: "pane" }> | undefined;
-  /** Why the pane was not let go: `parts` for one with parts open over it. */
-  readonly refused?: "parts" | "unanswered" | undefined;
+  /** Why the pane was not let go: the window holding it did not answer. */
+  readonly refused?: "unanswered" | undefined;
   /** The file was no longer open there. */
   readonly gone?: boolean | undefined;
 }
@@ -178,13 +177,12 @@ const thisWindow: OpenOnceWindow = {
     setActivePane(slot);
     desktopWindowFocus()?.();
   },
-  // A pane with parts open over it stays: their way home is this pane. Otherwise it goes without
-  // a question — nothing of it is lost, it goes on in the other window.
+  // It goes without a question — nothing of it is lost, it goes on in the other window, and the
+  // parts open over it find it there.
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.releasePane
   async release(slot) {
     const taken = await panesHere.take(slot, false);
     if (taken.kind === "pane") return { taken };
-    if (taken.kind === "refused" && taken.reason === "parts") return { refused: "parts" };
     return { gone: true };
   },
 };
@@ -231,15 +229,7 @@ export async function openOnce(slot: SlotId, file: OpenedFile): Promise<boolean>
   const moved = await broker.move(holder, ref);
   // Gone from there meanwhile: nothing stands in the way of opening it here.
   if (moved.gone === true) return true;
-  if (moved.refused !== undefined || moved.taken === undefined) {
-    if (moved.refused === "parts") {
-      reportAlert(
-        L("“%1$@” could not be moved", file.name),
-        L("Parts are open over it in its window. Close them there first.")
-      );
-    }
-    return false;
-  }
+  if (moved.refused !== undefined || moved.taken === undefined) return false;
   await adoptTaken(slot, moved.taken);
   return false;
 }

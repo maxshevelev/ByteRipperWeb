@@ -5,7 +5,7 @@ import { TypingController } from "@/core/edit/typingController";
 import { assertRepresentableSize } from "@/core/limits";
 import { L } from "@/core/localization/localization";
 import { SegmentLink, type SegmentSourceID } from "@/core/segments/segmentation";
-import type { OperationSpan } from "@/core/session/sessionProtocol";
+import type { OperationSpan, SessionId } from "@/core/session/sessionProtocol";
 import type { SessionView } from "@/core/session/sessionView";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
@@ -431,6 +431,8 @@ export const workspaceStore = createStore<WorkspaceState>({
  * @web-only upstream's document goes with the last object holding it
  */
 let shownSessions = new Set<SessionView>();
+/** The links the panes and parts carry, each watching its parent's session. */
+let heldOrigins = new Set<DocumentOrigin>();
 
 /**
  * Which session each pane shows, told to what mirrors their partitions: at once, so a pane's cuts
@@ -459,11 +461,17 @@ workspaceStore.subscribe(() => {
     lookingAtSessions = false;
     const { panes, parts } = workspaceStore.getSnapshot();
     const shown = new Set<SessionView>();
+    const linked = new Set<DocumentOrigin>();
     for (const pane of [...Object.values(panes), ...Object.values(parts)]) {
       if (pane !== undefined) shown.add(pane.document);
+      if (pane?.origin !== undefined) linked.add(pane.origin);
     }
     for (const view of shownSessions) if (!shown.has(view)) closeSession(view);
     shownSessions = shown;
+    // A link no pane carries any more — its part closed, or gone on to another window, which
+    // holds a link of its own — stops hearing its parent.
+    for (const origin of heldOrigins) if (!linked.has(origin)) origin.release();
+    heldOrigins = linked;
   });
 });
 
@@ -483,6 +491,22 @@ export const paneIn = (state: WorkspaceState, pane: PaneId): PaneState | undefin
 /** The same, over the store's current snapshot. */
 export const paneState = (pane: PaneId): PaneState | undefined =>
   paneIn(workspaceStore.getSnapshot(), pane);
+
+/**
+ * The pane of this window that shows `document` — a file slot, or a part — or nothing where none
+ * does here: the session may be shown in another window, or by none.
+ */
+export function paneShowing(document: SessionView | SessionId): PaneId | undefined {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  const shows = (pane: PaneState | undefined) =>
+    pane !== undefined &&
+    (typeof document === "string" ? pane.document.id === document : pane.document === document);
+  for (const slot of PANE_IDS) if (shows(panes[slot])) return slot;
+  for (const [id, part] of Object.entries(parts) as [PartId, PaneState][]) {
+    if (shows(part)) return id;
+  }
+  return undefined;
+}
 
 /**
  * Puts a pane's state back where that pane lives — a slot, or a part — for the
@@ -1146,6 +1170,8 @@ export function adoptSessionInPane(
     readonly untitled: boolean;
     readonly writable: boolean;
     readonly saved: boolean;
+    /** The way home of a part that becomes this pane: it goes on leading there. */
+    readonly origin?: DocumentOrigin | undefined;
   }
 ): void {
   const { typing } = attachDocument(document, pane);
@@ -1161,6 +1187,7 @@ export function adoptSessionInPane(
         saved: record.saved ? savedStorageFor(record.file) : undefined,
         untitled: record.untitled,
         writable: record.writable,
+        ...(record.origin === undefined ? {} : { origin: record.origin }),
       },
     },
   }));

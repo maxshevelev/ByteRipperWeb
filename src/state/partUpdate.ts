@@ -15,7 +15,8 @@ import {
   blockingOperationStore,
   presentBlocking,
 } from "@/state/operationStore";
-import { applyTransaction } from "@/state/toolEdits";
+import { applyDocumentTransaction, applyTransaction } from "@/state/toolEdits";
+import { tellEdited } from "@/state/workspace/parentLinks";
 import {
   askAlertChoice,
   type PaneId,
@@ -42,8 +43,8 @@ import {
 
 /** What an update did, for the caller that has to decide what happens next. */
 export type UpdateOutcome =
-  /** Written into the parent. */
-  | { readonly kind: "updated"; readonly parent: PaneId }
+  /** Written into the parent: a pane of this window, or nothing where another window shows it. */
+  | { readonly kind: "updated"; readonly parent: PaneId | undefined }
   /** The parent already has these bytes. */
   | { readonly kind: "nothing" }
   /** Refused before anything moved; the reason has been shown. */
@@ -86,7 +87,7 @@ function confirmOverwritingChangedSource(origin: DocumentOrigin): boolean {
  * and brings that window to the front first, where this modal is the one
  * window's own
  */
-export function updateInParent(pane: PartId): Promise<UpdateOutcome> {
+export function updateInParent(pane: PaneId): Promise<UpdateOutcome> {
   return oneUpdateAtATime(pane, () => updateInParentNow(pane, new Set()));
 }
 
@@ -99,7 +100,7 @@ export function updateInParent(pane: PartId): Promise<UpdateOutcome> {
  * second run ended, where upstream's alert starts a new one
  */
 async function updateInParentNow(
-  pane: PartId,
+  pane: PaneId,
   overrides: ReadonlySet<string>
 ): Promise<UpdateOutcome> {
   const slot = paneState(pane);
@@ -114,11 +115,10 @@ async function updateInParentNow(
     reportAlert(plan.refusal.title.text, plan.refusal.messageText.text, "problem");
     return { kind: "refused" };
   }
-  const parent = paneState(origin.parent);
-  if (parent === undefined || asked === undefined) return { kind: "refused" };
+  if (asked === undefined) return { kind: "refused" };
   if (plan.confirm && !confirmOverwritingChangedSource(origin)) return { kind: "cancelled" };
   const stepName = updateStepName(slot.name);
-  const content = documentPartReader(parent.document);
+  const content = documentPartReader(asked.document);
   const partParent: PartParent = {
     content,
     source: origin.sourceRange,
@@ -298,13 +298,23 @@ async function landUpdate(
 
   const snapshot = origin.adopt(partBytes, source, update.source);
   if (update.bytes.length > 0) {
-    const problem = await applyTransaction(origin.parent, {
+    const transaction = {
       name: stepName,
       writes: [{ offset: update.offset, bytes: update.bytes }],
-    });
+    };
+    // A parent shown here is written as a tool writes into a pane; one shown in another window
+    // is written in the session itself, and that window is told what changed.
+    const here = origin.parent;
+    const problem =
+      here !== undefined
+        ? await applyTransaction(here, transaction)
+        : await applyDocumentTransaction(asked.document, transaction);
     if (problem !== undefined) {
       origin.restore(snapshot);
       return { kind: "failed", problem };
+    }
+    if (here === undefined) {
+      tellEdited(origin.parentSession, [[update.offset, update.offset + update.bytes.length]]);
     }
   }
   return { kind: "landed" };
@@ -353,7 +363,7 @@ export type QuietUpdateOutcome =
  * @upstream-differs no read-only parent to refuse: a page edits every document it holds in memory
  */
 export function updateInParentQuietly(
-  pane: PartId,
+  pane: PaneId,
   overwritingChangedSource: boolean,
   updatingAnyway = false
 ): Promise<QuietUpdateOutcome> {
@@ -370,7 +380,7 @@ export function updateInParentQuietly(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.updateInParentQuietly
  */
 async function updateInParentQuietlyNow(
-  pane: PartId,
+  pane: PaneId,
   overwritingChangedSource: boolean,
   updatingAnyway: boolean
 ): Promise<QuietUpdateOutcome> {
@@ -383,8 +393,8 @@ async function updateInParentQuietlyNow(
   if (!(await origin.hasChanges(slot.document))) return { kind: "unchanged" };
   const plan = await origin.planUpdate(slot.document);
   if (plan.kind === "refused") return { kind: "refused", refusal: plan.refusal };
-  const parent = paneState(origin.parent);
-  if (parent === undefined || asked === undefined || parent.document !== asked.document) {
+  const parent = origin.parentView;
+  if (parent === undefined || asked === undefined || parent !== asked.document) {
     return {
       kind: "refused",
       refusal: new PartRefusal(
@@ -398,7 +408,7 @@ async function updateInParentQuietlyNow(
     };
   }
   if (plan.confirm && !overwritingChangedSource) return { kind: "sourceChanged" };
-  const content = documentPartReader(parent.document);
+  const content = documentPartReader(parent);
   const overrides = new Set<string>();
   let update: PartUpdate;
   for (;;) {
@@ -460,15 +470,14 @@ interface ParentAsAsked {
 
 /** The parent of `origin` as it is now; nothing once it is closed. */
 function parentAsAsked(origin: DocumentOrigin): ParentAsAsked | undefined {
-  const document = paneState(origin.parent)?.document;
+  const document = origin.parentView;
   return document === undefined ? undefined : { document, generation: document.contentGeneration };
 }
 
 /** Whether the parent is still the document, and its bytes still the ones, `asked` read. */
 function stillAsAsked(origin: DocumentOrigin, asked: ParentAsAsked): boolean {
   return (
-    paneState(origin.parent)?.document === asked.document &&
-    asked.document.contentGeneration === asked.generation
+    origin.parentView === asked.document && asked.document.contentGeneration === asked.generation
   );
 }
 
@@ -488,9 +497,9 @@ function stillAsAsked(origin: DocumentOrigin, asked: ParentAsAsked): boolean {
 const updatesUnderWay = new WeakMap<SessionView, Promise<void>>();
 
 /** `work` once every update already under way into `pane`'s parent has finished. */
-function oneUpdateAtATime<T>(pane: PartId, work: () => Promise<T>): Promise<T> {
+function oneUpdateAtATime<T>(pane: PaneId, work: () => Promise<T>): Promise<T> {
   const origin = paneState(pane)?.origin;
-  const parent = origin === undefined ? undefined : paneState(origin.parent)?.document;
+  const parent = origin?.parentView;
   if (parent === undefined) return work();
   const run = (updatesUnderWay.get(parent) ?? Promise.resolve()).then(work);
   updatesUnderWay.set(
@@ -603,8 +612,10 @@ export async function updateInParentItem(pane: PaneId): Promise<{
  */
 export function partsLinkedTo(pane: PaneId): PartId[] {
   const state = workspaceStore.getSnapshot();
+  const document = paneState(pane)?.document;
+  if (document === undefined) return [];
   return Object.entries(state.parts)
-    .filter(([, part]) => part.origin?.parent === pane)
+    .filter(([, part]) => part.origin?.parentView === document)
     .map(([id]) => id as PartId);
 }
 

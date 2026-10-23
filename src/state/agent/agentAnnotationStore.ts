@@ -202,7 +202,7 @@ export function drawnIn(
       drawn.push({ annotation: one, start: one.range[0], end: one.range[1] });
   }
   const origin = held.origin;
-  if (origin !== undefined && !origin.codec.keepsOffsets) {
+  if (origin?.parent !== undefined && !origin.codec.keepsOffsets) {
     const codec = origin.codec;
     const root = fileIdentityOf(origin.parent);
     if (
@@ -240,7 +240,7 @@ export function drawnIn(
   let windowEnd = held.document.size;
   let current: PaneId = pane;
   for (let origin = paneState(current)?.origin; origin !== undefined; ) {
-    if (!origin.codec.keepsOffsets) return drawn;
+    if (!origin.codec.keepsOffsets || origin.parent === undefined) return drawn;
     shift += origin.sourceRange[0];
     windowStart += origin.sourceRange[0];
     windowEnd += origin.sourceRange[0];

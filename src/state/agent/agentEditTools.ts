@@ -302,7 +302,7 @@ export class AgentEditTools {
           '"Let agents edit open files". Say what you would put back instead.'
       );
     }
-    const parentId = this.desk.placeOf(origin.parent)?.id;
+    const parentId = origin.parent === undefined ? undefined : this.desk.placeOf(origin.parent)?.id;
     const parentName = parentId ?? "the parent";
     if (aDialogIsOpen()) {
       throw new AgentToolError(
@@ -364,7 +364,9 @@ export class AgentEditTools {
         // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination
         // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOrigin
         const [start, end] = origin.sourceRange;
-        await agentShell.reveal?.(origin.parent, start, end, true);
+        if (origin.parent !== undefined) {
+          await agentShell.reveal?.(origin.parent, start, end, true);
+        }
         return answer;
       }
     }

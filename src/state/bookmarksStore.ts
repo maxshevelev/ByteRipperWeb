@@ -99,7 +99,8 @@ export function marksFor(pane: PaneId): BookmarkSpace | undefined {
   // the dump's own offsets.
   if (origin === undefined) return new BookmarkSpace(bookmarks);
   if (!origin.codec.keepsOffsets) return undefined;
-  const parent = marksFor(origin.parent);
+  // A parent shown in another window has that window's marks, which are not this one's.
+  const parent = origin.parent === undefined ? undefined : marksFor(origin.parent);
   if (parent === undefined) return undefined;
   return new BookmarkSpace(parent.store, parent.origin + origin.sourceRange[0]);
 }

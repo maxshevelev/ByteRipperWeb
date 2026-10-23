@@ -92,9 +92,12 @@ windows over `BroadcastChannel` without a copy through the main process; the
 main process only says which window is the target.
 
 **Parts linked across windows.** Upstream's links from a part to its parent
-reach across windows (Update in Parent, Show Parent). Here a link holds within
-the window; a pane that has parts open over it is moved with them or not at
-all (D5 asks), and the cross-window link is a `later` gap.
+reach across windows (Update in Parent, Show Parent), and so do these (G111): a
+link names the parent's session, which a window can watch without showing it,
+so a part carried away keeps its way home and a parent carried away keeps its
+parts. The parent's bytes are read and written in the session itself; the UEFI
+planner and showing the source are asked of the window that shows the parent
+(`parentLinks.ts`). Writing the link down across windows is G112.
 
 ## Where the workspace is written
 

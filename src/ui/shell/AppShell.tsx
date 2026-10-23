@@ -97,9 +97,9 @@ import {
   panePeer,
   paneToNewTab,
   receiveHandover,
-  reportRefusal,
   startPaneTransfer,
 } from "@/state/workspace/paneTransfer";
+import { parentLinkHost, revealElsewhere } from "@/state/workspace/parentLinks";
 import { loadRecentProjects, projectsStore } from "@/state/workspace/projectRecords";
 import { projectQuestionStore } from "@/state/workspace/projects";
 import { startShellWorkspace } from "@/state/workspace/shellWorkspace";
@@ -216,7 +216,8 @@ import { ToolPanel } from "@/ui/toolPanel/ToolPanel";
 /**
  * A part's dump, with the link its header draws and the two commands that link
  * carries: Update in Parent, and clicking the link to be shown where the bytes
- * came from.
+ * came from. A part let go on a pane of the workspace keeps its link there, as
+ * upstream's pane keeps its origin.
  *
  * A component of its own because the link's verdicts read bytes, so they are
  * worked out off the render (`usePartLink`) — and a hook cannot be called from
@@ -235,7 +236,7 @@ function PartDump({
   readonly headerMenu: (update: UpdateItem | undefined) => (MenuEntry | undefined)[];
   readonly onUpdateInParent: () => void;
   readonly onRevealOrigin: () => void;
-  readonly onCollapse: () => void;
+  readonly onCollapse?: (() => void) | undefined;
 }) {
   const link = usePartLink(pane.paneId);
   return (
@@ -1645,24 +1646,43 @@ export function AppShell() {
     }
   }, []);
 
-  const showOrigin = useCallback(
-    async (pane: PartId) => {
-      const origin = paneState(pane)?.origin;
-      if (origin === undefined || (await origin.state()) === "parentClosed") return;
-      const parent = origin.parent;
+  const showSource = useCallback(
+    (parent: PaneId, [start, end]: readonly [number, number]) => {
       // Raising one panel folds the other: there is only ever one up. A parent
       // that is one of the workspace's own panes needs the stage cleared —
       // folding only this panel would leave another covering the very bytes this
       // is here to show.
       if (isSlot(parent)) foldParts();
       else raisePart(parent);
-      const [start, end] = origin.sourceRange;
       void paneState(parent)?.typing.setSelection(start, end);
       // The source range is selected, then shown: scroll alone, so the caret
       // move a plain reveal makes does not collapse the selection.
       revealIn(parent, start, false);
     },
     [revealIn]
+  );
+
+  // A part in another window asks for its source here: this window comes to the front with it.
+  useEffect(() => {
+    parentLinkHost.reveal = (parent, range) => {
+      desktopWindowFocus()?.();
+      showSource(parent, range);
+    };
+    return () => {
+      parentLinkHost.reveal = undefined;
+    };
+  }, [showSource]);
+
+  const showOrigin = useCallback(
+    async (pane: PaneId) => {
+      const origin = paneState(pane)?.origin;
+      if (origin === undefined || (await origin.state()) === "parentClosed") return;
+      const parent = origin.parent;
+      // A parent shown in another window is shown there, that window brought forward.
+      if (parent === undefined) revealElsewhere(origin.parentSession, origin.sourceRange);
+      else showSource(parent, origin.sourceRange);
+    },
+    [showSource]
   );
 
   /**
@@ -1679,7 +1699,7 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealUpdateDestination
    */
   const putBack = useCallback(
-    async (pane: PartId) => {
+    async (pane: PaneId) => {
       const outcome = await updateInParent(pane);
       if (outcome.kind !== "updated") return;
       await showOrigin(pane);
@@ -2033,8 +2053,7 @@ export function AppShell() {
           return;
         }
       }
-      const taken = await bringPane(remote.from, remote.slot, target, outcome.kind === "duplicate");
-      reportRefusal(taken, remote.name);
+      await bringPane(remote.from, remote.slot, target, outcome.kind === "duplicate");
     },
     [remoteDropOutcomeFor, joinInto]
   );
@@ -2070,8 +2089,7 @@ export function AppShell() {
           return;
         }
       }
-      const taken = await bringPane(undefined, part, target, outcome.kind === "duplicate");
-      reportRefusal(taken, source.name);
+      await bringPane(undefined, part, target, outcome.kind === "duplicate");
     },
     []
   );
@@ -2589,7 +2607,7 @@ export function AppShell() {
     if (pane === undefined) return null;
     const other = id === "a" ? "b" : "a";
     return (
-      <HexPane
+      <PartDump
         // The document, not the file: a join's undo and redo put a different
         // file under the same document, and remounting the dump for it lost the
         // keyboard and the scroll with it.
@@ -2619,7 +2637,9 @@ export function AppShell() {
         resultsShown={resultsFor(search, id).resultsShown}
         searchStatus={resultsFor(search, id).status}
         onGoToMatch={revealInBoth}
-        onHeaderMenu={(event) => openContextMenu(event, paneFileMenu(state, id, menuActions))}
+        headerMenu={(update) => paneFileMenu(state, id, menuActions, update)}
+        onUpdateInParent={() => void putBack(id)}
+        onRevealOrigin={() => void showOrigin(id)}
         onContentWidth={id === "a" ? reportAContentWidth : reportBContentWidth}
         onHeaderDoubleClick={(event) => fitPaneToContent(id, event)}
         renaming={renamingPane === id}

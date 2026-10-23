@@ -217,6 +217,63 @@ describe("what crosses and what fails", () => {
   });
 });
 
+describe("a session watched without being shown", () => {
+  it("is heard, edited through, and not kept open: the watcher hears it end", async () => {
+    const { host, window } = hostWith({ s: [0, 0] });
+    const shower = window();
+    const shown = await shower.show("s");
+    const watched = await window().watch("s");
+    const heard: SessionContentChange[] = [];
+    watched.onContentChanged((change) => heard.push(change));
+    let closed = false;
+    watched.onClosed(() => {
+      closed = true;
+    });
+
+    await shown.overwrite(0, new Uint8Array([5]));
+    await watched.overwrite(1, new Uint8Array([6]));
+    await quiet();
+    expect(heard).toHaveLength(2);
+    expect(await content(host, "s")).toEqual([5, 6]);
+    expect([...host.shownSessions()]).toEqual(["s"]);
+
+    shower.hide("s");
+    await quiet();
+    expect([...host.shownSessions()]).toEqual([]);
+    host.closeUnshown();
+    await quiet();
+    expect(closed).toBe(true);
+  });
+
+  it("keeps hearing a session its window stops showing, while a watch of it lasts", async () => {
+    const { host, window } = hostWith({ s: [0] });
+    const one = window();
+    const view = await one.show("s");
+    expect(await one.watch("s")).toBe(view);
+    one.hide("s");
+    let closed = false;
+    view.onClosed(() => {
+      closed = true;
+    });
+    host.close("s");
+    await quiet();
+    expect(closed).toBe(true);
+  });
+
+  it("is shown again through the view it was watched by", async () => {
+    const { host, window } = hostWith({ s: [0] });
+    const one = window();
+    const watched = await one.watch("s");
+    expect(await one.show("s")).toBe(watched);
+    await quiet();
+    expect([...host.shownSessions()]).toEqual(["s"]);
+    one.unwatch("s");
+    one.hide("s");
+    await quiet();
+    expect([...host.shownSessions()]).toEqual([]);
+  });
+});
+
 describe("the bytes a window reads", () => {
   it("are peeked once prefetched, and kept true through another window's edits without a read", async () => {
     const bytes = Array.from({ length: 200_000 }, (_, at) => at & 0xff);

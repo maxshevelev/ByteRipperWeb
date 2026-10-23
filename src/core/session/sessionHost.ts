@@ -24,6 +24,8 @@ import type { ByteStorage, EditableByteStorage } from "@/core/storage/byteStorag
 interface Connection {
   readonly line: SessionLine<HostMessage, ViewMessage>;
   readonly shown: Set<SessionId>;
+  /** The sessions it hears without showing them: a part's parent shown in another window. */
+  readonly watched: Set<SessionId>;
   /** The last of this window's requests the host began to apply. */
   acked: number;
 }
@@ -139,7 +141,10 @@ export class SessionHost {
     this.tell(id, { kind: "closed" });
     session.stop();
     this.sessions.delete(id);
-    for (const connection of this.connections) connection.shown.delete(id);
+    for (const connection of this.connections) {
+      connection.shown.delete(id);
+      connection.watched.delete(id);
+    }
   }
 
   /**
@@ -186,7 +191,7 @@ export class SessionHost {
 
   /** Takes a window's line; it is heard from until it is let go. */
   connect(line: SessionLine<HostMessage, ViewMessage>): () => void {
-    const connection: Connection = { line, shown: new Set(), acked: 0 };
+    const connection: Connection = { line, shown: new Set(), watched: new Set(), acked: 0 };
     this.connections.add(connection);
     line.listen((message) => this.receive(connection, message));
     return () => {
@@ -202,6 +207,12 @@ export class SessionHost {
         return;
       case "hide":
         connection.shown.delete(message.session);
+        return;
+      case "watch":
+        if (this.sessions.has(message.session)) connection.watched.add(message.session);
+        return;
+      case "unwatch":
+        connection.watched.delete(message.session);
         return;
       case "request":
         this.enqueue(connection, message.seq, message.session, message.request);
@@ -394,6 +405,13 @@ export class SessionHost {
     return document.storage;
   }
 
+  /** The windows that hear a session's news: those that show it, and those that watch it. */
+  private hearing(id: SessionId): Connection[] {
+    return [...this.connections].filter(
+      (connection) => connection.shown.has(id) || connection.watched.has(id)
+    );
+  }
+
   /** Says something once everything said before it has gone. */
   private send(post: () => void | Promise<void>): void {
     this.outbox = this.outbox.then(post).catch(() => undefined);
@@ -403,7 +421,7 @@ export class SessionHost {
     const session = this.sessions.get(id);
     if (session === undefined) return;
     const state = stateOf(session);
-    const heard = [...this.connections].filter((connection) => connection.shown.has(id));
+    const heard = this.hearing(id);
     const acked = heard.map((connection) => connection.acked);
     this.send(() => {
       heard.forEach((connection, index) => {
@@ -427,7 +445,7 @@ export class SessionHost {
     const session = this.sessions.get(id);
     if (session === undefined) return;
     const state = stateOf(session);
-    const heard = [...this.connections].filter((connection) => connection.shown.has(id));
+    const heard = this.hearing(id);
     const acked = heard.map((connection) => connection.acked);
     this.send(async () => {
       const spans = await spansWithBytes(ops);

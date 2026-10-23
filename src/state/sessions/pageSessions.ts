@@ -169,12 +169,35 @@ export function showSession(id: SessionId): Promise<SessionView> {
 }
 
 /**
+ * Hears a session without showing it — a part's parent, here or in another window — until
+ * `unwatchSession`. Its view, the same one a pane here shows it through.
+ */
+export function watchSession(id: SessionId): Promise<SessionView> {
+  return client.watch(id);
+}
+
+/** Ends one `watchSession`. */
+export function unwatchSession(id: SessionId): void {
+  client.unwatch(id);
+}
+
+/**
+ * Whether this window ended `id` itself — stopped showing it with no other window to show it next.
+ * Known here at once, where the host's word that the session closed is a round trip away.
+ */
+export function endedHere(id: SessionId): boolean {
+  return ended.has(id);
+}
+const ended = new Set<SessionId>();
+
+/**
  * Stops showing a session no pane here shows any more. The host ends it once no window shows it —
  * unless it was handed to another window, which shows it next.
  */
 export function closeSession(view: SessionView): void {
   client.hide(view.id);
   if (!carried.delete(view.id)) {
+    ended.add(view.id);
     void client.operate("session.closeUnshown", { session: view.id });
   }
   for (const listener of closedListeners) listener(view.id);

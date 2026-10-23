@@ -84,12 +84,13 @@ export class AgentNodeLinks {
       });
     }
     const origin = paneState(pane)?.origin;
-    const holder = origin === undefined ? undefined : this.desk.placeOf(origin.parent);
-    if (origin !== undefined && holder !== undefined) {
+    const parent = origin?.parent;
+    const holder = parent === undefined ? undefined : this.desk.placeOf(parent);
+    if (origin !== undefined && parent !== undefined && holder !== undefined) {
       const source = origin.sourceRange;
       list.push({
         id: holder.id,
-        pane: origin.parent,
+        pane: parent,
         covers: [0, source[1] - source[0]],
         shift: source[0],
         relation: decodes(origin.codec) ? "encoded" : "same",

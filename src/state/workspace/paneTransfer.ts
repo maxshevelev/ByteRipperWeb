@@ -1,10 +1,11 @@
 import type { Bookmark } from "@/core/bookmarks/bookmarkStore";
-import { L } from "@/core/localization/localization";
+import type { PartCodec } from "@/core/parts/partCodec";
 import type { SessionId } from "@/core/session/sessionProtocol";
 import type { PaneState } from "@/core/workspace/workspace";
 import { desktopWindowFocus, windowLaunch } from "@/platform/desktop/desktopWindows";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import { adoptBookmarks, bookmarksStore } from "@/state/bookmarksStore";
+import { type CarriedOrigin, DocumentOrigin } from "@/state/documentOrigin";
 import {
   beginPaneDrag,
   beginPartDrag,
@@ -13,9 +14,10 @@ import {
   paneDragStore,
 } from "@/state/paneDragStore";
 import { isSlot, type PaneId, type PartId, type SlotId } from "@/state/paneId";
-import { partsLinkedTo } from "@/state/partUpdate";
 import { adoptSources, type CarriedSources, carriedSources } from "@/state/segmentSources";
 import { releaseSession, sessionsShared, showSession } from "@/state/sessions/pageSessions";
+import { startParentLinks } from "@/state/workspace/parentLinks";
+import { codecOf, type PartCodecState, partCodecState } from "@/state/workspace/partCodecState";
 import { paneRecord } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedSession } from "@/state/workspace/workspaceRestorer";
 import {
@@ -25,7 +27,6 @@ import {
   openKeptUntitledInPane,
   type PaneState as PaneSlot,
   paneState,
-  reportAlert,
   setActivePane,
 } from "@/state/workspaceStore";
 
@@ -78,6 +79,14 @@ export type TakenPane =
       /** The files its pieces' links name, under the ids the session's partition knows them by. */
       readonly sources: CarriedSources;
       readonly marks: readonly Bookmark[];
+      /** A part's way home, which goes where the part goes. */
+      readonly origin?:
+        | {
+            readonly link: CarriedOrigin;
+            /** Its codec in words; nothing for one only this window can make again. */
+            readonly codec: PartCodecState | undefined;
+          }
+        | undefined;
     }
   /** A copy of its content, the pane left as it was. */
   | {
@@ -86,13 +95,10 @@ export type TakenPane =
       readonly name: string;
       readonly marks: readonly Bookmark[];
     }
-  /**
-   * Kept: parts are open over it there, it is a part holding changes its parent has not got back,
-   * or it is gone.
-   */
+  /** Kept: it is gone, or the window holding it did not answer. */
   | {
       readonly kind: "refused";
-      readonly reason: "parts" | "unreturned" | "gone" | "unanswered";
+      readonly reason: "gone" | "unanswered";
     };
 
 /** What a new window is handed by the window it was torn off from. */
@@ -276,8 +282,8 @@ export const thisWindow: PaneHolder = {
     const marks = isSlot(slot) ? bookmarksStore.getSnapshot().bookmarks : [];
     if (copy) return { kind: "copy", content: await contentOf(pane), name: pane.name, marks };
     if (!isSlot(slot)) return releasePart(slot, pane);
-    // A pane with parts open over it stays: their way home is this pane.
-    if (partsLinkedTo(slot).length > 0) return { kind: "refused", reason: "parts" };
+    // A pane with parts open over it goes as any other: their way home is its session, which
+    // they find wherever it is shown.
     const record = await paneRecord(slot);
     if (record === undefined) return { kind: "refused", reason: "gone" };
     // The pane being handed over may be the one this window is dragging: its header goes with it,
@@ -291,24 +297,29 @@ export const thisWindow: PaneHolder = {
 };
 
 /**
- * A fragment panel let go: its bytes, as a document of their own, and the panel closed. Its way
- * home stays behind — a link to a parent does not cross between windows, nor survive becoming a
- * pane — so a part holding changes its parent has not got back is kept, for them to be put back
- * first or copied.
+ * A fragment panel let go: its document, and its way home with it — the link names the parent's
+ * session, which the window it reaches finds wherever it is shown — and the panel closed.
  *
  * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.release
- * @upstream-differs the part arrives without its way home, where upstream's keeps it: a pane here
- * is a slot of its window, and Update in Parent is a fragment panel's
+ * @upstream-differs the link crosses as a record, its parent by its session's name, where
+ * upstream's pane carries its origin object along
  */
-async function releasePart(part: PartId, pane: PaneSlot): Promise<TakenPane> {
-  if (pane.origin !== undefined && (await pane.origin.hasChanges(pane.document))) {
-    return { kind: "refused", reason: "unreturned" };
-  }
+function releasePart(part: PartId, pane: PaneSlot): TakenPane {
+  const origin = pane.origin;
   if (localDrag === part) endLocalPaneDrag();
   const taken = released(part, { ...pane, untitled: true, writable: false }, undefined, []);
   closePart(part);
-  return taken;
+  if (origin === undefined || taken.kind !== "pane") return taken;
+  // A part let go on a pane of this same window takes its codec as it is.
+  leavingCodecs.set(pane.document.id, origin.codec);
+  return {
+    ...taken,
+    origin: { link: origin.carry(), codec: partCodecState(origin.codec) },
+  };
 }
+
+/** The codecs of the parts this window has let go, by session, for a pane here that takes one. */
+const leavingCodecs = new Map<SessionId, PartCodec>();
 
 /** A pane let go: its session named, and handed over so that its going here does not end it. */
 function released(
@@ -330,25 +341,6 @@ function released(
     sources: carriedSources(slot),
     marks,
   };
-}
-
-/**
- * Says why a pane stayed where it was, in the window that asked for it.
- */
-export function reportRefusal(taken: TakenPane, name?: string): void {
-  if (taken.kind !== "refused") return;
-  const title =
-    name === undefined ? L("The pane could not be moved") : L("“%1$@” could not be moved", name);
-  if (taken.reason === "parts") {
-    reportAlert(title, L("Parts are open over it in its window. Close them there first."));
-  } else if (taken.reason === "unreturned") {
-    reportAlert(
-      title,
-      L(
-        "It holds changes the document it came out of has not got back. Put them back with Update in Parent first, or hold Alt to make a copy."
-      )
-    );
-  }
 }
 
 let peer: ReturnType<typeof paneTransferPeer> | undefined;
@@ -381,6 +373,8 @@ export function startPaneTransfer(): () => void {
   }
   const joined = paneTransferPeer(new BroadcastChannel("byteripper-panes"), thisWindow);
   peer = joined;
+  // The parts linked across windows are heard on a line of their own.
+  const leaveLinks = startParentLinks();
   // A pane of this window picked up: the other windows are told, until the header's own `dragend`
   // says it is over (`endLocalPaneDrag`).
   const stopWatching = paneDragStore.subscribe(() => {
@@ -403,6 +397,7 @@ export function startPaneTransfer(): () => void {
     starts: 1,
     leaving: undefined,
     leave: () => {
+      leaveLinks();
       stopWatching();
       stopHearing();
       joined.close();
@@ -497,6 +492,18 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
     setActivePane(slot);
   } else if (taken.kind === "pane") {
     const view = await showSession(taken.session);
+    const carried = taken.origin;
+    const live = leavingCodecs.get(taken.session);
+    leavingCodecs.delete(taken.session);
+    const codec =
+      live ??
+      (carried?.codec === undefined
+        ? undefined
+        : codecOf(carried.codec, { session: carried.link.session }));
+    const origin =
+      carried === undefined || codec === undefined
+        ? undefined
+        : await DocumentOrigin.carried({ ...carried.link, codec });
     await adoptMovedSession(
       slot,
       view,
@@ -506,6 +513,7 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
         untitled: taken.untitled,
         writable: taken.writable,
         saved: taken.saved,
+        origin,
       },
       taken.pane
     );
@@ -526,10 +534,7 @@ export async function receiveHandover(): Promise<readonly OpenedFile[]> {
   if (handover === undefined || peer === undefined) return [];
   if (handover.kind === "pane") {
     const taken = await peer.take(handover.from, handover.slot, handover.copy);
-    if (taken.kind === "refused") {
-      reportRefusal(taken);
-      return [];
-    }
+    if (taken.kind === "refused") return [];
     adoptBookmarks(taken.marks);
     await adoptTaken("a", taken);
     return [];

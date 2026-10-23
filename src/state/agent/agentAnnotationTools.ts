@@ -307,7 +307,8 @@ export class AgentAnnotationTools {
         let mapped = range;
         let reachesFile = true;
         for (let origin = paneState(pane)?.origin; origin !== undefined; ) {
-          if (paneState(origin.parent) === undefined) {
+          const parent = origin.parent;
+          if (parent === undefined || paneState(parent) === undefined) {
             reachesFile = false;
             break;
           }
@@ -318,7 +319,7 @@ export class AgentAnnotationTools {
             mapped = source;
             exact = false;
           }
-          pane = origin.parent;
+          pane = parent;
           origin = paneState(pane)?.origin;
         }
         const top = paneState(pane);
@@ -468,7 +469,7 @@ export class AgentAnnotationTools {
     range: readonly [number, number]
   ): Promise<AnnotationDecoded | undefined> {
     const origin = paneState(pane)?.origin;
-    if (origin === undefined) return undefined;
+    if (origin?.parent === undefined) return undefined;
     const parent = this.desk.placeOf(origin.parent);
     const parentState = paneState(origin.parent);
     if (

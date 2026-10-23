@@ -6,9 +6,11 @@ import {
   PartRefusal,
   type PartUpdate,
 } from "@/core/parts/partCodec";
+import type { SessionId } from "@/core/session/sessionProtocol";
 import type { RebuildCaution, RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { askFirmwareRebuild, firmwareReady, readSpaceBytes } from "@/state/firmwareStore";
-import type { PaneId } from "@/state/workspaceStore";
+import { rebuildElsewhere } from "@/state/workspace/parentLinks";
+import { type PaneId, paneShowing, paneState } from "@/state/workspaceStore";
 
 /**
  * A part of an image that the rebuild planner lays out again on the way back
@@ -24,11 +26,11 @@ import type { PaneId } from "@/state/workspaceStore";
  *
  * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec
  * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.init
- * @upstream-differs carries the parent's pane where upstream carries the tree's
- * readers: a buffer is decompressed, and the planner run, in that pane's
- * firmware worker, which is where the tree and its buffers are. Nothing it
- * holds outlives the pane — the link refuses an update once the pane is closed
- * or holds another file, before the codec is asked anything
+ * @upstream-differs carries the parent's session where upstream carries the
+ * tree's readers: a buffer is decompressed, and the planner run, in the firmware
+ * worker of the pane that shows it — in this window, or in the one the part was
+ * carried away from (`parentLinks`). Nothing it holds outlives the session — the
+ * link refuses an update once it has ended, before the codec is asked anything
  */
 export class UEFIPartCodec implements PartCodec {
   /** @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.target */
@@ -40,19 +42,36 @@ export class UEFIPartCodec implements PartCodec {
    * @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.compression
    */
   readonly compression: string | undefined;
-  /** The pane the part is taken out of, whose worker reads and plans. */
-  private readonly pane: PaneId;
+  /**
+   * The parent's session, whose pane's worker reads and plans: found here when it is shown here,
+   * asked of the window showing it when it is not. The pane it was made with stands in where that
+   * pane has no session to name — a test's.
+   */
+  private readonly session: SessionId | undefined;
+  private readonly pane: PaneId | undefined;
   /** @upstream Packages/UEFIContentSource/Sources/UEFIContentSource/UEFIPartCodec.swift#UEFIPartCodec.isImmediate */
   readonly isImmediate = false;
 
   constructor(options: {
-    readonly pane: PaneId;
+    /** The parent, as a pane of this window or as the session a pane anywhere shows. */
+    readonly pane: PaneId | { readonly session: SessionId };
     readonly target: RebuildTarget;
     readonly compression?: string | undefined;
   }) {
-    this.pane = options.pane;
+    if (typeof options.pane === "string") {
+      this.pane = options.pane;
+      this.session = paneState(options.pane)?.document.id;
+    } else {
+      this.pane = undefined;
+      this.session = options.pane.session;
+    }
     this.target = options.target;
     this.compression = options.compression;
+  }
+
+  /** The pane of this window that shows the parent, if one does. */
+  private paneHere(): PaneId | undefined {
+    return this.session === undefined ? this.pane : paneShowing(this.session);
   }
 
   private get isFile(): boolean {
@@ -123,11 +142,12 @@ export class UEFIPartCodec implements PartCodec {
     }
     // The parent's tree is what reads the section: one not read yet — a workspace opening its
     // parts at launch — is read first.
-    const ready = await firmwareReady(this.pane);
+    const pane = this.paneHere();
+    const ready = pane !== undefined && (await firmwareReady(pane));
     const bytes = !ready
       ? undefined
       : await readSpaceBytes(
-          this.pane,
+          pane,
           this.target.space,
           range === undefined ? undefined : [range.start, range.end]
         );
@@ -152,13 +172,15 @@ export class UEFIPartCodec implements PartCodec {
       const caution = cautionOfToken(token);
       return caution === undefined ? [] : [caution];
     });
-    const answer = await askFirmwareRebuild(
-      this.pane,
-      part,
-      this.target,
-      (phase, fraction) => parent.progress?.(phase.text, fraction),
-      accepting
-    );
+    const progress = (phase: LocalizedText, fraction: number) =>
+      parent.progress?.(phase.text, fraction);
+    const pane = this.paneHere();
+    const answer =
+      pane !== undefined
+        ? await askFirmwareRebuild(pane, part, this.target, progress, accepting)
+        : this.session === undefined
+          ? undefined
+          : await rebuildElsewhere(this.session, part, this.target, progress, accepting);
     const plan = answer?.plan;
     if (answer?.caution !== undefined) throw refusalForCaution(answer.caution);
     if (plan === undefined) {

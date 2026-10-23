@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CopyPartCodec } from "@/core/parts/partCodec";
+import { DocumentOrigin } from "@/state/documentOrigin";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { takeOpensTopLevelRows } from "@/state/opensTopLevelRows";
@@ -9,8 +11,10 @@ import {
   updateInParent,
   updateInParentItem,
 } from "@/state/partUpdate";
+import { releaseSession } from "@/state/sessions/pageSessions";
 import { openGivenPart } from "@/state/testing/givenParts";
 import { sessionOn, toolController } from "@/state/toolController";
+import { bringPane } from "@/state/workspace/paneTransfer";
 import {
   closePart,
   openEmptyInPane,
@@ -333,5 +337,65 @@ describe("a part opened with a tool on", () => {
 
     expect(sessionOn(toolController.getSnapshot(), part).activeIdentifier).toBeUndefined();
     expect(takeOpensTopLevelRows(part)).toBe(false);
+  });
+});
+
+describe("the link of a part let go on a pane", () => {
+  /**
+   * The link is the part's own, so it goes where the part goes: let go on a pane, the pane is
+   * still linked to the zone it came out of, and Update in Parent still knows where the bytes go.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAPartTornOffIntoATabKeepsItsLink
+   */
+  it("goes with it, and the bytes still go back where they came from", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+
+    await bringPane(undefined, part, "b", false);
+
+    expect(workspaceStore.getSnapshot().parts).toEqual({});
+    const origin = paneState("b")?.origin;
+    expect(origin?.parent).toBe("a");
+    expect(await origin?.state()).toBe("intact");
+    await paneState("b")?.document.overwrite(0, Uint8Array.from([0x55]));
+    expect((await updateInParent("b")).kind).toBe("updated");
+    expect((await bytesOf("a"))[0x10]).toBe(0x55);
+  });
+
+  /**
+   * A parent shown in another window is no pane of this one, but its session is the same one
+   * every window reaches: the link reads it and writes into it there.
+   *
+   * @upstream ByteRipperTests/LinkedPartTests.swift#LinkedPartTests.testAPartTornOffIntoATabKeepsItsLink
+   */
+  it("finds a parent another window shows", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+    const parent = paneState("a")?.document;
+    const carried = paneState(part)?.origin?.carry();
+    if (parent === undefined || carried === undefined) throw new Error("the part should be open");
+    // The parent goes on in another window: its pane goes here, its session does not.
+    releaseSession(parent);
+    workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));
+    const origin = await DocumentOrigin.carried({ ...carried, codec: new CopyPartCodec() });
+
+    expect(origin?.parent).toBeUndefined();
+    expect(await origin?.state()).toBe("intact");
+    expect(origin?.parentName).toBe("bios.bin");
+    await parent.overwrite(0x11, Uint8Array.from([0xff]));
+    expect(await origin?.state()).toBe("sourceChanged");
+    origin?.release();
+  });
+
+  it("is broken once the parent's session ends, wherever it was shown", async () => {
+    await fileInA();
+    const part = await partOfA(0x10, 0x20);
+    const origin = paneState(part)?.origin;
+    await bringPane(undefined, part, "b", false);
+
+    workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));
+
+    expect(await paneState("b")?.origin?.state()).toBe("parentClosed");
+    expect(paneState("b")?.origin?.sourceRange).toEqual(origin?.sourceRange);
   });
 });

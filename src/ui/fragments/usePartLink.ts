@@ -46,10 +46,13 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
   const version = useSettledEdits();
   const [link, setLink] = useState<PartLink | undefined>(undefined);
   const origin = paneState(pane)?.origin;
+  // A parent in another window changes no pane here: its own news is what asks again.
+  const [parentTick, setParentTick] = useState(0);
+  useEffect(() => origin?.onParentChanged(() => setParentTick((tick) => tick + 1)), [origin]);
 
-  // `version` is in the list on purpose, and Biome is told so: the verdicts
-  // are about bytes, and nothing else here changes when those do.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the tick is the input
+  // `version` and `parentTick` are in the list on purpose, and Biome is told so:
+  // the verdicts are about bytes, and nothing else here changes when those do.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the ticks are the input
   useEffect(() => {
     let cancelled = false;
     const slot = paneState(pane);
@@ -73,7 +76,7 @@ export function usePartLink(pane: PaneId): PartLink | undefined {
     return () => {
       cancelled = true;
     };
-  }, [origin, pane, version]);
+  }, [origin, pane, version, parentTick]);
 
   return link;
 }

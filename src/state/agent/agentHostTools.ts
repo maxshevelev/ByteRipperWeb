@@ -104,7 +104,7 @@ export class AgentHostTools {
       }
       const origin = place.state?.origin;
       if (origin !== undefined) {
-        const parent = this.desk.placeOf(origin.parent);
+        const parent = origin.parent === undefined ? undefined : this.desk.placeOf(origin.parent);
         if (parent !== undefined) entry.part_of = parent.id;
         entry.source = rangeJson(origin.sourceRange[0], origin.sourceRange[1]);
         const badge = origin.codec.badge;

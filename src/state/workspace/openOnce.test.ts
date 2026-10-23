@@ -161,10 +161,10 @@ describe("a file open in another window", () => {
     other.close();
   });
 
-  it("stays where it is when its window keeps it for the parts over it", async () => {
+  it("stays where it is when its window does not answer", async () => {
     const other = openOnceBroker(
       join(),
-      windowHolding({ a: { path: "/d/bios.bin" } }, { refused: "parts" }).own
+      windowHolding({ a: { path: "/d/bios.bin" } }, { refused: "unanswered" }).own
     );
     installOpenOnceForTesting(openOnceBroker(join(), windowHolding({}).own));
     openOnceHooks.ask = async () => "move";

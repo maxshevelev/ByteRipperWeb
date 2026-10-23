@@ -51,6 +51,10 @@ export class SessionClient {
   private seq = 0;
   private readonly waiting = new Map<number, Waiting>();
   private readonly views = new Map<SessionId, SessionView>();
+  /** The sessions this window shows, of those it has a view of; the rest it only watches. */
+  private readonly shown = new Set<SessionId>();
+  /** How many links of this window watch each session (`watch`). */
+  private readonly watches = new Map<SessionId, number>();
   private readonly line: SessionLine<ViewMessage, HostMessage>;
 
   constructor(line: SessionLine<ViewMessage, HostMessage>) {
@@ -63,19 +67,62 @@ export class SessionClient {
    * stands. A session already shown here gives the view it has.
    */
   async show(id: SessionId): Promise<SessionView> {
-    const shown = this.views.get(id);
-    if (shown !== undefined) return shown;
+    const held = this.views.get(id);
+    if (held !== undefined) {
+      if (!this.shown.has(id)) {
+        this.shown.add(id);
+        this.line.post({ kind: "show", session: id });
+      }
+      return held;
+    }
     this.line.post({ kind: "show", session: id });
+    const view = new SessionView(this, id);
+    this.views.set(id, view);
+    this.shown.add(id);
+    try {
+      await view.ask({ kind: "state" });
+    } catch (error) {
+      this.views.delete(id);
+      this.shown.delete(id);
+      this.line.post({ kind: "hide", session: id });
+      throw error;
+    }
+    return view;
+  }
+
+  /**
+   * Hears the session `id` without showing it — a part's parent, wherever the parent is shown: its
+   * view, the same one this window shows it through if it does. A watch does not keep the session
+   * open; the view hears it close. Each `watch` is ended by one `unwatch`.
+   */
+  async watch(id: SessionId): Promise<SessionView> {
+    const count = this.watches.get(id) ?? 0;
+    this.watches.set(id, count + 1);
+    if (count === 0) this.line.post({ kind: "watch", session: id });
+    const held = this.views.get(id);
+    if (held !== undefined) return held;
     const view = new SessionView(this, id);
     this.views.set(id, view);
     try {
       await view.ask({ kind: "state" });
     } catch (error) {
-      this.views.delete(id);
-      this.line.post({ kind: "hide", session: id });
+      this.unwatch(id);
       throw error;
     }
     return view;
+  }
+
+  /** Ends one `watch` of the session `id`. */
+  unwatch(id: SessionId): void {
+    const count = this.watches.get(id) ?? 0;
+    if (count === 0) return;
+    if (count > 1) {
+      this.watches.set(id, count - 1);
+      return;
+    }
+    this.watches.delete(id);
+    this.line.post({ kind: "unwatch", session: id });
+    if (!this.shown.has(id)) this.views.delete(id);
   }
 
   /**
@@ -84,11 +131,18 @@ export class SessionClient {
    */
   adopt(id: SessionId, state: SessionState): SessionView {
     const shown = this.views.get(id);
-    if (shown !== undefined) return shown;
+    if (shown !== undefined) {
+      if (!this.shown.has(id)) {
+        this.shown.add(id);
+        this.line.post({ kind: "show", session: id });
+      }
+      return shown;
+    }
     this.line.post({ kind: "show", session: id });
     const view = new SessionView(this, id);
     view.answered(state, 0);
     this.views.set(id, view);
+    this.shown.add(id);
     return view;
   }
 
@@ -115,19 +169,24 @@ export class SessionClient {
       0
     );
     this.views.set(id, view);
+    this.shown.add(id);
     return view;
   }
 
   /** Stops showing a session here; the view hears nothing more. */
   hide(id: SessionId): void {
-    if (!this.views.delete(id)) return;
+    if (!this.shown.delete(id)) return;
     this.line.post({ kind: "hide", session: id });
+    // A session a link here still watches keeps its view: the link hears it close.
+    if (!this.watches.has(id)) this.views.delete(id);
   }
 
   close(): void {
     for (const waiting of this.waiting.values()) waiting.reject(new Error("The host is gone."));
     this.waiting.clear();
     this.views.clear();
+    this.shown.clear();
+    this.watches.clear();
     this.line.close();
   }
 

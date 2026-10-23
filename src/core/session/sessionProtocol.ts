@@ -191,6 +191,13 @@ export type ViewMessage =
   | { readonly kind: "show"; readonly session: SessionId }
   | { readonly kind: "hide"; readonly session: SessionId }
   /**
+   * Hears a session's news without showing it: what a part reads its parent through when the
+   * parent is in another window. A session only watched is not kept open — it ends once no window
+   * shows it, and the watchers hear that it has.
+   */
+  | { readonly kind: "watch"; readonly session: SessionId }
+  | { readonly kind: "unwatch"; readonly session: SessionId }
+  /**
    * Opens a session under the id the window chose, from bytes the platform names — a `File`, or
    * nothing — and shows it to that window. Everything the window sends after it comes after it.
    */

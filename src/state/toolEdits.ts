@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import type { SessionView } from "@/core/session/sessionView";
 import { editingHooks, isSlot, type PaneId, paneState } from "@/state/workspaceStore";
 import {
   type ToolTransaction,
@@ -31,21 +32,8 @@ export async function applyTransaction(
 
   const slot = paneState(pane);
   if (slot === undefined) return L("That pane has no file open.");
-
-  // Bounds are the document's to know, and they are checked before anything is
-  // written: a transaction the file cannot hold is refused whole rather than
-  // applied as far as it reaches.
-  for (const write of checked.transaction.writes) {
-    if (write.offset + write.bytes.length > slot.document.size) {
-      return L("That change would write past the end of this file.");
-    }
-  }
-
-  slot.document.beginEditGroup(checked.transaction.name);
-  for (const write of checked.transaction.writes) {
-    await slot.document.overwrite(write.offset, write.bytes);
-  }
-  await slot.document.endEditGroup();
+  const problem = await applyDocumentTransaction(slot.document, checked.transaction);
+  if (problem !== undefined) return problem;
   // Told as a typed byte is: the comparison, the search, the map and the cuts
   // all hold claims about these bytes. Without it a copy into the other pane
   // left its bytes marked as differing — the two panes repainted what they
@@ -61,5 +49,34 @@ export async function applyTransaction(
       });
     }
   }
+  return undefined;
+}
+
+/**
+ * Applies a transaction to a document no pane of this window shows — a part's parent shown in
+ * another window — as one undoable step there. What a pane's edit tells the window around it is
+ * the caller's to tell the window that shows it.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.applyToolWrites
+ */
+export async function applyDocumentTransaction(
+  document: SessionView,
+  transaction: ToolTransaction
+): Promise<string | undefined> {
+  const checked = validateTransaction(transaction);
+  if (!checked.ok) return transactionProblemMessage(checked.problem);
+  // Bounds are the document's to know, and they are checked before anything is
+  // written: a transaction the file cannot hold is refused whole rather than
+  // applied as far as it reaches.
+  for (const write of checked.transaction.writes) {
+    if (write.offset + write.bytes.length > document.size) {
+      return L("That change would write past the end of this file.");
+    }
+  }
+  document.beginEditGroup(checked.transaction.name);
+  for (const write of checked.transaction.writes) {
+    await document.overwrite(write.offset, write.bytes);
+  }
+  await document.endEditGroup();
   return undefined;
 }
