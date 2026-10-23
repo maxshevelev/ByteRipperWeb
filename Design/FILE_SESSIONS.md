@@ -136,7 +136,8 @@ shell and a browser driven through what the step changed.
 
 Electron 44.5 (Chromium 152) with two windows under the app's privileges and
 sandbox; the Chromium of the desktop app's pane with two tabs; Safari 27.0.1
-with two tabs. Firefox is not installed on the bench and was not run.
+with two tabs. Firefox was not on the bench then; the app itself was run there
+later (2026-10-23, below).
 
 | | Electron | Chromium tabs | Safari tabs |
 |---|---|---|---|
@@ -319,8 +320,12 @@ the renderer's chunk cache as it is.
   CLAUDE.md (the rule on browser tabs, and where documents live), and the help
   in en, ru, de, which said a moved pane's undo history stays behind: the
   sentences listing what a moved pane keeps are gone — a moved pane is the pane,
-  and the help does not explain it. Firefox is still not
-  run: the probe in `Design/probes/session-host/` runs there unchanged.
+  and the help does not explain it. Firefox 158, headless, driven over WebDriver
+  BiDi (2026-10-23): the tabs share the `SharedWorker` host; a pane edited in
+  one tab and sent on by **Open in New Tab** arrived in the new tab with its
+  edit, and Undo there put the bytes back and left the file clean; a fragment
+  panel the same way, from its pill, arriving as the new tab's pane with its
+  edit undoable. No error or warning in either tab's console.
 
 ## Risks
 
@@ -332,8 +337,8 @@ the renderer's chunk cache as it is.
 - **A host that dies.** A `SharedWorker` crash takes every session with it.
   The journal and the kept content are on disk, so the workspace restore brings
   them back as it does after a crash today; S7 makes that the recovery path.
-- **Firefox and Safari.** S0 confirmed Safari; Firefox was not run (not on the
-  bench) — the probe runs there unchanged, and S10 does not close without it.
+- **Firefox and Safari.** S0 confirmed Safari; Firefox 158 runs the host and
+  the move between tabs (S10).
   Their save is a download, which the host hands to the tab that asked.
 - **The main process does the shell's disk work.** Writes are async and
   queued, as a project's are today; if it ever shows in the menus' response,
