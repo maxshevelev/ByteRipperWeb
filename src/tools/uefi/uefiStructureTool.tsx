@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { TOPIC } from "@/core/help/helpIds";
 import { L, LocalizedText, localized } from "@/core/localization/localization";
@@ -140,6 +140,7 @@ import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
+import { exitingExtent, ROW_KEY_ATTRIBUTE, useTreeMotion } from "@/ui/toolPanel/treeMotion";
 import type { WireContentMatch, WireNode } from "@/workers/protocol";
 
 /**
@@ -170,6 +171,9 @@ import type { WireContentMatch, WireNode } from "@/workers/protocol";
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFITreeRow.isLoading
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#MEOutlineRow
  */
+/** A row's key, which the rows' motion follows it by. */
+const rowKeyOf = (row: Row): string => row.key;
+
 export interface Row {
   readonly node: WireNode | undefined;
   /**
@@ -462,6 +466,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.opensAfterMakingRoom
    */
   const [reservedRows, setReservedRows] = useState(0);
+  /** A scroll making room for rows about to open, and the opening it ends in. */
+  const [room, setRoom] = useState<{ readonly target: number; readonly open: () => void }>();
   /**
    * The reveal reached empty padding the tree hides: the way to it, while the reader is asked
    * whether to show it.
@@ -721,6 +727,9 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   );
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  /** The list the rows are laid out in, whose changes the motion plays. */
+  const spacerRef = useRef<HTMLDivElement | null>(null);
+  const motion = useTreeMotion(rows, rowKeyOf, spacerRef, ROW_HEIGHT, scrollRef);
   /**
    * Opens a row. One whose rows would not be in view is held shut while the table scrolls,
    * smoothly, to where they will be, and opens once the table stands still: a scroll made
@@ -737,6 +746,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     const element = scrollRef.current;
     const index = rowsRef.current.findIndex((row) => row.key === key);
     const node = firmwareNodeAt(roots ?? [], pathOf(key));
+    if (immediately) motion.skipNext();
     if (immediately || element === null || index < 0 || node === undefined) {
       open();
       return;
@@ -754,21 +764,45 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       open();
       return;
     }
-    // The list has to be long enough to scroll to where the rows will be.
+    // The list has to be long enough to scroll to where the rows will be: it grows first, and
+    // the scroll starts once it has (`room` below).
     setReservedRows(count);
+    setRoom({ target, open });
+  };
+
+  /**
+   * Scrolls, smoothly, to where the rows about to open will be in view, and opens them once the
+   * table stands still — after the list has grown by them, which a scroll asked for in the same
+   * turn as the growth would not have found: the scroll went nowhere, and the row opened with a
+   * jump when the fallback ran out.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.makeRoom
+   */
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (room === undefined || element === null) return;
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
       element.removeEventListener("scrollend", finish);
+      clearTimeout(fallback);
+      setRoom(undefined);
       setReservedRows(0);
-      open();
+      room.open();
     };
     element.addEventListener("scrollend", finish);
-    // Where no `scrollend` is sent, the animation's own length.
-    window.setTimeout(finish, 350);
-    element.scrollTo({ top: target, behavior: "smooth" });
-  };
+    // Where no `scrollend` is sent, a smooth scroll's longest run.
+    const fallback = window.setTimeout(finish, 700);
+    const smooth =
+      typeof matchMedia !== "function" || !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    element.scrollTo({ top: room.target, behavior: smooth ? "smooth" : "auto" });
+    if (!smooth) finish();
+    return () => {
+      element.removeEventListener("scrollend", finish);
+      clearTimeout(fallback);
+    };
+  }, [room]);
 
   const maxDepth = useMemo(
     () => rows.reduce((deepest, row) => Math.max(deepest, row.depth), 0),
@@ -2416,8 +2450,40 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
             </div>
             <div
               className="uefi-tree-spacer"
-              style={{ height: (rows.length + reservedRows) * ROW_HEIGHT, minWidth }}
+              ref={spacerRef}
+              style={{
+                height: Math.max(
+                  (rows.length + reservedRows) * ROW_HEIGHT,
+                  exitingExtent(motion.exiting, ROW_HEIGHT)
+                ),
+                minWidth,
+              }}
             >
+              {/* The rows of a branch that shut, where they stood, fading under the rows that
+                  slide up over them (`useTreeMotion`). */}
+              {motion.exiting.map((gone) => (
+                <TreeRow
+                  key={`exit:${gone.key}`}
+                  row={gone.row}
+                  index={gone.index}
+                  exiting
+                  named={gone.row.node === undefined ? "" : shownName(gone.row.node, roots ?? [])}
+                  marks={
+                    gone.row.me?.marks ??
+                    (gone.row.node === undefined ? undefined : marksOf(gone.row.node))
+                  }
+                  showsMarkings={showsMarkings}
+                  showsEmptyPadding={showsEmptyPadding}
+                  isOpen={false}
+                  isSelected={false}
+                  onToggle={() => {}}
+                  onChoose={() => {}}
+                  onOpenContent={() => {}}
+                  onToggleMe={() => {}}
+                  onChooseMe={() => {}}
+                  onMenu={() => {}}
+                />
+              ))}
               {rows.slice(first, last).map((row, offset) => (
                 <TreeRow
                   key={row.key}
@@ -2690,6 +2756,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
 function TreeRow({
   row,
   index,
+  exiting = false,
   named,
   marks,
   showsMarkings,
@@ -2705,6 +2772,8 @@ function TreeRow({
 }: {
   readonly row: Row;
   readonly index: number;
+  /** A row of a branch that shut, drawn a moment longer while it fades (`useTreeMotion`). */
+  readonly exiting?: boolean;
   readonly named: string;
   readonly marks: ToolRowMarks | undefined;
   readonly showsMarkings: boolean;
@@ -2722,6 +2791,11 @@ function TreeRow({
   const node = row.node;
   const style = { top: index * ROW_HEIGHT };
   const alternate = index % 2 === 1 ? "" : undefined;
+  // Where the motion finds the row; a row that is going is under every other, takes no pointer
+  // and is not read out.
+  const motionAttrs = exiting
+    ? { "data-motion": "under", "data-motion-exit": "", "aria-hidden": true }
+    : { [ROW_KEY_ATTRIBUTE]: row.key };
   // As much as the triangle's square reaches back over (`.uefi-twist`), so it starts at the row's edge.
   const indent = { paddingLeft: `${row.depth * INDENT + 4}px` };
 
@@ -2752,6 +2826,7 @@ function TreeRow({
         title={rowMarkTitle(marks)}
         {...rowPaintAttrs(marks, showsMarkings)}
         style={style}
+        {...motionAttrs}
         onClick={() => onChooseMe(me)}
       >
         <span className="uefi-name" style={indent}>
@@ -2788,6 +2863,7 @@ function TreeRow({
         aria-level={row.depth + 1}
         data-alt={alternate}
         style={style}
+        {...motionAttrs}
       >
         <span className="uefi-name" style={indent}>
           <span className="uefi-twist" />
@@ -2825,6 +2901,7 @@ function TreeRow({
       title={rowMarkTitle(marks)}
       {...rowPaintAttrs(marks, showsMarkings)}
       style={style}
+      {...motionAttrs}
       onClick={() => onChoose(node)}
       onDoubleClick={(event) => {
         // The triangle folds or unfolds on every click, however quick.

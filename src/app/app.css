@@ -3544,16 +3544,38 @@ button.uefi-title {
   padding-left: 8px;
 }
 
+/* A layer of its own, so the rows' order among themselves (below) stays under
+   the sticky head. */
 .uefi-tree-spacer {
   position: relative;
+  z-index: 0;
 }
 
+/* Opaque, so a row sliding to its place while a branch opens or shuts
+   (`useTreeMotion`) passes over the rows coming and going rather than through
+   them. */
 .uefi-row {
   position: absolute;
   left: 0;
   right: 0;
   height: 22px;
   cursor: default;
+  background: var(--surface);
+}
+
+/* A row coming into a branch that opens, or leaving one that shuts: under the
+   rows that slide past it, and out of the pointer's way while it fades. */
+.uefi-row[data-motion="under"],
+.me-row[data-motion="under"] {
+  z-index: -1;
+}
+
+.me-row[data-motion="under"] {
+  position: relative;
+}
+
+[data-motion-exit] {
+  pointer-events: none;
 }
 
 .uefi-row[data-alt] {
@@ -4504,6 +4526,10 @@ button.uefi-title {
 
 .me-tree {
   grid-area: a;
+  /* A layer of its own: the rows coming and going while a branch moves lie
+     under the rest, and the sticky head over all of them. */
+  position: relative;
+  z-index: 0;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -4531,6 +4557,9 @@ button.uefi-title {
 
 .me-row {
   cursor: default;
+  /* Opaque, as `.uefi-row` is: a row sliding past the ones coming and going
+     covers them. */
+  background: var(--surface);
 }
 
 /* The tree's own heading: the name column is titled and the value column is

@@ -70,6 +70,7 @@ import {
   ToolDetail,
 } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
+import { ROW_KEY_ATTRIBUTE, useTreeMotion } from "@/ui/toolPanel/treeMotion";
 
 /**
  * ME Analyzer: what the Intel Management Engine firmware in this image is.
@@ -157,6 +158,12 @@ interface TreeRow {
 }
 
 const INDENT = 16;
+
+/** One row's height, which the rows' motion moves them by. */
+const ROW_HEIGHT = 22;
+
+/** A row's key, which the rows' motion follows it by. */
+const rowKeyOf = (row: TreeRow): string => row.key;
 /**
  * The tree's columns, and which of them takes the panel's spare width.
  *
@@ -476,6 +483,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     [analysis, pending]
   );
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
+  // A branch opens and shuts in motion, as the UEFI tree's does.
+  const motion = useTreeMotion(rows, rowKeyOf, treeRef, ROW_HEIGHT);
   const selected = focus === undefined ? undefined : meaNodeAt(tree, pathOf(focus));
 
   // The row in focus, outlined over the dump and in the minimap's gutter.
@@ -813,6 +822,21 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                   </span>
                   <span />
                 </div>
+                {/* The rows of a branch that shut, where they stood, fading under the rows
+                    that slide up over them. */}
+                {motion.exiting.map((gone) => (
+                  <MeTreeRow
+                    key={`exit:${gone.key}`}
+                    row={gone.row}
+                    alternate={gone.index % 2 === 1}
+                    exitingAt={gone.top}
+                    isOpen={false}
+                    isSelected={false}
+                    showsMarkings={showsMarkings}
+                    onChoose={() => {}}
+                    onToggle={() => {}}
+                  />
+                ))}
                 {rows.map((row, index) => (
                   <MeTreeRow
                     key={row.key}
@@ -1106,6 +1130,7 @@ export function SummaryView({
 function MeTreeRow({
   row,
   alternate,
+  exitingAt,
   isOpen,
   isSelected,
   showsMarkings,
@@ -1114,6 +1139,8 @@ function MeTreeRow({
 }: {
   readonly row: TreeRow;
   readonly alternate: boolean;
+  /** Where a row of a branch that shut stood, drawn there a moment longer while it fades. */
+  readonly exitingAt?: number | undefined;
   readonly isOpen: boolean;
   readonly isSelected: boolean;
   readonly showsMarkings: boolean;
@@ -1122,6 +1149,17 @@ function MeTreeRow({
 }) {
   const { node } = row;
   const hasChildren = node.children.length > 0;
+  // Where the motion finds the row; a row that is going lies where it stood, under every other,
+  // takes no pointer and is not read out.
+  const motionAttrs =
+    exitingAt === undefined
+      ? { [ROW_KEY_ATTRIBUTE]: row.key }
+      : {
+          "data-motion": "under",
+          "data-motion-exit": "",
+          "aria-hidden": true,
+          style: { position: "absolute", top: exitingAt, left: 0, right: 0 } as const,
+        };
   return (
     // The tree takes the keyboard for every row at once, so a row answers the
     // pointer only.
@@ -1141,6 +1179,7 @@ function MeTreeRow({
       // colour alone (`Design/ROW_MARKS.md` §2).
       title={rowMarkTitle(node.marks)}
       {...rowPaintAttrs(node.marks, showsMarkings)}
+      {...motionAttrs}
       onClick={() => onChoose(node)}
       onDoubleClick={() => {
         if (hasChildren) onToggle(node);
