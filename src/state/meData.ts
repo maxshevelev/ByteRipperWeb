@@ -7,11 +7,12 @@ import type { MeData, MeTexts } from "@/tools/meReads";
 
 /**
  * The three data files an ME reading may be made with — `MEA.dat`, `Huffman.dat` and
- * `FileTable.dat` — as the reading needs them: all of them asked for at once, side by side, when
- * a region is first read, and each waited for when the reading comes to need it.
+ * `FileTable.dat` — as the reading needs them: the database asked for as the region is read, the
+ * other two only once a reading says the image wants them (GAPS §2.2), each waited for then.
  *
- * @upstream Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEADownloads.prefetch
- * @upstream-differs the files are the stores', each fetched and freshened by its own rule
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.read
+ * @upstream-differs asked for lazily, where upstream downloads all three side by side
+ * (`MEADownloads.prefetch`): the largest is not fetched for a dump that never asks for it
  */
 
 /** Waits until a data file's store has settled, one way or the other. */
@@ -46,11 +47,7 @@ const heldTexts = (): MeTexts => ({
 
 /** The data files as the panels read them: fetched over the network, freshened as they go. */
 export const liveMeData: MeData = {
-  prefetch: () => {
-    loadMEDatabase();
-    loadHuffmanDictionaries();
-    loadFileTable();
-  },
+  prefetch: () => loadMEDatabase(),
   held: heldTexts,
   database: async () => (await settled(meDatabaseStore, loadMEDatabase)).text,
   huffman: async () => (await settled(huffmanDictionaryStore, loadHuffmanDictionaries)).text,

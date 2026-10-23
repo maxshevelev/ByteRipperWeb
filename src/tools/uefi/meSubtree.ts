@@ -266,7 +266,7 @@ export function useMeSubtree(
 
   // Read when the region is opened, and again when the image changes or a data
   // file in hand is replaced by a newer one. The reading itself asks for every
-  // data file at once and waits for those it wants (`readMe`): MEA.dat before
+  // data file it wants and waits for it (`readMe`): MEA.dat before
   // the first reading, Huffman.dat and FileTable.dat for the one that follows
   // when the first wanted them — so a file landing is not a reason to start
   // over. The tree is the content's own change signal — a byte edit hands a

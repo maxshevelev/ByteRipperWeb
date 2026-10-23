@@ -155,7 +155,7 @@ describe("reading the region", () => {
 
 describe("waiting for the data files", () => {
   // @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.firstReading
-  it("asks for every file at once, and makes the first reading once the database is in", async () => {
+  it("makes the first reading once the database is in", async () => {
     const { asked, result } = asks(() => response());
     const { data, waited } = dataOf(texts, {
       database: undefined,

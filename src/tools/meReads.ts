@@ -30,13 +30,14 @@ export interface MeTexts {
 }
 
 /**
- * The data files as a reading reaches them: asked for all at once, each waited for when it is
- * needed, and what has landed so far.
+ * The data files as a reading reaches them: each waited for when it is needed — which is what
+ * asks for it — and what has landed so far.
  *
- * @upstream Packages/MEReads/Sources/MEReads/MEADownloads.swift#MEADownloads
+ * @web-only upstream's reading takes a data source that downloads every file side by side; here
+ * the files are the stores', asked for lazily (GAPS §2.2)
  */
 export interface MeData {
-  /** Every file a reading may ask for starts downloading, side by side. */
+  /** The files every reading needs start downloading: the database. */
   readonly prefetch: () => void;
   /** What has landed so far. */
   readonly held: () => MeTexts;
@@ -110,7 +111,7 @@ export function pendingOf(
 /**
  * Reads the region.
  *
- * Every data file starts downloading at once (`MeData.prefetch`). With `quick` — nothing is on
+ * The database starts downloading (`MeData.prefetch`). With `quick` — nothing is on
  * screen yet — a first reading follows as soon as the database is in, with the file table if it
  * is already held and without the dictionaries: when it went without nothing it wanted, it is
  * the reading; otherwise it goes to `shown`, and one reading follows with what it wanted, waited
@@ -136,11 +137,9 @@ export async function readMe(
   if (wholeHeld !== undefined) return reading(wholeHeld, data.held());
   const database = await data.database();
   if (!quick) {
-    const texts = {
-      database,
-      huffman: await data.huffman(),
-      fileTable: await data.fileTable(),
-    };
+    // What a reading on screen already asked for is in hand; what it did not, it did not want.
+    const held = data.held();
+    const texts = { database, huffman: held.huffman, fileTable: held.fileTable };
     const answer = await asks.ask(texts);
     return answer === undefined ? undefined : reading(answer, texts);
   }
