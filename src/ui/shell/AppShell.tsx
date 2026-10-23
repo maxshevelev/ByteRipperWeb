@@ -95,6 +95,7 @@ import {
   bringPane,
   followPaneDrag,
   panePeer,
+  paneToNewTab,
   receiveHandover,
   reportRefusal,
   startPaneTransfer,
@@ -974,6 +975,15 @@ export function AppShell() {
     };
     // `accept` is stable: it is made once.
   }, [accept]);
+
+  // A browser's tabs share the session host, so a pane goes on in a new tab as it does in a new
+  // window of the shell: this tab joins the others, and one opened for a pane takes it up.
+  useEffect(() => {
+    if (inDesktopShell()) return;
+    const stopTransfer = startPaneTransfer();
+    void receiveHandover();
+    return stopTransfer;
+  }, []);
 
   // The find bar always searches the pane the commands act on — the part in
   // front of the dump, where one is up.
@@ -2420,7 +2430,9 @@ export function AppShell() {
       onOpenInNewWindow:
         panePeer() === undefined
           ? undefined
-          : (slot: SlotId) => paneToNewWindow({ from: undefined, slot, copy: false }),
+          : inDesktopShell()
+            ? (slot: SlotId) => paneToNewWindow({ from: undefined, slot, copy: false })
+            : (slot: SlotId) => paneToNewTab(slot),
       onClose: (pane) => void closeWithWarning(pane),
       onFill: () => setFillOpen(true),
       onDeleteBytes: doDeleteBytes,
@@ -2931,7 +2943,9 @@ export function AppShell() {
         onTearOff={
           panePeer() === undefined
             ? undefined
-            : (pane) => paneToNewWindow({ from: undefined, slot: pane, copy: false })
+            : inDesktopShell()
+              ? (pane) => paneToNewWindow({ from: undefined, slot: pane, copy: false })
+              : (pane) => paneToNewTab(pane)
         }
         // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showAgentSettings
         // @upstream ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showAgent

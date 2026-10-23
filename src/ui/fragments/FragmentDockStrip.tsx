@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import type { PanelId } from "@/state/fragmentDock";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
@@ -147,7 +148,7 @@ function FragmentPill({
             : (event) =>
                 openContextMenu(event, [
                   {
-                    label: L("Open in New Window"),
+                    label: inDesktopShell() ? L("Open in New Window") : L("Open in New Tab"),
                     onSelect: () => carried.onTearOff(item.id),
                   },
                   { kind: "separator" },
@@ -228,7 +229,7 @@ function FragmentPill({
 /** How a part's pill carries its panel to another window (`Design/DESKTOP_WINDOWS.md`, D6). */
 export interface PillCarry {
   /**
-   * The pill's Open in New Window.
+   * The pill's Open in New Window — Open in New Tab in a browser whose tabs share the session host.
    *
    * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentDockStrip.onTearOff
    * @upstream ByteRipperApp/Fragments/FragmentDockStrip.swift#FragmentPillView.onTearOff

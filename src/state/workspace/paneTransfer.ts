@@ -15,7 +15,7 @@ import {
 import { isSlot, type PaneId, type PartId, type SlotId } from "@/state/paneId";
 import { partsLinkedTo } from "@/state/partUpdate";
 import { adoptSources, type CarriedSources, carriedSources } from "@/state/segmentSources";
-import { releaseSession, showSession } from "@/state/sessions/pageSessions";
+import { releaseSession, sessionsShared, showSession } from "@/state/sessions/pageSessions";
 import { paneRecord } from "@/state/workspace/workspaceRecorder";
 import { adoptMovedSession } from "@/state/workspace/workspaceRestorer";
 import {
@@ -366,8 +366,18 @@ export function installPanePeerForTesting(stand?: ReturnType<typeof paneTransfer
  * Answers the means to leave.
  */
 export function startPaneTransfer(): () => void {
-  if (desktopWindowFocus() === undefined || typeof BroadcastChannel === "undefined") {
-    return () => {};
+  // The shell's windows, or the browser's tabs where they share the session host: a pane crosses
+  // as its session's name, so there is nothing to carry it between pages that do not.
+  const joins = desktopWindowFocus() !== undefined || sessionsShared();
+  if (!joins || typeof BroadcastChannel === "undefined") return () => {};
+  // One membership for the page, however often a component starts and stops it: a stop followed
+  // at once by a start — React's development mount does exactly that — keeps it, and with it an
+  // answer still on its way, such as the pane a new tab asked for as it came up.
+  if (membership !== undefined) {
+    clearTimeout(membership.leaving);
+    membership.leaving = undefined;
+    membership.starts++;
+    return () => leaveSoon();
   }
   const joined = paneTransferPeer(new BroadcastChannel("byteripper-panes"), thisWindow);
   peer = joined;
@@ -389,12 +399,39 @@ export function startPaneTransfer(): () => void {
       endDrag();
     }
   });
-  return () => {
-    stopWatching();
-    stopHearing();
-    joined.close();
-    if (peer === joined) peer = undefined;
+  membership = {
+    starts: 1,
+    leaving: undefined,
+    leave: () => {
+      stopWatching();
+      stopHearing();
+      joined.close();
+      if (peer === joined) peer = undefined;
+    },
   };
+  return () => leaveSoon();
+}
+
+/** This page's membership of the windows' conversation, while it has one. */
+let membership:
+  | {
+      starts: number;
+      leaving: ReturnType<typeof setTimeout> | undefined;
+      readonly leave: () => void;
+    }
+  | undefined;
+
+/** Leaves once nothing has started the membership again by the next task. */
+function leaveSoon(): void {
+  const held = membership;
+  if (held === undefined) return;
+  held.starts--;
+  if (held.starts > 0) return;
+  held.leaving = setTimeout(() => {
+    if (membership !== held || held.starts > 0) return;
+    membership = undefined;
+    held.leave();
+  });
 }
 
 /** The pane of this window being dragged, from pick-up to the source's own `dragend`. */
@@ -485,7 +522,7 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFilesInNewTab
  */
 export async function receiveHandover(): Promise<readonly OpenedFile[]> {
-  const handover = windowLaunch()?.handover as Handover | undefined;
+  const handover = (windowLaunch()?.handover as Handover | undefined) ?? tabHandover();
   if (handover === undefined || peer === undefined) return [];
   if (handover.kind === "pane") {
     const taken = await peer.take(handover.from, handover.slot, handover.copy);
@@ -500,4 +537,55 @@ export async function receiveHandover(): Promise<readonly OpenedFile[]> {
   const { files, marks } = await peer.collect(handover.from, handover.ask);
   adoptBookmarks(marks);
   return files;
+}
+
+/** The address fragment a tab opened for a pane carries its handover in. */
+const HANDOVER_KEY = "handover";
+
+/**
+ * Opens a new browser tab that takes up `slot` of this one — a pane, or a fragment panel — as the
+ * shell's Open in New Window does with a window. The tab is opened while the click that asked for
+ * it is still going on, which is the one moment a browser lets a page open one; it then asks for
+ * the pane itself.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openPaneInNewTab
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffFragment
+ * @upstream-differs a tab of the browser, which the page opens and the pane goes on in
+ */
+export function paneToNewTab(slot: PaneId): void {
+  if (peer === undefined) return;
+  const handover: Handover = { kind: "pane", from: peer.me, slot, copy: false };
+  const url = new URL(location.href);
+  url.hash = handoverHash(handover);
+  window.open(url.href, "_blank", "noopener");
+}
+
+/** The handover this tab was opened with, if it was opened for a pane; the address forgets it. */
+function tabHandover(): Handover | undefined {
+  if (typeof location === "undefined") return undefined;
+  const handover = handoverOfHash(location.hash);
+  if (handover !== undefined) history.replaceState(null, "", location.pathname + location.search);
+  return handover;
+}
+
+/** A pane's handover as an address fragment. */
+export function handoverHash(handover: Handover): string {
+  return `#${HANDOVER_KEY}=${encodeURIComponent(JSON.stringify(handover))}`;
+}
+
+/** The pane handover an address fragment carries, or nothing — anything else is not one. */
+export function handoverOfHash(hash: string): Handover | undefined {
+  const match = new RegExp(`^#${HANDOVER_KEY}=(.+)$`).exec(hash);
+  if (match === null) return undefined;
+  try {
+    const handover = JSON.parse(decodeURIComponent(match[1] ?? "")) as Partial<Handover>;
+    return handover.kind === "pane" &&
+      typeof handover.from === "string" &&
+      typeof handover.slot === "string" &&
+      typeof handover.copy === "boolean"
+      ? (handover as Handover)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -6,6 +6,7 @@ import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
 import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
+import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { saveVerb } from "@/platform/files/capabilities";
 import { saveRange } from "@/platform/files/rangeSave";
 import { drawnIn } from "@/state/agent/agentAnnotationStore";
@@ -107,8 +108,9 @@ export interface PaneMenuActions {
   readonly onRevert: (pane: PaneId) => void;
   readonly onDuplicate: (pane: SlotId) => void;
   /**
-   * Open in New Window, where there are windows to open one in: the desktop shell
-   * (`Design/DESKTOP_WINDOWS.md`, D5). Nothing in a browser, whose menu leaves the item out.
+   * Open in New Window in the desktop shell (`Design/DESKTOP_WINDOWS.md`, D5), Open in New Tab in
+   * a browser whose tabs share the session host; nothing where they do not, and the menu leaves
+   * the item out.
    */
   readonly onOpenInNewWindow?: ((pane: SlotId) => void) | undefined;
   /** Closes a pane, or a part with the panel it is in. */
@@ -211,7 +213,7 @@ export function paneFileMenu(
         ? []
         : [
             {
-              label: L("Open in New Window"),
+              label: inDesktopShell() ? L("Open in New Window") : L("Open in New Tab"),
               disabled: !bothOpen,
               onSelect: () => actions.onOpenInNewWindow?.(slot),
             },

@@ -113,6 +113,14 @@ const client = new SessionClient(connect());
 
 let opened = 0;
 
+/**
+ * Whether this window's sessions are in the host every tab and window shares — what lets a pane go
+ * on in another tab. Not where the page runs its host itself: the single-file build, a test.
+ */
+export function sessionsShared(): boolean {
+  return shared;
+}
+
 /** Asks the host for something it does on no one session's account — the kept content. */
 export function operateHost(name: string, args: unknown): Promise<unknown> {
   return client.operate(name, args);

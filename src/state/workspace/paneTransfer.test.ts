@@ -4,6 +4,8 @@ import type { PaneState } from "@/core/workspace/workspace";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { PaneId } from "@/state/paneId";
 import {
+  handoverHash,
+  handoverOfHash,
   type PaneChannel,
   type PaneHolder,
   paneTransferPeer,
@@ -143,5 +145,23 @@ describe("a pane carried between windows", () => {
     expect(collected.marks).toEqual(marks);
     // Collected once: a second ask finds nothing left.
     expect((await opened.collect(source.me, ask)).files).toEqual([]);
+  });
+});
+
+// A pane sent on to a new browser tab: the tab is opened with the handover in its address, and
+// takes the pane up from the tab that opened it (Open in New Tab).
+describe("the handover a new tab is opened with", () => {
+  it("comes back from the address as it went in", () => {
+    const handover = { kind: "pane", from: "w-1", slot: "part:3", copy: false } as const;
+    expect(handoverOfHash(handoverHash(handover))).toEqual(handover);
+  });
+
+  it("is nothing for an address that does not carry one, or carries something else", () => {
+    expect(handoverOfHash("")).toBeUndefined();
+    expect(handoverOfHash("#help/workspace")).toBeUndefined();
+    expect(handoverOfHash("#handover=%7Bbroken")).toBeUndefined();
+    expect(
+      handoverOfHash(`#handover=${encodeURIComponent('{"kind":"files","from":"w"}')}`)
+    ).toBeUndefined();
   });
 });

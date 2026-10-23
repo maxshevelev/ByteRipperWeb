@@ -677,6 +677,7 @@
 "Close “%1$@”" = "Закрыть «%1$@»";
 "It holds changes the document it came out of has not got back. Put them back with Update in Parent first, or hold Alt to make a copy." = "В ней есть изменения, которых нет в документе, откуда она взята. Сначала верните их командой «Записать в исходный файл» или удерживайте Alt, чтобы сделать копию.";
 "Open in New Window" = "Открыть в новом окне";
+"Open in New Tab" = "Открыть в новой вкладке";
 "Move to New Window" = "Перенести в новое окно";
 "Duplicate to New Window" = "Дублировать в новое окно";
 "The pane could not be moved" = "Панель перенести не удалось";

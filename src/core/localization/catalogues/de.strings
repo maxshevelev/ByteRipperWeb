@@ -677,6 +677,7 @@
 "Close “%1$@”" = "„%1$@“ schließen";
 "It holds changes the document it came out of has not got back. Put them back with Update in Parent first, or hold Alt to make a copy." = "Er enthält Änderungen, die das Dokument, aus dem er stammt, noch nicht zurückerhalten hat. Schreiben Sie sie zuerst mit „In der Quelle aktualisieren“ zurück, oder halten Sie die Alt-Taste gedrückt, um eine Kopie anzulegen.";
 "Open in New Window" = "In neuem Fenster öffnen";
+"Open in New Tab" = "In neuem Tab öffnen";
 "Move to New Window" = "In neues Fenster verschieben";
 "Duplicate to New Window" = "In neues Fenster duplizieren";
 "The pane could not be moved" = "Der Bereich konnte nicht verschoben werden";
