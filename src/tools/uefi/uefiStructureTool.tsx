@@ -2722,7 +2722,8 @@ function TreeRow({
   const node = row.node;
   const style = { top: index * ROW_HEIGHT };
   const alternate = index % 2 === 1 ? "" : undefined;
-  const indent = { paddingLeft: `${row.depth * INDENT + 2}px` };
+  // As much as the triangle's square reaches back over (`.uefi-twist`), so it starts at the row's edge.
+  const indent = { paddingLeft: `${row.depth * INDENT + 4}px` };
 
   // A row of the ME sub-tree: its name in the Name column and nothing in the
   // two beside it. The ME tree is a semantic tree, not a structural one, and

@@ -3578,12 +3578,18 @@ button.uefi-title {
    so the button takes the row's own text size and the mark comes out at
    0.538em of it — the 7 points AppKit's disclosure button draws at 13. Centred
    as a box, the way `.tool-row-mark` is, so the mark sits on the row's middle
-   and not the baseline's. */
+   and not the baseline's.
+   What takes the click is a square the row's full height, so the mark is not a
+   seven-pixel target: 4 pixels of it reach back into the row's indent, which
+   the row leaves for it, and 2 over the gap before the name, so the row still
+   steps 16 and the mark and the name move by a pixel or two. */
 .uefi-twist {
   flex: none;
   display: grid;
   place-items: center;
-  width: 16px;
+  width: 22px;
+  height: 22px;
+  margin: 0 -2px 0 -4px;
   padding: 0;
   border: 0;
   background: none;
@@ -4567,11 +4573,14 @@ button.uefi-title {
   font-variant-numeric: tabular-nums;
 }
 
+/* A square the row's full height takes the click, as `.uefi-twist` does. */
 .me-twist {
   flex: none;
   display: grid;
   place-items: center;
-  width: 16px;
+  width: 22px;
+  height: 22px;
+  margin: 0 -2px 0 -4px;
   padding: 0;
   border: 0;
   background: none;

@@ -1146,7 +1146,8 @@ function MeTreeRow({
         if (hasChildren) onToggle(node);
       }}
     >
-      <span className="me-name" style={{ paddingLeft: `${row.depth * INDENT + 2}px` }}>
+      {/* As much as the triangle's square reaches back over (`.me-twist`), so it starts at the row's edge. */}
+      <span className="me-name" style={{ paddingLeft: `${row.depth * INDENT + 4}px` }}>
         <button
           type="button"
           className="me-twist"
