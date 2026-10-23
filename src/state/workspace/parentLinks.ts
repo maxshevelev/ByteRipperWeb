@@ -1,9 +1,11 @@
+import type { FileIdentity } from "@/core/agent/agentAnnotation";
 import { LocalizedText } from "@/core/localization/localization";
 import type { SessionId } from "@/core/session/sessionProtocol";
 import type { RebuildCaution, RebuildTarget } from "@/firmware/uefi/uefiRebuild";
 import { askFirmwareRebuild } from "@/state/firmwareStore";
 import { isSlot, type PaneId } from "@/state/paneId";
-import { editingHooks, paneShowing } from "@/state/workspaceStore";
+import { createStore } from "@/state/store";
+import { editingHooks, paneShowing, workspaceStore } from "@/state/workspaceStore";
 import type { FirmwareRebuildResponse } from "@/workers/protocol";
 
 /**
@@ -63,7 +65,33 @@ type Message =
       readonly pane: string;
       readonly request: LinkRequest;
     }
-  | { readonly kind: "linkOpened"; readonly ask: string; readonly answer: LinkAnswer | undefined };
+  | { readonly kind: "linkOpened"; readonly ask: string; readonly answer: LinkAnswer | undefined }
+  | {
+      readonly kind: "described";
+      readonly from: string;
+      readonly sessions: readonly SessionDescription[];
+    }
+  | { readonly kind: "describe?" }
+  | { readonly kind: "gone"; readonly from: string };
+
+/**
+ * One of a window's documents as the other windows need it to follow a part of theirs out to a
+ * file: the file it is, or — for a part — the session it came out of and where.
+ */
+export interface SessionDescription {
+  readonly session: SessionId;
+  /** The file on disk it holds whole; nothing for a part or a document never saved. */
+  readonly file?: FileIdentity | undefined;
+  readonly part?:
+    | {
+        readonly parent: SessionId;
+        readonly source: readonly [number, number];
+        readonly keepsOffsets: boolean;
+        /** For a node of a compressed section: the section's path, and where the node starts. */
+        readonly uefi?: { readonly space: readonly number[]; readonly start: number } | undefined;
+      }
+    | undefined;
+}
 
 /**
  * A part's link as the workspace wrote it, asked at restore of the window its parent is in: the
@@ -107,7 +135,35 @@ export const parentLinkHost: {
   openLink?: ((pane: string, request: LinkRequest) => Promise<LinkAnswer | undefined>) | undefined;
   /** How many panes of this window link to the session another window is closing. */
   linkedTo?: ((session: SessionId) => number) | undefined;
+  /** This window's documents, described for the others (`agentAnnotationStore`). */
+  describe?: (() => readonly SessionDescription[]) | undefined;
 } = {};
+
+const token = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+/** This window on the line, for the descriptions it sends. */
+const me = token();
+
+/**
+ * The other windows' documents, as each last described them: what a part here whose parent is
+ * there follows out to the file — its annotations are that file's. A store, so what draws them
+ * draws again when another window's documents change.
+ */
+export const describedElsewhere = createStore<ReadonlyMap<string, readonly SessionDescription[]>>(
+  new Map()
+);
+
+/** What another window last said of `session`, if one shows it. */
+export function describedSession(
+  session: SessionId,
+  described: ReadonlyMap<string, readonly SessionDescription[]> = describedElsewhere.getSnapshot()
+): SessionDescription | undefined {
+  for (const sessions of described.values()) {
+    const found = sessions.find((one) => one.session === session);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
 
 /**
  * What a pane of another window is written down as in this one's record: that window's workspace
@@ -133,8 +189,6 @@ export function nameThisWorkspace(name: () => string): void {
   thisWorkspace = name;
 }
 
-const token = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-
 let channel: ParentChannel | undefined;
 /** The restoring windows' asks this one has taken up. */
 const answering = new Set<string>();
@@ -151,8 +205,35 @@ export function startParentLinks(
   if (opened === undefined) return () => {};
   const joined = opened;
   channel = joined;
+  let lastDescribed = "";
+  const describe = (always: boolean) => {
+    const sessions = parentLinkHost.describe?.() ?? [];
+    const text = JSON.stringify(sessions);
+    if (!always && text === lastDescribed) return;
+    lastDescribed = text;
+    joined.postMessage({ kind: "described", from: me, sessions });
+  };
   const listener = (event: { data: unknown }) => {
     const message = event.data as Message;
+    if (message.kind === "described") {
+      const known = describedElsewhere.getSnapshot().has(message.from);
+      describedElsewhere.update((map) => new Map(map).set(message.from, message.sessions));
+      // A window this one has not heard from has not heard from this one either.
+      if (!known) describe(true);
+      return;
+    }
+    if (message.kind === "describe?") {
+      describe(true);
+      return;
+    }
+    if (message.kind === "gone") {
+      describedElsewhere.update((map) => {
+        const next = new Map(map);
+        next.delete(message.from);
+        return next;
+      });
+      return;
+    }
     if (message.kind === "reveal") {
       const pane = paneShowing(message.session);
       if (pane !== undefined) parentLinkHost.reveal?.(pane, message.range);
@@ -209,7 +290,24 @@ export function startParentLinks(
     );
   };
   joined.addEventListener("message", listener);
+  // Described as the documents change, once the change has run its course.
+  let scheduled = false;
+  const stopDescribing = workspaceStore.subscribe(() => {
+    if (scheduled) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      describe(false);
+    });
+  });
+  const leave = () => joined.postMessage({ kind: "gone", from: me });
+  if (typeof window !== "undefined") window.addEventListener("pagehide", leave);
+  describe(true);
+  joined.postMessage({ kind: "describe?" });
   return () => {
+    stopDescribing();
+    if (typeof window !== "undefined") window.removeEventListener("pagehide", leave);
+    leave();
     joined.removeEventListener("message", listener);
     joined.close();
     if (channel === joined) channel = undefined;

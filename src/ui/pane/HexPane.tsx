@@ -59,6 +59,7 @@ import { settingsStore } from "@/state/settingsStore";
 import { redoLast, undoLast } from "@/state/undoRouter";
 import { useStore } from "@/state/useStore";
 import { endLocalPaneDrag } from "@/state/workspace/paneTransfer";
+import { describedElsewhere } from "@/state/workspace/parentLinks";
 import {
   activeDecoder,
   decoderFor,
@@ -1544,11 +1545,19 @@ export function HexPane({
   // @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.annotations
   const annotationState = useStore(agentAnnotationStore);
   const workspaceForAnnotations = useStore(workspaceStore);
+  // A part whose parent another window shows draws that window's file's.
+  const elsewhere = useStore(describedElsewhere);
   // The workspace decides which file the pane holds, and which part of it: read through `drawnIn`.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the workspace is read through `drawnIn`
   const agentMarks = useMemo(
-    () => drawnIn(paneId, annotationState),
-    [paneId, annotationState, workspaceForAnnotations.panes, workspaceForAnnotations.parts]
+    () => drawnIn(paneId, annotationState, elsewhere),
+    [
+      paneId,
+      annotationState,
+      elsewhere,
+      workspaceForAnnotations.panes,
+      workspaceForAnnotations.parts,
+    ]
   );
   const agentMarksRef = useRef(agentMarks);
   agentMarksRef.current = agentMarks;

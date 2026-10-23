@@ -15,8 +15,15 @@ import { keptHandles, onFileReplaced, onHandlesChange, restoreHandles } from "@/
 import { createStore } from "@/state/store";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
 import {
+  describedElsewhere,
+  describedSession,
+  parentLinkHost,
+  type SessionDescription,
+} from "@/state/workspace/parentLinks";
+import {
   notesPanelIsUp,
   type PaneId,
+  type PaneState,
   paneState,
   syncNotesPanel,
   workspaceStore,
@@ -176,6 +183,44 @@ export function fileIdentityOf(pane: PaneId): FileIdentity | undefined {
     : { name, size, modified: lastModified, path };
 }
 
+// The other windows follow a part of theirs out through this window's documents to a file.
+parentLinkHost.describe = (): SessionDescription[] => {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  const held = [
+    ...(Object.entries(panes) as [PaneId, PaneState | undefined][]),
+    ...(Object.entries(parts) as [PaneId, PaneState | undefined][]),
+  ];
+  return held.flatMap(([pane, state]): SessionDescription[] => {
+    if (state === undefined) return [];
+    const origin = state.origin;
+    const file = fileIdentityOf(pane);
+    const codec = origin?.codec;
+    return [
+      {
+        session: state.document.id,
+        ...(file === undefined ? {} : { file }),
+        ...(origin === undefined || origin.parentView === undefined
+          ? {}
+          : {
+              part: {
+                parent: origin.parentSession,
+                source: [origin.sourceRange[0], origin.sourceRange[1]],
+                keepsOffsets: origin.codec.keepsOffsets,
+                ...(codec instanceof UEFIPartCodec && codec.target.space.length > 0
+                  ? {
+                      uefi: {
+                        space: [...codec.target.space],
+                        start: codec.target.range?.start ?? 0,
+                      },
+                    }
+                  : {}),
+              },
+            }),
+      },
+    ];
+  });
+};
+
 /** Whether `annotation` is about the file `identity` names. */
 export const isOnFile = (annotation: AgentAnnotation, identity: FileIdentity): boolean =>
   annotation.file.kind === "disk" && sameFile(annotation.file.identity, identity);
@@ -190,7 +235,8 @@ export const isOnFile = (annotation: AgentAnnotation, identity: FileIdentity): b
  */
 export function drawnIn(
   pane: PaneId,
-  state: AgentAnnotationState = agentAnnotationStore.getSnapshot()
+  state: AgentAnnotationState = agentAnnotationStore.getSnapshot(),
+  elsewhere: ReadonlyMap<string, readonly SessionDescription[]> = describedElsewhere.getSnapshot()
 ): DrawnAnnotation[] {
   const held = paneState(pane);
   if (held === undefined) return [];
@@ -202,9 +248,19 @@ export function drawnIn(
       drawn.push({ annotation: one, start: one.range[0], end: one.range[1] });
   }
   const origin = held.origin;
-  if (origin?.parent !== undefined && !origin.codec.keepsOffsets) {
+  // A parent another window shows is known by what that window says of it.
+  const parentThere =
+    origin === undefined || origin.parent !== undefined || origin.parentView === undefined
+      ? undefined
+      : describedSession(origin.parentSession, elsewhere);
+  if (origin !== undefined && !origin.codec.keepsOffsets) {
     const codec = origin.codec;
-    const root = fileIdentityOf(origin.parent);
+    const root =
+      origin.parent !== undefined
+        ? fileIdentityOf(origin.parent)
+        : parentThere?.part === undefined
+          ? parentThere?.file
+          : undefined;
     if (
       !(codec instanceof UEFIPartCodec) ||
       codec.target.space.length === 0 ||
@@ -234,20 +290,34 @@ export function drawnIn(
     }
     return drawn;
   }
-  // Out through the parts to a file on disk, adding up where each one starts in the next.
+  // Out through the parts to a file on disk, adding up where each one starts in the next — and,
+  // where a parent is another window's, on through what that window says of its documents.
   let shift = 0;
-  let windowStart = 0;
-  let windowEnd = held.document.size;
   let current: PaneId = pane;
+  let identity: FileIdentity | undefined;
+  let there = false;
   for (let origin = paneState(current)?.origin; origin !== undefined; ) {
-    if (!origin.codec.keepsOffsets || origin.parent === undefined) return drawn;
+    if (!origin.codec.keepsOffsets) return drawn;
     shift += origin.sourceRange[0];
-    windowStart += origin.sourceRange[0];
-    windowEnd += origin.sourceRange[0];
-    current = origin.parent;
-    origin = paneState(current)?.origin;
+    if (origin.parent !== undefined) {
+      current = origin.parent;
+      origin = paneState(current)?.origin;
+      continue;
+    }
+    if (origin.parentView === undefined) return drawn;
+    let step = describedSession(origin.parentSession, elsewhere);
+    for (let hops = 0; step?.part !== undefined && hops < 64; hops++) {
+      if (!step.part.keepsOffsets) return drawn;
+      shift += step.part.source[0];
+      step = describedSession(step.part.parent, elsewhere);
+    }
+    identity = step?.file;
+    there = true;
+    break;
   }
-  const identity = fileIdentityOf(current);
+  if (!there) identity = fileIdentityOf(current);
+  const windowStart = shift;
+  const windowEnd = shift + held.document.size;
   if (identity === undefined) return drawn;
   for (const one of all) {
     if (!isOnFile(one, identity) || one.range === undefined) continue;

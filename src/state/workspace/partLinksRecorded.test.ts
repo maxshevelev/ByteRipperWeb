@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { CopyPartCodec } from "@/core/parts/partCodec";
+import {
+  addAnnotation,
+  agentAnnotationStore,
+  drawnIn,
+  removeAnnotations,
+} from "@/state/agent/agentAnnotationStore";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { openLinkedPart } from "@/state/openLinkedPart";
 import { releaseSession } from "@/state/sessions/pageSessions";
@@ -161,5 +167,39 @@ describe("a window asked for a part of one of its panes", () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(heard).toEqual([]);
+  });
+});
+
+describe("a part whose parent another window shows", () => {
+  // @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.annotations
+  it("draws the annotations on the file that window has open, at its own addresses", async () => {
+    await fileInA();
+    await bringPane(undefined, await partOfA(), "b", false);
+    const parent = paneState("a")?.document;
+    if (parent === undefined) throw new Error("pane A should be open");
+    releaseSession(parent);
+    workspaceStore.update((state) => ({ ...state, panes: { ...state.panes, a: undefined } }));
+    const identity = { name: "bios.bin", size: 0x40, modified: 1, path: "/d/bios.bin" };
+    addAnnotation(
+      {
+        id: "a1",
+        file: { kind: "disk", identity },
+        range: [0x12, 0x14],
+        node: undefined,
+        title: "here",
+        note: "",
+        decoded: undefined,
+        relatedTo: [],
+        site: undefined,
+        author: "agent",
+      },
+      true
+    );
+    stops.push(() => removeAnnotations(() => true));
+    const elsewhere = new Map([["w-1", [{ session: parent.id, file: identity }]]]);
+
+    const drawn = drawnIn("b", agentAnnotationStore.getSnapshot(), elsewhere);
+    expect(drawn.map((one) => [one.start, one.end])).toEqual([[0x2, 0x4]]);
+    expect(drawnIn("b", agentAnnotationStore.getSnapshot(), new Map())).toEqual([]);
   });
 });
