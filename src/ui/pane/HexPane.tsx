@@ -50,7 +50,8 @@ import { editStore } from "@/state/editStore";
 import { toggleMinimap } from "@/state/minimapStore";
 // Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
 // for a selection, and the two must not be confused for each other.
-import { beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
+import { beginPartDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
+import { panelOf } from "@/state/paneId";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -61,6 +62,7 @@ import { endLocalPaneDrag } from "@/state/workspace/paneTransfer";
 import {
   activeDecoder,
   decoderFor,
+  foldParts,
   isSlot,
   type PaneId,
   workspaceStore,
@@ -372,14 +374,13 @@ const platform = detectKeyboardPlatform();
  * the browser snapshots rather than an image drawn to a frame
  */
 function beginPaneDragFromEvent(event: React.DragEvent, paneId: PaneId, name: string): void {
-  // Only one of the workspace's own panes is dragged: a part is opened over a
-  // file, and this edition does not drag it anywhere (GAPS §2.1).
-  if (!isSlot(paneId)) return;
   if ((event.target as Element).closest("input, button") !== null) {
     event.preventDefault();
     return;
   }
-  event.dataTransfer.setData(PANE_DRAG_TYPE, paneId);
+  // A fragment panel's pane goes as its pill carries it — a pull downward has already been taken
+  // for the fold (`FragmentPanelView`) — and a pane of the workspace by its slot.
+  event.dataTransfer.setData(PANE_DRAG_TYPE, isSlot(paneId) ? paneId : String(panelOf(paneId)));
   // Both, because the modifier's two meanings are both offered: a drop that
   // joins or duplicates copies, one that swaps or moves does not (§22.4).
   event.dataTransfer.effectAllowed = "copyMove";
@@ -390,7 +391,15 @@ function beginPaneDragFromEvent(event: React.DragEvent, paneId: PaneId, name: st
     header.querySelector(".pane-document"),
     header.getBoundingClientRect().height
   );
-  startPaneDrag(paneId);
+  if (isSlot(paneId)) {
+    startPaneDrag(paneId);
+    return;
+  }
+  beginPartDrag(paneId);
+  // The panel up over the panes folds once the drag is under way, as it does for its pill: what
+  // it is carried to may be one of the panes it covers. Not in this turn — the header is the drag's
+  // source, and a source changed as its drag begins is a drag the browser drops.
+  requestAnimationFrame(() => foldParts());
 }
 
 /**
