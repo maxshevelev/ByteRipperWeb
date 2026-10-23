@@ -317,7 +317,8 @@ the renderer's chunk cache as it is.
   and Show in Its Window has nothing to show. Docs: `DESKTOP_WINDOWS.md` (how a
   pane crosses), `IMPLEMENTATION_PLAN.md` (D16), `GAPS.md` (G106, G102),
   CLAUDE.md (the rule on browser tabs, and where documents live), and the help
-  in en, ru, de (a moved pane keeps its undo history). Firefox is still not
+  in en, ru, de, where two sentences said a moved pane's undo history stays
+  behind — now it is listed with what a moved pane keeps. Firefox is still not
   run: the probe in `Design/probes/session-host/` runs there unchanged.
 
 ## Risks
