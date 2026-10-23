@@ -152,6 +152,14 @@ interface PaneWorker {
   readonly worker: Worker;
   job: number;
   /**
+   * The job of the parse the pane's tree came from: what a question about the tree — a branch,
+   * a node's detail, its addresses, a repair — is sent under and answered by. An ask of another
+   * kind takes a job of its own and supersedes no question about the tree: an ME analysis
+   * asked while a branch was being read used to make the branch's reply look stale, and the
+   * row stayed on "Loading…" for good.
+   */
+  tree: number;
+  /**
    * The job of this pane's most recent one-at-a-time ask, by the response kind
    * that answers it. What makes "superseded" mean *by another ask of the same
    * kind*, rather than by any ask at all.
@@ -193,7 +201,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
   const worker = new Worker(new URL("../workers/firmware.worker.ts", import.meta.url), {
     type: "module",
   });
-  const held: PaneWorker = { worker, job: 0, latest: new Map() };
+  const held: PaneWorker = { worker, job: 0, tree: 0, latest: new Map() };
   teachLanguage(held);
   worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) => {
     const response = event.data;
@@ -217,7 +225,7 @@ function ensureWorker(pane: PaneId): PaneWorker {
       return;
     }
     const latest = held.latest.get(response.kind);
-    if (latest === undefined ? response.id !== held.job : response.id !== latest) return;
+    if (latest === undefined ? response.id !== held.tree : response.id !== latest) return;
 
     switch (response.kind) {
       case "firmwareProgress":
@@ -484,6 +492,7 @@ function nextAskJob(pane: PaneId, answeredBy: string): number {
 export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayout): void {
   const held = ensureWorker(pane);
   held.job += 1;
+  held.tree = held.job;
   // The job this bump supersedes may have been somebody's question; its reply
   // is dropped on arrival, so the asker is told now rather than left waiting.
   dropAsks(pane);
@@ -500,7 +509,7 @@ export function openFirmware(pane: PaneId, content: Blob, layout?: UEFIRootLayou
     dmiStores: undefined,
     lenovoDMIReaders: undefined,
   });
-  held.worker.postMessage({ kind: "openFirmware", id: held.job, content, layout });
+  held.worker.postMessage({ kind: "openFirmware", id: held.tree, content, layout });
 }
 
 /**
@@ -606,7 +615,7 @@ export function expandFirmwareNode(pane: PaneId, path: readonly number[]): void 
   const expanding = new Set(current.expanding);
   expanding.add(key);
   update(pane, { expanding });
-  send(pane, { kind: "firmwareChildren", id: workers[pane]?.job ?? 0, node: path });
+  send(pane, { kind: "firmwareChildren", id: workers[pane]?.tree ?? 0, node: path });
 }
 
 /**
@@ -650,7 +659,7 @@ export function resolveFirmwareAddresses(pane: PaneId): void {
   if (current === undefined || current.status !== "ready" || current.addressDiff !== undefined) {
     return;
   }
-  send(pane, { kind: "firmwareAddresses", id: workers[pane]?.job ?? 0 });
+  send(pane, { kind: "firmwareAddresses", id: workers[pane]?.tree ?? 0 });
 }
 
 const offsetWaiters = new Map<PaneId, (path: readonly number[] | undefined) => void>();
@@ -801,7 +810,7 @@ async function askHelper(
 ): Promise<void> {
   const held = workers[pane];
   if (held === undefined) return;
-  const key = `${pane}:${held.job}:${kind}`;
+  const key = `${pane}:${held.tree}:${kind}`;
   if (helperAsked.has(key)) return;
   helperAsked.add(key);
   const content = await currentContent(pane);
@@ -809,38 +818,38 @@ async function askHelper(
   if (content === undefined || workers[pane] !== held) return;
 
   let helper = helpers[pane];
-  if (helper === undefined || helper.job !== held.job) {
+  if (helper === undefined || helper.job !== held.tree) {
     helper?.worker.terminate();
     const worker = new Worker(new URL("../workers/firmware.worker.ts", import.meta.url), {
       type: "module",
     });
-    helper = { worker, job: held.job };
+    helper = { worker, job: held.tree };
     helpers[pane] = helper;
-    teachLanguage({ worker, job: 0, latest: new Map() });
+    teachLanguage({ worker, job: 0, tree: 0, latest: new Map() });
     worker.addEventListener("message", (event: MessageEvent<FirmwareWorkerResponse>) =>
       helperAnswered(pane, helper as Helper, event.data)
     );
     worker.postMessage({
       kind: "openFirmware",
-      id: held.job,
+      id: held.tree,
       content,
       layout: paneState(pane)?.origin?.layout,
     });
   }
-  helper.worker.postMessage({ kind, id: held.job });
+  helper.worker.postMessage({ kind, id: held.tree });
 }
 
 /** What the helper found, taken up if the tree it read is still the pane's. */
 function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerResponse): void {
   const held = workers[pane];
-  if (held === undefined || held.job !== helper.job || response.id !== helper.job) return;
+  if (held === undefined || held.tree !== helper.job || response.id !== helper.job) return;
   if (response.kind === "firmwareProtectedRanges") {
     const { raw, ...shown } = response;
     update(pane, {
       protectedRanges: shown,
       diagnostics: [...(firmwareFor(pane)?.diagnostics ?? []), ...response.diagnostics],
     });
-    held.worker.postMessage({ kind: "firmwareInstall", id: held.job, protectedRanges: raw });
+    held.worker.postMessage({ kind: "firmwareInstall", id: held.tree, protectedRanges: raw });
   } else if (response.kind === "firmwareDmiStores") {
     const stores = response.stores.map((store) => ({
       kind: store.kind as DMIStore["kind"],
@@ -857,14 +866,14 @@ function helperAnswered(pane: PaneId, helper: Helper, response: FirmwareWorkerRe
     update(pane, { lenovoDMIReaders: new Map(response.readers) });
     held.worker.postMessage({
       kind: "firmwareInstall",
-      id: held.job,
+      id: held.tree,
       lenovoDMIReaders: response.readers,
     });
   } else if (response.kind === "firmwareDvarSettings") {
     update(pane, { dvarSettings: dvarSettingsFromWire(response.settings) });
     held.worker.postMessage({
       kind: "firmwareInstall",
-      id: held.job,
+      id: held.tree,
       dvarSettings: response.settings,
     });
   }
@@ -1026,7 +1035,7 @@ export async function askFirmwareRebuild(
 export function askFirmwareDetail(pane: PaneId, path: readonly number[]): void {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return;
-  send(pane, { kind: "firmwareDetail", id: workers[pane]?.job ?? 0, node: path });
+  send(pane, { kind: "firmwareDetail", id: workers[pane]?.tree ?? 0, node: path });
 }
 
 /**
@@ -1052,7 +1061,7 @@ export async function fixFirmwareChecksum(
     repairWaiters.set(pathKey(path), resolve);
     send(pane, {
       kind: "firmwareRepair",
-      id: workers[pane]?.job ?? 0,
+      id: workers[pane]?.tree ?? 0,
       node: path,
       volumeRevision,
     });
@@ -1806,13 +1815,14 @@ async function deliverContentChange(pane: PaneId, change: ToolContentChange): Pr
   // this supersedes is dropped rather than applied to a tree it knows nothing
   // about — the stale-session guard.
   held.job += 1;
+  held.tree = held.job;
   // Nothing that was being read is being read against this tree any more —
   // including the one-at-a-time asks, whose replies this bump drops.
   dropAsks(pane);
   update(pane, { expanding: new Set() });
   held.worker.postMessage({
     kind: "firmwareInvalidate",
-    id: held.job,
+    id: held.tree,
     content,
     range: [change.start, change.end],
     sizeDelta: change.sizeDelta,

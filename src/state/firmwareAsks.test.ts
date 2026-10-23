@@ -276,6 +276,23 @@ describe("a branch being read", () => {
     expect(firmwareStore.getSnapshot().panes.a?.expanding.size).toBe(0);
   });
 
+  // A branch is a question about the tree, which an ask of another kind does not supersede: an
+  // ME analysis asked while the BIOS region of a CSME 13 dump was being read took a job of its
+  // own, the branch's reply was dropped as stale, and the row stayed on "Loading…" for good.
+  it("takes a branch's reply that arrives after an ask of another kind", () => {
+    withAClosedRoot();
+    expandFirmwareNode("a", [0]);
+    const ask = sent("firmwareChildren").at(-1);
+    if (ask === undefined) throw new Error("the branch should have been asked for");
+    void analyzePaneMe("a", "db", undefined, undefined);
+    void readSpaceBytes("a", [0x10]);
+
+    reply({ kind: "firmwareChildren", id: ask.id, node: [0], children: [], diagnostics: [] });
+
+    const pane = firmwareStore.getSnapshot().panes.a;
+    expect(pane?.expanding.size).toBe(0);
+  });
+
   // @upstream Packages/UEFIImage/Tests/UEFIImageTests/LazyUEFITreeTests.swift#LazyUEFITreeTests.testASecondExpandWhileOneIsInFlightCoalescesOntoIt
   it("folds a second ask for a branch into the one already running", () => {
     withAClosedRoot();
