@@ -16,6 +16,10 @@ import {
  * crosses into another pane. The glyph is the header's own, so a modified or
  * untitled pane is still recognisable as itself while it is in flight.
  *
+ * A fragment panel carried by its pill wears the same plate (D6): the pill's own
+ * document glyph at the header's size, so a panel in flight reads as the pane it
+ * becomes wherever it is let go.
+ *
  * Upstream draws into an image and hands the window a frame; a browser wants an
  * element and lifts its own picture out of it, so the pill is assembled here,
  * hung off screen for the one frame the snapshot needs it, and taken down again.
@@ -29,12 +33,9 @@ import {
 export function setPaneDragImage(
   transfer: DataTransfer,
   name: string,
-  header: Element | null
+  glyph: Element | null,
+  headerHeight: number
 ): void {
-  const glyph = header?.querySelector(".pane-document") ?? null;
-  const iconWidth = glyph === null ? 0 : glyph.getBoundingClientRect().width;
-  const gap = iconWidth === 0 ? 0 : PANE_DRAG_ICON_GAP;
-
   const label = document.createElement("span");
   label.className = "pane-drag-name";
   label.textContent = name;
@@ -45,16 +46,21 @@ export function setPaneDragImage(
   // rendered element, and takes it now.
   pill.style.top = "-1000px";
   pill.style.left = "-1000px";
-  if (glyph !== null) pill.append(glyph.cloneNode(true));
+  const icon = glyph === null ? null : (glyph.cloneNode(true) as Element);
+  if (icon !== null) pill.append(icon);
   pill.append(label);
   document.body.append(pill);
+  // Measured on the plate, where its own rules size it: the glyph handed in need not be on the
+  // page — a pill's is made for the plate.
+  const iconWidth = icon === null ? 0 : icon.getBoundingClientRect().width;
+  const gap = iconWidth === 0 ? 0 : PANE_DRAG_ICON_GAP;
 
   const measure = textMeasurer(label);
   const size = paneDragPillSize(
     iconWidth + gap + measure(name),
     // The header's own height, so the plate is the shape the pane wears and the
     // gesture reads as the pane itself moving.
-    paneDragPillHeight(header?.getBoundingClientRect().height ?? 0)
+    paneDragPillHeight(headerHeight)
   );
   const budget = paneDragNameBudget(size.width, iconWidth);
   label.textContent = middleTruncated(name, budget, measure);

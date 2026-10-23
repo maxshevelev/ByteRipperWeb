@@ -2,6 +2,7 @@ import { L } from "@/core/localization/localization";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import type { PanelId } from "@/state/fragmentDock";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
+import { setPaneDragImage } from "@/ui/drag/paneDragImage";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
 import { PartBadge } from "@/ui/parts/PartBadge";
@@ -137,6 +138,7 @@ function FragmentPill({
             : (event) => {
                 event.dataTransfer.setData(PANE_DRAG_TYPE, String(item.id));
                 event.dataTransfer.effectAllowed = "copyMove";
+                setPillDragImage(event.dataTransfer, item, event.currentTarget);
                 carried.onDragStart(item.id);
               }
         }
@@ -172,8 +174,10 @@ function FragmentPill({
           /* Upstream's `doc` symbol. The part is a document like any other, and
              the pill is where it waits. */
           <svg className="fragment-pill-glyph" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
-            <path d="M9.3 1.5v3.2h3.2" />
+            {/* The pane's own names for the two strokes, so the plate a pill is carried by fills
+                the page as a pane's glyph does (`setPillDragImage`). */}
+            <path className="pane-document-page" d="M3.5 1.5h5.8l3.2 3.2v9.8h-9Z" />
+            <path className="pane-document-fold" d="M9.3 1.5v3.2h3.2" />
           </svg>
         )}
         <span className="fragment-pill-name">{item.title}</span>
@@ -223,6 +227,27 @@ function FragmentPill({
         />
       )}
     </li>
+  );
+}
+
+/**
+ * The picture a pill is carried by: the plate a pane's header is carried by, rather than the
+ * browser's snapshot of the pill, which is cut to the strip it sits in. Its glyph is the pill's
+ * own, filled as a pane's is when the part holds changes, and it is as tall as a pane's header,
+ * so the panel in flight reads as the pane it becomes when it is let go (D6).
+ *
+ * @web-only upstream's pill is not dragged
+ */
+function setPillDragImage(transfer: DataTransfer, item: DockItem, pill: Element): void {
+  const glyph = pill.querySelector(".fragment-pill-glyph")?.cloneNode(true) as Element | undefined;
+  glyph?.setAttribute("class", "pane-document");
+  if (item.hasChanges) glyph?.setAttribute("data-dirty", "");
+  const header = document.querySelector(".pane-header");
+  setPaneDragImage(
+    transfer,
+    item.title,
+    glyph ?? null,
+    header?.getBoundingClientRect().height ?? 0
   );
 }
 

@@ -383,7 +383,13 @@ function beginPaneDragFromEvent(event: React.DragEvent, paneId: PaneId, name: st
   // Both, because the modifier's two meanings are both offered: a drop that
   // joins or duplicates copies, one that swaps or moves does not (§22.4).
   event.dataTransfer.effectAllowed = "copyMove";
-  setPaneDragImage(event.dataTransfer, name, event.currentTarget);
+  const header = event.currentTarget;
+  setPaneDragImage(
+    event.dataTransfer,
+    name,
+    header.querySelector(".pane-document"),
+    header.getBoundingClientRect().height
+  );
   startPaneDrag(paneId);
 }
 
