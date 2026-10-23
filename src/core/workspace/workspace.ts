@@ -260,16 +260,28 @@ export interface KeptHistory {
  *
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.init
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.KeptJoin
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.KeptJoin.init
  * @upstream-differs the file as a stamp and the name the pane showed, a page reaching a file by
- * its handle or, in the shell, its path
+ * its handle or, in the shell, its path; one type where upstream has the workspace's and the
+ * document's, the join marks being the workspace store's here rather than the document's
  */
 export interface KeptJoin {
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.serial */
+  /**
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.serial
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.KeptJoin.serial
+   */
   readonly serial: number;
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.path */
+  /**
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.path
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.KeptJoin.url
+   */
   readonly file: FileStamp;
   readonly name: string;
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.readOnly */
+  /**
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#KeptJoin.readOnly
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.KeptJoin.readOnly
+   */
   readonly readOnly: boolean;
 }
 

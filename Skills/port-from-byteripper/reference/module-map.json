@@ -339,7 +339,21 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/EditOverlayStorage.swift#OverlayEdits.init": "n/a — a TypeScript object literal",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoHistoryTests.swift#UndoHistoryTests.testTheVersionNamesTheContentsState": "n/a — the version is checked where the keeper uses it (src/state/workspace/contentKeeper.test.ts)",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift#KeptFormatVersionTests.testEditsOfVersion4Read": "n/a — a file's edits are upstream's binary property list there and the web's own JSON-headed runs here; the web's encoding is what the workspace fixtures keep",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift#KeptFormatVersionTests.version4Edits": "n/a — what upstream's property-list edits fixture holds; see testEditsOfVersion4Read"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift#KeptFormatVersionTests.version4Edits": "n/a — what upstream's property-list edits fixture holds; see testEditsOfVersion4Read",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.SavedDigest": "n/a — a save writes through the file handle or the shell, which hash nothing as they go; the file's SHA-256 is made after it, by path in the shell (`fileDigest.ts`, Design/PORT_WINDOW_07A3928_21A2889.md)",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.SavedDigest.*": "n/a — see BinaryDocument.SavedDigest",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.savedDigest": "n/a — see BinaryDocument.SavedDigest",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/HistoryLog.swift#HistoryLogWriter.url": "n/a — a writer writes a JournalStore, not a file by URL; where it lies is the journal's `place`",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.JournalMove": "n/a — no rounds: `moveJournal` re-points every op at once, the new journal copies the runs behind in its own queue, and a read of a run not yet written waits for its copy — edits go on meanwhile (`ContentKeeper.placeJournal`)",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.JournalMove.*": "n/a — see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.JournalMoveStep": "n/a — see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.beginJournalMove": "n/a — see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.finishJournalMove": "n/a — see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.init": "n/a — nothing to say at construction: a history is handed the journal it moves into (`moveJournal`), never a directory",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.journalDirectory": "n/a — a page names no directory; a history is handed its journal (`moveJournal`), made over a store",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.setSelectionAfter": "n/a — a transaction is a value here: a refined selection replaces the transaction with one carrying it",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveCatchesUpWithEditsMadeMeanwhile": "n/a — no rounds to catch up in; see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveTheHistoryOutranIsAbandoned": "n/a — no rounds to abandon; see UndoHistory.JournalMove"
       }
     },
     {
@@ -2123,7 +2137,11 @@
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.helpButtonForTesting": "n/a — a test hook; the web's tests reach the same behaviour through the stores",
         "ByteRipperApp/Settings/ViewSettingsViewController.swift#ViewSettingsViewController.language": "n/a — a test hook; the web's tests reach the Language section through the settings store",
         "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.general": "n/a — a test seam",
-        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showViewTab": "n/a — a test seam: the dialog's tab is a prop"
+        "ByteRipperApp/Settings/SettingsWindowController.swift#SettingsWindowController.showViewTab": "n/a — a test seam: the dialog's tab is a prop",
+        "ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.chooseHistorySize": "n/a — a test's way to pick from the popup; a suite here reads and sets the select in the DOM",
+        "ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.chooseHistorySteps": "n/a — a test's way to pick from the popup; a suite here reads and sets the select in the DOM",
+        "ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historySizeShownMiB": "n/a — a test's way to read the popup; a suite here reads the select in the DOM",
+        "ByteRipperApp/Settings/EditingSettings.swift#EditingSettingsViewController.historyStepsShown": "n/a — a test's way to read the popup; a suite here reads the select in the DOM"
       },
       "files": {
         "ByteRipperApp/Settings/AppearanceSettings.swift": "",
@@ -2244,7 +2262,9 @@
         "ByteRipperApp/DragDrop/SingleFileDropView.swift#*.init": "n/a — a React component is built by its render, not by an initialiser",
         "ByteRipperApp/DragDrop/SingleFileDropView.swift#*.paneView": "n/a — there is no view to hold: a region measures the element it is spread on, or the `bands` ref names the box it divides",
         "ByteRipperApp/DragDrop/SingleFileDropView.swift#*.setPaneDragCopying": "n/a — one writer: `notePaneDragCopying` records the modifier once and every overlay subscribes, so there is nobody to relay it to",
-        "ByteRipperApp/DragDrop/SingleFileDropView.swift#*ForTesting": "later — no React component tests in this project yet"
+        "ByteRipperApp/DragDrop/SingleFileDropView.swift#*ForTesting": "later — no React component tests in this project yet",
+        "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.draggingEnded": "n/a — the strip comes down with the drag in the pane-drag store, which the source's own `dragend` ends (`endLocalPaneDrag`)",
+        "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.prepareForDragOperation": "n/a — a browser asks a drop target nothing before the drop"
       },
       "files": {
         "ByteRipperApp/DragDrop/DragDrop.swift": [
@@ -4712,7 +4732,9 @@
       "files": {
         "ByteRipperApp/Window/BlockingOperationSheet.swift": ""
       },
-      "unported": {}
+      "unported": {
+        "ByteRipperApp/Window/BlockingOperationSheet.swift#BlockingOperationSheet.isCancellable": "n/a — no sheet: the restore check and a journal move show in the pane's operation strip, which a modal rule keeps from being a sheet (Design/PORT_WINDOW_07A3928_21A2889.md)"
+      }
     },
     {
       "swift": "ByteRipperApp/Window/EmptyStateView",
