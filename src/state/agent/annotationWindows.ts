@@ -17,6 +17,7 @@ import {
   agentAnnotationStore,
   allAnnotations,
   fileIdentityOf,
+  restoreAnnotations,
   showAnnotationCards,
 } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
@@ -334,6 +335,37 @@ export function showAnnotation(id: string): void {
           ) ?? latest(workspaceWindows))
         : undefined;
   if (to !== undefined) post({ type: "show", to, id });
+}
+
+/** How long a window opened for an annotation waits for the annotation to reach it. */
+const HANDED_ANNOTATION_WAIT_MS = 5_000;
+
+/**
+ * Goes to annotation `id`'s place in a window opened to show it, once the window holds the
+ * annotation: what it has kept is read as it comes up, and what the other windows hold is told to
+ * it after that.
+ *
+ * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
+ * @upstream-differs the window that opened the file goes to the place there; here the new window
+ * is another page, and goes to it itself
+ */
+export async function showHandedAnnotation(id: string): Promise<void> {
+  await restoreAnnotations();
+  const here = () => allAnnotations().some((one) => one.id === id);
+  if (!here()) {
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        stop();
+        resolve();
+      };
+      const timer = setTimeout(done, HANDED_ANNOTATION_WAIT_MS);
+      const stop = agentAnnotationStore.subscribe(() => {
+        if (here()) done();
+      });
+    });
+  }
+  await agentService.annotationTools.show(id, true);
 }
 
 /**

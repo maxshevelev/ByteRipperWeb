@@ -156,12 +156,20 @@ describe("the handover a new tab is opened with", () => {
     expect(handoverOfHash(handoverHash(handover))).toEqual(handover);
   });
 
+  it("carries files offered for a new tab, and the annotation they were opened for", () => {
+    const handover = { kind: "files", from: "w-1", ask: "k-2", annotation: "a3" } as const;
+    expect(handoverOfHash(handoverHash(handover))).toEqual(handover);
+  });
+
   it("is nothing for an address that does not carry one, or carries something else", () => {
     expect(handoverOfHash("")).toBeUndefined();
     expect(handoverOfHash("#help/workspace")).toBeUndefined();
     expect(handoverOfHash("#handover=%7Bbroken")).toBeUndefined();
     expect(
       handoverOfHash(`#handover=${encodeURIComponent('{"kind":"files","from":"w"}')}`)
+    ).toBeUndefined();
+    expect(
+      handoverOfHash(`#handover=${encodeURIComponent('{"kind":"other","from":"w","ask":"k"}')}`)
     ).toBeUndefined();
   });
 });

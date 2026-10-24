@@ -104,7 +104,13 @@ export type TakenPane =
 /** What a new window is handed by the window it was torn off from. */
 export type Handover =
   | { readonly kind: "pane"; readonly from: string; readonly slot: PaneId; readonly copy: boolean }
-  | { readonly kind: "files"; readonly from: string; readonly ask: string };
+  | {
+      readonly kind: "files";
+      readonly from: string;
+      readonly ask: string;
+      /** The annotation whose place the files were opened to show, gone to once they are open. */
+      readonly annotation?: string | undefined;
+    };
 
 type Message =
   | { readonly kind: "drag"; readonly pane: RemotePane }
@@ -245,6 +251,10 @@ export function paneTransferPeer(channel: PaneChannel, holder: PaneHolder) {
       const ask = token();
       offered.set(ask, files);
       return ask;
+    },
+    /** Files offered for a window that never came — a tab the browser would not open. */
+    withdrawFiles(ask: string): void {
+      offered.delete(ask);
     },
     async collect(from: string, ask: string) {
       const reply = answer("collected", ask);
@@ -521,27 +531,34 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
   }
 }
 
+/** What a new window was handed: files to open, and the annotation to go to once they are. */
+export interface Handed {
+  readonly files: readonly OpenedFile[];
+  readonly annotation?: string | undefined;
+}
+
 /**
  * A new window's launch, torn off from another: the pane it was made for, or the files dropped on
- * that window's New Window strip, taken up with that window's marks — which then go their own way.
- * Answers the files to open, if that is what was handed over.
+ * that window's New Window strip — or opened to show an annotation's place — taken up with that
+ * window's marks, which then go their own way. Answers the files to open, if that is what was
+ * handed over, and the annotation to go to once they are.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffPaneToNewTab
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFilesInNewTab
  */
-export async function receiveHandover(): Promise<readonly OpenedFile[]> {
+export async function receiveHandover(): Promise<Handed> {
   const handover = (windowLaunch()?.handover as Handover | undefined) ?? tabHandover();
-  if (handover === undefined || peer === undefined) return [];
+  if (handover === undefined || peer === undefined) return { files: [] };
   if (handover.kind === "pane") {
     const taken = await peer.take(handover.from, handover.slot, handover.copy);
-    if (taken.kind === "refused") return [];
+    if (taken.kind === "refused") return { files: [] };
     adoptBookmarks(taken.marks);
     await adoptTaken("a", taken);
-    return [];
+    return { files: [] };
   }
   const { files, marks } = await peer.collect(handover.from, handover.ask);
   adoptBookmarks(marks);
-  return files;
+  return { files, annotation: handover.annotation };
 }
 
 /** The address fragment a tab opened for a pane carries its handover in. */
@@ -565,6 +582,29 @@ export function paneToNewTab(slot: PaneId): void {
   window.open(url.href, "_blank", "noopener");
 }
 
+/**
+ * Opens a new browser tab that opens `files` — with `annotation`, goes to its place — as the
+ * shell's new window does for files handed to it. False when the browser would not open one: a
+ * tab is opened only while a click is going on, and a click answered long after is not.
+ *
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
+ * @upstream-differs a tab of the browser, which collects the files from this one as it comes up
+ */
+export function filesToNewTab(files: readonly OpenedFile[], annotation?: string): boolean {
+  if (peer === undefined) return false;
+  const ask = peer.offerFiles(files);
+  const handover: Handover = { kind: "files", from: peer.me, ask, annotation };
+  const url = new URL(location.href);
+  url.hash = handoverHash(handover);
+  const tab = window.open(url.href, "_blank");
+  if (tab === null) {
+    peer.withdrawFiles(ask);
+    return false;
+  }
+  tab.opener = null;
+  return true;
+}
+
 /** The handover this tab was opened with, if it was opened for a pane; the address forgets it. */
 function tabHandover(): Handover | undefined {
   if (typeof location === "undefined") return undefined;
@@ -578,17 +618,24 @@ export function handoverHash(handover: Handover): string {
   return `#${HANDOVER_KEY}=${encodeURIComponent(JSON.stringify(handover))}`;
 }
 
-/** The pane handover an address fragment carries, or nothing — anything else is not one. */
+/** The handover an address fragment carries — a pane, or files — or nothing for anything else. */
 export function handoverOfHash(hash: string): Handover | undefined {
   const match = new RegExp(`^#${HANDOVER_KEY}=(.+)$`).exec(hash);
   if (match === null) return undefined;
   try {
-    const handover = JSON.parse(decodeURIComponent(match[1] ?? "")) as Partial<Handover>;
-    return handover.kind === "pane" &&
-      typeof handover.from === "string" &&
-      typeof handover.slot === "string" &&
-      typeof handover.copy === "boolean"
-      ? (handover as Handover)
+    const handover = JSON.parse(decodeURIComponent(match[1] ?? "")) as {
+      [key: string]: unknown;
+    };
+    if (typeof handover.from !== "string") return undefined;
+    if (handover.kind === "pane") {
+      return typeof handover.slot === "string" && typeof handover.copy === "boolean"
+        ? (handover as unknown as Handover)
+        : undefined;
+    }
+    return handover.kind === "files" &&
+      typeof handover.ask === "string" &&
+      (handover.annotation === undefined || typeof handover.annotation === "string")
+      ? (handover as unknown as Handover)
       : undefined;
   } catch {
     return undefined;

@@ -17,7 +17,10 @@ import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { runAgentCallsForHost } from "@/state/agent/agentWindows";
-import { shareAnnotationsAcrossWindows } from "@/state/agent/annotationWindows";
+import {
+  shareAnnotationsAcrossWindows,
+  showHandedAnnotation,
+} from "@/state/agent/annotationWindows";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
 import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
@@ -52,7 +55,6 @@ import {
 import { PANE_IDS } from "@/state/paneId";
 import {
   partsLinkedAnywhere,
-  partsLinkedTo,
   strandingCloseButton,
   strandingSentence,
   updateInParent,
@@ -94,7 +96,9 @@ import { useStore } from "@/state/useStore";
 import { openOnce, openOnceHooks } from "@/state/workspace/openOnce";
 import {
   bringPane,
+  filesToNewTab,
   followPaneDrag,
+  type Handed,
   panePeer,
   paneToNewTab,
   receiveHandover,
@@ -149,7 +153,6 @@ import { CutDialog } from "@/ui/dialogs/CutDialog";
 import { FillDialog } from "@/ui/dialogs/FillDialog";
 import { GoToDialog } from "@/ui/dialogs/GoToDialog";
 import { OperationDialog } from "@/ui/dialogs/OperationDialog";
-import { type PaneChoice, PaneChoiceDialog } from "@/ui/dialogs/PaneChoiceDialog";
 import { SegmentsDialog } from "@/ui/dialogs/SegmentsDialog";
 import { SelectBlockDialog } from "@/ui/dialogs/SelectBlockDialog";
 import {
@@ -594,6 +597,37 @@ export function AppShell() {
   );
 
   /**
+   * What a window opened by another takes up as it comes up: the files handed to it, opened, and
+   * the annotation they were opened for gone to once they are.
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
+   */
+  const takeUpHanded = useCallback(
+    async (handed: Handed) => {
+      if (handed.files.length === 0) return;
+      await accept([...handed.files]);
+      if (handed.annotation !== undefined) await showHandedAnnotation(handed.annotation);
+    },
+    [accept]
+  );
+
+  /**
+   * A file an annotation's card asks for while both panes hold one: opened in a new window of the
+   * desktop shell, or a new tab of a browser, which goes to the annotation's place.
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
+   * @upstream-differs a window where upstream makes a tab; a tab in a browser
+   */
+  const openInNewWindow = useCallback((file: OpenedFile, annotation: string): boolean => {
+    const peer = panePeer();
+    if (peer === undefined) return false;
+    const bridge = desktopBridge();
+    if (bridge === undefined) return filesToNewTab([file], annotation);
+    bridge.newWindow({ kind: "files", from: peer.me, ask: peer.offerFiles([file]), annotation });
+    return true;
+  }, []);
+
+  /**
    * A pane let go on an empty window: another window's, or one of this window's fragment panels,
    * goes in as its first pane — the most obvious place to put one. The window's own handlers ask
    * through here, since what answers is made further down.
@@ -859,15 +893,6 @@ export function AppShell() {
    * dialog takes the keyboard and the mouse, so no second close can be asked
    * until this one is answered.
    */
-  /** The pane-choice question while it is up, and the answer it is waiting for. */
-  const [paneAsk, setPaneAsk] = useState<
-    | {
-        incoming: string;
-        panes: readonly PaneChoice[];
-        answer: (slot: SlotId | undefined) => void;
-      }
-    | undefined
-  >(undefined);
   const [closeAsk, setCloseAsk] = useState<
     | {
         title: string;
@@ -972,25 +997,24 @@ export function AppShell() {
     // A window torn off from another takes up what it was made for once it is up (D5).
     void restoreWorkspace()
       .then(() => receiveHandover())
-      .then((files) => {
-        if (files.length > 0) void accept([...files]);
-      });
+      .then((handed) => takeUpHanded(handed));
     return () => {
       stopTransfer();
       leave();
       stop();
     };
-    // `accept` is stable: it is made once.
-  }, [accept]);
+    // `takeUpHanded` is stable: it is made once.
+  }, [takeUpHanded]);
 
   // A browser's tabs share the session host, so a pane goes on in a new tab as it does in a new
   // window of the shell: this tab joins the others, and one opened for a pane takes it up.
   useEffect(() => {
     if (inDesktopShell()) return;
     const stopTransfer = startPaneTransfer();
-    void receiveHandover();
+    void receiveHandover().then((handed) => takeUpHanded(handed));
     return stopTransfer;
-  }, []);
+    // `takeUpHanded` is stable: it is made once.
+  }, [takeUpHanded]);
 
   // The find bar always searches the pane the commands act on — the part in
   // front of the dump, where one is up.
@@ -1489,41 +1513,6 @@ export function AppShell() {
   }, []);
 
   /**
-   * Which of the two panes gives way to `incoming`, when both hold a file and the person asked
-   * for a file no pane has — a double-click on an annotation's card. The window is drawn small with
-   * each pane where it is, the file it holds, its unsaved edits and the panels taken out of it, so
-   * what replacing it costs is read before it is chosen; the button says it, once. The slot, or
-   * nothing when the person cancelled.
-   *
-   * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmStranding
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.confirmReplaceDirtyPane
-   * @upstream-differs upstream asks about the stranded panels and the unsaved edits in alerts of
-   * their own, after the choice; here they are on the panes being chosen between, and the button
-   * that replaces says what it throws away
-   */
-  const choosePaneToReplace = useCallback(async (incoming: string): Promise<SlotId | undefined> => {
-    const a = paneState("a");
-    const b = paneState("b");
-    if (a === undefined) return "a";
-    if (b === undefined) return "b";
-    const choiceOf = (slot: SlotId, held: PaneState): PaneChoice => ({
-      slot,
-      name: held.name,
-      size: held.document.size,
-      dirty: held.document.isDirty,
-      linkedParts: partsLinkedTo(slot).length,
-    });
-    const slot = await new Promise<SlotId | undefined>((resolve) =>
-      setPaneAsk({ incoming, panes: [choiceOf("a", a), choiceOf("b", b)], answer: resolve })
-    );
-    setPaneAsk(undefined);
-    // A report about the file this pane is losing would stand over the one arriving.
-    if (slot !== undefined) forgetTransientMessage(slot);
-    return slot;
-  }, []);
-
-  /**
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicateDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicatePaneDocument
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.duplicate
@@ -1622,7 +1611,7 @@ export function AppShell() {
       if (select) await paneState(pane)?.typing.setSelection(start, end);
       revealIn(pane, start, !select);
     };
-    agentShell.choosePaneToReplace = choosePaneToReplace;
+    agentShell.openInNewWindow = openInNewWindow;
     agentShell.openSettings = () => {
       setSettingsTab("agent");
       setSettingsOpen(true);
@@ -1631,10 +1620,10 @@ export function AppShell() {
       agentShell.reveal = undefined;
       agentShell.bringForward = undefined;
       agentShell.busy = undefined;
-      agentShell.choosePaneToReplace = undefined;
+      agentShell.openInNewWindow = undefined;
       agentShell.openSettings = undefined;
     };
-  }, [revealIn, choosePaneToReplace]);
+  }, [revealIn, openInNewWindow]);
 
   // The agent service reads its switches and opens its endpoint if it was on, where there is a shell
   // to serve through.
@@ -3077,13 +3066,6 @@ export function AppShell() {
           revealIn(pane, piece.start, false);
         }}
         onClose={() => setSegmentsPane(undefined)}
-      />
-      <PaneChoiceDialog
-        incoming={paneAsk?.incoming}
-        layout={state.layout}
-        panes={paneAsk?.panes ?? []}
-        onChoose={(slot) => paneAsk?.answer(slot)}
-        onCancel={() => paneAsk?.answer(undefined)}
       />
       {/* @upstream ByteRipperApp/Workspace/AppDelegate+Projects.swift#AppDelegate.askToSaveSessionAsProject */}
       <ConfirmDialog

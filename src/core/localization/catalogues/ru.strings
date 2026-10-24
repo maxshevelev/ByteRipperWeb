@@ -1595,15 +1595,7 @@
 "Annotations not seen yet" = "Заметки, которые ещё не просмотрены";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Заметка отображается поверх байтов узла и перечисляется в панели «Заметки».";
 "“%1$@” is not open." = "Файл «%1$@» не открыт.";
-"Where should “%1$@” open?" = "Где открыть «%1$@»?";
-"Replace and Break Link" = "Заменить и разорвать связь";
-"Replace and Break Links" = "Заменить и разорвать связи";
-"Both panes hold a file. Choose the pane “%1$@” opens in; the file there is closed." = "Обе панели заняты. Выберите панель, в которой откроется «%1$@»; открытый в ней файл будет закрыт.";
-"No unsaved changes" = "Несохранённых изменений нет";
-"Open Here" = "Открыть здесь";
-"Panes" = "Панели";
-"Replace and Discard Edits" = "Заменить и отбросить правки";
-"The unsaved changes in “%1$@” are lost." = "Несохранённые изменения в «%1$@» будут потеряны.";
+"Both panes hold a file, and a new window could not be opened." = "Обе панели заняты, а новое окно открыть не удалось.";
 "File not found" = "Файл не найден";
 "“%1$@” is no longer there." = "«%1$@» больше нет на месте.";
 

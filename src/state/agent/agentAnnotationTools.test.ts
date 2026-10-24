@@ -160,7 +160,7 @@ afterEach(() => {
   forgetOpenedFilesForTesting();
   agentShell.reveal = undefined;
   agentShell.bringForward = undefined;
-  agentShell.choosePaneToReplace = undefined;
+  agentShell.openInNewWindow = undefined;
 });
 
 describe("an annotation", () => {
@@ -319,33 +319,34 @@ describe("on screen", () => {
     expect(paneState("b")?.name).toBe("right.bin");
   });
 
-  // With both panes holding a file, the person is asked which gives way, naming the file coming
-  // in; the one chosen is replaced, and a declined question leaves both as they were.
-  // @web-only upstream opens the file in a tab of its own
-  it("showing it from a card asks which pane gives way when both are taken", async () => {
+  // With both panes holding a file, the file opens in a new window, handed the annotation to go
+  // to there; neither pane gives way. A window that could not be opened is said.
+  // @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
+  it("showing it opens the file in a new window when both panes are taken", async () => {
     disk.set("/dumps/front.bin", { bytes: counting(0x1000), modified: 1000 });
     await answer("annotate", { path: "/dumps/front.bin", offset: "0x40", length: 4, title: "R" });
     open(counting(0x100), "left.bin", "a");
     open(counting(0x100), "right.bin", "b");
-    selectOnReveal();
-    const asked: string[] = [];
-    let chosen: "a" | "b" | undefined;
-    agentShell.choosePaneToReplace = async (incoming) => {
-      asked.push(incoming);
-      return chosen;
+    const opened: [string, string][] = [];
+    let opens = true;
+    agentShell.openInNewWindow = (file, annotation) => {
+      opened.push([file.name, annotation]);
+      return opens;
     };
 
     await service.annotationTools.show("a1", true);
-    expect(asked).toEqual(["front.bin"]);
+    expect(opened).toEqual([["front.bin", "a1"]]);
     expect(paneState("a")?.name).toBe("left.bin");
     expect(paneState("b")?.name).toBe("right.bin");
 
-    chosen = "b";
+    opens = false;
     await service.annotationTools.show("a1", true);
+    expect(noticeStore.getSnapshot().current?.lines).toEqual([
+      "Could not open file.",
+      "Both panes hold a file, and a new window could not be opened.",
+    ]);
     expect(paneState("a")?.name).toBe("left.bin");
-    expect(paneState("b")?.name).toBe("front.bin");
-    expect(selection("b")).toEqual([0x40, 0x44]);
-    expect(service.desk.background.entries).toEqual([]);
+    expect(paneState("b")?.name).toBe("right.bin");
   });
 
   // The person's own note on a file the shell gave a path for keeps the path, and the file is

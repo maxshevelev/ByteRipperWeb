@@ -1,4 +1,5 @@
-import type { PaneId, SlotId } from "@/state/paneId";
+import type { OpenedFile } from "@/platform/files/openedFile";
+import type { PaneId } from "@/state/paneId";
 
 /**
  * What only the shell can do on an agent's behalf: show a place in a pane. Set by the app's
@@ -30,14 +31,14 @@ export const agentShell: {
    */
   busy?: (() => string | undefined) | undefined;
   /**
-   * Asks the person which of the window's two panes gives way to the file `incoming` — naming
-   * the file each now holds — and then what the replacement costs: the panels taken out of it
-   * that lose their way back, its unsaved edits. The slot to open into, or nothing when the
-   * person declined at any of the questions.
+   * Opens `file` in a new window — a new tab in a browser — which goes to `annotation`'s place
+   * once the file is open there. False when none could be opened.
    *
-   * @web-only upstream opens the file in a tab of its own; the web has two panes and no tabs
+   * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.openInNewTab
+   * @upstream-differs a window of the desktop shell, a tab in a browser; the place is gone to by
+   * the window that opens, which is another page
    */
-  choosePaneToReplace?: ((incoming: string) => Promise<SlotId | undefined>) | undefined;
+  openInNewWindow?: ((file: OpenedFile, annotation: string) => boolean) | undefined;
   /**
    * Settings at the Agent tab, in this window: what the Agent window's Settings button asks the
    * window of the workspace in front for, in the desktop shell (D7d).

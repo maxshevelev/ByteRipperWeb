@@ -1596,15 +1596,7 @@
 "Annotations not seen yet" = "Noch nicht angesehene Anmerkungen";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
 "“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";
-"Where should “%1$@” open?" = "Wo soll „%1$@“ geöffnet werden?";
-"Replace and Break Link" = "Ersetzen und Verbindung trennen";
-"Replace and Break Links" = "Ersetzen und Verbindungen trennen";
-"Both panes hold a file. Choose the pane “%1$@” opens in; the file there is closed." = "Beide Bereiche sind belegt. Wählen Sie den Bereich, in dem „%1$@“ geöffnet wird; die dort geöffnete Datei wird geschlossen.";
-"No unsaved changes" = "Keine ungesicherten Änderungen";
-"Open Here" = "Hier öffnen";
-"Panes" = "Bereiche";
-"Replace and Discard Edits" = "Ersetzen und Änderungen verwerfen";
-"The unsaved changes in “%1$@” are lost." = "Die ungesicherten Änderungen in „%1$@“ gehen verloren.";
+"Both panes hold a file, and a new window could not be opened." = "Beide Bereiche sind belegt, und ein neues Fenster ließ sich nicht öffnen.";
 "File not found" = "Datei nicht gefunden";
 "“%1$@” is no longer there." = "„%1$@“ ist nicht mehr da.";
 

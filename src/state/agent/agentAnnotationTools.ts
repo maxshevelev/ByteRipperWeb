@@ -661,11 +661,12 @@ export class AgentAnnotationTools {
    * A file no pane has is opened again the way File ▸ Open Recent opens one — by the handle it was
    * opened with, or in the desktop shell by its full path (`reopenFile`). A file no longer there is
    * said to be gone, as upstream's Notes window says it, and nothing else is: a file that is there
-   * but could not be opened says why. Into a free pane; with both panes holding a file the person —
-   * `byPerson`, a card's double-click — is asked which one gives way, and an agent's `reveal` is
-   * refused, since an agent never replaces a pane.
+   * but could not be opened says why. Into a free pane; with both panes holding a file, in a new
+   * window — a new tab in a browser — as upstream opens it in a new tab, and that window goes to
+   * the place. A pane is never replaced for it.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
+   * @upstream-differs a free pane of the window first, where upstream always opens a new tab
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.go
    * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
    */
@@ -698,18 +699,16 @@ export class AgentAnnotationTools {
         case "opened":
           break;
       }
-      let slot: SlotId | undefined = PANE_IDS.find((one) => paneState(one) === undefined);
+      const slot: SlotId | undefined = PANE_IDS.find((one) => paneState(one) === undefined);
       if (slot === undefined) {
-        const choose = agentShell.choosePaneToReplace;
-        if (!byPerson || choose === undefined) {
+        // Both panes hold a file: it opens in a window of its own, which goes to the place.
+        if (agentShell.openInNewWindow?.(reopened.file, annotation.id) !== true) {
           showNotice("warning", [
             L("Could not open file."),
-            "Both panes of the window hold a file, and an agent does not replace one.",
+            L("Both panes hold a file, and a new window could not be opened."),
           ]);
-          return;
         }
-        slot = await choose(name);
-        if (slot === undefined) return;
+        return;
       }
       openInPane(slot, reopened.file);
       place = this.desk.placeOf(slot);
