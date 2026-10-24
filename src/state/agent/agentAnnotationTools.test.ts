@@ -4,6 +4,7 @@ import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import { type DesktopFiles, installDesktopFilesForTesting } from "@/platform/desktop/desktopFiles";
+import type { OpenedFile } from "@/platform/files/openedFile";
 import {
   agentAnnotationStore,
   allAnnotations,
@@ -17,6 +18,7 @@ import { forgetOpenedFilesForTesting } from "@/state/fileReopen";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { noticeStore } from "@/state/noticeStore";
+import type { HandedPlace } from "@/state/workspace/paneTransfer";
 import {
   closePane,
   foldParts,
@@ -163,6 +165,33 @@ afterEach(() => {
   agentShell.openInNewWindow = undefined;
 });
 
+/**
+ * Stands in for the new window a file no pane holds opens in, as upstream's tests stand in for
+ * `openInNewTab`: the files it was handed, and `arrive`, which does what that window does as it
+ * comes up — this window's panes cleared, the file opened, and the annotation's place gone to.
+ */
+function openedInNewWindow(): { files: OpenedFile[]; arrive(): Promise<void> } {
+  const files: OpenedFile[] = [];
+  const places: HandedPlace[] = [];
+  agentShell.openInNewWindow = (file, place) => {
+    files.push(file);
+    places.push(place);
+    return true;
+  };
+  return {
+    files,
+    async arrive() {
+      const [file] = files;
+      const [place] = places;
+      if (file === undefined || place?.kind !== "annotation") throw new Error("nothing opened");
+      closePane("a");
+      closePane("b");
+      openInPane("a", file);
+      await service.annotationTools.show(place.id, true);
+    },
+  };
+}
+
 describe("an annotation", () => {
   // @upstream ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testAnAnnotationIsDrawnOnThePaneAndListed
   it("is drawn on the pane and listed", async () => {
@@ -284,7 +313,10 @@ describe("on screen", () => {
     expect(member(made, "path")).toBe("/dumps/front.bin");
 
     selectOnReveal();
+    const opened = openedInNewWindow();
     await service.annotationTools.show("a1");
+    expect(opened.files.map((file) => file.name)).toEqual(["front.bin"]);
+    await opened.arrive();
     expect(paneState("a")?.name).toBe("front.bin");
     expect(selection()).toEqual([0x40, 0x44]);
     expect(spans()).toEqual([[0x40, 0x44]]);
@@ -319,14 +351,14 @@ describe("on screen", () => {
     expect(paneState("b")?.name).toBe("right.bin");
   });
 
-  // With both panes holding a file, the file opens in a new window, handed the annotation to go
-  // to there; neither pane gives way. A window that could not be opened is said.
+  // A file no pane of the window holds opens in a new window, handed the annotation to go to
+  // there, even with a pane free: the second pane is for a comparison. A window that could not be
+  // opened is said.
   // @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
-  it("showing it opens the file in a new window when both panes are taken", async () => {
+  it("showing it opens the file in a new window, a pane free or not", async () => {
     disk.set("/dumps/front.bin", { bytes: counting(0x1000), modified: 1000 });
     await answer("annotate", { path: "/dumps/front.bin", offset: "0x40", length: 4, title: "R" });
     open(counting(0x100), "left.bin", "a");
-    open(counting(0x100), "right.bin", "b");
     const opened: [string, string][] = [];
     let opens = true;
     agentShell.openInNewWindow = (file, place) => {
@@ -337,16 +369,16 @@ describe("on screen", () => {
     await service.annotationTools.show("a1", true);
     expect(opened).toEqual([["front.bin", "a1"]]);
     expect(paneState("a")?.name).toBe("left.bin");
-    expect(paneState("b")?.name).toBe("right.bin");
+    expect(paneState("b")).toBeUndefined();
 
     opens = false;
     await service.annotationTools.show("a1", true);
     expect(noticeStore.getSnapshot().current?.lines).toEqual([
       "Could not open file.",
-      "Both panes hold a file, and a new window could not be opened.",
+      "A new window could not be opened.",
     ]);
     expect(paneState("a")?.name).toBe("left.bin");
-    expect(paneState("b")?.name).toBe("right.bin");
+    expect(paneState("b")).toBeUndefined();
   });
 
   // The person's own note on a file the shell gave a path for keeps the path, and the file is
@@ -367,10 +399,13 @@ describe("on screen", () => {
     open(counting(0x100), "other.bin", "a");
 
     selectOnReveal();
+    const opened = openedInNewWindow();
     await service.annotationTools.show("a1", true);
-    expect(paneState("b")?.name).toBe("front.bin");
-    expect(paneState("b")?.file.path).toBe("/dumps/front.bin");
-    expect(selection("b")).toEqual([0x40, 0x44]);
+    expect(opened.files.map((file) => file.path)).toEqual(["/dumps/front.bin"]);
+    expect(paneState("b")).toBeUndefined();
+    await opened.arrive();
+    expect(paneState("a")?.name).toBe("front.bin");
+    expect(selection("a")).toEqual([0x40, 0x44]);
   });
 
   // A file opened through the picker or a drop is opened again by its handle, as File ▸ Open
@@ -390,9 +425,12 @@ describe("on screen", () => {
     open(counting(0x100), "other.bin", "a");
 
     selectOnReveal();
+    const opened = openedInNewWindow();
     await service.annotationTools.show("a1", true);
-    expect(paneState("b")?.name).toBe("picked.bin");
-    expect(selection("b")).toEqual([0x10, 0x12]);
+    expect(opened.files.map((file) => file.handle)).toEqual([handle]);
+    await opened.arrive();
+    expect(paneState("a")?.name).toBe("picked.bin");
+    expect(selection("a")).toEqual([0x10, 0x12]);
   });
 
   // With neither a handle nor a path there is no way back, and the card says the file is not open.

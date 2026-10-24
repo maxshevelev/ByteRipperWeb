@@ -1596,7 +1596,7 @@
 "Annotations not seen yet" = "Noch nicht angesehene Anmerkungen";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
 "“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";
-"Both panes hold a file, and a new window could not be opened." = "Beide Bereiche sind belegt, und ein neues Fenster ließ sich nicht öffnen.";
+"A new window could not be opened." = "Ein neues Fenster ließ sich nicht öffnen.";
 "File not found" = "Datei nicht gefunden";
 "“%1$@” is no longer there." = "„%1$@“ ist nicht mehr da.";
 

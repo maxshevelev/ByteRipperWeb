@@ -3,6 +3,7 @@ import { dumpFiles, parsePath, valueAt } from "@/core/agent/agentSurvey";
 import { type Json, member, parseJson } from "@/core/agent/json";
 import { decodeUtf8, encodeUtf8 } from "@/core/text/utf";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import type { OpenedFile } from "@/platform/files/openedFile";
 import { discardAnnotationsForTesting } from "@/state/agent/agentAnnotationStore";
 import {
   AGENT_BACKGROUND_LIMITS,
@@ -11,13 +12,14 @@ import {
   snapped,
 } from "@/state/agent/agentBackgroundDocuments";
 import type { ElsewhereDocument } from "@/state/agent/agentDesk";
+import { showHandedRange } from "@/state/agent/agentDumpTools";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { loadAgentSettings, rememberAgentBackgroundFiles } from "@/state/settingsStore";
 import type { HandedPlace } from "@/state/workspace/paneTransfer";
-import { openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
+import { closePane, openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
 /**
@@ -475,35 +477,13 @@ describe("survey", () => {
 });
 
 describe("show", () => {
+  // A background dump goes on screen in a new window, as upstream's goes in a new tab — with a pane
+  // of this window free, which is for a comparison. That window shows the place itself; the answer
+  // is the id it gives the document once it says it holds it.
   // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testShowPutsABackgroundDumpOnScreenUnderANewId
-  it("puts a background dump on screen in a free pane, under a new id", async () => {
+  it("puts a background dump on screen in a new window, under a new id", async () => {
     open(Uint8Array.from([0]), "a", "front.bin");
     disk.put("/dumps/later.bin", new Array(0x100).fill(7));
-    const id = member(
-      (await call("open_dump", { path: "/dumps/later.bin" })).json,
-      "document"
-    ) as string;
-    agentShell.reveal = (pane, start, end) => {
-      paneState(pane)?.document.setSelection({ start, end, fileSize: 0x100 });
-    };
-    const shown = (await call("show", { document: id, offset: "0x10", length: 4 })).json;
-    expect(member(shown, "replaces")).toBe(id);
-    expect(member(shown, "document")).not.toBe(id);
-    expect(paneState("b")?.name).toBe("later.bin");
-    const selection = paneState("b")?.document.selection;
-    expect([selection?.start, selection?.end]).toEqual([0x10, 0x14]);
-    expect(service.desk.background.entries).toEqual([]);
-    expect(canNavigateBack()).toBe(true);
-  });
-
-  // With both panes holding a file the dump opens in a new window, which shows the place itself;
-  // the answer is the id that window gives the document once it says it holds it. Neither pane
-  // gives way.
-  // @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.show
-  it("opens in a new window when both panes hold a file", async () => {
-    open(Uint8Array.from([0]), "a", "one.bin");
-    open(Uint8Array.from([0]), "b", "two.bin");
-    disk.put("/dumps/later.bin", [1, 2, 3, 4]);
     const id = member(
       (await call("open_dump", { path: "/dumps/later.bin" })).json,
       "document"
@@ -519,9 +499,9 @@ describe("show", () => {
         return () => listeners.delete(listener);
       },
     };
-    const handed: [string, HandedPlace][] = [];
+    const handed: [OpenedFile, HandedPlace][] = [];
     agentShell.openInNewWindow = (file, place) => {
-      handed.push([file.name, place]);
+      handed.push([file, place]);
       // The new window comes up and says what it holds.
       queueMicrotask(() => {
         theirs.push({
@@ -535,13 +515,28 @@ describe("show", () => {
       return true;
     };
 
-    const shown = (await call("show", { document: id, offset: "0x1", length: 2 })).json;
-    expect(handed).toEqual([["later.bin", { kind: "range", start: 1, end: 3 }]]);
+    const shown = (await call("show", { document: id, offset: "0x10", length: 4 })).json;
+    expect(handed.map(([file, place]) => [file.name, place])).toEqual([
+      ["later.bin", { kind: "range", start: 0x10, end: 0x14 }],
+    ]);
     expect(member(shown, "document")).toBe("d99");
     expect(member(shown, "replaces")).toBe(id);
-    expect(paneState("a")?.name).toBe("one.bin");
-    expect(paneState("b")?.name).toBe("two.bin");
+    expect(paneState("a")?.name).toBe("front.bin");
+    expect(paneState("b")).toBeUndefined();
     expect(service.desk.background.entries).toEqual([]);
+
+    // The new window's half: the file opened there, the range selected as a step.
+    const [file] = handed[0] ?? [];
+    if (file === undefined) throw new Error("nothing handed");
+    closePane("a");
+    openInPane("a", file);
+    agentShell.reveal = (pane, start, end) => {
+      paneState(pane)?.document.setSelection({ start, end, fileSize: 0x100 });
+    };
+    await showHandedRange(file, 0x10, 0x14);
+    const selection = paneState("a")?.document.selection;
+    expect([selection?.start, selection?.end]).toEqual([0x10, 0x14]);
+    expect(canNavigateBack()).toBe(true);
   });
 
   it("says so when no new window could be opened", async () => {

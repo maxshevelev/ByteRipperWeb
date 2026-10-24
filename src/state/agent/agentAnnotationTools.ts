@@ -47,18 +47,12 @@ import {
 } from "@/state/firmwareStore";
 import { recordJump, recordStepFromNotes } from "@/state/navigationStore";
 import { showNotice } from "@/state/noticeStore";
-import { PANE_IDS, type SlotId, surfaceOf } from "@/state/paneId";
+import { surfaceOf } from "@/state/paneId";
 import { activate, selectPane, sessionOn, toolController } from "@/state/toolController";
 import { beginBlockingWork } from "@/state/toolWork";
 import { uefiPanelLink } from "@/state/uefiPanelLinks";
 import { UEFIPartCodec } from "@/state/uefiPartCodec";
-import {
-  notesPanelIsUp,
-  openInPane,
-  type PaneId,
-  paneState,
-  workspaceStore,
-} from "@/state/workspaceStore";
+import { notesPanelIsUp, type PaneId, paneState, workspaceStore } from "@/state/workspaceStore";
 import { decodedFromWire, type WireDecoded } from "@/tools/uefi/agent/uefiAgentAnnotations";
 import type { WireContentMatch } from "@/workers/protocol";
 
@@ -661,12 +655,11 @@ export class AgentAnnotationTools {
    * A file no pane has is opened again the way File ▸ Open Recent opens one — by the handle it was
    * opened with, or in the desktop shell by its full path (`reopenFile`). A file no longer there is
    * said to be gone, as upstream's Notes window says it, and nothing else is: a file that is there
-   * but could not be opened says why. Into a free pane; with both panes holding a file, in a new
-   * window — a new tab in a browser — as upstream opens it in a new tab, and that window goes to
-   * the place. A pane is never replaced for it.
+   * but could not be opened says why. It opens in a new window — a new tab in a browser — as
+   * upstream opens it in a new tab, even where a pane of this window is free; that window goes to
+   * the place.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.show
-   * @upstream-differs a free pane of the window first, where upstream always opens a new tab
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.go
    * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.show
    */
@@ -676,7 +669,7 @@ export class AgentAnnotationTools {
     // A card's double-click leaves the panel: Back in the tab goes to the panel again. An agent's
     // reveal leaves the place the person was on, whatever is up over it.
     const fromNotes = byPerson && notesPanelIsUp(workspaceStore.getSnapshot());
-    let place = this.placeOf(annotation);
+    const place = this.placeOf(annotation);
     if (place === undefined) {
       const name = annotationFileName(annotation.file);
       const reopened: Reopened =
@@ -699,23 +692,15 @@ export class AgentAnnotationTools {
         case "opened":
           break;
       }
-      const slot: SlotId | undefined = PANE_IDS.find((one) => paneState(one) === undefined);
-      if (slot === undefined) {
-        // Both panes hold a file: it opens in a window of its own, which goes to the place.
-        if (
-          agentShell.openInNewWindow?.(reopened.file, { kind: "annotation", id: annotation.id }) !==
-          true
-        ) {
-          showNotice("warning", [
-            L("Could not open file."),
-            L("Both panes hold a file, and a new window could not be opened."),
-          ]);
-        }
-        return;
+      // A window of its own, which goes to the place: the window's second pane is for a
+      // comparison, not for whatever file is asked for next.
+      if (
+        agentShell.openInNewWindow?.(reopened.file, { kind: "annotation", id: annotation.id }) !==
+        true
+      ) {
+        showNotice("warning", [L("Could not open file."), L("A new window could not be opened.")]);
       }
-      openInPane(slot, reopened.file);
-      place = this.desk.placeOf(slot);
-      if (place === undefined) return;
+      return;
     }
     const pane = place.onScreen();
     agentShell.bringForward?.(pane);

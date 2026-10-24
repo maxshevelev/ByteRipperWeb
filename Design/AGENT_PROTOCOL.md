@@ -19,10 +19,11 @@ text says *tab*, read *pane of the window*. What follows from that:
   `part` or `background`.
 - `open_dump` answers `on_screen: true` when a pane already holds the file — told by
   its name, size and modification time, since a file a page is handed has no path.
-- `show` and `compare` put a file in a **free pane** (A first), and **never replace
-  a file**. With both panes taken `show` opens the file in a new window, which shows
-  the place; its answer is the id the document has there. `compare` refuses in a
-  sentence and the person makes room. `compare` of documents that were never saved opens copies in the two panes
+- `show` opens a background file in a **new window**, as upstream's opens a new
+  tab, even with a pane of this one free — the second pane is for a comparison;
+  that window shows the place, and the answer is the id the document has there.
+  `compare` puts a file in a **free pane** (A first) and **never replaces a file**:
+  with both panes taken it refuses in a sentence and the person makes room. `compare` of documents that were never saved opens copies in the two panes
   only when both are free, and says `copies`.
 - `close_dump` refuses a document in a pane: "d1 is open in the window; only the
   person closes it."
@@ -133,7 +134,7 @@ the file is opened; one on a document never saved goes with that document.
 |---|---|---|
 | `open_dump` | `path` (absolute or `~/`) | `document`, `on_screen` (true when a tab already has the file, and the id is that tab's), `size`. Read-only, no window; the last eight are kept parsed. A file changed on disk is read again under the same id. |
 | `close_dump` | `document` | `closed`. Refuses a document in a tab. |
-| `show` | `document`; `offset`, `length` | `document` (on screen), `shown`, `replaces` (the background id it replaced). Opens a new tab, or brings forward the tab that has the file. |
+| `show` | `document`; `offset`, `length` | `document` (on screen), `shown`, `replaces` (the background id it replaced). Opens a new window, or brings forward the pane of this window that has the file. |
 | `survey` | `folder` (+ `recursive`) or `paths`; `tool` (one that takes `document`); `arguments`; `group_by` (dotted path, `-1` for the last element); `limit` (20, ≤ 100); `after` | `root`, `files`, `groups_total`, `groups[]` (`value`, `count`, `files` — ten at most; the largest first), `failed[]` (`file`, `error`). A file is named by its path from `root`: the `folder`, or the deepest folder all the `paths` share — one board's dumps are often all `bios.bin`, one to a folder. Links are not resolved, so `paths` spelled two ways keep their whole paths. Progress per file. At most 200 files. Paged (`next`, `after`): a page after the first is cut from the same run, never a new one; a group whose value is too large alone gives the start of its JSON text. |
 
 A background document is answered about by every tool that reads — `read`,

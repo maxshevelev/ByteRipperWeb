@@ -1595,7 +1595,7 @@
 "Annotations not seen yet" = "Заметки, которые ещё не просмотрены";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Заметка отображается поверх байтов узла и перечисляется в панели «Заметки».";
 "“%1$@” is not open." = "Файл «%1$@» не открыт.";
-"Both panes hold a file, and a new window could not be opened." = "Обе панели заняты, а новое окно открыть не удалось.";
+"A new window could not be opened." = "Не удалось открыть новое окно.";
 "File not found" = "Файл не найден";
 "“%1$@” is no longer there." = "«%1$@» больше нет на месте.";
 
