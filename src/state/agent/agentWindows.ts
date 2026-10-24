@@ -359,10 +359,12 @@ function receiveAsRunner(message: Message): void {
       const known = others.has(message.from);
       others.set(message.from, message.runner);
       if (!known) sendRunner(true);
+      othersChanged();
       return;
     }
     case "gone":
       others.delete(message.from);
+      othersChanged();
       for (const [id, one] of asking) {
         if (one.runner !== message.from) continue;
         asking.delete(id);
@@ -432,6 +434,11 @@ export function runAgentCallsForHost(): void {
 
 /** The other windows of the workspace, as each last said what it holds. */
 const others = new Map<string, Runner>();
+/** Who hears another window say what it holds, or go. */
+const othersListeners = new Set<() => void>();
+const othersChanged = () => {
+  for (const listener of othersListeners) listener();
+};
 /** The questions this window asked of another, by their id. */
 const asking = new Map<
   string,
@@ -505,6 +512,10 @@ const otherWindows: OtherWindows = {
         values,
       });
     });
+  },
+  changes(listener) {
+    othersListeners.add(listener);
+    return () => othersListeners.delete(listener);
   },
 };
 

@@ -702,7 +702,10 @@ export class AgentAnnotationTools {
       const slot: SlotId | undefined = PANE_IDS.find((one) => paneState(one) === undefined);
       if (slot === undefined) {
         // Both panes hold a file: it opens in a window of its own, which goes to the place.
-        if (agentShell.openInNewWindow?.(reopened.file, annotation.id) !== true) {
+        if (
+          agentShell.openInNewWindow?.(reopened.file, { kind: "annotation", id: annotation.id }) !==
+          true
+        ) {
           showNotice("warning", [
             L("Could not open file."),
             L("Both panes hold a file, and a new window could not be opened."),

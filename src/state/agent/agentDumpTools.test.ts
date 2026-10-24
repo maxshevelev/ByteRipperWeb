@@ -10,11 +10,13 @@ import {
   memoryChoicesMiB,
   snapped,
 } from "@/state/agent/agentBackgroundDocuments";
+import type { ElsewhereDocument } from "@/state/agent/agentDesk";
 import { AgentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { EMPTY_DOCK } from "@/state/fragmentDock";
 import { canNavigateBack, forgetCaretOnScreen, navigationHistory } from "@/state/navigationStore";
 import { loadAgentSettings, rememberAgentBackgroundFiles } from "@/state/settingsStore";
+import type { HandedPlace } from "@/state/workspace/paneTransfer";
 import { openInPane, paneState, workspaceStore } from "@/state/workspaceStore";
 import { type LinkedScroller, scrollLink } from "@/ui/pane/scrollLink";
 
@@ -130,6 +132,8 @@ afterEach(() => {
   forgetCaretOnScreen("b");
   agentShell.reveal = undefined;
   agentShell.bringForward = undefined;
+  agentShell.openInNewWindow = undefined;
+  service.desk.others = undefined;
 });
 
 describe("the pure parts", () => {
@@ -492,7 +496,55 @@ describe("show", () => {
     expect(canNavigateBack()).toBe(true);
   });
 
-  it("never opens into a pane that holds a file", async () => {
+  // With both panes holding a file the dump opens in a new window, which shows the place itself;
+  // the answer is the id that window gives the document once it says it holds it. Neither pane
+  // gives way.
+  // @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.show
+  it("opens in a new window when both panes hold a file", async () => {
+    open(Uint8Array.from([0]), "a", "one.bin");
+    open(Uint8Array.from([0]), "b", "two.bin");
+    disk.put("/dumps/later.bin", [1, 2, 3, 4]);
+    const id = member(
+      (await call("open_dump", { path: "/dumps/later.bin" })).json,
+      "document"
+    ) as string;
+    const theirs: ElsewhereDocument[] = [];
+    const listeners = new Set<() => void>();
+    service.desk.others = {
+      documents: () => theirs.map((document) => ({ document, tab: 2 })),
+      tab: () => 1,
+      ask: () => Promise.reject(new Error("not asked")),
+      changes(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const handed: [string, HandedPlace][] = [];
+    agentShell.openInNewWindow = (file, place) => {
+      handed.push([file.name, place]);
+      // The new window comes up and says what it holds.
+      queueMicrotask(() => {
+        theirs.push({
+          id: "d99",
+          name: file.name,
+          slot: "A",
+          file: { name: file.name, size: file.size, modified: file.lastModified, path: file.path },
+        });
+        for (const listener of listeners) listener();
+      });
+      return true;
+    };
+
+    const shown = (await call("show", { document: id, offset: "0x1", length: 2 })).json;
+    expect(handed).toEqual([["later.bin", { kind: "range", start: 1, end: 3 }]]);
+    expect(member(shown, "document")).toBe("d99");
+    expect(member(shown, "replaces")).toBe(id);
+    expect(paneState("a")?.name).toBe("one.bin");
+    expect(paneState("b")?.name).toBe("two.bin");
+    expect(service.desk.background.entries).toEqual([]);
+  });
+
+  it("says so when no new window could be opened", async () => {
     open(Uint8Array.from([0]), "a", "one.bin");
     open(Uint8Array.from([0]), "b", "two.bin");
     disk.put("/dumps/later.bin", [1, 2]);
@@ -500,9 +552,15 @@ describe("show", () => {
       (await call("open_dump", { path: "/dumps/later.bin" })).json,
       "document"
     ) as string;
+    service.desk.others = {
+      documents: () => [],
+      tab: () => 1,
+      ask: () => Promise.reject(new Error("not asked")),
+    };
+    agentShell.openInNewWindow = () => false;
     const refused = await call("show", { document: id });
     expect(refused.isError).toBe(true);
-    expect(refused.text).toMatch(/Both panes of the window hold a file/);
+    expect(refused.text).toMatch(/could not open later\.bin in a new window/);
     expect(paneState("a")?.name).toBe("one.bin");
     expect(paneState("b")?.name).toBe("two.bin");
   });

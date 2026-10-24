@@ -14,6 +14,7 @@ import { openFiles } from "@/platform/files/openFile";
 import { OpfsScratchStore, sweepOrphanedScratch } from "@/platform/files/opfsScratchStore";
 import { operate } from "@/platform/sessions/sessionOperations";
 import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
+import { showHandedRange } from "@/state/agent/agentDumpTools";
 import { agentService } from "@/state/agent/agentService";
 import { agentShell } from "@/state/agent/agentShell";
 import { runAgentCallsForHost } from "@/state/agent/agentWindows";
@@ -99,6 +100,7 @@ import {
   filesToNewTab,
   followPaneDrag,
   type Handed,
+  type HandedPlace,
   panePeer,
   paneToNewTab,
   receiveHandover,
@@ -598,32 +600,36 @@ export function AppShell() {
 
   /**
    * What a window opened by another takes up as it comes up: the files handed to it, opened, and
-   * the annotation they were opened for gone to once they are.
+   * the place they were opened for gone to once they are — an annotation's, or a range an agent's
+   * `show` asked for.
    *
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
    */
   const takeUpHanded = useCallback(
     async (handed: Handed) => {
-      if (handed.files.length === 0) return;
+      const [first] = handed.files;
+      if (first === undefined) return;
       await accept([...handed.files]);
-      if (handed.annotation !== undefined) await showHandedAnnotation(handed.annotation);
+      const place = handed.place;
+      if (place?.kind === "annotation") await showHandedAnnotation(place.id);
+      else if (place?.kind === "range") await showHandedRange(first, place.start, place.end);
     },
     [accept]
   );
 
   /**
-   * A file an annotation's card asks for while both panes hold one: opened in a new window of the
-   * desktop shell, or a new tab of a browser, which goes to the annotation's place.
+   * A file an annotation's card or an agent's `show` asks for while both panes hold one: opened in
+   * a new window of the desktop shell, or a new tab of a browser, which goes to the place.
    *
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
    * @upstream-differs a window where upstream makes a tab; a tab in a browser
    */
-  const openInNewWindow = useCallback((file: OpenedFile, annotation: string): boolean => {
+  const openInNewWindow = useCallback((file: OpenedFile, place: HandedPlace): boolean => {
     const peer = panePeer();
     if (peer === undefined) return false;
     const bridge = desktopBridge();
-    if (bridge === undefined) return filesToNewTab([file], annotation);
-    bridge.newWindow({ kind: "files", from: peer.me, ask: peer.offerFiles([file]), annotation });
+    if (bridge === undefined) return filesToNewTab([file], place);
+    bridge.newWindow({ kind: "files", from: peer.me, ask: peer.offerFiles([file]), place });
     return true;
   }, []);
 

@@ -329,8 +329,8 @@ describe("on screen", () => {
     open(counting(0x100), "right.bin", "b");
     const opened: [string, string][] = [];
     let opens = true;
-    agentShell.openInNewWindow = (file, annotation) => {
-      opened.push([file.name, annotation]);
+    agentShell.openInNewWindow = (file, place) => {
+      opened.push([file.name, place.kind === "annotation" ? place.id : ""]);
       return opens;
     };
 

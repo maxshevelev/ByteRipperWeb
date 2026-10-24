@@ -101,6 +101,14 @@ export type TakenPane =
       readonly reason: "gone" | "unanswered";
     };
 
+/**
+ * Where a new window opened for a file goes once it is open: an annotation's place, or a range an
+ * agent's `show` asked for — selected where it is not empty.
+ */
+export type HandedPlace =
+  | { readonly kind: "annotation"; readonly id: string }
+  | { readonly kind: "range"; readonly start: number; readonly end: number };
+
 /** What a new window is handed by the window it was torn off from. */
 export type Handover =
   | { readonly kind: "pane"; readonly from: string; readonly slot: PaneId; readonly copy: boolean }
@@ -108,8 +116,8 @@ export type Handover =
       readonly kind: "files";
       readonly from: string;
       readonly ask: string;
-      /** The annotation whose place the files were opened to show, gone to once they are open. */
-      readonly annotation?: string | undefined;
+      /** The place the files were opened to show, gone to once they are open. */
+      readonly place?: HandedPlace | undefined;
     };
 
 type Message =
@@ -531,17 +539,17 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
   }
 }
 
-/** What a new window was handed: files to open, and the annotation to go to once they are. */
+/** What a new window was handed: files to open, and the place to go to once they are. */
 export interface Handed {
   readonly files: readonly OpenedFile[];
-  readonly annotation?: string | undefined;
+  readonly place?: HandedPlace | undefined;
 }
 
 /**
  * A new window's launch, torn off from another: the pane it was made for, or the files dropped on
  * that window's New Window strip — or opened to show an annotation's place — taken up with that
  * window's marks, which then go their own way. Answers the files to open, if that is what was
- * handed over, and the annotation to go to once they are.
+ * handed over, and the place to go to once they are.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.tearOffPaneToNewTab
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFilesInNewTab
@@ -558,7 +566,7 @@ export async function receiveHandover(): Promise<Handed> {
   }
   const { files, marks } = await peer.collect(handover.from, handover.ask);
   adoptBookmarks(marks);
-  return { files, annotation: handover.annotation };
+  return { files, place: handover.place };
 }
 
 /** The address fragment a tab opened for a pane carries its handover in. */
@@ -583,17 +591,17 @@ export function paneToNewTab(slot: PaneId): void {
 }
 
 /**
- * Opens a new browser tab that opens `files` — with `annotation`, goes to its place — as the
+ * Opens a new browser tab that opens `files` — with `place`, goes to it — as the
  * shell's new window does for files handed to it. False when the browser would not open one: a
  * tab is opened only while a click is going on, and a click answered long after is not.
  *
  * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
  * @upstream-differs a tab of the browser, which collects the files from this one as it comes up
  */
-export function filesToNewTab(files: readonly OpenedFile[], annotation?: string): boolean {
+export function filesToNewTab(files: readonly OpenedFile[], place?: HandedPlace): boolean {
   if (peer === undefined) return false;
   const ask = peer.offerFiles(files);
-  const handover: Handover = { kind: "files", from: peer.me, ask, annotation };
+  const handover: Handover = { kind: "files", from: peer.me, ask, place };
   const url = new URL(location.href);
   url.hash = handoverHash(handover);
   const tab = window.open(url.href, "_blank");
@@ -634,10 +642,24 @@ export function handoverOfHash(hash: string): Handover | undefined {
     }
     return handover.kind === "files" &&
       typeof handover.ask === "string" &&
-      (handover.annotation === undefined || typeof handover.annotation === "string")
+      (handover.place === undefined || isHandedPlace(handover.place))
       ? (handover as unknown as Handover)
       : undefined;
   } catch {
     return undefined;
   }
+}
+
+/** Whether `value` is a place a handover can carry. */
+function isHandedPlace(value: unknown): value is HandedPlace {
+  if (typeof value !== "object" || value === null) return false;
+  const place = value as { [key: string]: unknown };
+  if (place.kind === "annotation") return typeof place.id === "string";
+  return (
+    place.kind === "range" &&
+    Number.isSafeInteger(place.start) &&
+    Number.isSafeInteger(place.end) &&
+    (place.start as number) >= 0 &&
+    (place.end as number) >= (place.start as number)
+  );
 }

@@ -1,5 +1,6 @@
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { PaneId } from "@/state/paneId";
+import type { HandedPlace } from "@/state/workspace/paneTransfer";
 
 /**
  * What only the shell can do on an agent's behalf: show a place in a pane. Set by the app's
@@ -31,14 +32,15 @@ export const agentShell: {
    */
   busy?: (() => string | undefined) | undefined;
   /**
-   * Opens `file` in a new window — a new tab in a browser — which goes to `annotation`'s place
-   * once the file is open there. False when none could be opened.
+   * Opens `file` in a new window — a new tab in a browser — which goes to `place` once the file is
+   * open there. False when none could be opened.
    *
    * @upstream ByteRipperApp/Agent/AgentAnnotationTools.swift#AgentAnnotationTools.openInNewTab
+   * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.openInNewTab
    * @upstream-differs a window of the desktop shell, a tab in a browser; the place is gone to by
    * the window that opens, which is another page
    */
-  openInNewWindow?: ((file: OpenedFile, annotation: string) => boolean) | undefined;
+  openInNewWindow?: ((file: OpenedFile, place: HandedPlace) => boolean) | undefined;
   /**
    * Settings at the Agent tab, in this window: what the Agent window's Settings button asks the
    * window of the workspace in front for, in the desktop shell (D7d).

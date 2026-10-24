@@ -422,6 +422,8 @@ export interface OtherWindows {
    * refusal thrown as the tool's own would be.
    */
   ask(document: string, query: string, values: { readonly [key: string]: Json }): Promise<Json>;
+  /** Hears another window say what it holds, or go. Answers the means to stop. */
+  changes?(listener: () => void): () => void;
 }
 
 /** The last folder of a path, either separator. */

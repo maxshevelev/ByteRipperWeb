@@ -1,3 +1,4 @@
+import { type FileIdentity, sameFile } from "@/core/agent/agentAnnotation";
 import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import {
@@ -23,10 +24,12 @@ import {
 } from "@/core/agent/agentTool";
 import { type Json, jsonText } from "@/core/agent/json";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
+import type { OpenedFile } from "@/platform/files/openedFile";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import { hexText, rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
+import { PANE_IDS } from "@/state/paneId";
 import { openInPane, paneState, type SlotId } from "@/state/workspaceStore";
 
 /**
@@ -145,9 +148,9 @@ export class AgentDumpTools {
         "Opens a background document in a free pane of the window — or brings forward the pane that " +
         "already has the file — and shows `offset` there, selecting `length` bytes when given. Returns " +
         "the on-screen document's id, which replaces the background one. Never opens into a pane that " +
-        "holds a file: with both panes taken it says so, and the person makes room. To look inside a " +
-        "node or a stretch of a dump that is already on screen, use `open_part`, which opens a panel " +
-        "in the same window instead.",
+        "holds a file: with both panes taken it opens in a new window. To look inside a node or a " +
+        "stretch of a dump that is already on screen, use `open_part`, which opens a panel in the " +
+        "same window instead.",
       inputSchema: AgentSchema.object(
         {
           document: AgentSchema.string("The document's id."),
@@ -174,6 +177,11 @@ export class AgentDumpTools {
       const entry = place.pane === undefined ? undefined : this.desk.background.entryOf(place.pane);
       if (entry === undefined) throw new AgentToolError(`${place.named} has no file.`);
       const existing = this.desk.onScreenPlaceOf(entry.path, entry);
+      if (existing === undefined && freeSlot() === undefined) {
+        const answer = await this.showInNewWindow(place, offset, length);
+        this.desk.background.close(entry.pane);
+        return answer;
+      }
       onScreen = existing ?? this.openOnScreen(place);
       replaced = place.id;
       this.desk.background.close(entry.pane);
@@ -197,19 +205,19 @@ export class AgentDumpTools {
 
   /**
    * Opens a background document into a pane of the window that holds no file, and gives back the
-   * place it has there. Both panes taken is the person's to settle.
+   * place it has there.
    *
    * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.openInNewTab
-   * @upstream-differs a free pane of the window, where upstream opens a tab
+   * @upstream-differs a free pane of the window first, where upstream opens a tab; with both panes
+   * holding a file, `showInNewWindow`
    */
   openOnScreen(place: AgentPlace): AgentPlace {
     const held = place.state;
     if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
-    const free = (["a", "b"] as const).find((slot: SlotId) => paneState(slot) === undefined);
+    const free = freeSlot();
     if (free === undefined) {
       throw new AgentToolError(
-        "Both panes of the window hold a file, and an agent does not replace one. " +
-          "Ask the person to close one, or point at a file that is already open."
+        `Both panes of the window hold a file; ${held.name} was not opened.`
       );
     }
     openInPane(free, held.file);
@@ -218,6 +226,62 @@ export class AgentDumpTools {
       throw new AgentToolError(`ByteRipper could not open ${held.name} in the window.`);
     }
     return opened;
+  }
+
+  /**
+   * Opens a background document in a new window, both panes of this one holding a file, and has
+   * that window show `[offset, offset + length)`: the answer `show` gives, with the id the
+   * document has there once that window says it holds it.
+   *
+   * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.openInNewTab
+   * @upstream-differs a window of the desktop shell, which is another page: it shows the place
+   * itself, and is waited for to say the document it opened
+   */
+  async showInNewWindow(place: AgentPlace, offset: number, length: number): Promise<Json> {
+    const held = place.state;
+    if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
+    const size = place.document.size;
+    if (offset > size) {
+      throw new AgentToolError(`Offset ${hexText(offset)} is past the end of ${place.named}.`);
+    }
+    const end = Math.min(offset + length, size);
+    // The window it opens in is found by what it says it holds, which only the shell's windows say.
+    const others = this.desk.others;
+    if (
+      others === undefined ||
+      agentShell.openInNewWindow?.(held.file, { kind: "range", start: offset, end }) !== true
+    ) {
+      throw new AgentToolError(
+        `Both panes of the window hold a file, and ByteRipper could not open ${held.name} in a ` +
+          "new window."
+      );
+    }
+    const identity = identityOfFile(held.file);
+    const shown = () =>
+      others
+        .documents()
+        .find(
+          ({ document }) =>
+            (document.slot === "A" || document.slot === "B") &&
+            document.file !== undefined &&
+            sameFile(document.file, identity)
+        )?.document;
+    const id = await new Promise<string | undefined>((resolve) => {
+      const finish = (found: string | undefined) => {
+        clearTimeout(timer);
+        stop?.();
+        resolve(found);
+      };
+      const timer = setTimeout(() => finish(undefined), NEW_WINDOW_WAIT_MS);
+      const stop = others.changes?.(() => {
+        const found = shown();
+        if (found !== undefined) finish(found.id);
+      });
+    });
+    if (id === undefined) {
+      throw new AgentToolError(`ByteRipper could not open ${held.name} in a new window.`);
+    }
+    return { document: id, shown: rangeJson(offset, end), replaces: place.id };
   }
 
   // MARK: - survey
@@ -449,3 +513,44 @@ const reasonOf = (error: unknown): string =>
   error instanceof Error
     ? error.message.replace(/^Error invoking remote method '[^']*': (Error: )?/, "")
     : String(error);
+
+/** How long `show` waits for the window it opened to say it holds the document. */
+const NEW_WINDOW_WAIT_MS = 15_000;
+
+/** A pane of the window that holds no file. */
+const freeSlot = (): SlotId | undefined => PANE_IDS.find((slot) => paneState(slot) === undefined);
+
+/** What tells the file apart, as the windows say it of their documents (`fileIdentityOf`). */
+const identityOfFile = (file: OpenedFile): FileIdentity => ({
+  name: file.name,
+  size: file.size,
+  modified: file.lastModified,
+  ...(file.path === undefined ? {} : { path: file.path }),
+});
+
+/**
+ * Shows `[start, end)` of `file` in a window opened for it by another's `show`, once it is open:
+ * as `show` does in its own window — the pane in front, a step of the history, the range selected
+ * where it is not empty.
+ *
+ * @upstream ByteRipperApp/Agent/AgentDumpTools.swift#AgentDumpTools.show
+ * @upstream-differs the window that opened the file shows the place there; here the new window is
+ * another page, and shows it itself
+ */
+export async function showHandedRange(file: OpenedFile, start: number, end: number): Promise<void> {
+  const pane = PANE_IDS.find((slot) => {
+    const there = paneState(slot)?.file;
+    return (
+      there !== undefined &&
+      there.name === file.name &&
+      there.size === file.size &&
+      there.lastModified === file.lastModified
+    );
+  });
+  const size = pane === undefined ? undefined : paneState(pane)?.document.size;
+  if (pane === undefined || size === undefined || start > size) return;
+  const to = Math.min(end, size);
+  agentShell.bringForward?.(pane);
+  recordJump(pane);
+  await agentShell.reveal?.(pane, start, to, to > start);
+}

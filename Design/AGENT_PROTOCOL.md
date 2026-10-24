@@ -20,8 +20,9 @@ text says *tab*, read *pane of the window*. What follows from that:
 - `open_dump` answers `on_screen: true` when a pane already holds the file — told by
   its name, size and modification time, since a file a page is handed has no path.
 - `show` and `compare` put a file in a **free pane** (A first), and **never replace
-  a file**: with both panes taken they refuse in a sentence and the person makes
-  room. `compare` of documents that were never saved opens copies in the two panes
+  a file**. With both panes taken `show` opens the file in a new window, which shows
+  the place; its answer is the id the document has there. `compare` refuses in a
+  sentence and the person makes room. `compare` of documents that were never saved opens copies in the two panes
   only when both are free, and says `copies`.
 - `close_dump` refuses a document in a pane: "d1 is open in the window; only the
   person closes it."
