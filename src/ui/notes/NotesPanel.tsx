@@ -749,7 +749,7 @@ function NoteCard({
         : `${hex(shown[0])}–${hex(shown[1])}`;
   const path = annotationPath(annotation.file);
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the list holds the keys
+    // biome-ignore lint/a11y/useKeyWithClickEvents: the list holds the keys
     <article
       className={`note-card ${byAgent ? "is-agent" : "is-person"}${isSelected ? " is-selected" : ""}${isCarried ? " is-carried" : ""}`}
       data-note={annotation.id}

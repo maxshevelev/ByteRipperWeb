@@ -2805,17 +2805,6 @@ textarea,
   max-width: 100%;
 }
 
-/* The strip may be narrower than its titles: each one shortens with an ellipsis rather than the
-   strip running past the panel. */
-.minimap-modes .tab-strip-item {
-  min-width: 0;
-  padding: 1px 6px;
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .minimap-progress {
   flex: 1;
   height: 3px;
@@ -4778,6 +4767,17 @@ button.uefi-title {
   cursor: default;
 }
 
+/* The minimap's mode strip may be narrower than its titles: each one shortens with an ellipsis rather than the
+   strip running past the panel. */
+.minimap-modes .tab-strip-item {
+  min-width: 0;
+  padding: 1px 6px;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The tabs as a segmented strip, where upstream's window has its toolbar. */
 /* The Settings tabs are a `.tab-strip` across the dialog: each tab takes its share of the width. */
 .settings-tabs {
@@ -4852,21 +4852,6 @@ button.uefi-title {
 .settings-view > section {
   display: grid;
   grid-template-columns: subgrid;
-}
-
-.settings-view > section > .settings-grid {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-}
-
-/* A caption spans both columns, and a spanning item's natural width is shared out over the tracks
-   it covers — a sentence would widen the label column. Taking no width of its own keeps the labels'
-   column the width of the widest label; it fills the grid's width and wraps there. */
-.settings-view > section > .settings-caption {
-  grid-column: 1 / -1;
-  width: 0;
-  min-width: 100%;
 }
 
 /* A tab's first control with the tab's own `?` at the far end of its row. */
@@ -4979,6 +4964,22 @@ button.uefi-title {
 
 .settings-decoding-controls .settings-caption {
   margin: 0;
+}
+
+/* In a tab's view, a grid is a subgrid of the section's two columns. */
+.settings-view > section > .settings-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+/* A caption spans both columns, and a spanning item's natural width is shared out over the tracks
+   it covers — a sentence would widen the label column. Taking no width of its own keeps the labels'
+   column the width of the widest label; it fills the grid's width and wraps there. */
+.settings-view > section > .settings-caption {
+  grid-column: 1 / -1;
+  width: 0;
+  min-width: 100%;
 }
 
 .settings-placeholder {
@@ -5622,17 +5623,17 @@ button.uefi-title {
   color: var(--text-muted);
 }
 
-.fragment-pill[data-up] .fragment-pill-glyph,
-.fragment-pill[data-up] .fragment-pill-dot,
-.fragment-pill[data-up] .close-button {
-  color: inherit;
-}
-
 /* The ✕ in a pill is round under the pointer, as the pill is. In the pill that is
    up it keeps the pill's ink, on the badge's wash — the window's grey would put a
    white cross on a light grey. */
 .fragment-pill .close-button {
   border-radius: 50%;
+}
+
+.fragment-pill[data-up] .fragment-pill-glyph,
+.fragment-pill[data-up] .fragment-pill-dot,
+.fragment-pill[data-up] .close-button {
+  color: inherit;
 }
 
 .fragment-pill[data-up] .close-button:hover {
@@ -5668,11 +5669,6 @@ button.uefi-title {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   background: var(--surface);
-}
-
-.own-window > .notes-panel,
-.own-window > .agent-window {
-  grid-row: 1;
 }
 
 .own-window > .help-panel {
@@ -6320,6 +6316,11 @@ body[data-pulling-panel] * {
   font-size: 13px;
 }
 
+/* In a window of its own (`.own-window`) the panel is the first row: there is no dock strip. */
+.own-window > .agent-window {
+  grid-row: 1;
+}
+
 .agent-window-status {
   flex: 0 1 auto;
   min-width: 0;
@@ -6386,6 +6387,7 @@ body[data-pulling-panel] * {
 
 /* Drawn as the tool panels' tables are (`.fit-head`, `.fit-row`): a quiet head over a rule, rows
    of one height with every second one raised, the chosen one in the strong selection. */
+/* biome-ignore lint/style/noDescendingSpecificity: an Agent window table, which is no `.panel-table` */
 .agent-table th {
   position: sticky;
   top: 0;
@@ -6403,6 +6405,7 @@ body[data-pulling-panel] * {
   white-space: nowrap;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: an Agent window table's cells, not the FIT table's rows */
 .agent-table td {
   height: 22px;
   padding: 0 6px;
@@ -6530,6 +6533,11 @@ body[data-pulling-panel] * {
   background: var(--surface);
   color: var(--text);
   font-size: 12px;
+}
+
+/* In a window of its own (`.own-window`) the panel is the first row: there is no dock strip. */
+.own-window > .notes-panel {
+  grid-row: 1;
 }
 
 /* The panel takes the keys when its last card goes; it draws no ring for it. */
@@ -6712,6 +6720,7 @@ body[data-pulling-panel] * {
   cursor: pointer;
 }
 
+/* biome-ignore lint/style/noDescendingSpecificity: a card's icon, which is no help button */
 .note-card-icon svg {
   width: 14px;
   height: 14px;

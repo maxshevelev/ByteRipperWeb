@@ -8,6 +8,8 @@ coverage/
 .vite/
 .DS_Store
 *.log
+# A log a test reads is a fixture, copied from upstream as it is (src/core/edit/fixtures).
+!src/core/edit/fixtures/**/*.log
 
 # Never committed: the Claude Code CLI's local skill hooks live here.
 # Skills themselves belong in Skills/.
