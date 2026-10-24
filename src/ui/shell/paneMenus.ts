@@ -157,9 +157,11 @@ export function paneFileMenu(
 ): (MenuEntry | undefined)[] {
   const slot = paneIn(state, pane);
   if (slot === undefined) return [];
-  // The verb follows this pane, not only the browser: a file opened without a
-  // handle is downloaded however capable the browser is (D7).
-  const verb = saveVerb(state.capabilities, slot.file.handle !== undefined);
+  // The verb is the browser's (D7): where there is a save picker a document with
+  // no file behind it — a part, a New File — saves as a new one rather than downloading.
+  const verb = saveVerb(state.capabilities);
+  // A save in place has nothing to write while nothing has changed; a save that asks where always has.
+  const savesInPlace = verb === "Save" && slot.file.handle !== undefined;
   const dirty = slot.document.isDirty;
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
   const revert = revertItem(slot);
@@ -179,7 +181,7 @@ export function paneFileMenu(
     ]),
     {
       label: verb === "Save" ? L("Save") : L("Download"),
-      disabled: !dirty && verb === "Save",
+      disabled: !dirty && savesInPlace,
       onSelect: () => actions.onSave(pane),
     },
     {

@@ -1,9 +1,9 @@
-@source-sha f4b782a41e25a1cc35ebb5526377ef2b8d11051243ed17b4b9db925a774d5e04
+@source-sha 23113823d491149f2dc103fed4a06a47282e64fdb059202b78975deaef427777
 # Sichern
 
 > Rot kennzeichnet ein Byte, das von der Datei auf dem Volume abweicht. Das Sichern schreibt diese Bytes [[edition:in die Datei — oder, in manchen Browsern, in eine heruntergeladene Kopie —||zurück in die Datei,]] und das Rot wird aufgehoben.
 
-**Was auf der Taste steht, geschieht auch.** [[edition:Wo das Programm in die geöffnete Datei zurückschreiben kann, sagt es **Sichern**; wo nicht, sagt es **Herunterladen** — und der leere Bildschirm sagt, was dieser Browser tut, bevor Sie überhaupt etwas geöffnet haben.||Das Fenster schreibt in die Datei zurück, die es geöffnet hat, daher sagt die Taste **Sichern**, und der leere Bildschirm sagt es, bevor Sie überhaupt etwas geöffnet haben.]]
+**Was auf der Taste steht, geschieht auch.** [[edition:Wo der Browser dem Programm erlaubt, Dateien zu schreiben, sagt es **Sichern**; wo nicht, sagt es **Herunterladen** — und der leere Bildschirm sagt, was dieser Browser tut, bevor Sie überhaupt etwas geöffnet haben.||Das Fenster schreibt in die Datei zurück, die es geöffnet hat, daher sagt die Taste **Sichern**, und der leere Bildschirm sagt es, bevor Sie überhaupt etwas geöffnet haben.]]
 
 - **Sichern** ([[key:save]]) schreibt das Dokument des Bereichs in die Datei zurück, aus der es stammt. [[edition:Chromium-Browser können das.||Das Fenster kann das für jede Datei, die es öffnet.]]
 - [[edition:**Herunterladen** ([[key:save]]) gibt den bearbeiteten Dump stattdessen an die Downloads des Browsers. Firefox und Safari können nicht in eine Datei schreiben, die eine Seite geöffnet hat; dort heißt Sichern genau das — die geöffnete Datei bleibt unberührt, und die bearbeitete Kopie landet bei Ihren Downloads.||**Eine per Ziehen abgelegte Datei wird ebenfalls an Ort und Stelle gesichert.** Ein Drop trägt einen eigenen Verweis auf die Datei, daher wird ein Sichern im Fenster nie eine Kopie.]]
@@ -11,7 +11,7 @@
 - **Ablage ▸ Auf gesicherten Stand zurücksetzen** verwirft Ihre Änderungen und liest die Datei neu. Für einen Bereich, dessen Bytes anderswoher stammen — ein Teil, ein Zusammenfügen —, heißt es **Auf das Original zurücksetzen**.
 - **In der Quelle aktualisieren** ist das dritte Ziel: für eine [[topic:fragments|Teilansicht]] schreibt es den Teil in das Image zurück, aus dem er stammt, statt in eine Datei.
 
-[[edition:! Eine per Ziehen abgelegte Datei und eine Datei aus einem Browser ohne File System Access API werden **heruntergeladen**, auch wo das Programm sonst an Ort und Stelle sichern könnte — ein Zurückschreiben ist dort schlicht nicht möglich. Öffnen Sie sie über **Ablage ▸ Öffnen…**, wenn Sie Sichern statt Herunterladen wollen.||]]
+[[edition:! Hat der Browser für eine per Ziehen abgelegte Datei keinen Verweis geliefert, gibt es keine Datei, in die zurückgeschrieben werden kann: **Sichern** fragt dann, wohin das Dokument geschrieben werden soll, wie bei einem Dokument ohne Datei (siehe unten). Um eine solche Datei an Ort und Stelle zu sichern, öffnen Sie sie über **Ablage ▸ Öffnen…**.||]]
 
 ## Wenn die Datei nicht gesichert ist
 

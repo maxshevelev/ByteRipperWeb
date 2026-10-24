@@ -223,9 +223,11 @@ export function Toolbar({
       ? { label: undefined }
       : undefined
     : nextRedo(front);
-  // The verb follows the pane, not only the browser: a file opened without a
-  // handle is downloaded however capable the browser is.
-  const verb = saveVerb(state.capabilities, active?.file.handle !== undefined);
+  // The verb is the browser's: where there is a save picker a document with no
+  // file behind it — a part, a New File — saves as a new one rather than downloading.
+  const verb = saveVerb(state.capabilities);
+  // A save in place has nothing to write while nothing has changed; a save that asks where always has.
+  const savesInPlace = verb === "Save" && active?.file.handle !== undefined;
 
   const bothOpen = state.panes.a !== undefined && state.panes.b !== undefined;
   // The Agent button and its mark: there while the service is switched on, filled while an agent is
@@ -354,7 +356,7 @@ export function Toolbar({
       // help: menu.file.save
       label: verb === "Save" ? L("Save") : L("Download"),
       shortcut: "⌘S",
-      disabled: active === undefined || (!dirty && verb === "Save"),
+      disabled: active === undefined || (!dirty && savesInPlace),
       onSelect: onSave,
     },
     {

@@ -65,17 +65,18 @@ export function detectFileCapabilities(scope: unknown = globalThis): FileCapabil
 /**
  * How the app names the act of writing a file.
  *
- * Two things have to be true before the button may say *Save*: the browser can
- * write back at all, and *this file* arrived with a handle to write back to. A
- * file that came from an `<input>`, or from a drop the browser gave no handle
- * for, will be downloaded however capable the browser is — and a button
- * promising otherwise is exactly the discovery D7 exists to prevent.
+ * *Save* wherever the browser has a save picker: a document with a handle is
+ * written back through it, and one without — a part, a New File, a file from an
+ * `<input>` or from a drop the browser gave no handle for — is a Save As, asking
+ * where to write it, as upstream's Save is for an untitled document. Only a
+ * browser with no picker downloads a copy, and there the button says so — a
+ * button promising otherwise is exactly the discovery D7 exists to prevent.
  *
  * The UI asks this rather than deciding for itself, so the wording can never
  * drift from what will happen.
  */
-export function saveVerb(capabilities: FileCapabilities, hasHandle = true): "Save" | "Download" {
-  return capabilities.canSaveInPlace && hasHandle ? "Save" : "Download";
+export function saveVerb(capabilities: FileCapabilities): "Save" | "Download" {
+  return capabilities.canSaveInPlace ? "Save" : "Download";
 }
 
 /** One sentence a person can read about why the button says what it says. */
@@ -85,8 +86,8 @@ export function saveExplanation(capabilities: FileCapabilities, hasHandle = true
   }
   if (capabilities.canSaveInPlace) {
     return (
-      "This file was opened without a handle the browser will write through, so saving " +
-      "downloads a copy. Opening it again through Open… gives one."
+      "This document has no file the browser will write through, so saving asks where to " +
+      "write it."
     );
   }
   return (
@@ -99,9 +100,8 @@ export function saveExplanation(capabilities: FileCapabilities, hasHandle = true
  * What saving does in this browser, as one sentence for the landing screen.
  *
  * Asked of the browser rather than of a file: the landing screen has no file
- * open, so the question there is what this browser does with one — and
- * {@link saveVerb} would answer *Download* even in Chromium, where the only
- * thing missing is a file to write back through.
+ * open, so the question there is what this browser does with one, not what
+ * {@link saveVerb} calls the button.
  *
  * @web-only the landing screen's line. Upstream shows the save kind beside the
  * pane's status, where the web keeps it in the toolbar's own button wording;

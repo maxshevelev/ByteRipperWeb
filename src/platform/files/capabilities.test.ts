@@ -49,12 +49,12 @@ describe("what the app calls it", () => {
     expect(saveVerb(detectFileCapabilities(firefoxOrSafari))).toBe("Download");
   });
 
-  it("says Download for a file with no handle, however capable the browser", () => {
-    // A file from an <input>, or a drop the browser gave no handle for, is
-    // downloaded whatever Chromium can do in general — and a button promising
-    // otherwise is exactly the discovery D7 exists to prevent.
-    expect(saveVerb(detectFileCapabilities(chromium), false)).toBe("Download");
-    expect(saveExplanation(detectFileCapabilities(chromium), false)).toMatch(/downloads a copy/);
+  it("says Save for a document with no handle where the browser has a picker", () => {
+    // A part, a New File, a file from an <input> or a handle-less drop is saved
+    // as a new file through the picker — what upstream's Save does for an
+    // untitled document — so nothing is downloaded and the button says Save.
+    expect(saveVerb(detectFileCapabilities(chromium))).toBe("Save");
+    expect(saveExplanation(detectFileCapabilities(chromium), false)).toMatch(/asks where/);
   });
 
   it("explains the difference rather than leaving it to be discovered", () => {
@@ -63,9 +63,7 @@ describe("what the app calls it", () => {
   });
 
   it("states what saving does on the landing screen from the browser alone", () => {
-    // No file is open there, so the browser is the whole question: a Chromium
-    // landing screen says *in place* even though `saveVerb` would say Download,
-    // which is about a file that does not exist yet.
+    // No file is open there, so the browser is the whole question.
     expect(saveNotice(detectFileCapabilities(chromium))).toBe("Saves in place.");
     expect(saveNotice(detectFileCapabilities(firefoxOrSafari))).toBe(
       "Saves by downloading a copy."

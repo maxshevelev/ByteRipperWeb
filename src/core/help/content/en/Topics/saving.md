@@ -8,7 +8,7 @@
 @covers menu.file.update-in-parent
 @covers platform.save-capability
 
-**What the button says is what will happen.** [[edition:Where the app can write back into the file you opened it says **Save**; where it cannot it says **Download**, and the empty screen says which this browser does before you have opened anything at all.||The shell writes back into the file it opened, so the button says **Save**, and the empty screen says so before you have opened anything.]]
+**What the button says is what will happen.** [[edition:Where the browser lets the app write files it says **Save**; where it does not it says **Download**, and the empty screen says which this browser does before you have opened anything at all.||The shell writes back into the file it opened, so the button says **Save**, and the empty screen says so before you have opened anything.]]
 
 - **Save** ([[key:save]]) writes the pane's document back to the file it came from. [[edition:Chromium-based browsers can do this.||The shell can do this for every file it opens.]]
 - [[edition:**Download** ([[key:save]]) hands the edited dump to the browser's downloads instead. Firefox and Safari have no way to write into a file a page opened, so this is what saving means there — the file you opened is untouched, and the edited copy lands wherever your downloads go.||**A file dropped onto the window saves in place, too.** A drop carries a handle of its own, so a save in the shell never becomes a copy.]]
@@ -16,7 +16,7 @@
 - **File ▸ Revert to Saved** throws your edits away and re-reads the file. For a pane whose bytes came from somewhere else — a part, a join — it is **Revert to Original** instead.
 - **Update in Parent** is the third destination: for a [[topic:fragments|fragment panel]], it writes the part back into the image it came out of instead of to a file.
 
-[[edition:! A file dropped onto the window, or opened in a browser without the File System Access API, will be **downloaded** even where the app could otherwise save in place — there is no handle to write through. Open it through **File ▸ Open…** if you want Save rather than Download.||]]
+[[edition:! A file dropped onto the window that the browser gave no handle for has no file to write back to: **Save** asks where to write it, as for a document with no file (below). Open it through **File ▸ Open…** to save it in place.||]]
 
 ## If the file is not saved
 

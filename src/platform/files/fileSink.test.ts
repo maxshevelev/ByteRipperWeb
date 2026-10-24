@@ -229,6 +229,21 @@ describe("saving a document", () => {
     expect(target.bytes).toEqual(expected);
   });
 
+  // A document with no file behind it — a part, a New File — has nothing to write back to: its
+  // Save asks where, as Save As does, rather than downloading a copy where there is a picker.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveDocumentOfPane
+  it("saves a document with no file to the file the picker chose", async () => {
+    const storage = new EditOverlayStorage(new MemoryBackedStorage());
+    await storage.append(new Uint8Array([0xab, 0xcd]));
+    const target = new FakeFile("part.bin", []);
+    (globalThis as { showSaveFilePicker?: unknown }).showSaveFilePicker = async () => target.handle;
+
+    const outcome = await save({ storage, name: "part.bin", capabilities: chromium });
+
+    expect(outcome.kind).toBe("savedAs");
+    expect(target.bytes).toEqual([0xab, 0xcd]);
+  });
+
   // The case the direct write got wrong upstream: a plain Save of a
   // length-changing edit, where the file being written is the file the overlay
   // still reads its base from. The swap file is what keeps the base readable

@@ -93,9 +93,10 @@ export async function saveTarget(
   as: boolean
 ): Promise<SaveTarget> {
   const capabilities = request.capabilities ?? detectFileCapabilities();
-  if (!as) {
-    const handle = request.handle;
-    if (!capabilities.canSaveInPlace || handle === undefined) return { kind: "download" };
+  const handle = request.handle;
+  // A document with no file to write back to saves as a new one: Save is a Save As, as upstream's
+  // is for an untitled document.
+  if (!as && handle !== undefined && capabilities.canSaveInPlace) {
     if (!(await ensureWritePermission(handle))) {
       // Permission declined. Downloading anyway would be putting a file somewhere the user did
       // not ask for; saying so and stopping is the honest answer.
@@ -152,7 +153,8 @@ export async function writeTo(
 }
 
 /**
- * Saves to the file the document came from, or downloads a copy.
+ * Saves to the file the document came from — a document with none to a file the user picks — or
+ * downloads a copy where there is no picker.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/StorageSaver.swift#StorageSaver
  * @upstream-differs writes through a File System Access handle, whose writable publishes the file whole, instead of patching in place or renaming a sibling temporary
