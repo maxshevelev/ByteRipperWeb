@@ -1,4 +1,4 @@
-@source-sha 401fe2450dd764fc51ce4ac6f3a04f49fa84e76ce31d9a5c5a51d9025863ecb6
+@source-sha 1c69b5ba1f14367a3b7ec3a8c595d2d9c51be3a0aedbf5c7820eeeb4fc1f6e01
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
