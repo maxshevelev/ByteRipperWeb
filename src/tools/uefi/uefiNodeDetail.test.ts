@@ -1956,20 +1956,41 @@ describe("a BVDT region", () => {
     return { bytes, region };
   };
 
-  // The version table's region shows what the table states.
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionShowsTheVersionsTheTableStates
-  it("shows the versions the table states", () => {
+  // The version table's region lists what the table states as its Entries, as an
+  // identity area does, each row a link to the bytes the value is read from.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFIToolTests.swift#UEFIDetailTests.testABVDTRegionListsWhatTheTableStatesAsEntries
+  it("lists what the table states as its Entries", () => {
     const { bytes, region } = bvdtRegion();
     const detail = detailOf(region, bytes);
 
     expect(value(detail, "Kind")).toBe("Flash device map region");
-    expect(value(detail, "BIOS version")).toBe("JKCN31WW");
-    expect(value(detail, "Product name")).toBe("S370-IAU");
-    expect(value(detail, "Kernel version")).toBe("05.44.02");
-    expect(value(detail, "Release date")).toBe("2022-07-21");
-    expect(value(detail, "Compiler")).toBe("MSC 1600 (Visual Studio 2010)");
-    expect(value(detail, "ESRT firmware class")).toBe("F102E4FC-EB52-4FD9-8098-E51308E275F7");
-    expect(value(detail, "ESRT version")).toBe("0x52440031");
+    // A value is a row of the table, not a field.
+    expect(value(detail, "BIOS version")).toBeUndefined();
+    const entries = table(detail, "Entries");
+    expect(entries?.columns).toEqual(["Entry", "Value"]);
+    expect(entries?.rows.map((row) => row.map((one) => one.text))).toEqual([
+      ["BIOS version", "JKCN31WW"],
+      ["Product name", "S370-IAU"],
+      ["Kernel version", "05.44.02"],
+      ["Release date", "2022-07-21"],
+      ["Compiler", "MSC 1600 (Visual Studio 2010)"],
+      ["ESRT firmware class", "F102E4FC-EB52-4FD9-8098-E51308E275F7"],
+      ["ESRT version", "0x52440031"],
+    ]);
+    expect(entries?.linkColumn).toBe(0);
+    // `bvdtTable` lays the records out from 0x146, where upstream's fixture has
+    // them from 0x7D; the strings are where both have them.
+    expect(entries?.rowTargets).toEqual([
+      { kind: "range", start: 0x0e, end: 0x16, name: "BIOS version" },
+      { kind: "range", start: 0x27, end: 0x2f, name: "Product name" },
+      { kind: "range", start: 0x41, end: 0x49, name: "Kernel version" },
+      { kind: "range", start: 0x158, end: 0x15b, name: "Release date" },
+      { kind: "range", start: 0x150, end: 0x152, name: "Compiler" },
+      { kind: "range", start: 0x164, end: 0x174, name: "ESRT firmware class" },
+      { kind: "range", start: 0x160, end: 0x164, name: "ESRT version" },
+    ]);
+    // Before the ranges `$BME$` lists.
+    expect(detail.tables[0]?.title).toBe("Entries");
   });
 
   // The ranges `$BME$` lists, placed in the file, each with what is exactly

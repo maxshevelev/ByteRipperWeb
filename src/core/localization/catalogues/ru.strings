@@ -1592,6 +1592,11 @@
 "The copy of the UUID's last six bytes does not read as the UUID's last six. It is a copy, not a checksum: it went stale when the UUID was changed after." = "Копия последних шести байтов UUID не читается как последние шесть байтов UUID. Это копия, а не контрольная сумма: она устарела, когда UUID был изменён позже.";
 "The copy of the UUID's last six bytes is erased. It is a copy, not a checksum, so nothing checks wrong because of it." = "Копия последних шести байтов UUID стёрта. Это копия, а не контрольная сумма, поэтому из-за неё ни одна проверка не показывает сбой.";
 "Product name" = "Название продукта";
+"Kernel version" = "Версия ядра";
+"Release date" = "Дата выпуска";
+"Compiler" = "Компилятор";
+"ESRT firmware class" = "Класс прошивки ESRT";
+"ESRT version" = "Версия ESRT";
 "Annotations not seen yet" = "Заметки, которые ещё не просмотрены";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Заметка отображается поверх байтов узла и перечисляется в панели «Заметки».";
 "“%1$@” is not open." = "Файл «%1$@» не открыт.";

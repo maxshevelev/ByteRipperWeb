@@ -44,7 +44,12 @@ import {
   hpSignatureName,
   readHPSignatureBlock,
 } from "@/firmware/uefi/hpSignatureBlock";
-import { readInsydeBvdt } from "@/firmware/uefi/insydeBvdt";
+import {
+  INSYDE_BVDT_VALUES,
+  type InsydeBVDT,
+  type InsydeBVDTValue,
+  readInsydeBvdt,
+} from "@/firmware/uefi/insydeBvdt";
 import { allITEFirmware } from "@/firmware/uefi/iteFirmware";
 import { itemType } from "@/firmware/uefi/itemClassification";
 import { nameOfGuid } from "@/firmware/uefi/knownGuids";
@@ -118,6 +123,7 @@ import {
 } from "@/tools/uefi/nvramValueText";
 import { acerDMIDetail, readsAcerDMI } from "@/tools/uefi/uefiAcerDMIDetail";
 import { appleDMIDetail } from "@/tools/uefi/uefiAppleDMIDetail";
+import { type DMIEntryRow, dmiEntriesTable } from "@/tools/uefi/uefiDMIEntries";
 import { hpDMIDetail } from "@/tools/uefi/uefiHPDMIDetail";
 import { lenovoDMIDetail, readsLenovoDMI } from "@/tools/uefi/uefiLenovoDMIDetail";
 import {
@@ -286,7 +292,7 @@ function withLenovoDMI(
 }
 
 /**
- * What the BVDT's `$BME$` record lists, placed in the file.
+ * What the BVDT states, then what its `$BME$` record lists, placed in the file.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.build
  */
@@ -304,11 +310,78 @@ function withListedRanges(
     return detail;
   }
   const table = readInsydeBvdt(node.body, reader);
-  if (table === undefined || table.listedRanges.length === 0) return detail;
+  if (table === undefined) return detail;
+  const entries = bvdtEntriesTable(table);
   return {
     ...detail,
-    tables: [listedRangesTable(table.listedRanges, node, image), ...detail.tables],
+    tables: [
+      ...(entries === undefined ? [] : [entries]),
+      ...(table.listedRanges.length === 0
+        ? []
+        : [listedRangesTable(table.listedRanges, node, image)]),
+      ...detail.tables,
+    ],
   };
+}
+
+/**
+ * The values a BVDT states, one row each, in the table an identity area lists its
+ * values in (`uefiDMIEntries.ts`). A row's link outlines the bytes its value is
+ * read from: the records are not nodes of their own. Nothing when the table
+ * states nothing.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.bvdtEntriesTable
+ */
+function bvdtEntriesTable(table: InsydeBVDT): DetailTable | undefined {
+  const rows: DMIEntryRow[] = [];
+  for (const value of INSYDE_BVDT_VALUES) {
+    const entry = bvdtEntry(table, value);
+    if (entry.text === undefined) continue;
+    const source = table.sources[value];
+    rows.push({
+      name: entry.name,
+      value: entry.text,
+      source,
+      target:
+        source === undefined
+          ? undefined
+          : { kind: "range", start: source.start, end: source.end, name: entry.name },
+    });
+  }
+  return rows.length === 0 ? undefined : dmiEntriesTable(rows, []);
+}
+
+function bvdtEntry(
+  table: InsydeBVDT,
+  value: InsydeBVDTValue
+): { readonly name: string; readonly text: string | undefined } {
+  switch (value) {
+    case "biosVersion":
+      return { name: L("BIOS version"), text: table.biosVersion };
+    case "productName":
+      return { name: L("Product name"), text: table.productName };
+    case "kernelVersion":
+      return { name: L("Kernel version"), text: table.kernelVersion };
+    case "releaseDate":
+      return { name: L("Release date"), text: table.releaseDate };
+    case "compilerVersion":
+      return {
+        name: L("Compiler"),
+        text: table.compilerVersion === undefined ? undefined : compilerText(table.compilerVersion),
+      };
+    // The board's identity to a capsule update, and the version it would be
+    // compared with.
+    case "esrtClass":
+      return {
+        name: L("ESRT firmware class"),
+        text: table.esrtClass === undefined ? undefined : guidText(table.esrtClass),
+      };
+    case "esrtVersion":
+      return {
+        name: L("ESRT version"),
+        text: table.esrtVersion === undefined ? undefined : hex(table.esrtVersion),
+      };
+  }
 }
 
 /**
@@ -1510,32 +1583,8 @@ function headerFields(
     // and the type is the common "GUID" field. What the region holds is read
     // where its type is understood.
     case "flashDeviceMapRegion": {
-      if (node.guid !== undefined && guidEquals(node.guid, FlashDeviceMap.biosVersionDataTable)) {
-        const table = readInsydeBvdt(node.body, reader);
-        if (table?.biosVersion !== undefined) {
-          fields.push(field("BIOS version", table.biosVersion));
-        }
-        if (table?.productName !== undefined) {
-          fields.push(field("Product name", table.productName));
-        }
-        if (table?.kernelVersion !== undefined) {
-          fields.push(field("Kernel version", table.kernelVersion));
-        }
-        if (table?.releaseDate !== undefined) {
-          fields.push(field("Release date", table.releaseDate));
-        }
-        if (table?.compilerVersion !== undefined) {
-          fields.push(field("Compiler", compilerText(table.compilerVersion)));
-        }
-        // The board's identity to a capsule update, and the version it would be
-        // compared with.
-        if (table?.esrtClass !== undefined) {
-          fields.push(field("ESRT firmware class", guidText(table.esrtClass)));
-        }
-        if (table?.esrtVersion !== undefined) {
-          fields.push(field("ESRT version", hex(table.esrtVersion)));
-        }
-      }
+      // A version table's values are its Entries table, as an identity area's are
+      // (`bvdtEntriesTable`).
       if (
         node.guid !== undefined &&
         guidEquals(node.guid, FlashDeviceMap.ecFirmware) &&

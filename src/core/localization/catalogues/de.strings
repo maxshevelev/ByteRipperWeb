@@ -1593,6 +1593,11 @@
 "The copy of the UUID's last six bytes does not read as the UUID's last six. It is a copy, not a checksum: it went stale when the UUID was changed after." = "Die Kopie der letzten sechs Bytes der UUID liest sich nicht wie die letzten sechs Bytes der UUID. Es ist eine Kopie, keine Prüfsumme: sie ist veraltet, weil die UUID später geändert wurde.";
 "The copy of the UUID's last six bytes is erased. It is a copy, not a checksum, so nothing checks wrong because of it." = "Die Kopie der letzten sechs Bytes der UUID ist gelöscht. Es ist eine Kopie, keine Prüfsumme, deshalb meldet keine Prüfung wegen ihr einen Fehler.";
 "Product name" = "Produktname";
+"Kernel version" = "Kernel-Version";
+"Release date" = "Veröffentlichungsdatum";
+"Compiler" = "Compiler";
+"ESRT firmware class" = "ESRT-Firmwareklasse";
+"ESRT version" = "ESRT-Version";
 "Annotations not seen yet" = "Noch nicht angesehene Anmerkungen";
 "The annotation is drawn over the node's bytes and listed in the Annotations panel." = "Die Anmerkung wird über den Bytes des Knotens gezeigt und im Bereich „Anmerkungen“ aufgeführt.";
 "“%1$@” is not open." = "„%1$@“ ist nicht geöffnet.";

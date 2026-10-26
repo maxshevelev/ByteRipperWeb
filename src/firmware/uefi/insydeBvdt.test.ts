@@ -28,6 +28,13 @@ describe("an Insyde BVDT table", () => {
         { start: 0xaa000, end: 0xab000 },
         { start: 0xc4_0000, end: 0xd0_0000 },
       ],
+      // Each string's text after its `$`, and the date after `$RDATE`.
+      sources: {
+        biosVersion: { start: 0x0e, end: 0x16 },
+        productName: { start: 0x27, end: 0x3e },
+        kernelVersion: { start: 0x41, end: 0x49 },
+        releaseDate: { start: 0x155, end: 0x158 },
+      },
     });
   });
 

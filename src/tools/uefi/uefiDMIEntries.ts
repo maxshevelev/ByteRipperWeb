@@ -2,13 +2,19 @@ import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { type DMIField, dmiFieldText } from "@/firmware/uefi/dmiField";
 import { nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { cell, type DetailField, type DetailTable, field } from "@/tools/toolDetail";
+import {
+  cell,
+  type DetailField,
+  type DetailTable,
+  type DetailTableTarget,
+  field,
+} from "@/tools/toolDetail";
 
 /**
  * The table an identity area's details list its values in — Acer's block, HP's `HP_MUD`, Apple's
  * SysF store — each a way to the row it is read from, as Lenovo's store lists its entries in use
  * (`uefiLenovoDMIDetail.ts`). One table for every vendor, so the areas read alike whatever layout
- * is under them.
+ * is under them — and for Insyde's version table, whose values are the same kind of thing.
  *
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFIDMIEntries.swift#UEFIDMIEntries
  */
@@ -29,6 +35,13 @@ export interface DMIEntryRow {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFIDMIEntries.swift#UEFIDMIEntries.Row.source
    */
   readonly source?: ImageRange | undefined;
+  /**
+   * Where a click goes when no node is the row: the value's bytes outlined in the dump. Nothing to
+   * go to the node at `source`.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFIDMIEntries.swift#UEFIDMIEntries.Row.target
+   */
+  readonly target?: DetailTableTarget | undefined;
 }
 
 /**
@@ -49,6 +62,7 @@ export function dmiEntriesTable(
       cell(row.value === undefined || row.value.length === 0 ? "—" : row.value),
     ]),
     rowTargets: rows.map((row) => {
+      if (row.target !== undefined) return row.target;
       const source = row.source;
       if (source === undefined) return undefined;
       const node = nodes.find((one) => {

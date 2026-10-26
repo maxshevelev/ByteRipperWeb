@@ -64,7 +64,30 @@ export interface InsydeBVDT {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.listedRanges
    */
   readonly listedRanges: readonly ImageRange[];
+  /**
+   * Where each value read is in the file: a string's text, a record's bytes after
+   * its tag.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.sources
+   */
+  readonly sources: Readonly<Partial<Record<InsydeBVDTValue, ImageRange>>>;
 }
+
+/**
+ * A value the table states, in the order the details list them.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.Value
+ */
+export const INSYDE_BVDT_VALUES = [
+  "biosVersion",
+  "productName",
+  "kernelVersion",
+  "releaseDate",
+  "compilerVersion",
+  "esrtClass",
+  "esrtVersion",
+] as const;
+export type InsydeBVDTValue = (typeof INSYDE_BVDT_VALUES)[number];
 
 const ascii = (text: string) => Uint8Array.from(text, (character) => character.charCodeAt(0));
 
@@ -113,6 +136,19 @@ export function readInsydeBvdt(range: ImageRange, reader: ImageReader): InsydeBV
   const bytes = reader.bytesAt(range.start, length);
   if (bytes === undefined || !startsWith(bytes, SIGNATURE)) return undefined;
 
+  const sources: Partial<Record<InsydeBVDTValue, ImageRange>> = {};
+  const place = (value: InsydeBVDTValue, at: number, count: number) => {
+    sources[value] = { start: range.start + at, end: range.start + at + count };
+  };
+  const text = (value: InsydeBVDTValue, field: ImageRange): string | undefined => {
+    const read = textField(bytes, field);
+    if (read !== undefined) place(value, field.start + 1, textLength(bytes, field));
+    return read;
+  };
+  const biosVersion = text("biosVersion", BIOS_VERSION_FIELD);
+  const productName = text("productName", PRODUCT_NAME_FIELD);
+  const kernelVersion = text("kernelVersion", KERNEL_VERSION_FIELD);
+
   const end = indexOf(bytes, END);
   const records = end < 0 ? bytes : bytes.subarray(0, end);
   let releaseDate: string | undefined;
@@ -123,33 +159,48 @@ export function readInsydeBvdt(range: ImageRange, reader: ImageReader): InsydeBV
     const day = bcd(date[2] ?? 0);
     if (date.every(isBcd) && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
       releaseDate = `20${hex2(date[0])}-${hex2(date[1])}-${hex2(date[2])}`;
+      place("releaseDate", tag + DATE_TAG.length, 3);
     }
   }
   const compiler = valueAfter(records, COMPILER_TAG, 2);
+  if (compiler !== undefined) place("compilerVersion", compiler.at, 2);
   const esrt = valueAfter(records, ESRT_TAG, 20);
+  if (esrt !== undefined) {
+    place("esrtVersion", esrt.at, 4);
+    place("esrtClass", esrt.at + 4, 16);
+  }
   const rangesAt = indexOf(records, RANGES_TAG);
   return {
-    biosVersion: textField(bytes, BIOS_VERSION_FIELD),
-    productName: textField(bytes, PRODUCT_NAME_FIELD),
-    kernelVersion: textField(bytes, KERNEL_VERSION_FIELD),
+    biosVersion,
+    productName,
+    kernelVersion,
     releaseDate,
     compilerVersion:
-      compiler === undefined ? undefined : (compiler[0] ?? 0) | ((compiler[1] ?? 0) << 8),
-    esrtVersion: esrt === undefined ? undefined : dword(esrt, 0),
-    esrtClass: esrt === undefined ? undefined : guidFromBytes(esrt.subarray(4, 20)),
+      compiler === undefined
+        ? undefined
+        : (compiler.bytes[0] ?? 0) | ((compiler.bytes[1] ?? 0) << 8),
+    esrtVersion: esrt === undefined ? undefined : dword(esrt.bytes, 0),
+    esrtClass: esrt === undefined ? undefined : guidFromBytes(esrt.bytes.subarray(4, 20)),
     listedRanges: rangesAt < 0 ? [] : rangesFrom(records, rangesAt + RANGES_TAG.length),
+    sources,
   };
 }
 
 /**
- * The `count` bytes after `tag` among the records, if they are there.
+ * The `count` bytes after `tag` among the records, and where they start, if they
+ * are there.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.value
  */
-function valueAfter(records: Uint8Array, tag: Uint8Array, count: number): Uint8Array | undefined {
+function valueAfter(
+  records: Uint8Array,
+  tag: Uint8Array,
+  count: number
+): { readonly at: number; readonly bytes: Uint8Array } | undefined {
   const found = indexOf(records, tag);
   if (found < 0 || found + tag.length + count > records.length) return undefined;
-  return records.subarray(found + tag.length, found + tag.length + count);
+  const at = found + tag.length;
+  return { at, bytes: records.subarray(at, at + count) };
 }
 
 const dword = (bytes: Uint8Array, at: number): number =>
@@ -190,6 +241,17 @@ function textField(bytes: Uint8Array, field: ImageRange): string | undefined {
   const text = zero < 0 ? run : run.subarray(0, zero);
   if (text.length === 0 || !text.every((byte) => byte >= 0x20 && byte < 0x7f)) return undefined;
   return String.fromCharCode(...text).trim();
+}
+
+/**
+ * How long a string field's text is, before its terminator.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/InsydeBVDT.swift#InsydeBVDT.textLength
+ */
+function textLength(bytes: Uint8Array, field: ImageRange): number {
+  const run = bytes.subarray(field.start + 1, field.end);
+  const zero = run.indexOf(0);
+  return zero < 0 ? run.length : zero;
 }
 
 const isBcd = (byte: number): boolean => (byte & 0x0f) <= 9 && byte >> 4 <= 9;
