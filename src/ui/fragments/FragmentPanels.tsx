@@ -114,6 +114,7 @@ export function FragmentPanels({
   // up, and which of them have bytes the parent has not got back.
   //
   // @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.refreshDock
+  // @upstream-differs the dock's row comes and goes at once, so a change asked for without animation already has none; upstream grows and shrinks it unless told not to
   const items: DockItem[] = state.dock.panels.map((id) => {
     const transform =
       id === state.helpPanel || id === state.agentPanel || id === state.notesPanel

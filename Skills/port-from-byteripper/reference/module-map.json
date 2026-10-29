@@ -4516,6 +4516,7 @@
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testComparisonVerticalFitsBothPanes": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testComparisonStackedFitsBothPanes": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testTallContentCapsAtScreenHeight": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
+        "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testZoomGivesTheFragmentPanelsDumpItsGrid": "n/a — the browser owns the window's size; nothing is sized to fit the dump, a fragment panel's margins included",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testATopSwapBackupIsListedUnderItsHeading": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testResizingThePanelMovesOnlyPointsAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableKeepsInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",

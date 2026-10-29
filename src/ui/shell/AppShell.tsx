@@ -2760,8 +2760,8 @@ export function AppShell() {
         }
       />
       {/* And its own map, of the part rather than of the dump behind it: a
-          panel opens with the map the workspace has, and moves its own edge
-          from then on (G50). */}
+          panel opens with it hidden, whatever the workspace's is, and moves
+          its own edge from then on (G50). */}
       <MinimapPanel
         surface={pane}
         selections={selections}

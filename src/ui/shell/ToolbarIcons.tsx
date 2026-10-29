@@ -161,12 +161,22 @@ export function PaneLayoutGlyph({ stacked }: { readonly stacked: boolean }) {
   );
 }
 
-/** `sidebar.right`. */
-export function MinimapGlyph() {
+/**
+ * `rectangle.righthalf.inset.filled` while the map in front is shown,
+ * `sidebar.right` while it is hidden: the icon says the state of the map the
+ * click toggles.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateToolbarItem
+ */
+export function MinimapGlyph({ shown }: { readonly shown: boolean }) {
   return (
     <Glyph>
       <rect x="1.5" y="2.5" width="13" height="11" rx="2" {...stroke} />
-      <path d="M10.5 2.5v11" {...stroke} />
+      {shown ? (
+        <rect x="9" y="4.5" width="3.5" height="7" rx="1" fill="currentColor" />
+      ) : (
+        <path d="M10.5 2.5v11" {...stroke} />
+      )}
     </Glyph>
   );
 }
