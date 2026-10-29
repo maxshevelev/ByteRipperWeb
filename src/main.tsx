@@ -7,6 +7,7 @@ import { installOpfsJournals } from "@/platform/files/opfsJournalStore";
 import { loadRestoresWorkspace } from "@/state/settingsStore";
 import { settleWorkspaceIdentity } from "@/state/workspace/workspaceIdentity";
 import { restoreSettings } from "@/state/workspaceStore";
+import { publishFieldMenu } from "@/ui/shell/desktopMenu";
 import "@/ui/theme/theme.css";
 import "@/app/app.css";
 
@@ -30,6 +31,8 @@ const settled = Promise.all([
     : undefined,
 ]);
 void settled.finally(() => {
+  // In the language the settings chose, which is the one the page draws in.
+  publishFieldMenu();
   createRoot(host).render(
     <StrictMode>{own === undefined ? <App /> : <OwnWindow kind={own} />}</StrictMode>
   );

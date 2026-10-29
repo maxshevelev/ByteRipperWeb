@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import { languageStore } from "@/state/settingsStore";
 import { isMenuAction, type MenuEntry } from "@/ui/shell/menuModel";
 
 /**
@@ -37,9 +38,19 @@ export interface NativeMenu {
   readonly items: readonly NativeMenuItem[];
 }
 
+/** A text field's right-click menu, in the page's language: the shell has none of its own. */
+export interface FieldMenuLabels {
+  readonly cut: string;
+  readonly copy: string;
+  readonly paste: string;
+  readonly selectAll: string;
+}
+
 /** What the shell's preload script exposes. */
 export interface DesktopBridge {
   setMenu(menus: readonly NativeMenu[]): void;
+  /** The words of a text field's right-click menu, which the shell builds and shows. */
+  setFieldMenu(labels: FieldMenuLabels): void;
   /** The window's page zoom, one step in or out, or back to 100 % for 0. */
   zoom(step: -1 | 0 | 1): void;
   /**
@@ -297,4 +308,26 @@ export function publishNativeMenu(
   if (text === sent) return;
   sent = text;
   bridge.setMenu(built.menus);
+}
+
+/**
+ * Hands the shell the words of a text field's right-click menu, now and again
+ * whenever the language changes. Electron brings a field no menu at all, and
+ * the one the shell builds runs its own editing commands, so only the labels
+ * cross: Edit ▸ Cut's word, not the segments dialog's.
+ *
+ * @web-only the browser brings a field its own menu
+ */
+export function publishFieldMenu(): void {
+  const bridge = desktopBridge();
+  if (bridge === undefined) return;
+  const send = () =>
+    bridge.setFieldMenu({
+      cut: plain(L("Cut", { context: "edit" })),
+      copy: plain(L("Copy")),
+      paste: plain(L("Paste")),
+      selectAll: plain(L("Select All")),
+    });
+  send();
+  languageStore.subscribe(send);
 }

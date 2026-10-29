@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { forgetCatalogues, installCatalogue } from "@/core/localization/localization";
+import { languageStore } from "@/state/settingsStore";
 import {
   acceleratorOf,
   type DesktopBridge,
+  type FieldMenuLabels,
   type NativeMenu,
   type NativeMenuItem,
   nativeMenus,
+  publishFieldMenu,
   publishNativeMenu,
 } from "@/ui/shell/desktopMenu";
 import type { MenuEntry } from "@/ui/shell/menuModel";
@@ -131,6 +135,7 @@ describe("File ▸ Open Recent", () => {
     seen = [];
     (globalThis as { byteripperDesktop?: DesktopBridge }).byteripperDesktop = {
       setMenu: (menus: readonly NativeMenu[]) => seen.push(menus as NativeMenu[]),
+      setFieldMenu: () => {},
       zoom: () => {},
       quit: () => {},
       newWindow: () => {},
@@ -174,5 +179,47 @@ describe("File ▸ Open Recent", () => {
     expect(submenu(seen[seen.length - 1] ?? [])).toEqual([
       { type: "normal", label: "Empty", enabled: false },
     ]);
+  });
+});
+
+// A text field's right-click menu is the shell's, built from the words the page hands it: its
+// Cut is Edit ▸ Cut's, not the segments dialog's, and a language switch hands them again.
+describe("a text field's menu", () => {
+  let seen: FieldMenuLabels[];
+
+  beforeEach(() => {
+    seen = [];
+    (globalThis as { byteripperDesktop?: unknown }).byteripperDesktop = {
+      setFieldMenu: (labels: FieldMenuLabels) => seen.push(labels),
+    };
+  });
+
+  afterEach(() => {
+    delete (globalThis as { byteripperDesktop?: unknown }).byteripperDesktop;
+    forgetCatalogues();
+  });
+
+  it("hands the shell its words, and hands them again in a new language", () => {
+    publishFieldMenu();
+    expect(seen).toEqual([{ cut: "Cut", copy: "Copy", paste: "Paste", selectAll: "Select All" }]);
+
+    installCatalogue({
+      language: "ru",
+      entries: {
+        Cut: "Разрезать",
+        "edit|Cut": "Вырезать",
+        Copy: "Скопировать",
+        Paste: "Вставить",
+        "Select All": "Выделить всё",
+      },
+    });
+    languageStore.update((version) => version + 1);
+
+    expect(seen.at(-1)).toEqual({
+      cut: "Вырезать",
+      copy: "Скопировать",
+      paste: "Вставить",
+      selectAll: "Выделить всё",
+    });
   });
 });

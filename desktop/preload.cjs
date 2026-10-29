@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
     file: (request) => ipcRenderer.invoke("file:read", request),
   },
   setMenu: (menus) => ipcRenderer.send("menu:set", menus),
+  setFieldMenu: (labels) => ipcRenderer.send("menu:field", labels),
   zoom: (step) => ipcRenderer.send("zoom", step),
   quit: () => ipcRenderer.send("quit"),
   newWindow: (handover) => ipcRenderer.send("window:new", handover),

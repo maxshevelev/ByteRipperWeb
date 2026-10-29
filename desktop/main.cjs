@@ -223,6 +223,30 @@ const recentProjects = projects.recentStore(() =>
 /** What each window's page settles its workspace by, as its launch handed it. */
 const launches = new WeakMap();
 
+/** The words of each window's text-field menu, in its page's language, as the page handed them. */
+const fieldMenus = new WeakMap();
+
+/** Until the page has said, the field menu's words in English. */
+const FIELD_MENU = { cut: "Cut", copy: "Copy", paste: "Paste", selectAll: "Select All" };
+
+/**
+ * A text field's right-click menu: Cut, Copy, Paste and Select All, the system's own editing
+ * commands, each available as the field says it is. Electron brings a page no menu at all, and
+ * the page leaves a field's right-click to whoever shows the standard one — the browser, or here.
+ */
+function showFieldMenu(window, params) {
+  if (!params.isEditable) return;
+  const words = fieldMenus.get(window.webContents) ?? FIELD_MENU;
+  const can = params.editFlags;
+  Menu.buildFromTemplate([
+    { role: "cut", label: words.cut, enabled: can.canCut },
+    { role: "copy", label: words.copy, enabled: can.canCopy },
+    { role: "paste", label: words.paste, enabled: can.canPaste },
+    { type: "separator" },
+    { role: "selectAll", label: words.selectAll, enabled: can.canSelectAll },
+  ]).popup({ window });
+}
+
 /** Asks over `window` whether to leave its unsaved work, in the system's language. */
 function confirmLeave(window) {
   const words = LEAVE_PROMPT[app.getLocale().slice(0, 2)] ?? LEAVE_PROMPT.en;
@@ -269,6 +293,7 @@ function createWindow(bounds, launch, shown = true) {
     if (!isApp(url)) event.preventDefault();
   });
   window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+  window.webContents.on("context-menu", (_event, params) => showFieldMenu(window, params));
   // The page arms `beforeunload` while anything is unsaved. A browser asks the
   // reader; Electron, given no handler, silently keeps the window open — Exit
   // and the window's ✕ would do nothing. So the shell asks, in the system's
@@ -409,6 +434,15 @@ app.whenReady().then(() => {
   // The View menu's zoom: the window's page zoom, which is the only zoom the
   // page has (Help ▸ Moving around). Chromium's own Ctrl+Plus/Minus went with
   // the default menu, so the menu answers them.
+  ipcMain.on("menu:field", (event, labels) => {
+    if (!fromApp(event)) return;
+    const words = {};
+    for (const key of Object.keys(FIELD_MENU)) {
+      words[key] = typeof labels?.[key] === "string" ? labels[key] : FIELD_MENU[key];
+    }
+    fieldMenus.set(event.sender, words);
+  });
+
   ipcMain.on("zoom", (event, step) => {
     if (!fromApp(event)) return;
     const contents = event.sender;

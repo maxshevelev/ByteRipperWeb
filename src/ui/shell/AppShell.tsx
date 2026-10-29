@@ -316,6 +316,21 @@ function selectableText(target: EventTarget | null): boolean {
   return style.userSelect === "text" || style.webkitUserSelect === "text";
 }
 
+/** The input types a person types text into, whose menu is the one for editing text. */
+const TEXT_INPUTS = new Set(["text", "search", "url", "tel", "email", "password", "number"]);
+
+/**
+ * Whether a right-click landed in a place to type, which keeps its own menu. A
+ * checkbox or a button is an input too, but the browser's menu over one is the
+ * page's — Back, Reload — which is what this application takes away.
+ */
+function typesText(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target instanceof HTMLElement && target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && TEXT_INPUTS.has(target.type);
+}
+
 export interface RevealRequest {
   /** Where the caret goes. Navigation moves the caret; it does not select. */
   readonly offset: number;
@@ -1323,9 +1338,19 @@ export function AppShell() {
    * way to reach the clipboard, which is the whole of what selecting one is for.
    * Upstream's selectable labels get AppKit's standard text menu, so a press on
    * one here opens the same menu, built by this application.
+   *
+   * A place to type keeps the standard menu of its own — Cut, Copy, Paste —
+   * which over a field carries none of the page's commands. In a browser it is
+   * the browser's, which pastes without asking for the clipboard, as no menu of
+   * the page's could over plain HTTP; in the desktop shell the shell answers it
+   * (`desktop/main.cjs`, the field's menu).
+   *
+   * @upstream-differs the field's menu is the browser's or the shell's, where upstream's
+   * arrives with the text field
    */
   useEffect(() => {
     const onContextMenu = (event: MouseEvent) => {
+      if (!event.defaultPrevented && typesText(event.target)) return;
       // A handler nearer the target has already answered — a pane's offset menu,
       // a tool's row menu — and this one runs after them, at the window. Opening
       // ours on top would replace theirs.
