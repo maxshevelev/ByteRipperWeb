@@ -796,7 +796,15 @@
         "Configuration/MEConfigurationDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
         "Configuration/UEPMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
         "Configuration/GPIOPinMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
-        "Configuration/LayoutMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts"
+        "Configuration/LayoutMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "FileSystem/Manufacturing.swift": "src/firmware/me/fileSystem/manufacturing.ts",
+        "Layout/BootGuard.swift": [
+          "src/firmware/me/layout/bootGuard.ts"
+        ],
+        "Packages/MEFirmware/Tests/MEFirmwareTests/ManufacturingTests.swift": [
+          "src/firmware/me/fileSystem/manufacturing.test.ts",
+          "src/firmware/me/layout/bootGuard.test.ts"
+        ]
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",

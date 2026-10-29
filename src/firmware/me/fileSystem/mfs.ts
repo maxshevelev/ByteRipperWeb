@@ -210,14 +210,31 @@ export function parseMfs(
 
   // The page inventory: System pages by their logical number, Data pages by
   // their first chunk index. Other tags are Scratch pages.
-  const systemPages: { page: number; number: number }[] = [];
+  let systemPages: { page: number; number: number }[] = [];
+  // A System page whose tag does not read: CSME 18's first system page is written with
+  // its signature erased (page number, FirstChunkIndex and the index array are all
+  // there, and it holds System chunk 0). Kept apart and used only when the tagged pages
+  // do not carry the volume header — a scratch page's indexes are otherwise not trusted.
+  const untaggedSystemPages: { page: number; number: number }[] = [];
   const dataPages: { page: number; firstChunk: number }[] = [];
   let systemChunkCountTarget = 0xffff;
   for (let page = 0; page < pageCount; page++) {
     const base = page * MFS_PAGE_SIZE;
-    if (le32(buffer, base) !== PAGE_TAG) continue;
     const firstChunk = le16(buffer, base + 0x0e);
     const pageNumber = le32(buffer, base + 0x04);
+    if (le32(buffer, base) !== PAGE_TAG) {
+      // An erased page has an all-FF header; anything else claiming to be a System page
+      // with a plausible number is a candidate.
+      if (
+        firstChunk === 0 &&
+        pageNumber > 0 &&
+        pageNumber !== 0xffff_ffff &&
+        le32(buffer, base + 0x08) !== 0xffff_ffff
+      ) {
+        untaggedSystemPages.push({ page, number: pageNumber });
+      }
+      continue;
+    }
     if (firstChunk === 0) {
       systemPages.push({ page, number: pageNumber });
     } else {
@@ -225,8 +242,11 @@ export function parseMfs(
       systemChunkCountTarget = Math.min(systemChunkCountTarget, firstChunk);
     }
   }
-  if (systemPages.length === 0 && dataPages.length === 0) return undefined;
+  if (systemPages.length === 0 && dataPages.length === 0 && untaggedSystemPages.length === 0) {
+    return undefined;
+  }
   systemPages.sort((one, two) => one.number - two.number);
+  untaggedSystemPages.sort((one, two) => one.number - two.number);
   dataPages.sort((one, two) => one.firstChunk - two.firstChunk);
 
   // The System chunks. Indexes are de-obfuscated per page, the running value
@@ -235,25 +255,41 @@ export function parseMfs(
     (MFS_PAGE_SIZE - PAGE_HEADER_SIZE - SYSTEM_INDEX_SIZE) / (SYSTEM_INDEX_SIZE + CHUNK_ALL_SIZE)
   );
   const systemIndexSizeTotal = systemChunkCount * SYSTEM_INDEX_SIZE + SYSTEM_INDEX_SIZE;
-  const chunks = new Map<number, Uint8Array>();
-  // Where each chunk's payload is in `buffer` — what a file's extents are made of.
-  const chunkOffsets = new Map<number, number>();
-  for (const { page } of systemPages) {
-    const base = page * MFS_PAGE_SIZE;
-    let running = 0;
-    const used: number[] = [];
-    for (let index = 0; index <= systemChunkCount; index++) {
-      const value = le16(buffer, base + PAGE_HEADER_SIZE + index * SYSTEM_INDEX_SIZE);
-      if ((value & 0xc000) !== 0) break;
-      running = (crc16_14(running) ^ value) & 0xffff;
-      used.push(running);
+  const assembleSystemChunks = (pages: readonly { readonly page: number }[]) => {
+    const assembled = new Map<number, Uint8Array>();
+    // Where each chunk's payload is in `buffer` — what a file's extents are made of.
+    const offsets = new Map<number, number>();
+    for (const { page } of pages) {
+      const base = page * MFS_PAGE_SIZE;
+      let running = 0;
+      const used: number[] = [];
+      for (let index = 0; index <= systemChunkCount; index++) {
+        const value = le16(buffer, base + PAGE_HEADER_SIZE + index * SYSTEM_INDEX_SIZE);
+        if ((value & 0xc000) !== 0) break;
+        running = (crc16_14(running) ^ value) & 0xffff;
+        used.push(running);
+      }
+      const chunkStart = PAGE_HEADER_SIZE + systemIndexSizeTotal;
+      for (const [slot, index] of used.entries()) {
+        const at = base + chunkStart + slot * CHUNK_ALL_SIZE;
+        if (at + CHUNK_RAW_SIZE > base + MFS_PAGE_SIZE) break;
+        assembled.set(index, buffer.subarray(at, at + CHUNK_RAW_SIZE));
+        offsets.set(index, at);
+      }
     }
-    const chunkStart = PAGE_HEADER_SIZE + systemIndexSizeTotal;
-    for (const [slot, index] of used.entries()) {
-      const at = base + chunkStart + slot * CHUNK_ALL_SIZE;
-      if (at + CHUNK_RAW_SIZE > base + MFS_PAGE_SIZE) break;
-      chunks.set(index, buffer.subarray(at, at + CHUNK_RAW_SIZE));
-      chunkOffsets.set(index, at);
+    return { assembled, offsets };
+  };
+  const volumeSignatureOf = (chunk: Uint8Array | undefined) =>
+    chunk === undefined || chunk.length < 4 ? 0 : le32(chunk, 0);
+  let { assembled: chunks, offsets: chunkOffsets } = assembleSystemChunks(systemPages);
+  if (volumeSignatureOf(chunks.get(0)) !== VOLUME_TAG && untaggedSystemPages.length > 0) {
+    // The untagged pages go first so a tagged page still wins a chunk that both hold;
+    // the point is the chunk only they carry.
+    const spare = assembleSystemChunks([...untaggedSystemPages, ...systemPages]);
+    if (volumeSignatureOf(spare.assembled.get(0)) === VOLUME_TAG) {
+      chunks = spare.assembled;
+      chunkOffsets = spare.offsets;
+      systemPages = [...untaggedSystemPages, ...systemPages];
     }
   }
 
@@ -580,9 +616,13 @@ function utf8Lossy(bytes: Uint8Array): string {
  * The File System State row, in upstream's steps:
  *
  * 1. the reserved low-level files the volume holds — 0–5 or 8 mean initialised,
- *    7 or 9 configured. A file-table volume has no reserved files by index at
- *    all: upstream's own loop breaks out before reading one, so nothing is
- *    claimed from indices there;
+ *    7 or 9 configured. A volume whose files start at offset 0 (CSME 15/16, CSME
+ *    13.30) has no reserved files by index at all: upstream's own loop breaks out on
+ *    `vfs_starts_at_0` before reading one, so nothing is claimed from indices there.
+ *    That is the *identity* selector, not the volume header's FTBL triple, which only
+ *    decides how files are named: the two disagree on a CSME 14 volume whose triple
+ *    says FTBL while its files do not start at 0, and upstream reads that volume's
+ *    reserved indices all the same;
  * 2. an EFS volume that holds file contents raises the state to Initialized
  *    from wherever it stood (`efs_init`, 13050) — which bytes of an EFS are a
  *    file is a question only the `FileTable.dat` EFST table answers, so this
@@ -599,13 +639,13 @@ function utf8Lossy(bytes: Uint8Array): string {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder.state
  */
 export function mfsState(options: {
-  readonly usesFTBL: boolean;
+  readonly vfsStartsAtZero: boolean;
   readonly presentFileIndices: readonly number[];
   readonly efsHoldsFiles: boolean;
   readonly hasConfiguration: boolean;
 }): MFSState {
   return decideMfsState({
-    usesFTBL: options.usesFTBL,
+    vfsStartsAtZero: options.vfsStartsAtZero,
     presentFileIndices: options.presentFileIndices,
     efs: options.efsHoldsFiles ? { kind: "holdsFiles" } : { kind: "noPartition" },
     configuration: options.hasConfiguration ? ["configuration"] : [],
@@ -620,7 +660,7 @@ export function mfsState(options: {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/MFS.swift#MFSStateDecoder.decide
  */
 export function decideMfsState(options: {
-  readonly usesFTBL: boolean;
+  readonly vfsStartsAtZero: boolean;
   readonly presentFileIndices: readonly number[];
   readonly efs: MFSStateEFS;
   readonly configuration: readonly string[];
@@ -628,7 +668,7 @@ export function decideMfsState(options: {
   let state: MFSState = "unconfigured";
   let step: MFSStateStep = "nothing";
   let reserved: MFSStateReservedFiles;
-  if (options.usesFTBL) {
+  if (options.vfsStartsAtZero) {
     reserved = { kind: "notRead" };
   } else {
     const initializing = options.presentFileIndices

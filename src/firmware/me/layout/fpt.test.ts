@@ -124,6 +124,26 @@ describe("fptStart", () => {
     expect(at({ anchor: 0, version: 0x20, headerLength: 0x20, hasLayoutTable: false })).toBe(0);
   });
 
+  // CSME 12–18 whole images: the `$FPT` sits on a 4 KB boundary and is the FPT
+  // partition's base, with no CSE Layout Table before it. The CSME 18 HP dump is this
+  // shape — with the `− 0x10` default its MFS, EFS, FITC, CDMD and UEP all land 0x10
+  // short of their content.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testAMarkerOnA4KBoundaryIsItsOwnBase
+  it("measures a marker on a 4 KB boundary from itself", () => {
+    const aligned = fptRegion({
+      anchor: 0x2000,
+      entries: [{ name: "FTPR", offset: 0x1000, size: 0x1000 }],
+    });
+    for (const version of [0x20, 0x21]) {
+      expect(
+        fptStart(aligned, { anchor: 0x2000, version, headerLength: 0x20, hasLayoutTable: false })
+      ).toBe(0x2000);
+    }
+    const result = decodeFpt(aligned, 0x2000);
+    expect(result?.fptStart).toBe(0x2000);
+    expect(result?.partitions[0]?.offset).toBe(0x3000);
+  });
+
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/FPTTests.swift#FPTParserTests.testErasedWindowBranchKeepsMarkerBase
   it("measures from the marker when an erased CSE header window precedes it", () => {
     // Zeros then sixteen erased bytes, 0x1000 before the marker: that window

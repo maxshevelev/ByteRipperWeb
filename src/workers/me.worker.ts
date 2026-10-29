@@ -53,6 +53,24 @@ let reader: ImageReader | undefined;
  * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.regionBytes
  * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.regionBase
  */
+/**
+ * The flash descriptor's own page — the first 4 KiB of the open file, which is where a
+ * descriptor sits when the file is a whole-flash image. The engine's facts about End of
+ * Manufacturing need one thing out of it (the BIOS master's masks) that the ME region
+ * slice cannot carry; a bare ME dump has no descriptor there, and this answers nothing
+ * rather than a page of whatever the file starts with.
+ *
+ * @upstream Packages/MEReads/Sources/MEReads/MEReads.swift#MEReads.descriptorBytes
+ */
+function descriptorBytes(): Uint8Array | undefined {
+  if (reader === undefined || reader.count < 0x1000) return undefined;
+  const page = reader.bytes({ start: 0, end: 0x1000 });
+  if (page === undefined || page.length < 0x1000) return undefined;
+  return page[0x10] === 0x5a && page[0x11] === 0xa5 && page[0x12] === 0xf0 && page[0x13] === 0x0f
+    ? page
+    : undefined;
+}
+
 function meRegionBytes():
   | { readonly bytes: Uint8Array; readonly regionOffset: number }
   | undefined {
@@ -172,6 +190,7 @@ scope.onmessage = (event: MessageEvent<MeWorkerRequest>) => {
         ...(database === undefined ? {} : { database }),
         ...(dictionaries === undefined ? {} : { huffmanDictionaries: dictionaries }),
         ...(table === undefined ? {} : { fileTable: table }),
+        descriptorBytes: descriptorBytes(),
       });
       post({ kind: "meAnalyze", id: request.id, regionOffset, analysis, problem: undefined });
       return;

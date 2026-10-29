@@ -18,6 +18,14 @@ import type {
   ReleaseType,
 } from "@/firmware/me/models/firmwareFacts";
 import type { GSCInfo, GSCOROMImage, RBEPMMetadata } from "@/firmware/me/models/independentFacts";
+import type {
+  BootGuardProfile,
+  HardwareBinding,
+  ManufacturingBasis,
+  ManufacturingLock,
+  ManufacturingState,
+  OEMKeyHash,
+} from "@/firmware/me/models/manufacturingFacts";
 import type { CPDExtension } from "@/firmware/me/partition/extensions";
 import type { UnlockTokenFlags } from "@/firmware/me/partition/unlockToken";
 
@@ -550,6 +558,51 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.mfsStateBasis
    */
   readonly mfsStateBasis: MFSStateBasis | undefined;
+  /**
+   * What the platform will do with End of Manufacturing (ours; MEAnalyzer prints no such
+   * row). Undefined for an analysis that read no identity.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.manufacturingState
+   */
+  readonly manufacturingState: ManufacturingState | undefined;
+  /**
+   * What `manufacturingState` was decided from: the two pages of the setting, and the
+   * descriptor's state. Ours; undefined where `manufacturingState` is.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.manufacturingBasis
+   */
+  readonly manufacturingBasis: ManufacturingBasis | undefined;
+  /**
+   * What the board whose dump this is has done with End of Manufacturing — the live file
+   * system's `/home/mca/manuf_lock`. Ours. Undefined where the volume carries no File IDs,
+   * the table that names them was not read, or the image has never been through a first
+   * boot.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.manufacturingLock
+   */
+  readonly manufacturingLock: ManufacturingLock | undefined;
+  /**
+   * The Boot Guard profile this image is built for (ours), out of the CDMD configuration's
+   * JSON record where the image has one and the UEP area's Boot Guard bits where it does
+   * not. Undefined when neither says a combination of the four settings.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.bootGuardProfile
+   */
+  readonly bootGuardProfile: BootGuardProfile | undefined;
+  /**
+   * Whether the platform binds its SPI part to the chipset — Flash Image Tool's "Hardware
+   * Binding Enabled", one byte of `/home/bup/bup_sku/hw_binding`. Ours.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.hardwareBinding
+   */
+  readonly hardwareBinding: HardwareBinding | undefined;
+  /**
+   * The OEM public key hash the UEP area carries, and why it is not a value where it is
+   * not one (ours).
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.oemPublicKeyHash
+   */
+  readonly oemPublicKeyHash: OEMKeyHash | undefined;
   /**
    * A GSC image's INFO partition.
    *

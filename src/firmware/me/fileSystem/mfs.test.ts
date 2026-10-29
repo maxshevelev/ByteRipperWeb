@@ -913,10 +913,10 @@ describe("the home directory", () => {
 describe("the File System State", () => {
   const state = (
     presentFileIndices: readonly number[],
-    usesFTBL = false,
+    vfsStartsAtZero = false,
     hasConfiguration = false,
     efsHoldsFiles = false
-  ) => mfsState({ usesFTBL, presentFileIndices, efsHoldsFiles, hasConfiguration });
+  ) => mfsState({ vfsStartsAtZero, presentFileIndices, efsHoldsFiles, hasConfiguration });
 
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testLegacyIndexSetMapsToInitialized
   it("is Initialized for any reserved file", () => {
@@ -947,8 +947,19 @@ describe("the File System State", () => {
     expect(state([8], false, true)).toBe("initialized");
   });
 
-  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testFTBLVolumeWithoutConfigurationStaysUnconfigured
-  it("reads no index on a file-table volume", () => {
+  // A CSME 14 volume may carry an FTBL triple while its files do **not** start at offset
+  // 0, and upstream reads its reserved indices all the same: `get_vfs_start_0` gates that
+  // step, the triple only gates naming.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testAnFTBLNamedVolumeWhoseFilesDoNotStartAtZeroMapsItsIndices
+  it("maps the indices of an FTBL-named volume whose files do not start at zero", () => {
+    expect(state([2, 3, 4, 5], false)).toBe("initialized");
+    expect(state([7], false)).toBe("configured");
+  });
+
+  // CSME 15/16 (and CSME 13.30): the reserved walk breaks before reading a file, so an
+  // index set that would otherwise mean something says nothing.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testAVolumeWhoseFilesStartAtZeroClaimsNothingFromIndices
+  it("claims nothing from the indices of a volume whose files start at zero", () => {
     expect(state([8], true)).toBe("unconfigured");
     expect(state([7, 9], true)).toBe("unconfigured");
   });
@@ -979,7 +990,7 @@ describe("the File System State's basis", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testTheBasisSaysAnUnreadableEFSLeftTheStateToTheConfiguration
   it("says an unreadable EFS left the state to the configuration", () => {
     const left = decideMfsState({
-      usesFTBL: true,
+      vfsStartsAtZero: true,
       presentFileIndices: [],
       efs: { kind: "unreadable", offset: 0x267000 },
       configuration: ["FITC"],
@@ -990,7 +1001,7 @@ describe("the File System State's basis", () => {
     expect(mfsStateBasisIsIncomplete(left.basis)).toBe(true);
 
     const read = decideMfsState({
-      usesFTBL: true,
+      vfsStartsAtZero: true,
       presentFileIndices: [],
       efs: { kind: "holdsFiles" },
       configuration: ["FITC"],
@@ -1001,7 +1012,7 @@ describe("the File System State's basis", () => {
 
     // An EFS read and found empty is a fact, not a gap.
     const empty = decideMfsState({
-      usesFTBL: true,
+      vfsStartsAtZero: true,
       presentFileIndices: [],
       efs: { kind: "noFileContent" },
       configuration: ["FITC"],
@@ -1013,7 +1024,7 @@ describe("the File System State's basis", () => {
   // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSStateDecoderTests.testTheBasisNamesTheReservedFilesThatDecided
   it("names the reserved files that decided", () => {
     const decided = decideMfsState({
-      usesFTBL: false,
+      vfsStartsAtZero: false,
       presentFileIndices: [9, 2, 7],
       efs: { kind: "unreadable", offset: 0x1000 },
       configuration: [],
@@ -1028,7 +1039,7 @@ describe("the File System State's basis", () => {
   it("keeps the old two-flag answer", () => {
     expect(
       mfsState({
-        usesFTBL: false,
+        vfsStartsAtZero: false,
         presentFileIndices: [7],
         efsHoldsFiles: false,
         hasConfiguration: false,
@@ -1142,5 +1153,55 @@ describe("a file's place in the volume", () => {
     expect(info?.files[0]?.content.length).toBe(0);
     expect(info?.files[0]?.intact).toBe(false);
     expect(info?.files[0]?.extents).toEqual([]);
+  });
+});
+
+describe("the volume's System pages", () => {
+  /** A two-page volume — a System page carrying the volume header, a Data page — whose System page wears `tag`. */
+  function volume(tag: number): Uint8Array {
+    const system = new Uint8Array(0x2000).fill(0xff);
+    put32(system, 0, tag);
+    put32(system, 4, 1); // PageNumber
+    put32(system, 8, 0); // EraseCount
+    put16(system, 12, 2); // NextErasePage
+    put16(system, 14, 0); // FirstChunkIndex 0: a System page
+    const sysChunkCount = Math.floor((0x2000 - 0x12 - 2) / (2 + 0x42));
+    put16(system, 0x12, 0x0b5b); // chunk 0's obfuscated index
+    for (let slot = 1; slot <= sysChunkCount; slot++) put16(system, 0x12 + slot * 2, 0xc000);
+    const chunk = new Uint8Array(0x40);
+    put32(chunk, 0, 0x724f_6201);
+    chunk[4] = 0x0a;
+    chunk[5] = 0x01;
+    put16(chunk, 6, 0xabcd);
+    put32(chunk, 8, 0x1200);
+    put16(chunk, 12, 7);
+    put16(chunk, 0x0e, 0x0005);
+    put16(chunk, 0x10, 0xffff);
+    system.set(chunk, 0x12 + sysChunkCount * 2 + 2);
+    const data = new Uint8Array(0x2000).fill(0xff);
+    put32(data, 0, 0xaa55_7887);
+    put32(data, 4, 2);
+    put16(data, 14, 1);
+    return concat(system, data);
+  }
+
+  // CSME 18's first System page is written with its signature reading zero — page
+  // number, FirstChunkIndex and the index array are there, and its chunk 0 is the volume
+  // header. A scratch page's indexes are not trusted in general: only a page that turns
+  // out to carry the volume header is taken.
+  // @upstream Packages/MEFirmware/Tests/MEFirmwareTests/MFSTests.swift#MFSTests.testASystemPagesErasedTagStillGivesTheVolumeHeader
+  it("takes the volume header from a System page whose tag is erased", () => {
+    const region = volume(0);
+    const info = parseMfs(region, 0, region.length);
+    expect(info?.volumeSignatureValid).toBe(true);
+    expect(info?.systemPageCount).toBe(1);
+    expect(info?.fileRecordCount).toBe(7);
+    expect(info?.ftblDictionary).toBe(0x0a);
+  });
+
+  // The same volume with its tag in place reads the same: the untagged path is a fallback.
+  it("reads a tagged System page as before", () => {
+    const region = volume(0xaa55_7887);
+    expect(parseMfs(region, 0, region.length)?.volumeSignatureValid).toBe(true);
   });
 });

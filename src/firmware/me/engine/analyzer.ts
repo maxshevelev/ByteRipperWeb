@@ -14,6 +14,7 @@ import {
   lzmaHashMatches,
   STRAY_ZEROS_SIGNATURE,
 } from "@/firmware/me/decompress/lzmaModule";
+import { readBenchFacts } from "@/firmware/me/engine/benchFacts";
 import { classifyFirmwareType, fptHeaderFIT } from "@/firmware/me/engine/firmwareTypeClassifier";
 import {
   fwUpdateSupport,
@@ -165,6 +166,15 @@ export function analyzeMeRegion(options: {
    * size, which is what the flash says.
    */
   readonly fileTable?: FileTable;
+  /**
+   * The whole-flash image's descriptor page, when the caller has one: the End of
+   * Manufacturing row needs the flash descriptor's BIOS master masks to tell a locked
+   * descriptor from one the host may still rewrite, and an extracted ME region carries no
+   * descriptor of its own. Absent, that one check is left out
+   * (`ManufacturingBasis.descriptorOpen` stays undefined); every other fact is read from
+   * the region alone.
+   */
+  readonly descriptorBytes?: Uint8Array | undefined;
 }): FirmwareAnalysis {
   return analyze(
     options.bytes,
@@ -172,6 +182,7 @@ export function analyzeMeRegion(options: {
     options.database ?? MEADatabase.empty,
     options.huffmanDictionaries,
     options.fileTable,
+    options.descriptorBytes,
     true
   );
 }
@@ -358,6 +369,7 @@ function analyze(
   database: MEADatabase,
   dictionaries: HuffmanDictionaries | undefined,
   fileTable: FileTable | undefined,
+  descriptorBytes: Uint8Array | undefined,
   findsIndependentFirmware: boolean
 ): FirmwareAnalysis {
   const issues: Issue[] = [];
@@ -655,6 +667,12 @@ function analyze(
       unlockTokenFlags: undefined,
       mfsState: undefined,
       mfsStateBasis: undefined,
+      manufacturingState: undefined,
+      manufacturingBasis: undefined,
+      manufacturingLock: undefined,
+      bootGuardProfile: undefined,
+      hardwareBinding: undefined,
+      oemPublicKeyHash: undefined,
       gscInfo,
       oromImages: undefined,
       rbePmMetadata: undefined,
@@ -960,7 +978,11 @@ function analyze(
       regions
     );
   }
-  if (mfsVolume !== undefined && mfsInfo !== undefined && !mfsVolume.usesFTBL) {
+  // The gate is the identity selector alone: upstream runs this walk whatever the FTBL
+  // triple says, and then hands the files it did not take to the FTBL naming (`if
+  // mfs_file[0] not in mfs_parsed_idx`, MEA.py 8134) — a CSME 14 volume with an FTBL
+  // triple gets both.
+  if (mfsVolume !== undefined && mfsInfo !== undefined) {
     const { variant, major, minor } = identity;
     if (!vfsStartsAtZero(variant, major, minor)) {
       const layoutOf = {
@@ -1081,13 +1103,28 @@ function analyze(
       ? { kind: "noPartition" }
       : { kind: "unreadable", offset: partition.offset };
   })();
+  // Step 1 of row 17 asks the *identity* selector, not the volume header's FTBL triple:
+  // upstream reads the reserved files by index whenever the volume's files do not start
+  // at 0 (`get_vfs_start_0`, MEA.py 7465/7888), and names them through FTBL separately.
   const fileSystemState = decideMfsState({
-    usesFTBL: mfsInfo?.usesFTBL ?? false,
+    vfsStartsAtZero: vfsStartsAtZero(identity.variant, identity.major, identity.minor),
     presentFileIndices: (mfsInfo?.files ?? [])
       .filter((one) => one.content.length > 0)
       .map((one) => one.index),
     efs: efsEvidence,
     configuration: configurationFound,
+  });
+
+  // The facts a repair bench asks that MEAnalyzer does not print (`benchFacts.ts`).
+  const bench = readBenchFacts({
+    bytes,
+    baseOffset,
+    regions,
+    identity,
+    mfsInfo,
+    oemConfiguration,
+    fileTable,
+    descriptorBytes,
   });
 
   // The independent firmware stitched into this image, each analysed by this
@@ -1106,6 +1143,7 @@ function analyze(
         database,
         dictionaries,
         fileTable,
+        descriptorBytes,
         false
       );
       if (one.manifest === undefined) continue;
@@ -1188,6 +1226,13 @@ function analyze(
     unlockTokenFlags: unlockTokenFlagRows.length === 0 ? undefined : unlockTokenFlagRows,
     mfsState: fileSystemState.state,
     mfsStateBasis: fileSystemState.basis,
+    // Ours: the facts a bench asks of a dump it is about to flash.
+    manufacturingState: bench.manufacturingState,
+    manufacturingBasis: bench.manufacturingBasis,
+    manufacturingLock: bench.manufacturingLock,
+    bootGuardProfile: bench.bootGuardProfile,
+    hardwareBinding: bench.hardwareBinding,
+    oemPublicKeyHash: bench.oemPublicKeyHash,
     gscInfo,
     oromImages,
     rbePmMetadata,

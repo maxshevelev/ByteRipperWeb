@@ -47,3 +47,48 @@ export function meRegion(bytes: Uint8Array): MERegion | undefined {
   const size = (limit + 1 - base) * 0x1000;
   return has(bytes, start, size) ? { base: start, size } : undefined;
 }
+
+/**
+ * How long the descriptor says the PCH strap section is, in words — the high byte of
+ * `FLMAP1`. It is the one thing a dump states about which half of its chipset generation
+ * the board is: the mobile parts lay the section out over 69, 70 or 74 words and the
+ * desktop ones over 90, 101 or 115. Nothing where no descriptor was handed in or it does
+ * not read as one.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#FlashDescriptor.pchStrapWords
+ */
+export function pchStrapWords(bytes: Uint8Array): number | undefined {
+  if (bytes.length < 0x1000) return undefined;
+  if (!SIGNATURE.every((byte, index) => bytes[0x10 + index] === byte)) return undefined;
+  return bytes[0x1b];
+}
+
+/**
+ * What the host CPU / BIOS may read and write in the flash, off the descriptor's master
+ * section — the fact that says whether a locked descriptor is locked *against the
+ * BIOS*, which is what End of Manufacturing is about. The factory leaves `0x00F` /
+ * `0x00A`; an image whose masks are all ones leaves the host able to rewrite the whole
+ * flash, which is how a service dump is handed out for repair.
+ *
+ * The section base is FLMAP1's low byte in 0x10 units. Read in the **v2** word form —
+ * twelve bits each, `read = word >> 8 & 0xFFF`, `write = word >> 20 & 0xFFF` — which is
+ * the only form this is asked about. An all-zero word is an erased section, not a master.
+ * An extracted ME region has no descriptor and answers nothing.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Layout/IFWI.swift#FlashDescriptor.biosMaster
+ */
+export function biosMaster(
+  bytes: Uint8Array
+): { readonly read: number; readonly write: number } | undefined {
+  if (bytes.length < 0x1000) return undefined;
+  if (!SIGNATURE.every((byte, index) => bytes[0x10 + index] === byte)) return undefined;
+  const masterAt = bytes[0x18] ?? 0;
+  if (masterAt === 0 || masterAt > 0xe0) return undefined;
+  const base = masterAt * 16;
+  if (base + 4 > bytes.length) return undefined;
+  const word = u16(bytes, base) + u16(bytes, base + 2) * 0x10000;
+  const read = Math.floor(word / 0x100) & 0xfff;
+  const write = Math.floor(word / 0x10_0000) & 0xfff;
+  if (read === 0 && write === 0) return undefined;
+  return { read, write };
+}
