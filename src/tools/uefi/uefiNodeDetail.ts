@@ -10,17 +10,28 @@ import { outermostSection } from "@/firmware/uefi/byteSpace";
 import { type ChecksumRepair, volumeErasePolarityOf } from "@/firmware/uefi/checksumRepair";
 import { checksumText, crc32, sum8, sum8Of } from "@/firmware/uefi/checksums";
 import type { DellSetupSetting } from "@/firmware/uefi/dellSetupForms";
-import { generationCodeName, generationSeries } from "@/firmware/uefi/descriptorGeneration";
+import {
+  generationCodeName,
+  generationSeries,
+  hasProcessorStrapSection,
+} from "@/firmware/uefi/descriptorGeneration";
 import {
   type DescriptorChipSource,
   type DescriptorClock,
   type DescriptorComponent,
+  type DescriptorDBCStraps,
   type DescriptorInfo,
+  type DescriptorMIPTable,
+  type DescriptorPMCSection,
+  type DescriptorProcessorStraps,
   type DescriptorProtectedRange,
+  type DescriptorStraps,
   isProtectedRangeOn,
+  mipDbcStraps,
   readDescriptorInfo,
 } from "@/firmware/uefi/descriptorInfo";
 import { FLASH_REGIONS, regionLabel } from "@/firmware/uefi/descriptorParser";
+import type { DescriptorRegisterReading } from "@/firmware/uefi/descriptorRegisterMap";
 import { dmiFieldTextOf } from "@/firmware/uefi/dmiField";
 import { allECImages, isECFirmwarePadding } from "@/firmware/uefi/ecFirmware";
 import { type EFIGUID, guidEquals, guidFromText, guidText } from "@/firmware/uefi/efiGuid";
@@ -93,6 +104,12 @@ import {
 } from "@/firmware/uefi/protectedRanges";
 import { sectionTypeName } from "@/firmware/uefi/sectionParser";
 import { readSound, soundDuration, soundEncodingName } from "@/firmware/uefi/sound";
+import {
+  isStrapSet,
+  type StrapReading,
+  strapGroupOf,
+  strapLocalName,
+} from "@/firmware/uefi/strapMap";
 import { tcgHashName } from "@/firmware/uefi/tcgHash";
 import type { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { displayName, isNodeCompressed, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
@@ -109,6 +126,7 @@ import {
   type DetailCell,
   type DetailField,
   type DetailTable,
+  type DetailTableSection,
   type DetailTableTarget,
   field,
   type NodeDetail,
@@ -1351,7 +1369,14 @@ function headerFields(
         fields.push(field("Masters", `${((map1 >>> 8) & 0x3) + 1}`));
         fields.push(field("PCH straps", `${(map1 >>> 24) & 0xff}`));
       }
-      add("PROC straps", reader.uint32(h + 0x1c), (map2) => `${(map2 >>> 8) & 0xff}`);
+      // Up to Cannon Point the same bits are the processor strap section's word count in
+      // the flash; from Tiger Point on they are the length of the strap message in the
+      // PMC's space, two bytes further up, and there is no flash section to count.
+      add("PROC straps", reader.uint32(h + 0x1c), (map2) => {
+        const generation = readDescriptorInfo(h, reader)?.generation;
+        const classic = generation === undefined || hasProcessorStrapSection(generation);
+        return `${classic ? (map2 >>> 8) & 0xff : (map2 >>> 16) & 0xff}`;
+      });
       break;
     }
 
@@ -2017,6 +2042,12 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
     });
   }
   if (descriptor.biosAccess.length > 0) {
+    // The masks are a grid of facts; what they add up to is the question a bench asks
+    // first — is this an image that lets the host rewrite the whole chip, or one that
+    // holds it in? It is a sign and not the End of Manufacturing setting: early Flash
+    // Image Tool versions did not touch the masks when that setting changed, so the line
+    // says "usually" and never that the two agree.
+    const open = descriptor.biosAccess.every((access) => access.read && access.write);
     tables.push({
       title: L("BIOS access table"),
       symbol: "lock.shield",
@@ -2026,6 +2057,11 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
         permission(access.read),
         permission(access.write),
       ]),
+      note: open
+        ? L("The host may read and write every region, as a service image is usually built.")
+        : L(
+            "Access is narrowed: the host may not read and write every region, as a production image is usually built."
+          ),
     });
   }
   if (descriptor.chips.length > 0) {
@@ -2062,37 +2098,142 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
       }),
     });
   }
-  const straps = descriptor.straps;
-  if (straps !== undefined) {
-    // Numbers, not fields: the layout is the chipset's and next to none of it is
-    // published (`UEFI_IMAGE_FORMAT.md` §2.6). Each row outlines its four bytes in the
-    // dump, which is where two boards' straps are compared.
+  if (descriptor.straps !== undefined) tables.push(strapTable(descriptor.straps));
+  if (descriptor.processorStraps !== undefined) {
+    tables.push(processorStrapTable(descriptor.processorStraps));
+  }
+  if (descriptor.pmcStraps !== undefined) tables.push(pmcTable(descriptor.pmcStraps));
+  if (descriptor.mip !== undefined) {
+    tables.push(mipTable(descriptor.mip));
+    const dbc = mipDbcStraps(descriptor.mip);
+    if (dbc !== undefined) tables.push(dbcTable(dbc));
+  }
+  if (descriptor.registerReadings.length > 0) {
+    tables.push(descriptorRegisterTable(descriptor.registerReadings));
+  }
+  if (descriptor.oemSection.some((byte) => byte !== 0xff)) {
+    tables.push(oemSectionTable(descriptor));
+  }
+  return tables;
+}
+
+/**
+ * What one strap word is where the chipset's layout of the section is not at hand — a
+ * length no tool at hand carries, or a section from before the layout was written down.
+ * The bit that soft-disables the ME, and the two fields the engine reads by word, are
+ * all there is to say.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.strapMeaning
+ */
+function strapMeaning(index: number, straps: DescriptorStraps): string {
+  if (straps.meDisable !== undefined && straps.meDisable.word === index) {
+    return L(
+      "%1$@ in bit %2$@; the other bits unknown",
+      straps.meDisable.name,
+      `${straps.meDisable.bit}`
+    );
+  }
+  if (straps.espiClock?.word === index) return L("eSPI clock in bits 3–5; the other bits unknown");
+  if (straps.gpr0?.word === index) return L("GPR0, the whole word");
+  return L("Unknown");
+}
+
+/** A word's eight hex digits, as a strap section's raw rows write it. */
+const wordHex = (word: number): string => `0x${word.toString(16).toUpperCase().padStart(8, "0")}`;
+
+/** A field's bits as the tables write them: one number, or the first and the last. */
+const bitsText = (low: number, high: number): string =>
+  low === high ? `${low}` : `${low}–${high}`;
+
+/** A strap row on its way to a table: the word and the bit that order it. */
+interface StrapRow {
+  readonly word: number;
+  readonly bit: number;
+  readonly isSet: boolean;
+  readonly cells: readonly DetailCell[];
+}
+
+/**
+ * The rows of a fielded strap section cut into one section per word, its line naming
+ * the word, what its fields share, the word's address and how many of its fields the
+ * build set.
+ */
+function strapSections(
+  rows: readonly StrapRow[],
+  prefix: string,
+  base: number,
+  groups: ReadonlyMap<number, string | undefined>
+): DetailTableSection[] {
+  const sections: DetailTableSection[] = [];
+  let start = 0;
+  while (start < rows.length) {
+    const word = rows[start]?.word ?? 0;
+    let end = start;
+    while (end < rows.length && rows[end]?.word === word) end += 1;
+    const name = `${prefix}${word}`;
+    const address = base + word * 4;
+    const set = rows.slice(start, end).filter((row) => row.isSet).length;
+    sections.push({
+      title: name,
+      subtitle: groups.get(word),
+      start,
+      end,
+      target: { kind: "range", start: address, end: address + 4, name },
+      address: hex(address),
+      note: set === 0 ? undefined : L("Non-default: %1$@", `${set}`),
+    });
+    start = end;
+  }
+  return sections;
+}
+
+/** What each word's fields share, by word. */
+function wordGroups(readings: readonly StrapReading[]): Map<number, string | undefined> {
+  const groups = new Map<number, string | undefined>();
+  for (const word of new Set(readings.map((one) => one.field.word))) {
+    groups.set(
+      word,
+      strapGroupOf(readings.filter((one) => one.field.word === word).map((one) => one.field))
+    );
+  }
+  return groups;
+}
+
+const byWordAndBit = (one: StrapRow, other: StrapRow): number =>
+  one.word - other.word || one.bit - other.bit;
+
+/**
+ * The strap section, one row per field where the chipset's layout of the section is at
+ * hand — the tool's name for the field, the bits it takes, what this image holds there
+ * and what the tool builds it with — and one row per word where it is not, the words
+ * then standing as the numbers they are.
+ *
+ * The fields fall into a section per word, folded: seventy words of a dozen fields each
+ * are a list nobody reads whole, and the word is what a reader looks for. A section's
+ * line names the word, what its fields have in common (the tool names its words by
+ * offset only), and the word's address, which outlines its four bytes in the dump,
+ * where two boards' straps are compared. A value the build set away from the tool's
+ * default is drawn in bold, and a folded line says how many of its fields are so.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.strapTable
+ */
+function strapTable(straps: DescriptorStraps): DetailTable {
+  const readings = straps.fields;
+  if (readings === undefined) {
     const rows: DetailCell[][] = [];
     const targets: DetailTableTarget[] = [];
     straps.words.forEach((word, index) => {
       const name = `PCHSTRP${index}`;
       const address = straps.base + index * 4;
-      let meaning = L("Unknown");
-      if (straps.meDisable !== undefined && straps.meDisable.word === index) {
-        meaning = L(
-          "%1$@ in bit %2$@; the other bits unknown",
-          straps.meDisable.name,
-          `${straps.meDisable.bit}`
-        );
-      } else if (straps.espiClock?.word === index) {
-        meaning = L("eSPI clock in bits 3–5; the other bits unknown");
-      } else if (straps.gpr0?.word === index) {
-        meaning = L("GPR0, the whole word");
-      }
       rows.push([
         cell(name),
         cell(hex(address)),
-        cell(`0x${word.toString(16).toUpperCase().padStart(8, "0")}`),
-        cell(meaning),
+        cell(wordHex(word)),
+        cell(strapMeaning(index, straps)),
       ]);
       targets.push({ kind: "range", start: address, end: address + 4, name });
     });
-    tables.push({
+    return {
       title: L("PCH straps"),
       symbol: "slider.horizontal.3",
       columns: [L("Strap"), L("Offset"), L("Value"), L("Meaning")],
@@ -2102,9 +2243,302 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
       // Seventy words and more, of which the fields above have already said what is
       // known: folded, it leaves the rest of the detail in view.
       startsFolded: true,
+    };
+  }
+  const rows: StrapRow[] = readings.map((reading) => ({
+    word: reading.field.word,
+    bit: reading.field.low,
+    isSet: isStrapSet(reading),
+    cells: [
+      cell(strapLocalName(reading.field.name)),
+      cell(bitsText(reading.field.low, reading.field.high)),
+      { text: hex(reading.value), tone: "plain", isStrong: isStrapSet(reading) },
+      cell(reading.field.defaultValue === undefined ? "" : hex(reading.field.defaultValue)),
+    ],
+  }));
+  // The bit that soft-disables the ME is not one of the layout's fields — the tool calls
+  // the bits around it spare or reserved — so its row is added here, under the name
+  // ifdtool and me_cleaner give it, and it has no default of the tool's to compare against.
+  const bit = straps.meDisable;
+  if (bit !== undefined && bit.word < straps.words.length) {
+    rows.push({
+      word: bit.word,
+      bit: bit.bit,
+      isSet: false,
+      cells: [cell(bit.name), cell(`${bit.bit}`), cell(bit.isSet ? "0x1" : "0x0"), cell("")],
     });
   }
-  return tables;
+  // A word the table names no field of still has its value: the section belongs to the
+  // descriptor, not to the table, and a table that states only part of one must not hide
+  // the rest.
+  const covered = new Set(rows.map((row) => row.word));
+  straps.words.forEach((word, index) => {
+    if (covered.has(index)) return;
+    rows.push({
+      word: index,
+      bit: -1,
+      isSet: false,
+      cells: [cell(`PCHSTRP${index}`), cell(""), cell(hex(word)), cell("")],
+    });
+  });
+  rows.sort(byWordAndBit);
+  return {
+    title: L("PCH straps"),
+    symbol: "slider.horizontal.3",
+    columns: [L("Field"), L("Bits"), L("Value"), L("Default")],
+    rows: rows.map((row) => row.cells),
+    startsFolded: true,
+    sections: strapSections(rows, "PCHSTRP", straps.base, wordGroups(readings)),
+  };
+}
+
+/**
+ * The CPU straps — the words the processor reads at power-on before it lets the chipset
+ * go: the strap section the classic third map word points at, or the message in the
+ * descriptor's MIP area from Tiger Point on. The message's fields carry the tool's own
+ * names ("Disable Hyperthreading") and option words, so its values read as its panel
+ * shows them; the older sections carry only identifiers.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.processorStrapTable
+ */
+function processorStrapTable(straps: DescriptorProcessorStraps): DetailTable {
+  const title = L("CPU straps");
+  const readings = straps.fields;
+  if (readings === undefined) {
+    const rows: DetailCell[][] = [];
+    const targets: DetailTableTarget[] = [];
+    straps.words.forEach((word, index) => {
+      const name = `CPUSTRP${index}`;
+      const address = straps.base + index * 4;
+      rows.push([cell(name), cell(hex(address)), cell(wordHex(word)), cell(L("Unknown"))]);
+      targets.push({ kind: "range", start: address, end: address + 4, name });
+    });
+    return {
+      title,
+      symbol: "cpu",
+      columns: [L("Strap"), L("Offset"), L("Value"), L("Meaning")],
+      rows,
+      rowTargets: targets,
+      linkColumn: 1,
+      startsFolded: true,
+    };
+  }
+  const rows: StrapRow[] = readings
+    .map((reading) => ({
+      word: reading.field.word,
+      bit: reading.field.low,
+      isSet: isStrapSet(reading),
+      cells: [
+        cell(reading.field.label ?? strapLocalName(reading.field.name)),
+        cell(bitsText(reading.field.low, reading.field.high)),
+        // The tool's own word for the value where it states one — "Yes", "All Cores
+        // Active" — and the number otherwise.
+        {
+          text: reading.field.options?.get(reading.value) ?? hex(reading.value),
+          tone: "plain" as const,
+          isStrong: isStrapSet(reading),
+        },
+        // The message states no default: the dash says the column has nothing to
+        // compare against, rather than leaving it blank.
+        cell(reading.field.defaultValue === undefined ? "—" : hex(reading.field.defaultValue)),
+      ],
+    }))
+    .sort(byWordAndBit);
+  return {
+    title,
+    symbol: "cpu",
+    columns: [L("Field"), L("Bits"), L("Value"), L("Default")],
+    rows: rows.map((row) => row.cells),
+    startsFolded: true,
+    sections: strapSections(rows, "CPUSTRP", straps.base, wordGroups(readings)),
+  };
+}
+
+/**
+ * The PMC soft straps — the MIP area's PMC and CPU block before the CPU message that
+ * ends it — under the tool's own names for the length the block's remainder states.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.pmcTable
+ */
+function pmcTable(pmc: DescriptorPMCSection): DetailTable {
+  const rows: DetailCell[][] = [];
+  const targets: DetailTableTarget[] = [];
+  for (const reading of pmc.fields) {
+    const address = pmc.base + reading.field.word * 4;
+    rows.push([
+      cell(reading.field.label ?? strapLocalName(reading.field.name)),
+      cell(bitsText(reading.field.low, reading.field.high)),
+      {
+        text: reading.field.options?.get(reading.value) ?? hex(reading.value),
+        tone: "plain",
+        isStrong: isStrapSet(reading),
+      },
+      cell(reading.field.defaultValue === undefined ? "" : hex(reading.field.defaultValue)),
+    ]);
+    targets.push({ kind: "range", start: address, end: address + 4, name: reading.field.name });
+  }
+  return {
+    title: L("PMC straps"),
+    symbol: "cpu",
+    columns: [L("Field"), L("Bits"), L("Value"), L("Default")],
+    rows,
+    rowTargets: targets,
+    startsFolded: true,
+  };
+}
+
+/**
+ * The MIP area's block table: what each block is and where the entry places it. The
+ * payload's own fields are in the tables after it, under the names the same tool gives
+ * them.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.mipTable
+ */
+function mipTable(mip: DescriptorMIPTable): DetailTable {
+  return {
+    title: L("MIP table"),
+    symbol: "list.bullet.rectangle",
+    columns: [L("Block"), L("Offset"), L("Length")],
+    rows: mip.blocks.map((block) => [
+      cell(mipBlockName(block.type)),
+      cell(hex(block.offset)),
+      cell(`${block.length}`),
+    ]),
+  };
+}
+
+/**
+ * The tool's names for the two block types a MIP table carries on the generations at
+ * hand; a type it has not named is shown as its number.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.mipBlockName
+ * @upstream-differs "Block %1$@", where upstream's key carries a `%1$d` its formatter does not fill
+ */
+function mipBlockName(type: number): string {
+  switch (type) {
+    case 0:
+      return L("CSE DbC configuration");
+    case 1:
+      return L("PMC and CPU soft straps");
+    default:
+      return L("Block %1$@", `${type}`);
+  }
+}
+
+/** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.dbcTable */
+function dbcTable(dbc: DescriptorDBCStraps): DetailTable {
+  const rows: DetailCell[][] = [];
+  const targets: DetailTableTarget[] = [];
+  for (const reading of dbc.fields) {
+    const address = dbc.base + reading.field.word * 4;
+    rows.push([
+      cell(reading.field.label ?? strapLocalName(reading.field.name)),
+      cell(bitsText(reading.field.low, reading.field.high)),
+      cell(hex(reading.value)),
+      cell(hex(address)),
+    ]);
+    targets.push({ kind: "range", start: address, end: address + 4, name: reading.field.name });
+  }
+  return {
+    title: L("DbC straps"),
+    symbol: "cable.connector",
+    columns: [L("Field"), L("Bits"), L("Value"), L("Offset")],
+    rows,
+    rowTargets: targets,
+    linkColumn: 3,
+  };
+}
+
+/**
+ * The descriptor's own registers as Flash Image Tool names them — the map words, the
+ * flash component's registers, the masters' access masks, the recovery policy and the
+ * VSCC/MIP map. One section per register, its address in the section's head; a field
+ * with a plain value shows as hex, and a setting the tool enumerates in its own words.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.descriptorRegisterTable
+ */
+function descriptorRegisterTable(readings: readonly DescriptorRegisterReading[]): DetailTable {
+  const rows: DetailCell[][] = [];
+  const sections: DetailTableSection[] = [];
+  for (const reading of readings) {
+    const start = rows.length;
+    for (const one of reading.register.fields) {
+      const word = Math.floor(one.bitOffset / 32);
+      const inWord = one.bitOffset % 32;
+      const value = reading.words[word];
+      if (value === undefined || one.count <= 0 || one.count > 32 || inWord + one.count > 32)
+        continue;
+      const shifted = Math.floor((value >>> 0) / 2 ** inWord);
+      const fieldValue = one.count >= 32 ? shifted >>> 0 : shifted % 2 ** one.count;
+      rows.push([
+        cell(one.label ?? strapLocalName(one.name)),
+        cell(bitsText(inWord, inWord + one.count - 1)),
+        cell(one.options?.get(fieldValue) ?? hex(fieldValue)),
+      ]);
+    }
+    const end = rows.length;
+    if (end === start) continue;
+    const length = reading.register.words * 4;
+    sections.push({
+      title: reading.register.name,
+      // Upstream spells the count in English in every language.
+      subtitle: reading.register.words === 1 ? "1 word" : `${reading.register.words} words`,
+      start,
+      end,
+      target: {
+        kind: "range",
+        start: reading.base,
+        end: reading.base + length,
+        name: reading.register.name,
+      },
+      address: hex(reading.base),
+    });
+  }
+  return {
+    title: L("Descriptor registers"),
+    symbol: "cpu",
+    columns: [L("Field"), L("Bits"), L("Value")],
+    rows,
+    startsFolded: true,
+    sections,
+  };
+}
+
+/**
+ * The OEM section — `0x100` bytes at `0xF00` — in rows of sixteen, where the board's
+ * maker keeps a serial, a version string or a signature. It is the one part of the
+ * descriptor Intel lays nothing out in, and erased on most boards; the table is shown
+ * only where something is written.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.oemSectionTable
+ */
+function oemSectionTable(descriptor: DescriptorInfo): DetailTable {
+  const base =
+    (descriptor.regions.find((region) => region.type === "descriptor")?.base ?? 0) + 0x0f00;
+  const rows: DetailCell[][] = [];
+  const targets: DetailTableTarget[] = [];
+  for (let start = 0; start < descriptor.oemSection.length; start += 16) {
+    const bytes = descriptor.oemSection.subarray(
+      start,
+      Math.min(start + 16, descriptor.oemSection.length)
+    );
+    const address = base + start;
+    rows.push([cell(hex(address)), cell(hexBytes(bytes))]);
+    targets.push({
+      kind: "range",
+      start: address,
+      end: address + bytes.length,
+      name: hex(address),
+    });
+  }
+  return {
+    title: L("OEM section"),
+    symbol: "square.grid.4x3.fill",
+    columns: [L("Offset"), L("Bytes")],
+    rows,
+    rowTargets: targets,
+    linkColumn: 0,
+  };
 }
 
 /** The project that named a VSCC chip, as it calls itself. */

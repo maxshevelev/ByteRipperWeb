@@ -1690,3 +1690,20 @@
 "Reading the changes kept for “%1$@”" = "Die für „%1$@“ aufbewahrten Änderungen werden gelesen";
 "Their changes came back, but not the steps to undo them: the kept history no longer led back:" = "Die Änderungen wurden wiederhergestellt, nicht aber die Schritte, sie zu widerrufen: Der aufbewahrte Verlauf führte nicht mehr zurück:";
 "Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:" = "Die aufbewahrten Änderungen ließen sich nicht lesen. Dateien wurden so geöffnet, wie sie auf dem Datenträger liegen, und Teile so, wie ihre Datei sie enthält; Dokumente ohne Datei wurden nicht geöffnet:";
+
+/* UEFI Structure: the descriptor's strap tables, registers and OEM section, read through the tool's own layouts */
+"The host may read and write every region, as a service image is usually built." = "Der Host darf alle Regionen lesen und schreiben — so wird ein Service-Image üblicherweise gebaut.";
+"Access is narrowed: the host may not read and write every region, as a production image is usually built." = "Der Zugriff ist eingeschränkt: Der Host darf nicht alle Regionen lesen und schreiben — so wird ein Serien-Image üblicherweise gebaut.";
+"Non-default: %1$@" = "Non-default: %1$@";
+"Bits" = "Bits";
+"Default" = "Standard";
+"CPU straps" = "CPU-Straps";
+"PMC straps" = "PMC-Straps";
+"MIP table" = "MIP-Tabelle";
+"Block" = "Block";
+"CSE DbC configuration" = "CSE-DbC-Konfiguration";
+"PMC and CPU soft straps" = "PMC- und CPU-Softstraps";
+"Block %1$@" = "Block %1$@";
+"DbC straps" = "DbC-Straps";
+"Descriptor registers" = "Deskriptor-Register";
+"OEM section" = "OEM-Section";

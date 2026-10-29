@@ -3999,6 +3999,71 @@ button.uefi-title {
   white-space: nowrap;
 }
 
+/* A value that stands out from the ones around it — a strap field this board's build set
+   away from the tool's default — in bold. */
+.tool-detail-grid-cell[data-strong] {
+  font-weight: 600;
+}
+
+/* A sectioned table's first column is held to a width chosen from the names it holds:
+   in each strap table nineteen names in twenty fit, and the long tail would otherwise set
+   the width of all seventy words. A longer name wraps after an underscore (`<wbr>`). It
+   follows the zoom with the type, being in `em`. */
+.tool-detail-grid-cell[data-first-of-sections] {
+  max-width: 23em;
+  overflow-wrap: anywhere;
+}
+
+/* Under sections the columns start where a section's words do, past its triangle, so a
+   section's rows read as inside it. */
+.tool-detail-grid[data-sections] .tool-detail-grid-head:first-child,
+.tool-detail-grid[data-sections] .tool-detail-grid-cell:first-child {
+  padding-left: 17px;
+}
+
+/* A section's line: its switch, its title, what its rows share, its address and — folded —
+   what its rows hold that stands out. An arrow over it, which is a switch, not text. */
+.tool-detail-section-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  cursor: default;
+}
+
+.tool-detail-section-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.tool-detail-section-subtitle {
+  color: var(--text-muted);
+}
+
+/* What the folded rows hold that stands out, in the weight those rows' values are drawn in. */
+.tool-detail-section-note {
+  font-weight: 600;
+}
+
+/* The gap that closes an open section, before the next section's line: the rows a reader
+   opened end, and the next word begins apart from them. */
+.tool-detail-grid tr[data-closes-section] > .tool-detail-grid-cell {
+  padding-bottom: 8px;
+}
+
+/* The line that sums a table up, under it, in the ordinary colour: it says what the rows
+   show, and neither a tone nor a quieter grey of its own. */
+.tool-detail-table-note {
+  margin: 4px 0 0;
+}
+
 /* A permission is read by its colour as much as by its word. */
 .tool-detail-grid-cell[data-tone="yes"] {
   color: var(--semantic-good);

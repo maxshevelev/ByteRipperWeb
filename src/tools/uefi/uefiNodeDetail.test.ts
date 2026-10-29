@@ -25,7 +25,7 @@ import { TCGHash } from "@/firmware/uefi/tcgHash";
 import { parseUefiImage, UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode, makeSpan, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { Sub } from "@/firmware/uefi/uefiTypes";
-import { isProblemField, type NodeDetail } from "@/tools/toolDetail";
+import { type DetailTable, isProblemField, type NodeDetail } from "@/tools/toolDetail";
 import { uefiHelpTerm } from "@/tools/uefi/uefiHelpTerms";
 import { buildNodeDetail, HISTORY_ROWS } from "@/tools/uefi/uefiNodeDetail";
 import { nodeName, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
@@ -65,6 +65,15 @@ const problem = (detail: NodeDetail, label: string) => {
 };
 const table = (detail: NodeDetail, title: string) =>
   detail.tables.find((one) => one.title === title);
+
+/**
+ * The row of a table whose first cell reads `name` — a strap field is a row among
+ * hundreds, and this is how one of them is picked out.
+ *
+ * @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.row
+ */
+const row = (shown: DetailTable | undefined, name: string) =>
+  shown?.rows.find((one) => one[0]?.text === name);
 
 const volumeNode = (options: { readonly guid?: typeof FFS_V2; readonly name?: string } = {}) =>
   makeNode({
@@ -997,25 +1006,53 @@ describe("a flash descriptor", () => {
     expect(access?.rows.map((row) => row[2]?.tone)).toEqual(["yes", "yes", "yes", "yes", "yes"]);
   });
 
-  // The strap words as a grid of numbers, each row outlining its four bytes in the dump;
-  // only the ME-disable word says anything about its bits.
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheStrapsAreAGridOfWords
-  it("draws the straps as a grid of words", () => {
+  // Under the BIOS access table, the masks are read as a verdict: the host is let into
+  // every region, or it is not. The line is evidence — the End of Manufacturing setting
+  // can disagree with it — so it says how such an image is *usually* built.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheBiosAccessTableSaysWhatItsMasksAddUpTo
+  it("says what the BIOS access masks add up to", () => {
+    expect(table(detail, "BIOS access table")?.note).toBe(
+      "Access is narrowed: the host may not read and write every region, as a production image is usually built."
+    );
+    const open = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: true,
+        masters: [
+          { read: 0x1f, write: 0x1f },
+          { read: 0, write: 0 },
+          { read: 0, write: 0 },
+        ],
+      })
+    );
+    expect(table(open, "BIOS access table")?.note).toBe(
+      "The host may read and write every region, as a service image is usually built."
+    );
+  });
+
+  // Where the section's length is one no table of the chipset's layout is at hand for,
+  // the words stand as the numbers they are, each row outlining its four bytes in the
+  // dump; only the ME-disable word says anything about its bits.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheStrapsAreAGridOfWordsWhereNoLayoutIsAtHand
+  it("draws the straps as a grid of words where no layout is at hand", () => {
     const words = new Array<number>(11).fill(0);
     words[1] = 0x1234_5678;
+    // Eleven words is a length no table states, on a generation whose own section (16,
+    // 18 or 21 words) is another length.
     const shown = detailOf(
       node,
       Test.descriptor({
         regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
         version1: true,
         straps: words,
+        strapCount: 11,
       })
     );
     const straps = table(shown, "PCH straps");
 
     expect(straps?.columns).toEqual(["Strap", "Offset", "Value", "Meaning"]);
-    // Every word the Cougar Point map counts.
-    expect(straps?.rows).toHaveLength(0x12);
+    expect(straps?.rows).toHaveLength(11); // one row per word of the section
     expect(straps?.rows[1]?.map((one) => one.text)).toEqual([
       "PCHSTRP1",
       "0x204",
@@ -1030,9 +1067,121 @@ describe("a flash descriptor", () => {
       name: "PCHSTRP1",
     });
     expect(straps?.linkColumn).toBe(1);
-    // Seventy words and more stay folded until asked for; the short tables are open.
+    // The grid stays folded until asked for; the short tables are open.
     expect(straps?.startsFolded).toBe(true);
     expect(table(shown, "Region table")?.startsFolded).not.toBe(true);
+  });
+
+  // On Cougar Point the 18-word section reads as the fields Intel's SPI Programming Guide
+  // names, with the words the guide calls reserved left as raw rows; the values here are
+  // `ME 7`'s, and the defaults are the tool template's.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheCougarPointStrapsAreFields
+  it("reads Cougar Point's straps as fields", () => {
+    const words = new Array<number>(18).fill(0);
+    words[0] = 0x0920_d682;
+    words[10] = 0x0081_0044;
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: true,
+        straps: words,
+      })
+    );
+    const straps = table(shown, "PCH straps");
+    expect(straps?.columns).toEqual(["Field", "Bits", "Value", "Default"]);
+    const texts = (name: string) => row(straps, name)?.map((one) => one.text);
+    expect(texts("PCHSTRP0_SMB_EN")).toEqual(["PCHSTRP0_SMB_EN", "7", "0x1", "0x1"]);
+    expect(texts("PCHSTRP0_BBBS")).toEqual(["PCHSTRP0_BBBS", "29–30", "0x0", "0x0"]);
+    expect(texts("PCHSTRP10_Deep_SX_EN")).toEqual(["PCHSTRP10_Deep_SX_EN", "23", "0x1", "0x1"]);
+    // A reserved word keeps its raw row.
+    expect(texts("PCHSTRP3")).toEqual(["PCHSTRP3", "", "0x0", ""]);
+    expect(straps?.sections).toHaveLength(18); // a section per word
+  });
+
+  // The processor strap section is a grid of the fields its layout names, under the word
+  // they take — the same shape as the PCH section's.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheProcessorStrapsAreAGridOfFields
+  it("draws the processor straps as a grid of fields", () => {
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: true,
+        processorStraps: [0x0000_1000, 0x0010_8002, 0x0800_0210],
+      })
+    );
+    const straps = table(shown, "CPU straps");
+    expect(straps?.columns).toEqual(["Field", "Bits", "Value", "Default"]);
+    expect(straps?.startsFolded).toBe(true); // the CPU straps start folded, as the PCH ones do
+    expect(row(straps, "Processor_max_frequency_boot")?.map((one) => one.text)).toEqual([
+      "Processor_max_frequency_boot",
+      "12",
+      "0x1",
+      "0x1",
+    ]);
+    expect(row(straps, "SaPowerPlaneTopology")?.map((one) => one.text)).toEqual([
+      "SaPowerPlaneTopology",
+      "0–3",
+      "0x2",
+      "0x2",
+    ]);
+  });
+
+  // The OEM section's bytes, in rows of sixteen, with the address that outlines them —
+  // shown only where a board's maker wrote something.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheOEMSectionIsAGridWhereSomethingIsWritten
+  it("draws the OEM section as a grid where something is written", () => {
+    const oem = new Array<number>(0x20).fill(0xff);
+    oem[0] = 0x4e;
+    oem[1] = 0x31;
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: true,
+        oemSection: oem,
+      })
+    );
+    const section = table(shown, "OEM section");
+    expect(section?.columns).toEqual(["Offset", "Bytes"]);
+    expect(section?.rows).toHaveLength(16);
+    expect(section?.rows[0]?.map((one) => one.text)).toEqual([
+      "0xF00",
+      "4E 31 FF FF FF FF FF FF FF FF FF FF FF FF FF FF",
+    ]);
+    expect(section?.rowTargets?.[0]).toEqual({
+      kind: "range",
+      start: 0xf00,
+      end: 0xf10,
+      name: "0xF00",
+    });
+    expect(section?.linkColumn).toBe(0);
+    // An erased section is not a table.
+    expect(table(detail, "OEM section")).toBeUndefined();
+  });
+
+  // From Tiger Point on the straps are the message in the descriptor's MIP area — the
+  // third map word states its offset from 0xC00 and its length.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testATigerPointDescriptorReadsTheMIPMessage
+  it("reads a Tiger Point descriptor's MIP message", () => {
+    const shown = detailOf(
+      node,
+      Test.descriptor({
+        regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+        version1: false,
+        map2: 0x0011_01a0,
+      })
+    );
+    const straps = table(shown, "CPU straps");
+    expect(straps?.sections?.[0]?.title).toBe("CPUSTRP0");
+    expect(straps?.columns).toEqual(["Field", "Bits", "Value", "Default"]);
+    expect(straps?.startsFolded).toBe(true);
+    // The message states no default, so the column says so with a dash rather than
+    // standing empty.
+    const fields = straps?.rows ?? [];
+    expect(fields.length).toBeGreaterThan(0);
+    expect(fields.every((one) => one.length === 4 && one[3]?.text === "—")).toBe(true);
   });
 
   // The bit that soft-disables the ME is a row of its own, and set it reads as a state —
@@ -1052,19 +1201,25 @@ describe("a flash descriptor", () => {
     expect(row?.tone).toBe("caution");
   });
 
-  // The desktop layout's words are other fields, so neither row is shown.
-  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testADesktopLayoutHasNeitherRow
-  it("shows neither GPR0 nor the eSPI clock on a desktop layout", () => {
+  // The desktop layout keeps the two fields in words of its own: word 29 is the eSPI clock
+  // and word 28 GPR0, while what the mobile layout calls GPR0 — word 21 — is neither.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheDesktopLayoutReadsItsOwnWords
+  it("reads the desktop layout's own words", () => {
+    const words = new Array<number>(115).fill(0);
+    words[21] = 0x2222_2222;
+    words[28] = 0x801f_8001;
+    words[29] = 4 << 3;
     const shown = detailOf(
       node,
       Test.descriptor({
         regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
         version1: false,
-        straps: [0x2222_2222],
+        straps: words,
+        strapCount: 115,
       })
     );
-    expect(value(shown, "GPR0")).toBeUndefined();
-    expect(value(shown, "eSPI clock")).toBeUndefined();
+    expect(value(shown, "GPR0")).toBe("0x1000 – 0x1FFFF: reads and writes refused");
+    expect(value(shown, "eSPI clock")).toBe("60 MHz");
   });
 
   // No strap section, no strap table and no bit row.
@@ -1100,10 +1255,77 @@ describe("a flash descriptor", () => {
     expect(gpr0?.tone).toBe("caution");
     expect(value(shown, "eSPI clock")).toBe("60 MHz");
 
+    // Every field of the layout is a row of its own — 759 of them for this section — with
+    // the ME-disable bit among them.
     const straps = table(shown, "PCH straps");
-    expect(straps?.rows).toHaveLength(70);
-    expect(straps?.rows[21]?.[3]?.text).toBe("GPR0, the whole word");
-    expect(straps?.rows[22]?.[3]?.text).toBe("eSPI clock in bits 3–5; the other bits unknown");
+    expect(straps?.columns).toEqual(["Field", "Bits", "Value", "Default"]);
+    expect(straps?.rows).toHaveLength(760);
+    expect(row(straps, "SPI_GLOBAL_PROTECTED_RNG_DEF")?.map((one) => one.text)).toEqual([
+      "SPI_GLOBAL_PROTECTED_RNG_DEF",
+      "0–31",
+      "0x829B0001",
+      "0x0",
+    ]);
+    const clockRow = row(straps, "SPI_ec_max_freq");
+    expect(clockRow?.map((one) => one.text)).toEqual(["SPI_ec_max_freq", "3–5", "0x4", "0x0"]);
+
+    // A value the build set away from the default is drawn in bold; one left at it is not.
+    expect(clockRow?.[2]?.isStrong).toBe(true);
+    expect(clockRow?.[3]?.isStrong).not.toBe(true); // the default itself is not
+    expect(row(straps, "SPI_ec_plch_dis")?.[2]?.isStrong).not.toBe(true);
+
+    // The rows fall into a section per word, which names the word, what its fields
+    // share, and where it is — its address outlines the word.
+    const rows = straps?.rows ?? [];
+    const sections = straps?.sections ?? [];
+    const clock = rows.findIndex((one) => one[0]?.text === "SPI_ec_max_freq");
+    const section = sections.find((one) => one.start <= clock && clock < one.end);
+    expect(section?.title).toBe("PCHSTRP22");
+    expect(section?.subtitle).toBe("SPI");
+    expect(section?.address).toBe("0x258");
+    expect(section?.target).toEqual({ kind: "range", start: 0x258, end: 0x25c, name: "PCHSTRP22" });
+    // The line says, folded, how many of its fields the build set.
+    const setHere = rows
+      .slice(section?.start, section?.end)
+      .filter((one) => one[2]?.isStrong).length;
+    expect(setHere).toBeGreaterThan(0);
+    expect(section?.note).toBe(`Non-default: ${setHere}`);
+    const quiet = sections.find(
+      (one) => !rows.slice(one.start, one.end).some((cells) => cells[2]?.isStrong)
+    );
+    expect(quiet?.note).toBeUndefined(); // a word left at its defaults says nothing
+    expect(sections).toHaveLength(70); // a section per word
+    // And every row in one, in order.
+    expect(sections.reduce((sum, one) => sum + one.end - one.start, 0)).toBe(rows.length);
+    expect(
+      sections.every((one, index) => index === 0 || sections[index - 1]?.end === one.start)
+    ).toBe(true);
+  });
+
+  // The bit that soft-disables the ME is a row among the fields — the chipset layout does
+  // not name it, so it has no default of the tool's to stand against — and its value is
+  // the bit.
+  // @upstream Modules/UEFITool/Tests/UEFIToolTests/DescriptorDetailTests.swift#DescriptorDetailTests.testTheMEDisableBitIsARowOfTheLayoutsTable
+  it("makes the ME-disable bit a row of the layout's table", () => {
+    const hap = (words: number[]) =>
+      row(
+        table(
+          detailOf(
+            node,
+            Test.descriptor({
+              regions: [{ type: "me", start: 0x1000, end: 0x60_0000 }],
+              version1: false,
+              straps: words,
+              strapCount: 70,
+            })
+          ),
+          "PCH straps"
+        ),
+        "HAP"
+      );
+    expect(hap([0])?.map((one) => one.text)).toEqual(["HAP", "16", "0x0", ""]);
+    expect(hap([0x0001_0000])?.map((one) => one.text)).toEqual(["HAP", "16", "0x1", ""]);
+    expect(hap([0])).toHaveLength(4);
   });
 
   // A zero GPRD is off, and a clock code nobody defines shows the code.

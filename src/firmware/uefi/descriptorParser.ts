@@ -44,6 +44,22 @@ export const Descriptor = {
    */
   maxBase: 0xe0,
   /**
+   * Where the MIP area opens: the CPU strap message of Tiger Point and later sits at
+   * `MIP + FLMAP2[2:11]`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.mipOffset
+   */
+  mipOffset: 0xc00,
+  /**
+   * The OEM section: `0x100` bytes at a fixed offset in the descriptor region, which a
+   * board's maker fills with what it likes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.oemSectionOffset
+   */
+  oemSectionOffset: 0x0f00,
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorParser.swift#Descriptor.oemSectionSize */
+  oemSectionSize: 0x100,
+  /**
    * A region entry of all ones is no region, the way UEFITool reads it: erased
    * bytes, not an area at the top of a 128 MiB space.
    *

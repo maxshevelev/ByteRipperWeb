@@ -55,6 +55,13 @@ export interface DetailCell {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Cell.Tone
    */
   readonly tone: "plain" | "yes" | "no";
+  /**
+   * Drawn in bold: a value that stands out from the ones around it — a strap field
+   * this board's build set away from the tool's default.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Cell.isStrong
+   */
+  readonly isStrong?: boolean | undefined;
 }
 
 /** The glyphs a table heading can carry — upstream's system symbols, by meaning. */
@@ -70,7 +77,9 @@ export type DetailSymbol =
   | "slider.horizontal.3"
   | "list.bullet.rectangle"
   | "text.alignleft"
-  | "person.text.rectangle";
+  | "person.text.rectangle"
+  | "cable.connector"
+  | "square.grid.4x3.fill";
 
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable */
 export interface DetailTable {
@@ -104,6 +113,63 @@ export interface DetailTable {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.startsFolded
    */
   readonly startsFolded?: boolean | undefined;
+  /**
+   * The sections the rows fall into, in order, covering every row. Absent for a table
+   * of plain rows.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.sections
+   */
+  readonly sections?: readonly DetailTableSection[] | undefined;
+  /**
+   * One line under the table, for what its rows add up to — the verdict the BIOS
+   * master's access masks make. Absent for a table that is only a list of facts, and
+   * drawn in the ordinary colour: it says what the rows show, not a second answer in a
+   * tone of its own.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.note
+   */
+  readonly note?: string | undefined;
+}
+
+/**
+ * A run of rows under a line of its own, folded until the reader opens it: a
+ * descriptor's strap fields, under the word they are bits of.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section
+ */
+export interface DetailTableSection {
+  /**
+   * What the section is — `PCHSTRP1` — and, in `subtitle`, what its rows have in
+   * common, where they have anything (`GPCOM4_gpio_sstrap`).
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.title
+   */
+  readonly title: string;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.subtitle */
+  readonly subtitle?: string | undefined;
+  /**
+   * The rows it holds, as indices into the table's rows: `[start, end)`.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.rows
+   */
+  readonly start: number;
+  readonly end: number;
+  /**
+   * Where a click on the section's address goes, and the address as it is shown.
+   * Absent for a section that stands for nothing in the dump.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.target
+   */
+  readonly target?: DetailTableTarget | undefined;
+  /** @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.address */
+  readonly address?: string | undefined;
+  /**
+   * What the folded line says about the rows it hides, where something in them stands
+   * out: how many strap fields the build set.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailTable.Section.note
+   */
+  readonly note?: string | undefined;
 }
 
 /**

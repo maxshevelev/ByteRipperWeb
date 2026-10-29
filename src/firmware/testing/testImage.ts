@@ -462,6 +462,13 @@ export function descriptor(options: {
    */
   readonly straps?: readonly number[];
   readonly strapCount?: number;
+  /** The processor strap words, at `processorStrapBase << 4`, in a section of their count. */
+  readonly processorStraps?: readonly number[];
+  readonly processorStrapBase?: number;
+  /** The third map word as the caller states it, as a Tiger Point one does. */
+  readonly map2?: number;
+  /** The OEM section's bytes, from `0xF00`. */
+  readonly oemSection?: readonly number[];
 }): Uint8Array {
   const regionBase = options.regionBase ?? 0x04;
   const bytes = new Uint8Array(Descriptor.size).fill(0xff);
@@ -493,7 +500,24 @@ export function descriptor(options: {
   for (const [index, word] of (options.straps ?? []).entries()) {
     put32(word, strapBase * 16 + index * 4);
   }
-  put32(version1 ? 0x0021_0120 : 0x0014_01b0, Descriptor.map2Offset);
+  // FLMAP2: the processor strap section's base and count up to Cannon Point — the
+  // builder's default when none is asked for — or a word the caller states, as a Tiger
+  // Point one does.
+  const processorBase =
+    options.processorStraps === undefined
+      ? version1
+        ? 0x20
+        : 0xb0
+      : (options.processorStrapBase ?? 0x30);
+  const processorCount = options.processorStraps?.length ?? 1;
+  put32(
+    options.map2 ??
+      (processorBase | (processorCount << 8)) + (version1 ? 0x0021_0000 : 0x0014_0000),
+    Descriptor.map2Offset
+  );
+  for (const [index, word] of (options.processorStraps ?? []).entries()) {
+    put32(word, processorBase * 16 + index * 4);
+  }
   // The MIP table base, which a Cougar Point descriptor has none of.
   bytes[0x0eff] = version1 ? 0x00 : 0xc0;
   if (options.component !== undefined) {
@@ -519,6 +543,9 @@ export function descriptor(options: {
   }
 
   if (options.reservedVector !== undefined) bytes.set(options.reservedVector, 0);
+  for (const [index, byte] of (options.oemSection ?? []).entries()) {
+    if (0x0f00 + index < bytes.length) bytes[0x0f00 + index] = byte;
+  }
 
   // The master section and the VSCC table are written only when a test asks for
   // them: what they say is the descriptor's *detail*, not its map, and the

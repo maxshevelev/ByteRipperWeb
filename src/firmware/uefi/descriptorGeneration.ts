@@ -188,6 +188,65 @@ export function hasEightInvalidInstructions(generation: DescriptorGeneration): b
 }
 
 /**
+ * Whether the descriptor's third map word (`FLMAP2`) still points at the processor
+ * strap section in the flash. Up to Cannon Point it does — its low byte is the base
+ * in 0x10 units and the next the word count. From Tiger Point on that word names the
+ * section's place in the PMC's space instead, and the section is no longer in the
+ * descriptor to read.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.hasProcessorStrapSection
+ */
+export function hasProcessorStrapSection(generation: DescriptorGeneration): boolean {
+  switch (generation) {
+    case "tigerPoint":
+    case "alderPoint":
+    case "elkhartLake":
+    case "jasperLake":
+    case "meteorLake":
+    case "pantherLake":
+    case "wildcatLake":
+    case "novaLake":
+      return false;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Whether the descriptor's MIP area carries the CPU strap message — from Tiger Point
+ * to Alder Point and the embedded lines, where the third map word names the message's
+ * place in that area (`offset = FLMAP2[2:11]` from `0xC00`, its length `FLMAP2[16:23]`
+ * words) instead of a strap section.
+ *
+ * **Not on Meteor Lake and later.** There the CPU straps moved into the ME side of the
+ * image — the FITC partition's MIP table — and the descriptor's MIP area is erased;
+ * the same map-word bits mean something else (the SoC soft straps of MFIT 18's
+ * `Flmap2StructureV2`).
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.hasMIPProcessorStraps
+ */
+export function hasMIPProcessorStraps(generation: DescriptorGeneration): boolean {
+  return (
+    generation === "tigerPoint" ||
+    generation === "alderPoint" ||
+    generation === "elkhartLake" ||
+    generation === "jasperLake"
+  );
+}
+
+/**
+ * Whether the descriptor's MIP area carries the block table Cannon Point introduced
+ * (`MipDescNvar`): the PMC and CPU soft straps and the CSE DbC configuration, with
+ * their places in the area's first bytes. Meteor Lake and later erase the area, and
+ * the upper map's high byte means the SoC soft straps there instead.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.hasMIPDescriptorTable
+ */
+export function hasMIPDescriptorTable(generation: DescriptorGeneration): boolean {
+  return generation === "cannonPoint" || hasMIPProcessorStraps(generation);
+}
+
+/**
  * The PCH strap bit that soft-disables the ME, as ifdtool and me_cleaner set it:
  * `ICH_MeDisable` in the first word up to ICH10, `AltMeDisable` in the eleventh from
  * Ibex Peak to Wildcat Point, and HAP in the first from Sunrise Point on. Nothing
@@ -217,28 +276,8 @@ export function meDisableBit(
 }
 
 /**
- * Which strap words hold the eSPI clock and the GPR0 range, for a strap section of
- * `count` words. A layout is the generation's *and* the length's: the mobile and
- * desktop parts of one generation make the section different lengths and put the same
- * field in different words. So only the layouts ifdtool's offsets were checked against
- * are here — Tiger and Alder Point mobile, 70 words — and on Tiger Point H (101) or
- * Alder Point S (115) the same words are other fields.
- *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.strapFields
- */
-export function strapFields(
-  generation: DescriptorGeneration,
-  count: number
-): { readonly espiClockWord: number; readonly gpr0Word: number } | undefined {
-  if ((generation === "tigerPoint" || generation === "alderPoint") && count === 70) {
-    return { espiClockWord: 22, gpr0Word: 21 };
-  }
-  return undefined;
-}
-
-/**
  * The eSPI clock a three-bit strap code stands for, in MHz, on the generations
- * `strapFields` knows: ifdtool's 500-series table.
+ * whose strap section carries the field: ifdtool's 500-series table.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorGeneration.swift#DescriptorGeneration.espiClock
  */

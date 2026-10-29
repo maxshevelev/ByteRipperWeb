@@ -926,11 +926,55 @@ function PicturePreview({ bytes, mime }: { readonly bytes: Uint8Array; readonly 
 }
 
 /**
- * The folding tables the reader has opened, by title — kept for the panel's life.
+ * The folding tables the reader has opened, by title — kept while the panel shows one
+ * file, so a table opened on one node is open on the next; another file starts with
+ * every table as its definition says (`forgetTableFolds`).
  *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.unfoldedTables
  */
 const unfoldedTables = new Set<string>();
+
+/**
+ * The sections open inside each table (a descriptor's strap words), by the table's
+ * title: kept as the tables are, across nodes.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openTableSections
+ */
+const openTableSections = new Map<string, Set<string>>();
+
+/**
+ * A new file in the panel: a fold the last file's reader opened belongs to that file,
+ * and every table of this one starts as its definition says — the strap tables, PCH and
+ * CPU alike, folded until asked for.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.show
+ */
+export function forgetTableFolds(): void {
+  unfoldedTables.clear();
+  openTableSections.clear();
+}
+
+/**
+ * A strap field's name has no spaces to break at — `CSME_CSE_SSS_EMUL_EN` — so it is
+ * broken after an underscore, where its words end. The break opportunities are
+ * elements, so what is selected and copied is the name as it is.
+ *
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#WrappedCell
+ */
+function breakingAtUnderscores(text: string): ReactNode {
+  if (!text.includes("_")) return text;
+  const parts = text.split("_");
+  return parts.map((part, index) =>
+    index === parts.length - 1 ? (
+      part
+    ) : (
+      // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one fixed name
+      <span key={index}>
+        {part}_<wbr />
+      </span>
+    )
+  );
+}
 
 /**
  * A table block: a glyph and a heading, a header line, and the cells — as wide
@@ -941,7 +985,17 @@ const unfoldedTables = new Set<string>();
  * hover — and the others keep their width: a column of numbers squeezed to one
  * letter says nothing.
  *
+ * A table with sections draws each under a line of its own with a disclosure
+ * triangle, folded until the reader opens it; the rows of every section line up in the
+ * same columns, open or folded, so opening one never moves another. Such a table has no
+ * header line of its own: each open section carries the column names over its rows,
+ * where a reader who has scrolled seventy words down still sees them. Its first column
+ * is held to a width chosen from the names it holds, and a longer name wraps after an
+ * underscore.
+ *
  * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.addTable
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.makeTableBody
+ * @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableView
  * @upstream-differs a cap on the last column's width, where upstream's compression priority
  * makes it give way to whatever the list leaves
  */
@@ -955,8 +1009,8 @@ function DetailTableView({
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
   const linkColumn = table.linkColumn ?? 1;
-  // A table that folds is folded at first, and stays as the reader left it for the
-  // panel's life: a table opened on one node is open on the next.
+  // A table that folds is folded at first, and stays as the reader left it while the
+  // panel shows one file: a table opened on one node is open on the next.
   // help: panel.uefi.folding-table
   const folds = table.startsFolded === true;
   const [unfolded, setUnfolded] = useState(() => unfoldedTables.has(table.title));
@@ -966,10 +1020,155 @@ function DetailTableView({
     else unfoldedTables.add(table.title);
     setUnfolded(!unfolded);
   };
-  /** Whether a click on this row goes anywhere here. */
-  const goes = (target: DetailTableTarget | undefined): boolean =>
+  const [openSections, setOpenSections] = useState<ReadonlySet<string>>(
+    () => new Set(openTableSections.get(table.title))
+  );
+  const toggleSection = (title: string) => {
+    const next = new Set(openSections);
+    if (next.has(title)) next.delete(title);
+    else next.add(title);
+    openTableSections.set(table.title, next);
+    setOpenSections(next);
+  };
+  /** Whether a click on this target goes anywhere here. */
+  const goes = (target: DetailTableTarget | undefined): target is DetailTableTarget =>
     target !== undefined &&
     (target.kind === "node" ? onSelectNode !== undefined : onOutlineRange !== undefined);
+  const follow = (target: DetailTableTarget) => {
+    if (target.kind === "node") onSelectNode?.(target.path);
+    else onOutlineRange?.(target.start, target.end, target.name);
+  };
+  const sections = table.sections ?? [];
+
+  const header = (key: string) => (
+    <tr key={key}>
+      {table.columns.map((column) => (
+        <th key={column} scope="col" className="tool-detail-grid-head">
+          {column}
+        </th>
+      ))}
+    </tr>
+  );
+  const row = (rowIndex: number, closesSection: boolean) => {
+    const cells = table.rows[rowIndex] ?? [];
+    const target = table.rowTargets?.[rowIndex];
+    return (
+      <tr key={positional(rowIndex, "row")} data-closes-section={closesSection ? "" : undefined}>
+        {/* By column, whose names are unique in a table. A permission is read by its
+            colour as much as by its word — a column of green with one red in it answers
+            at a glance. */}
+        {table.columns.map((column, at) => {
+          const one = cells[at];
+          const text = one?.text ?? "";
+          const sectioned = sections.length > 0 && at === 0;
+          return (
+            <td
+              key={column}
+              className="tool-detail-grid-cell"
+              data-tone={one === undefined || one.tone === "plain" ? undefined : one.tone}
+              data-strong={one?.isStrong === true ? "" : undefined}
+              data-last={at === table.columns.length - 1 ? "" : undefined}
+              data-link={at === linkColumn ? "" : undefined}
+              data-first-of-sections={sectioned ? "" : undefined}
+              title={at === table.columns.length - 1 ? one?.text : undefined}
+            >
+              {/* A link leads only from its own zone — the link cell's text, under a
+                  pointing hand, with what it does under the pointer — and a click
+                  anywhere else on the row is a click on text. */}
+              {at === linkColumn && goes(target) ? (
+                <button
+                  type="button"
+                  className="tool-detail-link"
+                  title={
+                    target.kind === "node" ? L("Show this copy") : L("Show this region in the dump")
+                  }
+                  onClick={() => follow(target)}
+                >
+                  {text}
+                </button>
+              ) : sectioned ? (
+                breakingAtUnderscores(text)
+              ) : (
+                text
+              )}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  };
+  const body = (): ReactNode[] => {
+    if (sections.length === 0) {
+      return [header("head"), ...table.rows.map((_, index) => row(index, false))];
+    }
+    const lines: ReactNode[] = [];
+    for (const section of sections) {
+      const isOpen = openSections.has(section.title);
+      lines.push(
+        <tr key={`section\u0000${section.title}`} className="tool-detail-section">
+          <td colSpan={table.columns.length} className="tool-detail-section-cell">
+            {/* The section's line is its switch, all of it but the link. A double click is
+                two presses, and the second would fold back what the first opened: only
+                the first press of one is the switch. */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: the triangle button is the keyboard's way in */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: the line is a larger target for the same switch */}
+            <div
+              className="tool-detail-section-line"
+              onClick={(event) => {
+                if (event.detail <= 1) toggleSection(section.title);
+              }}
+            >
+              <button
+                type="button"
+                className="tool-detail-section-switch"
+                aria-expanded={isOpen}
+                title={L("Show or hide the table")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (event.detail <= 1) toggleSection(section.title);
+                }}
+              >
+                <DisclosureChevron open={isOpen} />
+                <span className="tool-detail-section-title">{section.title}</span>
+              </button>
+              {section.subtitle === undefined ? null : (
+                <span className="tool-detail-section-subtitle">{section.subtitle}</span>
+              )}
+              {section.address === undefined ? null : goes(section.target) ? (
+                <button
+                  type="button"
+                  className="tool-detail-link"
+                  title={L("Show this region in the dump")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    follow(section.target as DetailTableTarget);
+                  }}
+                >
+                  {section.address}
+                </button>
+              ) : (
+                <span>{section.address}</span>
+              )}
+              {
+                // What the folded rows hold that stands out, in the weight those rows'
+                // values are drawn in.
+                isOpen || section.note === undefined ? null : (
+                  <span className="tool-detail-section-note">{section.note}</span>
+                )
+              }
+            </div>
+          </td>
+        </tr>
+      );
+      if (!isOpen) continue;
+      // The column names, over this section's rows.
+      lines.push(header(`head\u0000${section.title}`));
+      for (let index = section.start; index < section.end; index++) {
+        lines.push(row(index, index === section.end - 1));
+      }
+    }
+    return lines;
+  };
   return (
     <section className="tool-detail-table">
       <h4 className="tool-detail-table-title">
@@ -996,70 +1195,22 @@ function DetailTableView({
       {
         // The rows of a table that folds are built when it is opened, not before: a
         // descriptor's strap words are some seventy lines nobody has asked for.
-        // @upstream Modules/UEFITool/Sources/UEFIToolUI/DetailTableView.swift#DetailTableView
         !open ? null : (
-          <table className="tool-detail-grid">
-            <thead>
-              <tr>
-                {table.columns.map((column) => (
-                  <th key={column} scope="col" className="tool-detail-grid-head">
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {table.rows.map((row, rowIndex) => {
-                const target = table.rowTargets?.[rowIndex];
-                return (
-                  <tr key={positional(rowIndex, "row")}>
-                    {/* By column, whose names are unique in a table. A permission is read
-                  by its colour as much as by its word — a column of green with
-                  one red in it answers at a glance. */}
-                    {table.columns.map((column, at) => {
-                      const one = row[at];
-                      const text = one?.text ?? "";
-                      return (
-                        <td
-                          key={column}
-                          className="tool-detail-grid-cell"
-                          data-tone={
-                            one === undefined || one.tone === "plain" ? undefined : one.tone
-                          }
-                          data-last={at === table.columns.length - 1 ? "" : undefined}
-                          data-link={at === linkColumn ? "" : undefined}
-                          title={at === table.columns.length - 1 ? one?.text : undefined}
-                        >
-                          {/* A link leads only from its own zone — the link cell's text,
-                              under a pointing hand, with what it does under the pointer —
-                              and a click anywhere else on the row is a click on text. */}
-                          {at === linkColumn && target !== undefined && goes(target) ? (
-                            <button
-                              type="button"
-                              className="tool-detail-link"
-                              title={
-                                target.kind === "node"
-                                  ? L("Show this copy")
-                                  : L("Show this region in the dump")
-                              }
-                              onClick={() => {
-                                if (target.kind === "node") onSelectNode?.(target.path);
-                                else onOutlineRange?.(target.start, target.end, target.name);
-                              }}
-                            >
-                              {text}
-                            </button>
-                          ) : (
-                            text
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <>
+            <table
+              className="tool-detail-grid"
+              data-sections={sections.length > 0 ? "" : undefined}
+            >
+              <tbody>{body()}</tbody>
+            </table>
+            {
+              // The line that sums the table up, in the ordinary colour: it says what the
+              // rows show, and neither a tone nor a quieter grey of its own.
+              table.note === undefined || table.note === "" ? null : (
+                <p className="tool-detail-table-note">{table.note}</p>
+              )
+            }
+          </>
         )
       }
     </section>
@@ -1116,6 +1267,9 @@ function Glyph({ symbol }: { readonly symbol: DetailSymbol }) {
     "person.text.rectangle":
       "M2.5 3h11v10h-11ZM5.6 6.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM4 11c.3-1 1-1.6 1.6-1.6S6.9 10 7.2 11M9 6.4h2.8M9 8.4h2.8M9 10.4h2",
     cpu: "M4.5 4.5h7v7h-7ZM6.5 2v2.5M9.5 2v2.5M6.5 11.5V14M9.5 11.5V14M2 6.5h2.5M2 9.5h2.5M11.5 6.5H14M11.5 9.5H14",
+    "cable.connector": "M5 2.5h6v5H5ZM6.8 2.5V1.2M9.2 2.5V1.2M8 7.5v3.2c0 1.6-1.2 2.8-2.8 2.8H3",
+    "square.grid.4x3.fill":
+      "M2 3.5h2.6v2.6H2ZM5.2 3.5h2.6v2.6H5.2ZM8.4 3.5H11v2.6H8.4ZM11.6 3.5h2.4v2.6h-2.4ZM2 6.8h2.6v2.6H2ZM5.2 6.8h2.6v2.6H5.2ZM8.4 6.8H11v2.6H8.4ZM11.6 6.8h2.4v2.6h-2.4ZM2 10.1h2.6v2.6H2ZM5.2 10.1h2.6v2.6H5.2ZM8.4 10.1H11v2.6H8.4ZM11.6 10.1h2.4v2.6h-2.4Z",
   };
   return (
     <svg className="tool-detail-glyph" viewBox="0 0 16 16" aria-hidden="true">

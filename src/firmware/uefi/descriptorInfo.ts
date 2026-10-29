@@ -5,15 +5,35 @@ import {
   espiClockOf,
   generationClock,
   hasEightInvalidInstructions,
+  hasMIPDescriptorTable,
+  hasMIPProcessorStraps,
+  hasProcessorStrapSection,
   hasWideMasks,
   meDisableBit,
   readDescriptorGeneration,
   regionCount,
-  strapFields,
 } from "@/firmware/uefi/descriptorGeneration";
 import { Descriptor, FLASH_REGIONS, type FlashRegionType } from "@/firmware/uefi/descriptorParser";
+import {
+  type DescriptorRegisterReading,
+  type RegisterPlace,
+  registerMapForGeneration,
+} from "@/firmware/uefi/descriptorRegisterMap";
 import { flashVendor } from "@/firmware/uefi/flashVendors";
 import { jedecChip } from "@/firmware/uefi/jedecIds";
+import {
+  espiClockField,
+  mipProcessorStrapMap,
+  pmcStrapMap,
+  processorStrapMap,
+  protectedRangeField,
+  type StrapField,
+  type StrapReading,
+  strapField,
+  strapFieldValue,
+  strapMapForSection,
+  strapReadings,
+} from "@/firmware/uefi/strapMap";
 
 /**
  * What a flash descriptor says about itself, beyond the regions it maps: the
@@ -226,13 +246,37 @@ export interface DescriptorInfo {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.straps
    */
   readonly straps: DescriptorStraps | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.processorStraps */
+  readonly processorStraps: DescriptorProcessorStraps | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.mip */
+  readonly mip: DescriptorMIPTable | undefined;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.pmcStraps */
+  readonly pmcStraps: DescriptorPMCSection | undefined;
+  /**
+   * The descriptor's registers read through Flash Image Tool's own layouts
+   * (`DescriptorRegisterMap`): FLMAP0/1/2, FLCOMP and FLIL at the component base, the
+   * masters' FLMSTR registers, FLDRPLCY and FLUMAP1. Empty where the generation has no
+   * map, or a register's base is not readable.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.registerReadings
+   */
+  readonly registerReadings: readonly DescriptorRegisterReading[];
+  /**
+   * The OEM section: `0x100` bytes at `0xF00` in the descriptor, where a board's maker
+   * keeps what it likes — a serial, a BIOS version, a signature — and which is erased on
+   * many boards. Empty when the reader does not reach it.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.oemSection
+   */
+  readonly oemSection: Uint8Array;
 }
 
 /**
- * The strap words as they stand. Their layout is the chipset's and changes with every
+ * The strap words as they stand, and where a table of the section's length is at
+ * hand, the fields they are made of. The layout is the chipset's and changes with every
  * generation — and between the mobile and desktop parts of one — and next to none of it
- * is published, so a word is kept as a number rather than read as fields nobody can
- * justify.
+ * is published, which is what `DescriptorStrapMap` is: Intel's own layout, taken from
+ * the Flash Image Tool that writes the section.
  *
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps
  */
@@ -267,6 +311,155 @@ export interface DescriptorStraps {
    * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.gpr0
    */
   readonly gpr0: DescriptorProtectedRange | undefined;
+  /**
+   * The section read as the fields of its layout, each with what this image holds
+   * there. Nothing where no table of this length is at hand, in which case the words
+   * above are all there is to say.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.Straps.fields
+   */
+  readonly fields: readonly StrapReading[] | undefined;
+}
+
+/**
+ * The processor strap section — the words the processor reads at power-on, in the
+ * descriptor's third map word (`FLMAP2`), or from Tiger Point to Alder Point the CPU
+ * strap message in the MIP area. Nothing from Meteor Lake on.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProcessorStraps
+ */
+export interface DescriptorProcessorStraps {
+  /**
+   * Where the first word lies, in the file's own offsets.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProcessorStraps.base
+   */
+  readonly base: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProcessorStraps.words */
+  readonly words: readonly number[];
+  /**
+   * The section read as the fields of its layout. Nothing where no table of this
+   * length is at hand.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.ProcessorStraps.fields
+   */
+  readonly fields: readonly StrapReading[] | undefined;
+}
+
+/**
+ * The MIP area's descriptor table, which Cannon Point introduced: a count and the
+ * area's size, then one eight-byte entry per block — type, offset, length, reserved —
+ * whose payload the entry's offset places after the table. Block type 1 is the PMC and
+ * CPU soft straps, type 0 the CSE DbC configuration.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable
+ */
+export interface DescriptorMIPTable {
+  /**
+   * The table's first byte, in the file's own offsets.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.base
+   */
+  readonly base: number;
+  /**
+   * `NumberOfDescriptors`.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.count
+   */
+  readonly count: number;
+  /**
+   * `SizeOfMip`: the area's length in bytes.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.size
+   */
+  readonly size: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.blocks */
+  readonly blocks: readonly DescriptorMIPBlock[];
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block */
+export interface DescriptorMIPBlock {
+  /**
+   * The tool's block type: 0 is the CSE DbC configuration and 1 the PMC and CPU soft
+   * straps.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block.type
+   */
+  readonly type: number;
+  /**
+   * The block's first byte, in the file's own offsets.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block.base
+   */
+  readonly base: number;
+  /**
+   * Its place, in bytes, from the table's first byte.
+   *
+   * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block.offset
+   */
+  readonly offset: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block.length */
+  readonly length: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.Block.words */
+  readonly words: readonly number[];
+}
+
+/**
+ * The CSE DbC configuration — block type 0's two dwords. Every Flash Image Tool
+ * document that states the block agrees on these three masks in its second word; the
+ * variants add the eHAP and DAM bits or the USB2 AFE signal strengths above them,
+ * which the documents do not agree on and which are therefore not claimed here.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps
+ */
+export interface DescriptorDBCStraps {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps.base */
+  readonly base: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps.words */
+  readonly words: readonly number[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps.fields */
+  readonly fields: readonly StrapReading[];
+}
+
+/** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps.layout */
+const DBC_LAYOUT: readonly StrapField[] = [
+  strapField("DbC_Strap_CSME_Early_USB_DbC_ME_Boot_Stall_Enable", 1, 16, 23, {
+    label: "Early USB DbC ME boot stall",
+  }),
+  strapField("DbC_Strap_CSME_USB3_DbC_port_enable", 1, 8, 15, { label: "USB3 DbC port enable" }),
+  strapField("DbC_Strap_CSME_USB2_DbC_port_enable", 1, 0, 7, { label: "USB2 DbC port enable" }),
+];
+
+/**
+ * The CSE DbC configuration, where the table carries one.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.MIPTable.dbc
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.DBCStraps.init
+ */
+export function mipDbcStraps(mip: DescriptorMIPTable): DescriptorDBCStraps | undefined {
+  const block = mip.blocks.find((one) => one.type === 0);
+  if (block === undefined || block.words.length < 2) return undefined;
+  const fields: StrapReading[] = [];
+  for (const field of DBC_LAYOUT) {
+    const word = block.words[field.word];
+    if (word !== undefined) fields.push({ field, value: strapFieldValue(field, word) });
+  }
+  return { base: block.base, words: block.words, fields };
+}
+
+/**
+ * The PMC soft straps — the leading words of the MIP area's PMC and CPU block, before
+ * the CPU strap message that ends it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.PMCSection
+ */
+export interface DescriptorPMCSection {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.PMCSection.base */
+  readonly base: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.PMCSection.words */
+  readonly words: readonly number[];
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.PMCSection.fields */
+  readonly fields: readonly StrapReading[];
 }
 
 /**
@@ -373,9 +566,16 @@ export const UpperMap = {
 export function readDescriptorInfo(base: number, reader: ImageReader): DescriptorInfo | undefined {
   const map = reader.uint32(base + Descriptor.mapOffset);
   const map1 = reader.uint32(base + Descriptor.map1Offset);
+  const map2 = reader.uint32(base + Descriptor.map2Offset);
   const read = readDescriptorGeneration(base, reader);
   const vector = reader.bytesAt(base, 16);
-  if (map === undefined || map1 === undefined || read === undefined || vector === undefined) {
+  if (
+    map === undefined ||
+    map1 === undefined ||
+    map2 === undefined ||
+    read === undefined ||
+    vector === undefined
+  ) {
     return undefined;
   }
   const { generation, isCertain } = read;
@@ -390,6 +590,7 @@ export function readDescriptorInfo(base: number, reader: ImageReader): Descripto
   const masterAt = map1 & 0xff;
   const masterBase =
     masterAt > 0 && masterAt <= Descriptor.maxBase ? base + masterAt * 16 : undefined;
+  const mip = mipTable(base, generation, reader);
 
   return {
     reservedVector: vector,
@@ -401,7 +602,210 @@ export function readDescriptorInfo(base: number, reader: ImageReader): Descripto
     maskDigits: isVersion1 ? 2 : 3,
     biosAccess: biosAccess(masterBase, isVersion1, reader),
     chips: chips(base, reader),
-    straps: straps(base, map1, generation, reader),
+    straps: straps(base, map1, generation, isCertain, reader),
+    processorStraps: processorStraps(base, map2, generation, isCertain, reader),
+    mip,
+    pmcStraps: pmcStraps(map2, generation, mip),
+    registerReadings: registerReadings(base, map, map1, generation, reader),
+    oemSection:
+      reader.bytesAt(base + Descriptor.oemSectionOffset, Descriptor.oemSectionSize) ??
+      new Uint8Array(),
+  };
+}
+
+/** `count` words from `at`, as far as the reader reaches. */
+function wordsAt(reader: ImageReader, at: number, count: number): number[] {
+  const words: number[] = [];
+  for (let index = 0; index < count; index++) {
+    const word = reader.uint32(at + index * 4);
+    if (word === undefined) break;
+    words.push(word);
+  }
+  return words;
+}
+
+/**
+ * The MIP area's block table: its place from the upper map's high byte, its count and
+ * size, and each block's payload. A table whose entries do not fit the area, or a
+ * payload past the reader's end, is no table — the erased area of Meteor Lake reads
+ * `0xFFFF` throughout and answers nothing by the count check alone.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.mipTable
+ */
+export function mipTable(
+  base: number,
+  generation: DescriptorGeneration,
+  reader: ImageReader
+): DescriptorMIPTable | undefined {
+  if (!hasMIPDescriptorTable(generation)) return undefined;
+  const upper = reader.uint32(base + UpperMap.offset);
+  if (upper === undefined) return undefined;
+  const area = upper >>> 24;
+  if (area === 0 || area > Descriptor.maxBase) return undefined;
+  const tableAt = base + area * 16;
+  const count = reader.uint16(tableAt);
+  const size = reader.uint16(tableAt + 2);
+  if (count === undefined || size === undefined || count === 0 || count > 8) return undefined;
+  const blocks: DescriptorMIPBlock[] = [];
+  for (let index = 0; index < count; index++) {
+    const entry = tableAt + 4 + index * 8;
+    const type = reader.uint16(entry);
+    const offset = reader.uint16(entry + 2);
+    const length = reader.uint16(entry + 4);
+    const reserved = reader.uint16(entry + 6);
+    if (
+      type === undefined ||
+      offset === undefined ||
+      length === undefined ||
+      reserved !== 0 ||
+      offset < 4 + count * 8 ||
+      length === 0 ||
+      length % 4 !== 0
+    ) {
+      return undefined;
+    }
+    const payload = tableAt + offset;
+    const words = wordsAt(reader, payload, length / 4);
+    if (words.length !== length / 4) return undefined;
+    blocks.push({ type, base: payload, offset, length, words });
+  }
+  const end = Math.max(0, ...blocks.map((block) => block.offset + block.length));
+  if (size < end) return undefined;
+  return { base: tableAt, count, size, blocks };
+}
+
+/**
+ * The PMC soft straps: the MIP area's PMC and CPU block less the CPU strap message that
+ * ends it. Up to Cannon Point `FLMAP2` states the processor section's words, which is
+ * the message's length in the block too; from Tiger Point on it states the message's
+ * length directly. A block whose remainder matches no table at hand answers none.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.pmcStraps
+ */
+function pmcStraps(
+  map2: number,
+  generation: DescriptorGeneration,
+  mip: DescriptorMIPTable | undefined
+): DescriptorPMCSection | undefined {
+  const block = mip?.blocks.find((one) => one.type === 1);
+  if (block === undefined) return undefined;
+  let cpuWords: number;
+  if (hasMIPProcessorStraps(generation)) cpuWords = (map2 >>> 16) & 0xff;
+  else if (hasProcessorStrapSection(generation)) cpuWords = (map2 >>> 8) & 0xff;
+  else return undefined;
+  const pmcWords = block.words.length - cpuWords;
+  const map = pmcWords > 0 ? pmcStrapMap(pmcWords) : undefined;
+  if (map === undefined) return undefined;
+  const words = block.words.slice(0, pmcWords);
+  return { base: block.base, words, fields: strapReadings(map, words) };
+}
+
+/**
+ * The descriptor's registers through the tool's layout: each register's place
+ * resolved (absolute, or the component/master base the map words state) and its words
+ * read. A register whose base is out of range or whose words do not fit is left out.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.registerReadings
+ */
+function registerReadings(
+  base: number,
+  map: number,
+  map1: number,
+  generation: DescriptorGeneration,
+  reader: ImageReader
+): DescriptorRegisterReading[] {
+  const registerMap = registerMapForGeneration(generation);
+  if (registerMap === undefined) return [];
+  const componentAt = map & 0xff;
+  const masterAt = map1 & 0xff;
+  const inRange = (at: number) => at > 0 && at <= Descriptor.maxBase;
+  const address = (place: RegisterPlace): number | undefined => {
+    switch (place.kind) {
+      case "absolute":
+        return base + place.offset;
+      case "flashComponent":
+        return inRange(componentAt) ? base + componentAt * 16 + place.offset : undefined;
+      case "flashMaster":
+        return inRange(masterAt) ? base + masterAt * 16 + place.offset : undefined;
+    }
+  };
+  const readings: DescriptorRegisterReading[] = [];
+  for (const register of registerMap.registers) {
+    const start = address(register.place);
+    if (start === undefined) continue;
+    const words = wordsAt(reader, start, register.words);
+    if (words.length !== register.words) continue;
+    readings.push({ register, base: start, words });
+  }
+  return readings;
+}
+
+/**
+ * The processor straps, where this generation's descriptor keeps them: the section the
+ * classic third map word points at up to Cannon Point, or — from Tiger Point to Alder
+ * Point and the embedded lines — the message in the MIP area, at `0xC00` plus the
+ * offset the same word carries (`FLMAP2[2:11]`), as many words as `FLMAP2[16:23]`
+ * says. Nothing where neither applies, where the generation is only assumed (the MIP
+ * reading needs the map word's Tiger Point meaning), or where a section lies outside
+ * the descriptor. Meteor Lake and later have none by generation: their descriptor
+ * carries no CPU message, and the map-word bits there mean other straps.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.processorStraps
+ */
+function processorStraps(
+  base: number,
+  map2: number,
+  generation: DescriptorGeneration,
+  isGenerationCertain: boolean,
+  reader: ImageReader
+): DescriptorProcessorStraps | undefined {
+  if (hasProcessorStrapSection(generation)) {
+    return classicProcessorStraps(base, map2, generation, isGenerationCertain, reader);
+  }
+  if (!hasMIPProcessorStraps(generation) || !isGenerationCertain) return undefined;
+  const offset = (map2 >>> 2) & 0x3ff;
+  const count = (map2 >>> 16) & 0xff;
+  if (count === 0 || Descriptor.mipOffset + offset + count * 4 > Descriptor.size) {
+    return undefined;
+  }
+  const section = base + Descriptor.mipOffset + offset;
+  const words = wordsAt(reader, section, count);
+  if (words.length === 0) return undefined;
+  const map = mipProcessorStrapMap(words.length);
+  return {
+    base: section,
+    words,
+    fields: map === undefined ? undefined : strapReadings(map, words),
+  };
+}
+
+/**
+ * The processor strap section of the classic map word, at its base and as long as its
+ * count — the fields Tiger Point stopped writing. Cut at the descriptor's end, as the
+ * PCH section is.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorInfo.swift#DescriptorInfo.classicProcessorStraps
+ */
+function classicProcessorStraps(
+  base: number,
+  map2: number,
+  generation: DescriptorGeneration,
+  isGenerationCertain: boolean,
+  reader: ImageReader
+): DescriptorProcessorStraps | undefined {
+  const strapAt = map2 & 0xff;
+  if (strapAt === 0 || strapAt > Descriptor.maxBase) return undefined;
+  const offset = strapAt * 16;
+  const count = Math.min((map2 >>> 8) & 0xff, Math.floor((Descriptor.size - offset) / 4));
+  if (count <= 0) return undefined;
+  const section = base + offset;
+  const words = wordsAt(reader, section, count);
+  if (words.length === 0) return undefined;
+  const map = processorStrapMap(words.length, generation, isGenerationCertain);
+  return {
+    base: section,
+    words,
+    fields: map === undefined ? undefined : strapReadings(map, words),
   };
 }
 
@@ -416,6 +820,7 @@ function straps(
   base: number,
   map1: number,
   generation: DescriptorGeneration,
+  isGenerationCertain: boolean,
   reader: ImageReader
 ): DescriptorStraps | undefined {
   const strapAt = (map1 >>> 16) & 0xff;
@@ -423,12 +828,7 @@ function straps(
   const offset = strapAt * 16;
   const count = Math.min(map1 >>> 24, Math.floor((Descriptor.size - offset) / 4));
   const section = base + offset;
-  const words: number[] = [];
-  for (let index = 0; index < count; index++) {
-    const word = reader.uint32(section + index * 4);
-    if (word === undefined) break;
-    words.push(word);
-  }
+  const words = wordsAt(reader, section, count);
   if (words.length === 0) return undefined;
   const named = meDisableBit(generation);
   const namedWord = named === undefined ? undefined : words[named.word];
@@ -441,29 +841,42 @@ function straps(
           bit: named.bit,
           isSet: ((namedWord >>> named.bit) & 1) !== 0,
         };
-  const fields = strapFields(generation, words.length);
-  if (fields === undefined) {
-    return { base: section, words, meDisable, espiClock: undefined, gpr0: undefined };
-  }
-  const code = ((words[fields.espiClockWord] ?? 0) >>> 3) & 0x7;
+  // The chipset's layout of this length, where one is at hand: what names the words and
+  // says which of them the two fields below are.
+  const map = strapMapForSection(words.length, generation, isGenerationCertain);
+  const clockField = map === undefined ? undefined : espiClockField(map);
+  const clockWord = clockField === undefined ? undefined : words[clockField.word];
+  const rangeField = map === undefined ? undefined : protectedRangeField(map);
+  const rangeWord = rangeField === undefined ? undefined : words[rangeField.word];
+  const code =
+    clockField === undefined || clockWord === undefined
+      ? undefined
+      : strapFieldValue(clockField, clockWord);
   // Fifteen bits of start, a read enable, fifteen of end, a write enable — ifdtool's
-  // `union gprd`.
-  const gprd = words[fields.gpr0Word] ?? 0;
+  // `union gprd`, which is the whole of the field.
+  const gprd =
+    rangeField === undefined || rangeWord === undefined
+      ? undefined
+      : strapFieldValue(rangeField, rangeWord);
   return {
     base: section,
     words,
     meDisable,
-    espiClock: {
-      word: fields.espiClockWord,
-      clock: { code, megahertz: espiClockOf(code) },
-    },
-    gpr0: {
-      word: fields.gpr0Word,
-      start: base + (gprd & 0x7fff) * 0x1000,
-      end: base + (((gprd >>> 16) & 0x7fff) * 0x1000 + 0xfff),
-      readProtected: ((gprd >>> 15) & 1) !== 0,
-      writeProtected: ((gprd >>> 31) & 1) !== 0,
-    },
+    espiClock:
+      clockField === undefined || code === undefined
+        ? undefined
+        : { word: clockField.word, clock: { code, megahertz: espiClockOf(code) } },
+    gpr0:
+      rangeField === undefined || gprd === undefined
+        ? undefined
+        : {
+            word: rangeField.word,
+            start: base + (gprd & 0x7fff) * 0x1000,
+            end: base + (((gprd >>> 16) & 0x7fff) * 0x1000 + 0xfff),
+            readProtected: ((gprd >>> 15) & 1) !== 0,
+            writeProtected: ((gprd >>> 31) & 1) !== 0,
+          },
+    fields: map === undefined ? undefined : strapReadings(map, words),
   };
 }
 

@@ -1689,3 +1689,20 @@
 "Reading the changes kept for “%1$@”" = "Читаются правки, сохранённые для «%1$@»";
 "Their changes came back, but not the steps to undo them: the kept history no longer led back:" = "Правки восстановлены, но шаги для их отмены — нет: сохранённая история больше не ведёт назад:";
 "Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:" = "Сохранённые правки прочитать не удалось. Файлы открыты в том виде, в каком они записаны на диске, а части — в том виде, в каком их содержит исходный файл; документы без файла не открыты:";
+
+/* UEFI Structure: the descriptor's strap tables, registers and OEM section, read through the tool's own layouts */
+"The host may read and write every region, as a service image is usually built." = "Хост может читать и записывать все регионы — так обычно собран служебный образ.";
+"Access is narrowed: the host may not read and write every region, as a production image is usually built." = "Доступ сужен: хост не может читать и записывать все регионы — так обычно собран серийный образ.";
+"Non-default: %1$@" = "Не по умолчанию: %1$@";
+"Bits" = "Биты";
+"Default" = "По умолчанию";
+"CPU straps" = "Страпы CPU";
+"PMC straps" = "Страпы PMC";
+"MIP table" = "Таблица MIP";
+"Block" = "Блок";
+"CSE DbC configuration" = "Конфигурация DbC CSE";
+"PMC and CPU soft straps" = "Программные страпы PMC и CPU";
+"Block %1$@" = "Блок %1$@";
+"DbC straps" = "Страпы DbC";
+"Descriptor registers" = "Регистры дескриптора";
+"OEM section" = "OEM-секция";

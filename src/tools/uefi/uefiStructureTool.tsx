@@ -138,7 +138,7 @@ import {
 } from "@/ui/toolPanel/columnWidths";
 import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
-import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
+import { forgetTableFolds, ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
 import { exitingExtent, ROW_KEY_ATTRIBUTE, useTreeMotion } from "@/ui/toolPanel/treeMotion";
 import type { WireContentMatch, WireNode } from "@/workers/protocol";
@@ -588,6 +588,8 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
     setScrollTop(0);
     if (scrollRef.current !== null) scrollRef.current.scrollTop = 0;
     clearZones(context.pane);
+    // A fold the last file's reader opened belongs to that file.
+    forgetTableFolds();
     // What the search opened was in the last file's tree.
     searchCtl.current.reset(true);
   }, [reloads, context.pane]);
@@ -1971,6 +1973,11 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
   }, [detailLarge]);
 
   // Brings a row the panel chose itself into view, once it is in the list.
+  //
+  // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.scrollToFocusOnNextShow
+  // @upstream-differs the target is set only where a show is meant to be seen — a reveal, Show
+  // in Tree, the DMI button — and the row it names consumes it, scrolling even when that row is
+  // already the selection; a show that only redraws sets none, so none is left over for it
   useEffect(() => {
     if (scrollTarget === undefined) return;
     const index = rows.findIndex(

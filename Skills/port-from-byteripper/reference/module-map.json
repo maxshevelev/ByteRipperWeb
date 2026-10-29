@@ -560,7 +560,14 @@
         "Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift": "src/firmware/uefi/appleDmiArea.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift": "src/firmware/uefi/appleDmiArea.test.ts",
         "StrapMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
-        "DescriptorRegisterMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts"
+        "DescriptorRegisterMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "StrapMap.swift": "src/firmware/uefi/strapMap.ts",
+        "StrapMapData.swift": "src/firmware/uefi/strapMapData.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/StrapMapTests.swift": "src/firmware/uefi/strapMap.test.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/StrapMapDataTests.swift": "src/firmware/uefi/strapMapData.test.ts",
+        "DescriptorRegisterMap.swift": "src/firmware/uefi/descriptorRegisterMap.ts",
+        "DescriptorRegisterMapData.swift": "src/firmware/uefi/descriptorRegisterMapData.ts",
+        "Packages/UEFIImage/Tests/UEFIImageTests/DescriptorRegisterMapDataTests.swift": "src/firmware/uefi/descriptorRegisterMapData.test.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -4686,7 +4693,12 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnEntryOpensItsBlockOnTheEntry": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheMenuStartsWithWhatADoubleClickOpens": "later — an app flow test; the port has no component or end-to-end test for it yet (G24)",
         "ByteRipperTests/FindPasteboardTests.swift#*": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
-        "ByteRipperTests/WorkspaceRestoreTests.swift#WorkspaceRestoreTests.testASessionOfANewerVersionIsLeftAlone": "later — an app flow test: the desktop shell's windows and their workspace records are driven by no test (G24); checked by hand in the shell (2026-10-23): a newer session was neither restored, written over, nor removed with the switch turned off"
+        "ByteRipperTests/WorkspaceRestoreTests.swift#WorkspaceRestoreTests.testASessionOfANewerVersionIsLeftAlone": "later — an app flow test: the desktop shell's windows and their workspace records are driven by no test (G24); checked by hand in the shell (2026-10-23): a newer session was neither restored, written over, nor removed with the switch turned off",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testADoubleClickOnASectionOpensIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testATableWithANoteShowsTheNoteUnderIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnUnansweredRevealLeavesNoScrollBehind": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingTheSelectedRowScrollsItBackIntoView": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet"
       }
     },
     {
