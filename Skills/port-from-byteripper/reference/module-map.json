@@ -187,6 +187,22 @@
     {
       "prefix": "ByteRipperApp/Info.plist",
       "why": "The macOS bundle's property list — here the byteripper:// URL scheme (b7f6d71), which a page cannot register (G85)."
+    },
+    {
+      "prefix": "Packages/UEFIImage/MapSources/",
+      "why": "The JSON sources of the compiled map files, maintained upstream and compiled there by Skills/me-eom-structures/scripts/map_bin.py (Design/MAP_DATA.md). The web ships the compiled BRM1 binaries byte for byte, brought across by Skills/port-from-byteripper/scripts/sync_maps.py, and never the JSON (the owner's decision, 2026-10-29)."
+    },
+    {
+      "prefix": "Packages/MEFirmware/MapSources/",
+      "why": "The JSON sources of the compiled map files, maintained upstream and compiled there by Skills/me-eom-structures/scripts/map_bin.py (Design/MAP_DATA.md). The web ships the compiled BRM1 binaries byte for byte, brought across by Skills/port-from-byteripper/scripts/sync_maps.py, and never the JSON (the owner's decision, 2026-10-29)."
+    },
+    {
+      "prefix": "Skills/me-eom-structures",
+      "why": "Upstream's research into End of Manufacturing, Boot Guard and Intel's tools' own databases, and the generators and compiler that turn those databases into the map sources. The sources and the binaries are maintained upstream; the web takes the compiled binaries (sync_maps.py) and ports the readers, so none of this runs here (the owner's decision, 2026-10-29)."
+    },
+    {
+      "prefix": "Packages/MapData/Package.swift",
+      "why": "SwiftPM manifest."
     }
   ],
   "modules": [
@@ -542,7 +558,9 @@
         "Packages/UEFIImage/Tests/UEFIImageTests/LenovoDMIStoreTests.swift": "src/firmware/uefi/lenovoDmiStore.test.ts",
         "Packages/UEFIImage/Tests/UEFIImageTests/TestFlashDeviceMap.swift": "src/firmware/testing/testFlashDeviceMap.ts",
         "Packages/UEFIImage/Sources/UEFIImage/AppleDMIArea.swift": "src/firmware/uefi/appleDmiArea.ts",
-        "Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift": "src/firmware/uefi/appleDmiArea.test.ts"
+        "Packages/UEFIImage/Tests/UEFIImageTests/AppleDMIAreaTests.swift": "src/firmware/uefi/appleDmiArea.test.ts",
+        "StrapMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "DescriptorRegisterMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts"
       },
       "unported": {
         "Packages/UEFIImage/Sources/UEFIImage/UEFINode.swift#NodeID.init": "n/a — an object literal; there is nothing to construct",
@@ -767,7 +785,11 @@
         "Tests/MEFirmwareTests/UnlockTokenTests.swift": "src/firmware/me/partition/unlockToken.test.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/FirmwareTypeClassifierTests.swift": "src/firmware/me/engine/firmwareTypeClassifier.test.ts",
         "Packages/MEFirmware/Tests/MEFirmwareTests/SelectionTests.swift": "src/firmware/me/engine/manifestSelection.test.ts",
-        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift": "src/state/meDatabaseSource.test.ts"
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEAGitHubDataRepositoryTests.swift": "src/state/meDatabaseSource.test.ts",
+        "Configuration/MEConfigurationDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "Configuration/UEPMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "Configuration/GPIOPinMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts",
+        "Configuration/LayoutMapDataVersion.swift": "src/firmware/mapData/mapDataVersions.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",
@@ -858,6 +880,22 @@
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.missedFileTable": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)",
         "Packages/MEReads/Sources/MEReads/MEReads.swift#MEAFirstReading.missedHuffman": "n/a — the first reading is a `MeReading` and what it did without is read off which texts it was asked with (`pendingOf`)"
       }
+    },
+    {
+      "swift": "Packages/MapData",
+      "web": [
+        "src/firmware/mapData",
+        "src/workers/mapDataSource.ts",
+        "src/firmware/testing/mapDataSetup.ts",
+        "Skills/port-from-byteripper/scripts/sync_maps.py"
+      ],
+      "status": "ported",
+      "note": "The BRM1 envelope every compiled map family ships in (upstream's Design/MAP_DATA.md): the header, the section table, the string pool, the bounds-checked record arrays and the FNV-1a checksum, with the six readers built on it in the modules that own their kinds. The binaries come across byte for byte into src/firmware/mapData/data/, and the version marks upstream generates into each family's *DataVersion.swift are one generated module, mapDataVersions.ts — both written by sync_maps.py, whose --check fails when either differs from upstream's. Upstream reads a family out of its bundle once, synchronously; the web keeps that shape behind a source a worker installs (a synchronous request for the app's own asset, which a worker may make) and a test installs too (the same files from disk), so every reader stays synchronous. Strings are decoded by hand, the domain having no TextDecoder (D1).",
+      "files": {
+        "Sources/MapData/MapFile.swift": "src/firmware/mapData/mapFile.ts",
+        "Tests/MapDataTests/MapFileTests.swift": "src/firmware/mapData/mapFile.test.ts"
+      },
+      "unported": {}
     },
     {
       "swift": "ByteRipperApp/Navigation",

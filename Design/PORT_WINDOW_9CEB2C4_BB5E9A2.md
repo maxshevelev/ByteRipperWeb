@@ -50,7 +50,7 @@ The window holds five stories and some housekeeping:
 
 ## Units
 
-- [ ] **M1 — the map data: the `BRM1` envelope, the six binaries, their version marks and the sync script**
+- [x] **M1 — the map data: the `BRM1` envelope, the six binaries, their version marks and the sync script**
 - [ ] **M2 — the strap tables: `StrapMap`, `StrapMapData`, and the descriptor's every strap section**
 - [ ] **M3 — the descriptor's registers: `DescriptorRegisterMap`, `DescriptorRegisterMapData`**
 - [ ] **M4 — the descriptor in the UEFI Structure's detail: folding strap tables, registers, the BIOS access verdict**

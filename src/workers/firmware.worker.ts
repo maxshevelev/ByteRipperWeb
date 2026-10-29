@@ -111,6 +111,7 @@ import { panasonicDMIRowText } from "@/tools/uefi/uefiPanasonicDMIDetail";
 import { isEmptySpace, subtypeText, typeText } from "@/tools/uefi/uefiTreeDisplay";
 import { BlobByteSource } from "@/workers/blobByteSource";
 import { dvarSettingsFromWire, dvarSettingsToWire } from "@/workers/dvarWire";
+import { installBundledMaps } from "@/workers/mapDataSource";
 import type {
   FirmwareWorkerRequest,
   FirmwareWorkerResponse,
@@ -134,6 +135,9 @@ import type {
  */
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
+
+// The compiled map files the descriptor and ME readers look their layouts up in.
+installBundledMaps();
 
 /** A FIT edit that did not happen, which only the reason differs between. */
 const NO_EDIT = {
