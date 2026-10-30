@@ -760,6 +760,45 @@ function DetailBody({
  */
 export type NameColumn = "default" | "longest";
 
+/**
+ * What a row's `?` opens: the identifier the row is about, and the words the tool it
+ * came from has for it. The identifier is here because the row does not show it: a panel
+ * shows the tool's own name for a setting — "LAN Power Well" — while the identifier
+ * (`MELanPowerWell`) is what a document, a report or another tool calls it.
+ *
+ * The button's own words come with the help, from the panel that laid the row out: only
+ * that panel knows whose words the button opens, and a list shared by every panel must
+ * not claim one tool for all of them.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.init
+ */
+export interface FieldHelp {
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.identifier */
+  readonly identifier: string;
+  /** @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.text */
+  readonly text: string;
+  /**
+   * A line of the panel's own under the identifier — what placed the row, or what
+   * switches it off. Absent for a row with nothing to add.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.note
+   */
+  readonly note?: string | undefined;
+  /**
+   * The button's name, for a screen reader.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.buttonName
+   */
+  readonly buttonName: string;
+  /**
+   * What the button does, as its tooltip; absent where the name says it all.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#FieldHelp.buttonTooltip
+   */
+  readonly buttonTooltip?: string | undefined;
+}
+
 /** A field of the list: a detail's own, or a row of another list drawn the same way. */
 export interface ListedField extends DetailField {
   /**
@@ -768,6 +807,28 @@ export interface ListedField extends DetailField {
    * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.summaryField
    */
   readonly muted?: boolean | undefined;
+  /**
+   * The value drawn in bold: one that stands out from the ones around it.
+   *
+   * @web-only upstream's value is an attributed string, which carries its own weight
+   */
+  readonly strong?: boolean | undefined;
+  /**
+   * Where the row is a comparison, the second value beside the first — a *column*, not a
+   * suffix: a tab between the three in what a copy takes, and its own width down the
+   * list, equal to the first's. What the ME Analyzer's Configuration tab is: one setting
+   * of a file, what the build wrote and what the platform holds now.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.Field.second
+   */
+  readonly second?: { readonly value: string; readonly strong?: boolean | undefined } | undefined;
+  /**
+   * What the row's `?` offers, where the tool the row came from has something to say
+   * about it. Absent on a row with no such button.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.Field.help
+   */
+  readonly help?: FieldHelp | undefined;
 }
 
 /**
@@ -787,8 +848,16 @@ export function DetailFields({
   fields,
   names = "default",
   nameWidth,
+  onHelp,
 }: {
   readonly fields: readonly ListedField[];
+  /**
+   * The reader asked for the help of a row: the words, and the button to hang a popover
+   * off. A list nobody set it on shows the buttons and does nothing when they are pressed.
+   *
+   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.onHelp
+   */
+  readonly onHelp?: ((help: FieldHelp, button: HTMLElement) => void) | undefined;
   readonly names?: NameColumn | undefined;
   /**
    * The name column, as a length the stylesheet takes, where a list wants one of its own
@@ -800,6 +869,8 @@ export function DetailFields({
     <dl
       className="tool-detail-fields"
       data-names={names === "longest" ? "longest" : undefined}
+      // A list with a comparing row lays out three columns, the two values one width.
+      data-second={fields.some((one) => one.second !== undefined) ? "" : undefined}
       style={
         nameWidth === undefined
           ? undefined
@@ -810,7 +881,14 @@ export function DetailFields({
           twice: a DVAR entry's header has a Type of its own beside the common one. */}
       {fields.map((one, at) => (
         <div className="tool-detail-row" key={positional(at, one.label)}>
-          <dt>{one.label}</dt>
+          <dt>
+            {one.label}
+            {
+              // The `?` follows the name, right after its last word: it belongs to the
+              // name, and one at the far end of the column reads as the value's.
+              one.help === undefined ? null : <HelpRowButton help={one.help} onHelp={onHelp} />
+            }
+          </dt>
           {/*
             One rendering for a value that carries a status, wherever it
             is drawn: bold, in the tone's colour, and led by the tick when
@@ -824,13 +902,59 @@ export function DetailFields({
             data-mono={one.value.startsWith("0x") ? "" : undefined}
             data-tone={one.tone === "standard" || one.muted === true ? undefined : one.tone}
             data-soon={one.muted === true ? "" : undefined}
+            data-strong={one.strong === true ? "" : undefined}
+            data-spans={
+              fields.some((other) => other.second !== undefined) && one.second === undefined
+                ? ""
+                : undefined
+            }
           >
             {one.tone === "good" && one.muted !== true ? <DoneMark /> : null}
             {one.value}
           </dd>
+          {one.second === undefined ? null : (
+            <dd
+              data-mono={one.second.value.startsWith("0x") ? "" : undefined}
+              data-strong={one.second.strong === true ? "" : undefined}
+            >
+              {one.second.value}
+            </dd>
+          )}
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * A row's `?`: the quiet glyph the panels' own help buttons carry, named with the words
+ * the panel put on the help. An arrow over it, not the text's I-beam: a pointer on the
+ * button is on something to press, not on text to select.
+ *
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldRow.makeInfoButton
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldRow.showHelp
+ * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolInfoButton
+ */
+function HelpRowButton({
+  help,
+  onHelp,
+}: {
+  readonly help: FieldHelp;
+  readonly onHelp: ((help: FieldHelp, button: HTMLElement) => void) | undefined;
+}) {
+  return (
+    <button
+      type="button"
+      className="tool-detail-row-help"
+      aria-label={help.buttonName}
+      title={help.buttonTooltip}
+      onClick={(event) => onHelp?.(help, event.currentTarget)}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.2" />
+        <path d="M8 7.2v4M8 4.8v.02" />
+      </svg>
+    </button>
   );
 }
 

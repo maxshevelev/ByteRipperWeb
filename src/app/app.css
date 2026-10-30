@@ -3817,6 +3817,43 @@ button.uefi-title {
   grid-template-columns: fit-content(calc(50% - 3px)) minmax(0, 1fr);
 }
 
+/* A list with a comparing row (`ToolFieldList.Field.second`): the two values are columns
+   of one width, so they line up down the list; a row with one value spans both. */
+.tool-detail-fields[data-second] {
+  grid-template-columns: min(var(--tool-detail-name, 9.5em), calc(50% - 3px)) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.tool-detail-row dd[data-spans] {
+  grid-column: span 2;
+}
+
+.tool-detail-row dd[data-strong] {
+  font-weight: 700;
+}
+
+/* A row's `?`, right after the name's last word, in the glyph's quiet colour, under an
+   arrow rather than the text's I-beam. Not selected with the row's text. */
+.tool-detail-row-help {
+  display: inline-flex;
+  vertical-align: -0.15em;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: default;
+  user-select: none;
+}
+
+.tool-detail-row-help svg {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
 .tool-detail-row {
   display: grid;
   grid-column: 1 / -1;
