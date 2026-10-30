@@ -5666,7 +5666,7 @@
         "src/state/helpStore.ts"
       ],
       "status": "ported",
-      "note": "The half of the help that draws (Design/HELP.md). Upstream opens a window with a contents outline down its side; there are no windows here, so the book takes a pill in the fragment dock and rises as the panel over the panes. The dock needed nothing for it: it holds identity and order and nothing else, and what a panel is has always been the state kept against its id, so the book is a second kind of that state (workspaceStore.helpPanel). One panel is up at a time, which is why opening the help folds a fragment — the stage is one, and the help is about what is on it. The panel being wide and short where the window is tall is the only thing the layout answers for: the outline is a column beside the page and folds into a button under 720px. A block is an element and a rule of app.css where upstream builds one NSAttributedString per page. The ? buttons and the term popover came with it; what did not is ControlHelp, upstream's one way of giving a control both a tooltip and a help term (G63 in Design/GAPS.md).",
+      "note": "The half of the help that draws (Design/HELP.md). Upstream opens a window with a contents outline down its side; there are no windows here, so the book takes a pill in the fragment dock and rises as the panel over the panes. The dock needed nothing for it: it holds identity and order and nothing else, and what a panel is has always been the state kept against its id, so the book is a second kind of that state (workspaceStore.helpPanel). One panel is up at a time, which is why opening the help folds a fragment — the stage is one, and the help is about what is on it. The panel being wide and short where the window is tall is the only thing the layout answers for: the outline is a column beside the page and folds into a button under 720px. A block is an element and a rule of app.css where upstream builds one NSAttributedString per page. The ? buttons and the term popover came with it — every help popover one dialog (HelpPopover) in one flat shape (HelpPopoverLayout), set in the panels' type, which is --hex-font-size here, and in em of it, so it follows that size and the page zoom with no observer; what did not is ControlHelp, upstream's one way of giving a control both a tooltip and a help term (G63 in Design/GAPS.md).",
       "files": {
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift": "src/ui/help/HelpBlocks.tsx",
         "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift": "src/ui/help/HelpBlocks.tsx",
@@ -5674,7 +5674,9 @@
         "Packages/HelpUI/Sources/HelpUI/HelpContentsOutline.swift": "src/ui/help/HelpPanel.tsx",
         "Packages/HelpBook/Sources/HelpBook/Help.swift": "src/state/helpStore.ts",
         "Packages/HelpUI/Sources/HelpUI/HelpButton.swift": "src/ui/help/HelpButton.tsx",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift": "src/ui/help/HelpTermPopover.tsx"
+        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift": "src/ui/help/HelpTermPopover.tsx",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverLayout.swift": "src/ui/help/HelpPopoverLayout.tsx",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift": "src/ui/help/HelpPopover.tsx"
       },
       "unported": {
         "Packages/HelpUI/Sources/HelpUI/ControlHelp.swift#*": "n/a — upstream's one way of giving a control a tooltip and a help term: the web's controls carry `title` and `aria-label`, and a help term is the `?` beside the thing (`HelpButton`)",
@@ -5686,15 +5688,11 @@
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.listItem": "n/a — a marker glued to a line with a tab stop; the web's ul and ol draw and number their own",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.caution": "n/a — the attributes of a caution; the web's rule beside the prose",
         "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.opens": "n/a — the destination read back for upstream's own tests; the web's button takes it as a prop, which a test reads from the element",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.present": "n/a — an NSPopover's placement off a view; the web's dialog is positioned under the button that opened it",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.loadView": "n/a — AppKit view plumbing; the web's popover is what it renders",
         "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.init": "n/a — a memberwise initialiser; the port builds the object literal",
         "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.onFollow": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.shownText": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.init": "n/a — a memberwise initialiser; the port builds the object literal",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.close": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.init": "n/a — a memberwise initialiser; the port builds the object literal",
-        "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.isShown": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.show": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpTermPopover.swift#HelpTermPopover.shownTerm": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.Size.body": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
@@ -5712,7 +5710,17 @@
         "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.reveal": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.show": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
         "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.shownLink": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
-        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.shownText": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types"
+        "Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController.shownText": "n/a — the web book is `src/core/help` and its window `src/ui/help`: a page loader and React components, not these AppKit types",
+        "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.contentHeight": "n/a — the height a text view asks for to be sized to its words; a browser box is as tall as its content by itself, held to the popover's cap by `max-height` (HelpPopoverLayout)",
+        "Packages/HelpUI/Sources/HelpUI/HelpBodyView.swift#HelpBodyView.textInset": "n/a — how far a text view's glyphs sit from its edges, so a label can line up with them; the popover's title, note and words share one padding (`.help-popover-layout`), which puts them on one edge",
+        "Packages/HelpUI/Sources/HelpUI/HelpText.swift#HelpText.scaled": "n/a — a rendered attributed string with its fonts and spacings multiplied; the popover's rules give the book's blocks their sizes in `em` of the popover's type (`HelpPopoverLayout.fitted`)",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverLayout.swift#HelpPopoverLayout.textSizeDidChange": "n/a — the notification the app hands HelpUI so an open popover hears the Zoom move; the popover's type is the stylesheet's `--hex-font-size`, and the browser lays an open popover out again when it changes",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverLayout.swift#HelpPopoverLayout.observeTextSize": "n/a — an observer of that notification; nothing needs to listen when the size is a custom property the rules read",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.init": "n/a — a memberwise initialiser; the port renders the component",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.loadView": "n/a — AppKit view plumbing, the controller's own view a Zoom swaps the words inside; React re-renders the words in the dialog it keeps",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.isShown": "n/a — whether the NSPopover is on screen; the web's popover is on screen exactly while its owner renders it",
+        "Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.followsZoom": "n/a — whether the Zoom observer is held, for upstream's tests; there is no observer here (`textSizeDidChange`)",
+        "Packages/HelpUI/Tests/HelpUITests/HelpUITests.swift#HelpBodyViewTests.testTheContentHeightFollowsTheText": "n/a — tests `HelpBodyView.contentHeight` and `textInset`, which the browser's layout stands for (above)"
       }
     },
     {
