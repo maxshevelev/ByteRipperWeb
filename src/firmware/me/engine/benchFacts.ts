@@ -1,3 +1,4 @@
+import { uepMapForME, uepReadings } from "@/firmware/me/configuration/uepMap";
 import type { FileTable } from "@/firmware/me/data/fileTable";
 import {
   decideManufacturing,
@@ -139,7 +140,16 @@ export function readBenchFacts(options: {
       return bootGuardProfileInRecordUEPArea(area, identity.major);
     }
     if (identity.major >= 15 && identity.major <= 16) return bootGuardProfileInUEPArea(area);
-    return undefined;
+    // CSME 18 is read through the tool's own UEP layout: its `BTG_PROFILE` setting is the
+    // profile's own number (0, 3, 4 or 5).
+    const map = identity.major >= 18 ? uepMapForME(identity.major) : undefined;
+    const value =
+      map === undefined
+        ? undefined
+        : uepReadings(area, map)?.find((one) => one.name === "BTG_PROFILE")?.value;
+    return value === 0 || value === 3 || value === 4 || value === 5
+      ? (`${value}` as BootGuardProfile)
+      : undefined;
   };
   const cdmd = regionBytes("CDMD", regions, bytes, baseOffset);
   const bootGuardProfile =

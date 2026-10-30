@@ -1,5 +1,14 @@
 import type { ManifestFormat } from "@/firmware/me/layout/manifest";
 import type {
+  ConfigurationFile,
+  CPUStrapReadings,
+  GPIOPinReadings,
+  MEPlatformFamily,
+  MIPStrapContainerReadings,
+  MIPStrapReading,
+  UEPReading,
+} from "@/firmware/me/models/configurationFacts";
+import type {
   EFSVolume,
   MFSBackup,
   MFSPCHInit,
@@ -603,6 +612,53 @@ export interface FirmwareAnalysis {
    * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.oemPublicKeyHash
    */
   readonly oemPublicKeyHash: OEMKeyHash | undefined;
+  /**
+   * Which half of its chipset generation the board is (ours) — told from the length of the
+   * descriptor's PCH strap section. Undefined where no descriptor was read with the region,
+   * or its length is one neither half uses.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.platformFamily
+   */
+  readonly platformFamily: MEPlatformFamily | undefined;
+  /**
+   * The ME configuration, file by file (ours): what MFIT's own settings database says
+   * lives in each MFS file of this image, read out of both copies of it. Undefined where
+   * the analysis read no configuration at all.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.configuration
+   */
+  readonly configuration: readonly ConfigurationFile[] | undefined;
+  /**
+   * The feature pins the firmware drives (ours), out of `/home/gpio/csme_pins`.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.gpioPins
+   */
+  readonly gpioPins: GPIOPinReadings | undefined;
+  /**
+   * The FPF/UEP settings the `$UEP` area's bit arrays record, as the tool of this
+   * generation lays them out — the bits the platform would burn at End of Manufacturing.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.uepSettings
+   */
+  readonly uepSettings: readonly UEPReading[] | undefined;
+  /**
+   * The CPU straps a CSME 18 image's MIP table holds, as the tool lays them out.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.cpuStraps
+   */
+  readonly cpuStraps: CPUStrapReadings | undefined;
+  /**
+   * The strap containers a CSME 18 image's MIP table keeps beside the CPU message.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.mipStraps
+   */
+  readonly mipStraps: readonly MIPStrapContainerReadings[] | undefined;
+  /**
+   * The SPHY OEM configuration the image's `phy_oem_cfg` nvar holds.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/Models/FirmwareAnalysis.swift#FirmwareAnalysis.sphyNvar
+   */
+  readonly sphyNvar: readonly MIPStrapReading[] | undefined;
   /**
    * A GSC image's INFO partition.
    *

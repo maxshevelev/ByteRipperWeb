@@ -55,7 +55,7 @@ The window holds five stories and some housekeeping:
 - [x] **M3 — the descriptor's registers: `DescriptorRegisterMap`, `DescriptorRegisterMapData`**
 - [x] **M4 — the descriptor in the UEFI Structure's detail: folding strap tables, registers, the BIOS access verdict**
 - [x] **M5 — the bench's ME verdicts in the engine: Manufacturing, Boot Guard, the OEM key hash, RPMC, the file system state**
-- [ ] **M6 — the ME configuration in the engine: configuration, UEP/FPF, GPIO, CSME 18 layouts**
+- [x] **M6 — the ME configuration in the engine: configuration, UEP/FPF, GPIO, CSME 18 layouts**
 - [x] **M7 — the detail list's second value and a row's `?`** (`ToolFieldList`)
 - [ ] **M8 — the ME panel: the verdict rows, the Configuration tab, the tab kept by name, the agent's evidence**
 - [ ] **M9 — the help popovers: one flat shape sized to its words, the panels' type, the zoom**

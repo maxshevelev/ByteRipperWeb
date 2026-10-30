@@ -804,7 +804,31 @@
         "Packages/MEFirmware/Tests/MEFirmwareTests/ManufacturingTests.swift": [
           "src/firmware/me/fileSystem/manufacturing.test.ts",
           "src/firmware/me/layout/bootGuard.test.ts"
-        ]
+        ],
+        "Configuration/MEConfigurationMap.swift": "src/firmware/me/configuration/meConfigurationMap.ts",
+        "Configuration/MEConfigurationData.swift": "src/firmware/me/configuration/meConfigurationData.ts",
+        "Configuration/ConfigurationDecoder.swift": "src/firmware/me/configuration/configurationDecoder.ts",
+        "Configuration/UEPMap.swift": "src/firmware/me/configuration/uepMap.ts",
+        "Configuration/UEPMapData.swift": "src/firmware/me/configuration/uepMapData.ts",
+        "Configuration/GPIOPinMap.swift": [
+          "src/firmware/me/configuration/gpioPinMap.ts",
+          "src/firmware/me/models/configurationFacts.ts"
+        ],
+        "Configuration/GPIOPinMapData.swift": "src/firmware/me/configuration/gpioPinMapData.ts",
+        "Configuration/LayoutMapData.swift": "src/firmware/me/configuration/layoutMaps.ts",
+        "Configuration/MIPStrapMap.swift": "src/firmware/me/configuration/layoutMaps.ts",
+        "Configuration/CPUStrapMap.swift": "src/firmware/me/configuration/layoutMaps.ts",
+        "Configuration/SphyNvarMap.swift": "src/firmware/me/configuration/layoutMaps.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/ConfigurationMapTests.swift": "src/firmware/me/configuration/meConfigurationMap.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MEConfigurationDataTests.swift": "src/firmware/me/configuration/meConfigurationData.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/UEPMapTests.swift": "src/firmware/me/configuration/uepMap.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/UEPMapDataTests.swift": "src/firmware/me/configuration/uepMapData.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/GPIOPinTests.swift": "src/firmware/me/configuration/gpioPinMap.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/GPIOPinMapDataTests.swift": "src/firmware/me/configuration/gpioPinMapData.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/LayoutMapDataTests.swift": "src/firmware/me/configuration/layoutMaps.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/MIPStrapMapTests.swift": "src/firmware/me/configuration/layoutMaps.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/CPUStrapMapTests.swift": "src/firmware/me/configuration/layoutMaps.test.ts",
+        "Packages/MEFirmware/Tests/MEFirmwareTests/SphyNvarMapTests.swift": "src/firmware/me/configuration/layoutMaps.test.ts"
       },
       "unported": {
         "Packages/MEFirmware/Sources/MEFirmware/Crypto/RSA.swift#BigInt.trim": "n/a — JavaScript's bigint carries the limb arithmetic (see powerMod)",

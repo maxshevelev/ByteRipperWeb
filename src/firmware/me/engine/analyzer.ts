@@ -15,6 +15,7 @@ import {
   STRAY_ZEROS_SIGNATURE,
 } from "@/firmware/me/decompress/lzmaModule";
 import { readBenchFacts } from "@/firmware/me/engine/benchFacts";
+import { platformFamilyOf, readConfigurationFacts } from "@/firmware/me/engine/configurationFacts";
 import { classifyFirmwareType, fptHeaderFIT } from "@/firmware/me/engine/firmwareTypeClassifier";
 import {
   fwUpdateSupport,
@@ -673,6 +674,13 @@ function analyze(
       bootGuardProfile: undefined,
       hardwareBinding: undefined,
       oemPublicKeyHash: undefined,
+      platformFamily: platformFamilyOf(descriptorBytes),
+      configuration: undefined,
+      gpioPins: undefined,
+      uepSettings: undefined,
+      cpuStraps: undefined,
+      mipStraps: undefined,
+      sphyNvar: undefined,
       gscInfo,
       oromImages: undefined,
       rbePmMetadata: undefined,
@@ -1126,6 +1134,18 @@ function analyze(
     fileTable,
     descriptorBytes,
   });
+  // The ME configuration through the tools' own layouts (`configurationFacts.ts`).
+  const configurationRead = readConfigurationFacts({
+    bytes,
+    baseOffset,
+    regions,
+    identity,
+    mfsInfo,
+    mfsVolume,
+    oemConfiguration,
+    fileTable,
+    platformFamily: platformFamilyOf(descriptorBytes),
+  });
 
   // The independent firmware stitched into this image, each analysed by this
   // same pipeline over its own bytes. A partition that does not decode is left
@@ -1233,6 +1253,13 @@ function analyze(
     bootGuardProfile: bench.bootGuardProfile,
     hardwareBinding: bench.hardwareBinding,
     oemPublicKeyHash: bench.oemPublicKeyHash,
+    platformFamily: configurationRead.platformFamily,
+    configuration: configurationRead.configuration,
+    gpioPins: configurationRead.gpioPins,
+    uepSettings: configurationRead.uepSettings,
+    cpuStraps: configurationRead.cpuStraps,
+    mipStraps: configurationRead.mipStraps,
+    sphyNvar: configurationRead.sphyNvar,
     gscInfo,
     oromImages,
     rbePmMetadata,
