@@ -57,14 +57,19 @@ function register(ipcMain, fromApp, app, { host, isHost } = {}) {
     connections.clear();
   }
 
+  /**
+   * The endpoint stops listening before its connections are closed, as upstream's
+   * `AgentService.stop()` does: a relay attaches again the moment its connection closes, and one
+   * taken by a listener still open would sit on a connection nothing answers.
+   */
   function stop() {
     enabled = false;
     wanting.length = 0;
-    dropConnections();
     if (server !== undefined) {
       server.close();
       server = undefined;
     }
+    dropConnections();
     if (address !== undefined && !isPipe(address)) {
       try {
         fs.unlinkSync(address);
@@ -75,8 +80,9 @@ function register(ipcMain, fromApp, app, { host, isHost } = {}) {
     address = undefined;
   }
 
+  /** A connection taken once the service is stopped is closed at once, as upstream's `AgentService.adopt` does. */
   function adopt(socket) {
-    if (page === undefined || page.isDestroyed()) {
+    if (!enabled || page === undefined || page.isDestroyed()) {
       socket.destroy();
       return;
     }

@@ -5779,6 +5779,19 @@
       "unported": {}
     },
     {
+      "swift": "Skills/agent-socket",
+      "web": [
+        "Skills/agent-socket"
+      ],
+      "status": "ported",
+      "note": "Upstream's stdlib script that talks to the app's agent endpoint directly, for when the editor's MCP client has lost its server. The shell's endpoint speaks the same lines — newline-delimited JSON-RPC, the legacy handshake, the same tools — so it is ported; the path and the way it is opened follow desktop/agent-endpoint.cjs: a named pipe on Windows, opened as a file, and a socket in the profile elsewhere.",
+      "files": {
+        "Skills/agent-socket/SKILL.md": "Skills/agent-socket/SKILL.md",
+        "Skills/agent-socket/scripts/agent_socket.py": "Skills/agent-socket/scripts/agent_socket.py"
+      },
+      "unported": {}
+    },
+    {
       "swift": "Packages/AgentKit",
       "web": [
         "src/core/agent"
@@ -5809,7 +5822,13 @@
         "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.socketPath": "n/a — the path is the shell's (desktop/agent-endpoint.cjs): a named pipe on Windows",
         "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.launchesApp": "n/a — read by the relay, which is the shell's (desktop/agent-endpoint.cjs, launchesApp)",
         "Packages/AgentKit/Sources/AgentKit/AgentBytes.swift#AgentBytes.shown": "@web-only name",
-        "Packages/AgentKit/Package.swift#*": "n/a — SwiftPM manifest"
+        "Packages/AgentKit/Package.swift#*": "n/a — SwiftPM manifest",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.relayName": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.relayPath": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.appRecordName": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.appRecordPath": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place",
+        "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.folder": "n/a — the folder the installed relay and its app record live in, beside the socket; the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place, and on Windows the endpoint is a named pipe, which has no folder",
+        "Packages/AgentKit/Tests/AgentKitTests/AgentEndpointTests.swift#*": "n/a — tests relayPath, folder and appRecordPath, which are n/a; that BYTERIPPER_AGENT_SOCKET names the endpoint itself, file name and all, is the shell's (desktop/agent-endpoint.cjs), tested in desktop/test/agent.test.cjs"
       }
     },
     {
@@ -5967,7 +5986,6 @@
         "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testTheMenuBarMarkFillsWhenAnAgentConnects": "n/a — the web edition has no menu bar extra: the toolbar button's and the dock pill's glyph is filled from the store's connection count (`AgentGlyph`), and that count is `testASilentConnectionIsNotCountedAsAnAgent`",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheKeyboardIsOnThePagesList": "later — an app flow test (G24): the keyboard on a page's list is the mounted window's",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheLogKeepsItsSelectionAndFollowsOnlyWhenAsked": "later — an app flow test (G24): the selection and the scroll are the mounted window's",
-        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheRelayIsInsideTheAppBundle": "n/a — a Mac app bundle's Helpers folder; the desktop shell's relay is `desktop/relay.cjs`, which `desktop/test/agent.test.cjs` runs",
         "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheSettingsWindowHasAnAgentTab": "later — an app flow test (G24): the Settings tabs are the dialog's, and the Agent tab is there only where a shell serves the service",
         "ByteRipperTests/LenovoTestImage.swift#LenovoTestImage.le32": "n/a — test scaffolding: the shared `u32` writer of `firmwareImages.ts`",
         "ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testTheSettingsSwitchAllowsEdits": "later — a component test of Settings ▸ Agent's edit switch",
@@ -6068,7 +6086,11 @@
         "ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealInTheInactivePaneOfAComparisonActivatesIt": "n/a — `bringForward` in AppShell makes the pane active, but the effect is the shell's, which no test mounts (G24)",
         "ByteRipperApp/Agent/AgentAnnotationCards.swift#AnnotationNewTag.*": "n/a — AppKit's drawn view: the New tag is a span on the card's top edge, its shape and colour CSS",
         "ByteRipperApp/Agent/AgentActivityBadge.swift#AgentActivityBadge.*": "n/a — AppKit's drawn view laid on the toolbar's button: the dot is a span inside the React button, drawn, placed and blinked by CSS (.agent-activity-badge), and gone when the service is not active",
-        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWorkspaceKeepsTheNotesWindowAndItsSelection": "n/a — the workspace is recorded into IndexedDB and restored into the dock, which is checked in the browser rather than by a unit test"
+        "ByteRipperTests/AgentAnnotationTests.swift#AgentAnnotationTests.testTheWorkspaceKeepsTheNotesWindowAndItsSelection": "n/a — the workspace is recorded into IndexedDB and restored into the dock, which is checked in the browser rather than by a unit test",
+        "ByteRipperTests/AgentUITests.swift#AgentUITests.testTheRelayHandedOutIsTheInstalledCopyOfThisBuildsHelper": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place; desktop/test/agent.test.cjs checks that agent:info hands out this build's relay.cjs and executable, outside src/, which the anchor check reads",
+        "ByteRipperApp/Agent/AgentRelayInstall.swift#*": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place. Upstream's problem — a path inside a DerivedData build that changes with the folder the app was built in — is not the installed build's; the portable .exe's runtime exists only while it runs (unpacked to %TEMP% and removed when it quits), which no copy of the script fixes: the help says so, and its relay ends with the app (desktop/relay.cjs, runsFromTemporaryFolder)",
+        "ByteRipperTests/AgentRelayInstallTests.swift#*": "n/a — tests AgentRelayInstall, which is n/a",
+        "ByteRipperTests/AgentRelayTests.swift#*": "n/a — the relay is the shell's (desktop/relay.cjs), outside src/, which the anchor check reads; its three tests are ported in desktop/test/relay.test.cjs against a stand-in app over an endpoint of the test's own"
       }
     },
     {
@@ -6142,7 +6164,7 @@
         "desktop/agent-endpoint.cjs"
       ],
       "status": "ported",
-      "note": "What an agent's client launches: copies stdin and stdout to the endpoint, starts the app when it is not there only under BYTERIPPER_LAUNCH (off by default, upstream 7197e6f8), and answers each request with where the switch is when there is no app (desktop/relay.cjs). It is the app's own executable run as Node. The endpoint is a named pipe on Windows (desktop/agent-endpoint.cjs); desktop/agent.cjs is the main process's half of the service.",
+      "note": "What an agent's client launches: copies stdin and stdout to the endpoint, starts the app when it is not there only under BYTERIPPER_LAUNCH (off by default, upstream 7197e6f8) and only on its first look, and outlives the app (5efe8b1f, d2461188): with no app it answers each request with where the switch is, answers a request the app took and never answered when it went, waits and attaches again when the app comes back (desktop/relay.cjs, tested in desktop/test/relay.test.cjs). It is the app's own executable run as Node, so it needs no installed copy or app record; a relay running from the temporary folder a portable .exe unpacks to ends with the app, so that folder can be removed. Different from upstream: upstream sets hasLaunched only when it launches, so a relay whose first look found the app open starts it again after the person quits it; here the first look is the only one that may. The endpoint is a named pipe on Windows (desktop/agent-endpoint.cjs); desktop/agent.cjs is the main process's half of the service, and stops listening before it closes its connections, as AgentService.stop() does.",
       "files": {
         "main.swift": "desktop/relay.cjs"
       },
