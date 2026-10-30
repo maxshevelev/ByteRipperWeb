@@ -48,6 +48,7 @@ import { useStore } from "@/state/useStore";
 import { paneState } from "@/state/workspaceStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { useAgentSession } from "@/tools/agentSession";
+import { meaPartOpen } from "@/tools/meaParts";
 import { type MEANode, meaNodeAt, meaZones } from "@/tools/meaTree";
 import { pickToolFile } from "@/tools/pickToolFile";
 import { EMPTY_DETAIL } from "@/tools/toolDetail";
@@ -879,6 +880,26 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
       }, LOADING_ROW_DELAY);
     },
     [open, context.pane, meRoots, openMeRegion]
+  );
+
+  /**
+   * A double-click on an ME row opens it in a fragment panel, as the ME Analyzer
+   * does (`meaPartOpen`): a copy of its bytes, or an MFS or EFS file gathered
+   * from its chunks. The ME region is the file's own bytes, so it opens as an
+   * image like any other part of the file. A row without bytes opens nothing.
+   *
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolModule.swift#UEFIToolSession.openME
+   * @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.onOpenME
+   */
+  // help: panel.uefi.open-me
+  const openMe = useCallback(
+    (node: MEANode): boolean => {
+      const part = meaPartOpen(node);
+      if (part === undefined) return false;
+      context.openPart(part.name, part.source, part.codec, { kind: "image" });
+      return true;
+    },
+    [context]
   );
 
   /**
@@ -2514,6 +2535,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   onOpenContent={() => {}}
                   onToggleMe={() => {}}
                   onChooseMe={() => {}}
+                  onOpenMe={() => false}
                   onMenu={() => {}}
                 />
               ))}
@@ -2539,6 +2561,7 @@ function UefiStructureView({ context }: { readonly context: ToolContext }) {
                   }}
                   onOpenContent={openContent}
                   onToggleMe={toggleMe}
+                  onOpenMe={openMe}
                   onChooseMe={(node) => {
                     context.noteNavigationStep();
                     chooseMe(node);
@@ -2801,6 +2824,7 @@ function TreeRow({
   onChoose,
   onToggleMe,
   onChooseMe,
+  onOpenMe,
   onMenu,
 }: {
   readonly row: Row;
@@ -2819,6 +2843,8 @@ function TreeRow({
   readonly onChoose: (node: WireNode) => void;
   readonly onToggleMe: (node: MEANode) => void;
   readonly onChooseMe: (node: MEANode) => void;
+  /** A double click on an ME row: its bytes opened as a fragment; false for a row with none. */
+  readonly onOpenMe: (node: MEANode) => boolean;
   readonly onMenu: (event: React.MouseEvent, node: WireNode) => void;
 }) {
   const node = row.node;
@@ -2861,6 +2887,14 @@ function TreeRow({
         style={style}
         {...motionAttrs}
         onClick={() => onChooseMe(me)}
+        // An ME row opens through the ME tree; a group row opens nothing and
+        // folds or unfolds, as it does in the ME Analyzer.
+        // @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIToolViewController.swift#UEFIToolViewController.openContent
+        onDoubleClick={(event) => {
+          if ((event.target as Element).closest(".uefi-twist") !== null) return;
+          if (event.shiftKey || event.metaKey || event.altKey || event.ctrlKey) return;
+          if (!onOpenMe(me) && hasMeChildren) onToggleMe(me);
+        }}
       >
         <span className="uefi-name" style={indent}>
           <button

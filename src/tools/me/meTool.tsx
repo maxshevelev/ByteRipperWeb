@@ -51,6 +51,7 @@ import {
   configurationFITC,
   configurationMFS,
 } from "@/tools/meaConfigurationText";
+import { meaPartOpen } from "@/tools/meaParts";
 import {
   CHECKSUMS_TITLE,
   type MEAChecksums,
@@ -542,6 +543,26 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     [context, pane]
   );
 
+  /**
+   * Opens a row in a fragment panel: a copy of its bytes, or an MFS or EFS file
+   * gathered from its chunks (`meaPartOpen`). A row without bytes opens
+   * nothing, and says so by the answer.
+   *
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolSession.open
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.onOpen
+   * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.rowDoubleClicked
+   */
+  // help: panel.me.open
+  const openRow = useCallback(
+    (node: MEANode): boolean => {
+      const part = meaPartOpen(node);
+      if (part === undefined) return false;
+      context.openPart(part.name, part.source, part.codec);
+      return true;
+    },
+    [context]
+  );
+
   const toggle = useCallback((node: MEANode) => {
     const key = keyOf(node.path);
     setOpen((current) => {
@@ -893,6 +914,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                     showsMarkings={showsMarkings}
                     onChoose={() => {}}
                     onToggle={() => {}}
+                    onOpen={() => false}
                   />
                 ))}
                 {rows.map((row, index) => (
@@ -911,6 +933,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
                       choose(node);
                     }}
                     onToggle={toggle}
+                    onOpen={openRow}
                   />
                 ))}
               </div>
@@ -1360,6 +1383,7 @@ function MeTreeRow({
   showsMarkings,
   onChoose,
   onToggle,
+  onOpen,
 }: {
   readonly row: TreeRow;
   readonly alternate: boolean;
@@ -1370,6 +1394,8 @@ function MeTreeRow({
   readonly showsMarkings: boolean;
   readonly onChoose: (node: MEANode) => void;
   readonly onToggle: (node: MEANode) => void;
+  /** A double-click: the row's bytes opened as a fragment; false for a row with none. */
+  readonly onOpen: (node: MEANode) => boolean;
 }) {
   const { node } = row;
   const hasChildren = node.children.length > 0;
@@ -1406,7 +1432,9 @@ function MeTreeRow({
       {...motionAttrs}
       onClick={() => onChoose(node)}
       onDoubleClick={() => {
-        if (hasChildren) onToggle(node);
+        // A row with bytes opens as a fragment, as a UEFI row does; a group row
+        // opens nothing and expands or collapses as it always has.
+        if (!onOpen(node) && hasChildren) onToggle(node);
       }}
     >
       {/* As much as the triangle's square reaches back over (`.me-twist`), so it starts at the row's edge. */}

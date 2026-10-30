@@ -84,6 +84,12 @@ const VARIABLES: Record<keyof HexGridColors, string> = {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zoneFrameInactive
    */
   zoneOther: "--zone-other",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zonePieceFill */
+  zonePieceFocused: "--zone-piece-focused",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zonePieceFillInactive */
+  zonePieceOther: "--zone-piece-other",
+  /** @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.zonePieceInk */
+  zonePieceInk: "--zone-piece-ink",
   /**
    * @upstream Packages/AppPalette/Sources/AppPalette/SemanticColors.swift#ZoneColors.agent
    * @upstream ByteRipperApp/Hex/HexView.swift#HexTheme.agentMark

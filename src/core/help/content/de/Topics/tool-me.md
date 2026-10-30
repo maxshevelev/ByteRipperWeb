@@ -1,4 +1,4 @@
-@source-sha 9a8d918dea9fc43f448aa9fd154024bebb61188151cbaa65e7c0350dd9c3b939
+@source-sha 25ed05adbf474e85006509e6ba62110f41685d0878ee83fc932a66c423579437
 # ME Analyzer
 
 > Welche Intel-Management-Engine-Firmware das Image enthält und aus welchen Strukturen sie besteht.
@@ -25,7 +25,7 @@ Die Taste **?** neben einer Einstellung zeigt, was das Flash Image Tool zu ihr s
 
 Die decodierten Strukturen als Baum, in dem jeder Zeile tatsächliche Bytes der Region entsprechen: die [[term:fpt|Partitionstabelle]], die [[term:cpd|Code-Partitionen]] und ihre Module, die [[term:manifest|Manifeste]], das [[term:mfs|Dateisystem]] und seine Konfiguration, die [[term:oem-config|OEM-Konfiguration]] und die [[term:utok|Unlock-Token]].
 
-Die Auswahl einer Zeile scrollt den Dump zu diesen Bytes und umrandet sie. Die Detailliste unter dem Baum enthält die Felder des Headers dieser Zeile so, wie sie in der Datei stehen.
+Die Auswahl einer Zeile scrollt den Dump zu diesen Bytes und umrandet sie. Eine Datei des [[term:mfs|MFS]]- oder [[term:efs|EFS]]-Volumes liegt nicht an einem Stück: Ihre Zeile umrandet jeden Chunk der Datei, wo immer das Volume ihn abgelegt hat, und der Dump springt zu dem Chunk, mit dem die Datei beginnt (siehe [[term:zone|Zone]]). Eine Datei ohne Daten erscheint grau, wie eine leere Partition. Ein Doppelklick auf eine Zeile öffnet ihre Bytes in einem [[topic:fragments|Fragmentbereich]]; eine Datei des Volumes öffnet sich als ihr aus den Chunks zusammengesetzter Inhalt, mit dem Abzeichen **Zusammengesetzt**, und wird beim Zurückschreiben an dieselben Stellen gelegt. Die Detailliste unter dem Baum enthält die Felder des Headers dieser Zeile so, wie sie in der Datei stehen.
 
 ## Was das Werkzeug meldet
 

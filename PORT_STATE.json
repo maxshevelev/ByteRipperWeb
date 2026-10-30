@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "bb5e9a2c3db778c8c8ecb3eaefbc3a367238f4ba",
-  "baselineNote": "The hovered drop zone is the calm blue it was before the glass (2026-10-29)"
+  "baseCommit": "23d37206ee4ee5ddeee4f0360d5b4728155bb66d",
+  "baselineNote": "A scattered zone's badge is the outline's hue a step darker in the light theme, lighter in the dark (2026-10-30)"
 }

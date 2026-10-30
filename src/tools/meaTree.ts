@@ -61,7 +61,7 @@ import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import type { ToolValueTone } from "@/tools/toolValueTone";
-import type { ZoneMap } from "@/tools/zone";
+import { scatteredZone, type ZoneMap } from "@/tools/zone";
 
 /**
  * The «Full Info» tab: a `FirmwareAnalysis` as a curated tree. Ported from
@@ -137,8 +137,8 @@ export interface MEANode {
   /**
    * Where a row whose bytes are scattered is stored — an MFS or EFS file, its
    * stretches in the file's own order (`MFSFile.extents`). Absent for every other
-   * row, and for a file from an analysis made before the model kept them. Not
-   * zoned: a zone is one range.
+   * row, and for a file from an analysis made before the model kept them.
+   * Zoned as one zone of several stretches (`meaZones`).
    *
    * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.extents
    */
@@ -325,8 +325,10 @@ export function checksumsPath(roots: readonly MEANode[]): readonly number[] | un
 }
 
 /**
- * The zone a selected row publishes: one, focused, for its bytes — and nothing
- * for a row that stands for none (a group, the manifest).
+ * The zone a selected row publishes: one, focused, for its bytes — over the
+ * row's byte range, or over an MFS or EFS file's chunks wherever the volume put
+ * them, in the file's order — and nothing for a row that stands for none (a
+ * group, the manifest, an empty file).
  *
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAZones.swift#MEAZones
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAZones.swift#MEAZones.build
@@ -334,19 +336,15 @@ export function checksumsPath(roots: readonly MEANode[]): readonly number[] | un
  * @upstream-differs the zone id is the path joined inline
  */
 export function meaZones(focus: MEANode | undefined): ZoneMap {
-  if (focus?.range === undefined) return { zones: [], focus: undefined };
+  if (focus === undefined) return { zones: [], focus: undefined };
+  const stretches =
+    focus.range !== undefined
+      ? [focus.range]
+      : (focus.extents ?? []).filter((one) => one.start < one.end);
+  if (stretches.length === 0) return { zones: [], focus: undefined };
   const id = focus.path.join("/");
-  return {
-    zones: [
-      {
-        id,
-        name: focus.title.length === 0 ? L("(unnamed)") : focus.title,
-        start: focus.range.start,
-        end: focus.range.end,
-      },
-    ],
-    focus: id,
-  };
+  const name = focus.title.length === 0 ? L("(unnamed)") : focus.title;
+  return { zones: [scatteredZone(id, name, stretches)], focus: id };
 }
 
 // MARK: - Identity
@@ -821,7 +819,9 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
     extents: file.extents,
     fields: fields.rows,
     children,
-    isEmptySection: file.size === 0,
+    // Empty by what the file holds, as the subtitle says: a chain carrying only
+    // its Integrity table is no data.
+    isEmptySection: (file.contentSize ?? file.size) === 0,
   };
 }
 
@@ -851,6 +851,7 @@ function homeRow(record: MFSHomeRecord): Draft {
     subtitle: `${record.isFolder ? "folder" : "file"} #${record.fileIndex}`,
     fields: fields.rows,
     children: record.children.map(homeRow),
+    isEmptySection: !record.isFolder && record.size === 0,
   };
 }
 

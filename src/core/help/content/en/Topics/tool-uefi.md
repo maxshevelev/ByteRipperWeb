@@ -7,6 +7,7 @@
 @covers panel.uefi.top-swap
 @covers panel.uefi.save-node
 @covers panel.uefi.open-content
+@covers panel.uefi.open-me
 @covers panel.uefi.picture-preview
 @covers panel.uefi.sound-player
 @covers panel.uefi.superseded-entries
@@ -33,7 +34,7 @@ The top level is the layout of the chip itself. On an Intel platform that is the
 
 The **Type** and **Subtype** columns name each node as the reference parser names it. The **Name** column gives a file the name its own Name section carries. A node without one is named by the community catalogue for its [[term:guid|GUID]] where the catalogue has a name, and by the GUID itself where it has none. The catalogue's name and a file's own name can differ — a vendor can give a GUID the catalogue knows to another module — and the details then show the catalogue's under **Name in the catalogue**.
 
-The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer.
+The **ME region** row opens onto the same analysis the [[topic:tool-me|ME Analyzer]] gives, so an image can be read end to end in one tree. It opens as soon as the region has been read; values that wait for a database read **Loading…** there as they do in the ME Analyzer. A double click on a row of that sub-tree opens it as a fragment panel, as it does in the ME Analyzer.
 
 **The reveal button** on the right of the title row shows in the tree the node under the caret in the dump — the start of a selection where there is one. It opens the branches on the way, and a branch not yet decoded is decoded for it, so the reveal can take as long as that read. It then selects the innermost node whose range holds the byte. A byte of the ME region is shown in a row of its sub-tree; the region is opened for the reveal if it has not been read yet. The dump is not moved: the reveal brings the tree to the byte, not the byte to the tree. The same reveal is in the dump's context menu: a right-click on a byte and **UEFI Structure ▸ Show in Tree** show the node holding the byte that was clicked, whatever the caret.
 

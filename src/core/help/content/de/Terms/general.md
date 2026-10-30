@@ -1,4 +1,4 @@
-@source-sha b86042e5ebadf059924cb2c9676bbe962308ca6757e045158e01d5f2d195afdb
+@source-sha 97c730be270209ddd39ac3091c353ecd0fca675cec12f747cd9de5e8e9b181c4
 @term dump
 @name Dump
 @short Der Inhalt eines Chips, in eine Datei ausgelesen.
@@ -72,6 +72,8 @@ Für sich genommen bedeutet eine GUID nichts — deshalb lädt das Programm eine
 Wählen Sie eine Zeile in einem Werkzeugbereich, veröffentlicht er deren Byte-Bereich als Zone: ein Umriss samt Tönung über diesen Bytes in der Hex-Ansicht und ein Band in der [[topic:minimap|Minimap]].
 
 Eine Zone ist ein Umriss und keine Hintergrundfüllung, verdeckt also nie einen Unterschied oder eine ungesicherte Änderung darunter.
+
+Nicht jede Struktur liegt an einem Stück. Eine Datei des ME-[[term:mfs|Dateisystems]] ist eine Kette kleiner Chunks, die über das Volume verteilt sind; auf jeden Chunk folgt seine Prüfsumme. Die Zone einer solchen Datei umrandet jeden Chunk und nichts dazwischen, jeden mit seiner Nummer in der Lesereihenfolge der Datei an der oberen linken Ecke, und der Dump springt zu dem Chunk, mit dem die Datei beginnt – das muss nicht der an der niedrigsten Adresse sein. **Zone sichern unter…** schreibt die Chunks in der Reihenfolge, in der die Datei gelesen wird, hintereinander, also den Inhalt der Datei; **Zone öffnen** öffnet dieselben Bytes als Fragment, und das Zurückschreiben in die Quelle legt sie an dieselben Stellen zurück. **Zone auswählen** wählt den Chunk aus, auf den mit der rechten Maustaste geklickt wurde.
 
 @see topic:tools-overview
 

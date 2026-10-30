@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_ZONES,
+  isScatteredZone,
   normalizedZones,
+  scatteredZone,
   type Zone,
   type ZoneMap,
+  zoneStart,
+  zoneStretchContaining,
   zonesContaining,
 } from "@/tools/zone";
 
@@ -99,5 +103,59 @@ describe("normalizedZones", () => {
     const backwards = normalizedZones(map(...[...zones].reverse()), 0x1000);
     expect(forwards).toEqual(backwards);
     expect(forwards.zones.map((one) => one.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("a scattered zone", () => {
+  // A file the firmware scattered: three chunks, the second stored before the first, a CRC
+  // between each.
+  const file = scatteredZone("file", "file", [
+    { start: 0x200, end: 0x240 },
+    { start: 0x100, end: 0x140 },
+    { start: 0x300, end: 0x340 },
+  ]);
+
+  // The stretches keep the owner's order; the span orders the zone among the others, and the
+  // start is the first stretch's — not the lowest address.
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ZoneMapTests.swift#ZoneMapTests.testAScatteredZoneKeepsItsOrderAndIsPlacedByItsSpan
+  it("keeps its order and is placed by its span", () => {
+    const drawn = normalizedZones(
+      map({ id: "later", name: "later", start: 0x180, end: 0x190 }, file),
+      0x1000
+    );
+    expect(drawn.zones.map((one) => one.id)).toEqual(["file", "later"]);
+    const [first] = drawn.zones;
+    expect(first?.stretches).toEqual(file.stretches);
+    expect([first?.start, first?.end]).toEqual([0x100, 0x340]);
+    expect(first === undefined ? undefined : zoneStart(first)).toBe(0x200);
+    expect(first === undefined ? false : isScatteredZone(first)).toBe(true);
+    expect(isScatteredZone({ id: "one", name: "", start: 0, end: 4 })).toBe(false);
+  });
+
+  // The gap between two chunks is not the file.
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ZoneMapTests.swift#ZoneMapTests.testAByteBetweenTwoStretchesIsNotInTheZone
+  it("does not hold a byte between two stretches", () => {
+    const drawn = normalizedZones(map(file), 0x1000);
+    expect(zonesContaining(drawn, 0x120).map((one) => one.id)).toEqual(["file"]);
+    expect(zonesContaining(drawn, 0x33f).map((one) => one.id)).toEqual(["file"]);
+    expect(zonesContaining(drawn, 0x140)).toEqual([]);
+    expect(zonesContaining(drawn, 0x280)).toEqual([]);
+    expect(zoneStretchContaining(file, 0x210)).toEqual({ start: 0x200, end: 0x240 });
+    expect(zoneStretchContaining(file, 0x250)).toBeUndefined();
+  });
+
+  // Each stretch is repaired as a zone of one would be, and a zone with nothing left is gone.
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ZoneMapTests.swift#ZoneMapTests.testEachStretchIsClampedOrDropped
+  it("is clamped or dropped stretch by stretch", () => {
+    const cut = normalizedZones({ zones: [file], focus: "file" }, 0x220);
+    expect(cut.zones[0]?.stretches).toEqual([
+      { start: 0x200, end: 0x220 },
+      { start: 0x100, end: 0x140 },
+    ]);
+    expect(cut.focus).toBe("file");
+
+    const gone = normalizedZones({ zones: [file], focus: "file" }, 0x80);
+    expect(gone.zones).toEqual([]);
+    expect(gone.focus).toBeUndefined();
   });
 });

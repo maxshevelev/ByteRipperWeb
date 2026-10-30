@@ -72,6 +72,8 @@ Selecting a row in a tool publishes that row's byte range as a zone: an outline 
 
 A zone is an outline rather than a background fill, so it never hides a difference or an unsaved edit underneath it.
 
+Some structures are not stored in one piece. A file of the ME [[term:mfs|file system]] is a chain of small chunks spread over the volume, each followed by its checksum. Its zone outlines every chunk and nothing between them, each with its number in the order the file is read on its top-left corner, and the dump goes to the chunk the file begins with, which need not be the one at the lowest address. **Save Zone as…** writes the chunks one after another in the order the file is read, which is the file's content; **Open Zone** opens the same bytes as a fragment, and Update in Parent writes them back to the same places. **Select Zone** selects the chunk that was right-clicked.
+
 @see topic:tools-overview
 
 @term flash-chip

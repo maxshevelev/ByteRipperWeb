@@ -117,6 +117,10 @@
       "why": "SwiftPM manifest."
     },
     {
+      "prefix": "Packages/MEPresentation/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
       "prefix": "Modules/UEFITool/Package.swift",
       "why": "SwiftPM manifest."
     },
@@ -1554,6 +1558,7 @@
         "MEAValueText.swift": "src/tools/meaText.ts",
         "MEATones.swift": "src/tools/meaTones.ts",
         "MEAZones.swift": "src/tools/meaTree.ts",
+        "MEAParts.swift": "src/tools/meaParts.ts",
         "MEATreeMarks.swift": "src/tools/meaTreeMarks.ts",
         "MFSFileNames.swift": "src/tools/mfsFileNames.ts",
         "EFSFileNames.swift": "src/tools/efsFileNames.ts",
@@ -1563,6 +1568,7 @@
           "src/tools/meaTreeMarks.test.ts"
         ],
         "MEACuratorTests.swift": "src/tools/meaTree.test.ts",
+        "MEAPartsTests.swift": "src/tools/meaParts.test.ts",
         "MFSFileNamesTests.swift": "src/tools/mfsFileNames.test.ts",
         "EFSFileNamesTests.swift": "src/tools/efsFileNames.test.ts",
         "ConfigRecordPathsTests.swift": "src/tools/configRecordPaths.test.ts",
@@ -5488,7 +5494,6 @@
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolSession.swift#ToolSession.stop": "n/a — a tool's View is a React component: its render and effects are the session's lifecycle",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.Write.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolTransaction.swift#ToolTransaction.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#Zone.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/Zone.swift#ZoneMap.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.content": "n/a — AppKit stack view",
         "Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.placeholder": "n/a — AppKit label",

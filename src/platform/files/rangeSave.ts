@@ -33,10 +33,28 @@ export async function saveRange(
   suggestedName: string,
   validateTarget?: SaveTargetGuard
 ): Promise<RangeSaveOutcome> {
+  return saveRanges(storage, [{ start, end }], suggestedName, validateTarget);
+}
+
+/**
+ * `saveRange` for the stretches of a scattered zone: their bytes one after
+ * another, in the order given — for a file, its content.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.saveRanges
+ */
+export async function saveRanges(
+  storage: ByteStorage,
+  ranges: readonly { readonly start: number; readonly end: number }[],
+  suggestedName: string,
+  validateTarget?: SaveTargetGuard
+): Promise<RangeSaveOutcome> {
+  async function* bytes(): AsyncGenerator<Bytes> {
+    for (const range of ranges) yield* rangeStream(storage, range.start, range.end);
+  }
   const picker = fileSystemAccess().showSaveFilePicker;
   if (picker === undefined) {
     const chunks: Bytes[] = [];
-    for await (const chunk of rangeStream(storage, start, end)) chunks.push(chunk);
+    for await (const chunk of bytes()) chunks.push(chunk);
     downloadBlob(new Blob(chunks, { type: "application/octet-stream" }), suggestedName);
     return "downloaded";
   }
@@ -57,7 +75,7 @@ export async function saveRange(
 
     const stream = await handle.createWritable();
     try {
-      for await (const chunk of rangeStream(storage, start, end)) await stream.write(chunk);
+      for await (const chunk of bytes()) await stream.write(chunk);
       await stream.close();
     } catch (error) {
       // Abort discards the swap file, so a failed write leaves the chosen file as

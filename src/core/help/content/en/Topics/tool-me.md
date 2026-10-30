@@ -3,6 +3,7 @@
 > Which Intel Management Engine firmware the image holds, and which structures it is composed of.
 
 @covers panel.me
+@covers panel.me.open
 
 **Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the file in its pane and reports the result on three tabs.
 
@@ -26,7 +27,7 @@ Where the generation is not one of these, or the image carries none of the files
 
 The structures the analysis decoded, as a tree in which every row corresponds to actual bytes of the region: the [[term:fpt|partition table]], the [[term:cpd|code partitions]] and their modules, the [[term:manifest|manifests]], the [[term:mfs|file system]] and its configuration, the [[term:oem-config|OEM configuration]] and the [[term:utok|unlock tokens]].
 
-Selecting a row scrolls the dump to those bytes and outlines them. The detail list under the tree holds the fields of that row's header as they are recorded in the file.
+Selecting a row scrolls the dump to those bytes and outlines them. A file of the [[term:mfs|MFS]] or [[term:efs|EFS]] volume is not stored in one piece: its row outlines every chunk of the file wherever the volume put it, and the dump goes to the chunk the file begins with (see [[term:zone|zone]]). A file that holds no data is drawn grey, as an empty partition is. A double click on a row opens its bytes as a [[topic:fragments|fragment panel]]; a file of the volume opens as its content gathered from its chunks, under the **Assembled** badge, and Update in Parent writes it back to the same places. The detail list under the tree holds the fields of that row's header as they are recorded in the file.
 
 ## What the tool reports
 

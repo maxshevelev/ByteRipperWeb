@@ -1,6 +1,6 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { L } from "@/core/localization/localization";
-import { CopyPartCodec } from "@/core/parts/partCodec";
+import { CopyPartCodec, GatherPartCodec } from "@/core/parts/partCodec";
 import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
 import { formatHex, hexAddress } from "@/core/text/hexText";
 import { type SizeForm, sizeCopyText } from "@/core/text/statusLine";
@@ -8,7 +8,7 @@ import { writeBytes } from "@/platform/clipboard/byteClipboard";
 import { writePlainText } from "@/platform/clipboard/richClipboard";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import { saveVerb } from "@/platform/files/capabilities";
-import { saveRange } from "@/platform/files/rangeSave";
+import { saveRanges } from "@/platform/files/rangeSave";
 import { drawnIn } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { revealAnnotationCards } from "@/state/agent/annotationWindows";
@@ -38,7 +38,13 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zonesFor } from "@/state/zoneStore";
-import { type Zone, zonesContaining } from "@/tools/zone";
+import {
+  isScatteredZone,
+  type Zone,
+  zoneStart,
+  zoneStretches,
+  zonesContaining,
+} from "@/tools/zone";
 import {
   mergePiece,
   pieceAt,
@@ -121,7 +127,8 @@ export interface PaneMenuActions {
   /** Opens the cut dialog, prefilled with this offset (§21.3). */
   readonly onSplitHere: (pane: PaneId, offset: number) => void;
   /** Selects a zone the open tool published, and shows it. */
-  readonly onSelectZone: (pane: PaneId, zone: Zone) => void;
+  /** `offset` is the byte the menu was opened on: which stretch of a scattered zone. */
+  readonly onSelectZone: (pane: PaneId, zone: Zone, offset: number) => void;
   readonly onSegments: (pane: PaneId) => void;
   /** Opens the segments form with this piece's name field focused (§21.4). */
   readonly onEditSegment: (pane: PaneId, pieceIndex: number) => void;
@@ -419,7 +426,8 @@ function zoneItems(
     { kind: "separator" },
     ...zones.map((zone) => ({
       label: L("Select Zone “%1$@”", zone.name),
-      onSelect: () => actions.onSelectZone(pane, zone),
+      // A selection is one stretch: for a scattered zone, the one the menu was opened on.
+      onSelect: () => actions.onSelectZone(pane, zone, offset),
     })),
     ...zones.map((zone) => ({
       label: L("Open Zone “%1$@”", zone.name),
@@ -427,12 +435,13 @@ function zoneItems(
     })),
     ...zones.map((zone) => ({
       label: L("Save Zone “%1$@” as…", zone.name),
+      // A scattered zone is saved as its stretches one after another, in the
+      // owner's order — for a file, its content — never as the span.
       onSelect: () =>
-        saveRangeAs(
+        saveRangesAs(
           slot,
           pane,
-          zone.start,
-          zone.end,
+          zoneStretches(zone),
           zoneFileName(slot.name, zone.name, zone.start, zone.end),
           "zone",
           actions
@@ -635,6 +644,21 @@ function selectionItems(
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.minimapMenuOpenZone
  */
 export function openZone(pane: PaneId, zone: Zone): void {
+  // A scattered zone opens as its stretches gathered in the owner's order — for
+  // a file, its content — and goes back to the same places. It is nothing the
+  // UEFI tree lays out, so it goes back as it is.
+  if (isScatteredZone(zone)) {
+    void openLinkedPart({
+      parent: pane,
+      name:
+        zone.name.length === 0
+          ? `${hexAddress(zoneStart(zone))}-${hexAddress(zone.end)}`
+          : zone.name,
+      source: [zone.start, zone.end],
+      codec: new GatherPartCodec(zoneStretches(zone).map((one) => [one.start, one.end] as const)),
+    });
+    return;
+  }
   void (async () => {
     // What the bytes *are*, where the parent's tree covers them — a zone that is
     // a volume or a file is read as one rather than scanned — and, when it is a
@@ -666,7 +690,18 @@ function saveRangeAs(
   purpose: "zone" | "selection",
   actions: PaneMenuActions
 ): void {
-  void saveRange(slot.document.storage, start, end, suggestedName)
+  saveRangesAs(slot, pane, [{ start, end }], suggestedName, purpose, actions);
+}
+
+function saveRangesAs(
+  slot: PaneState,
+  pane: PaneId,
+  ranges: readonly { readonly start: number; readonly end: number }[],
+  suggestedName: string,
+  purpose: "zone" | "selection",
+  actions: PaneMenuActions
+): void {
+  void saveRanges(slot.document.storage, ranges, suggestedName)
     .then((outcome) => {
       if (outcome === "downloaded") {
         actions.onMessage(

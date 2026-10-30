@@ -21,6 +21,7 @@ import {
   pendingValue,
   presentMEA,
 } from "@/tools/meaTree";
+import { zoneStart } from "@/tools/zone";
 
 /** Ported from upstream's `MEACuratorTests` — the curated tree and its one zone. */
 
@@ -498,6 +499,44 @@ describe("the zone a row publishes", () => {
     expect(map.zones[0]).toEqual({ id: "1/0", name: "FTPR", start: 0x1000, end: 0x2000 });
     expect(meaZones(undefined).zones).toEqual([]);
     expect(meaZones(roots[0]).zones).toEqual([]);
+  });
+
+  // An MFS file's row zones its chunks wherever the volume put them, as one zone in the file's
+  // order — not the span from the first to the last.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testAFileRowZonesItsExtentsInTheFilesOrder
+  it("is a file's extents in the file's order", () => {
+    const file = (extents: { start: number; end: number }[]): MEANode => ({
+      path: [2, 0, 5],
+      title: "/home/mctp/smt2_devices",
+      subtitle: "",
+      range: undefined,
+      extents,
+      fields: [],
+      children: [],
+      isEmptySection: false,
+      marks: undefined,
+      helpTerm: undefined,
+    });
+    const map = meaZones(
+      file([
+        { start: 0x9000, end: 0x9040 },
+        { start: 0x8000, end: 0x8040 },
+        { start: 0xa000, end: 0xa010 },
+      ])
+    );
+    expect(map.zones).toHaveLength(1);
+    expect(map.focus).toBe("2/0/5");
+    const [zone] = map.zones;
+    expect(zone?.name).toBe("/home/mctp/smt2_devices");
+    expect(zone?.stretches).toEqual([
+      { start: 0x9000, end: 0x9040 },
+      { start: 0x8000, end: 0x8040 },
+      { start: 0xa000, end: 0xa010 },
+    ]);
+    // The dump goes to where the file begins.
+    expect(zone === undefined ? undefined : zoneStart(zone)).toBe(0x9000);
+    // An empty file has nothing to point at.
+    expect(meaZones(file([])).zones).toEqual([]);
   });
 });
 

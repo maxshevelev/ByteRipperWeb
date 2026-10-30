@@ -99,6 +99,11 @@
   --difference-fill: rgb(255 149 0 / 0.35);
   --zone-focused: #59adc4;
   --zone-other: #dad554;
+  /* The badge on a scattered zone's stretch: the outline's hue a fifth of the way to black, and
+     its number in white (HexTheme.zonePieceFill, .zonePieceInk upstream). */
+  --zone-piece-focused: #478a9d;
+  --zone-piece-other: #aeaa43;
+  --zone-piece-ink: #fff;
   --zone-agent: #b151d9;
   --zone-person: #2e9e54;
   /* The hover callout: the tooltip's grey lifted a little lighter, and an edge
@@ -200,6 +205,9 @@
     --difference-fill: rgb(255 159 10 / 0.45);
     --zone-focused: #6ac4dc;
     --zone-other: #dad554;
+    --zone-piece-focused: #88d0e3;
+    --zone-piece-other: #e1dd76;
+    --zone-piece-ink: #000;
     --zone-agent: #ce8af4;
     --zone-person: #6bd185;
     --callout-fill: #3a3a3d;
@@ -286,6 +294,9 @@
   --difference-fill: rgb(255 159 10 / 0.45);
   --zone-focused: #6ac4dc;
   --zone-other: #dad554;
+  --zone-piece-focused: #88d0e3;
+  --zone-piece-other: #e1dd76;
+  --zone-piece-ink: #000;
   --zone-agent: #ce8af4;
   --zone-person: #6bd185;
   --callout-fill: #3a3a3d;

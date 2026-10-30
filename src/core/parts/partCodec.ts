@@ -332,6 +332,87 @@ export class CopyPartCodec implements PartCodec {
 }
 
 /**
+ * A thing the file holds in scattered stretches — an MFS file's chunks — read
+ * as one: the stretches' bytes one after another, in the owner's order. The
+ * source is their span; the bytes between them (a chunk's CRC, other files'
+ * chunks) are not the part's and go back untouched.
+ *
+ * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec
+ * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.init
+ */
+export class GatherPartCodec implements PartCodec {
+  readonly isImmediate = true;
+  readonly decodesImmediately = true;
+  /**
+   * Byte `n` of the part is not byte `n` of the span once a stretch is skipped over.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.keepsOffsets
+   */
+  readonly keepsOffsets = false;
+  readonly transform = undefined;
+  /**
+   * The stretches, absolute in the parent, half-open, in the owner's order; each inside the source.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.stretches
+   */
+  readonly stretches: readonly (readonly [number, number])[];
+
+  constructor(stretches: readonly (readonly [number, number])[]) {
+    this.stretches = stretches;
+  }
+
+  /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.decode */
+  async decode(parent: PartParent): Promise<Uint8Array> {
+    const pieces = await Promise.all(
+      this.stretches.map(([start, end]) => parent.content.read(start, end - start))
+    );
+    const bytes = new Uint8Array(pieces.reduce((sum, piece) => sum + piece.length, 0));
+    let at = 0;
+    for (const piece of pieces) {
+      bytes.set(piece, at);
+      at += piece.length;
+    }
+    return bytes;
+  }
+
+  /**
+   * The span as it is now, with the part's bytes laid back over the stretches in
+   * order — a run as long as the source, which keeps its place.
+   *
+   * @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.encode
+   */
+  async encode(part: Uint8Array, parent: PartParent): Promise<PartUpdate> {
+    const length = this.stretches.reduce((sum, [start, end]) => sum + end - start, 0);
+    if (part.length !== length) {
+      throw PartRefusal.lengthChanged({
+        part: parent.partName,
+        parent: parent.name,
+        source: length,
+        now: part.length,
+      });
+    }
+    // A copy: what the reader handed back may be a view of the parent's own bytes.
+    const span = Uint8Array.from(await sourceBytes(parent));
+    let read = 0;
+    for (const [start, end] of this.stretches) {
+      span.set(part.subarray(read, read + end - start), start - parent.source[0]);
+      read += end - start;
+    }
+    return overwriting(parent.source, span);
+  }
+
+  /** @upstream Packages/PartCodec/Sources/PartCodec/PartCodec.swift#GatherPartCodec.badge */
+  get badge(): PartBadge {
+    return {
+      text: L("Assembled", { context: "part badge" }),
+      explanation: L(
+        "These bytes are gathered from several places of the file, in the order the file is read. Update in Parent writes them back to the same places and leaves the bytes between them as they are."
+      ),
+    };
+  }
+}
+
+/**
  * Bytes worked out of the source that nothing here can turn back into it — a
  * variable's text unpacked from a format there is no encoder for. They open as
  * given and are refused on the way back, with the reason.

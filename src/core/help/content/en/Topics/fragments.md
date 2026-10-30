@@ -54,6 +54,7 @@ A fragment does not always hold the bytes of the file as they lie. A decompresse
 - **XOR** followed by a key: the bytes were decoded, and Update in Parent encodes them again and recomputes the checksum.
 - **Plain**: a LENV block stored not encoded. Update in Parent recomputes its checksum only.
 - **Read-only**: the bytes were derived from the file by a transformation the program cannot reverse, and Update in Parent refuses them.
+- **Assembled**: the bytes were gathered from several places of the file — the chunks of an ME file system file — in the order the file is read. Update in Parent writes them back to the same places and leaves the bytes between them unchanged; the length cannot change.
 
 A fragment without a badge is a plain copy: its bytes are those of the file and go back unchanged.
 

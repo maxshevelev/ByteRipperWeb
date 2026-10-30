@@ -46,6 +46,7 @@ import {
   type ZoneBracket,
 } from "@/render/minimap/minimapRenderer";
 import { overviewBandFloor } from "@/render/minimap/viewportMarker";
+import { zoneStretchBrackets } from "@/render/minimap/zoneStretches";
 import { bookmarksIn, bookmarksStore } from "@/state/bookmarksStore";
 import { diffStore } from "@/state/diffStore";
 import {
@@ -78,7 +79,7 @@ import {
   workspaceStore,
 } from "@/state/workspaceStore";
 import { zoneStore, zonesFor } from "@/state/zoneStore";
-import { EMPTY_ZONES, type Zone } from "@/tools/zone";
+import { EMPTY_ZONES, type Zone, zoneStart, zoneStretches } from "@/tools/zone";
 import { calloutRect, HoverCallout, type HoverCalloutHandle } from "@/ui/callout/HoverCallout";
 import { ViewportMarks } from "@/ui/minimap/ViewportMarks";
 import { scrollLink } from "@/ui/pane/scrollLink";
@@ -797,20 +798,18 @@ function MinimapCanvas({
     if (zones.zones.length === 0) return undefined;
     const shared = { mode, areaHeight: size.height, topRow, extent: state.extent };
     const brackets: (ZoneBracket & NamedBracket)[] = [];
-    for (const zone of zones.zones) {
-      const top = yOfOffset({ ...shared, offset: zone.start });
-      const bottom = yOfOffset({ ...shared, offset: zone.end });
+    // A scattered zone is a bracket per stretch, all under its id.
+    for (const { zone, start, end, depth } of zoneStretchBrackets(zones.zones)) {
+      const top = yOfOffset({ ...shared, offset: start });
+      const bottom = yOfOffset({ ...shared, offset: end });
       if (bottom < 0 || top > size.height) continue;
-      const depth = zones.zones.filter(
-        (other) => other !== zone && other.start <= zone.start && other.end >= zone.end
-      ).length;
       brackets.push({
         id: zone.id,
         name: zone.name,
         // The range is carried besides the painted box so a click near a
         // bracket's end can name the byte it stands for.
-        start: zone.start,
-        end: zone.end,
+        start,
+        end,
         top: Math.max(0, top),
         height: Math.min(size.height, bottom) - Math.max(0, top),
         depth,
@@ -1295,7 +1294,7 @@ function MinimapCanvas({
             // menu says what it will act on; an unnamed zone is named by where
             // it starts, which is all there is.
             const named =
-              zone.name.length === 0 ? L("at %1$@", hexAddress(zone.start)) : `“${zone.name}”`;
+              zone.name.length === 0 ? L("at %1$@", hexAddress(zoneStart(zone))) : `“${zone.name}”`;
             openContextMenu(event, [
               {
                 label: L("Select Zone %1$@", named),
@@ -1303,8 +1302,10 @@ function MinimapCanvas({
                   const slot = paneState(pane);
                   if (slot === undefined) return;
                   recordJump(pane);
-                  void slot.typing.setSelection(zone.start, zone.end);
-                  scrollLink.scrollToOffset(pane, zone.start, BYTES_PER_ROW, { centre: true });
+                  // A selection is one stretch: a scattered zone's first.
+                  const [first] = zoneStretches(zone);
+                  if (first !== undefined) void slot.typing.setSelection(first.start, first.end);
+                  scrollLink.scrollToOffset(pane, zoneStart(zone), BYTES_PER_ROW, { centre: true });
                   // The bytes are the host's half; telling the tool that
                   // published the zone is the other one, and it is the only
                   // side that knows what the zone stands for.

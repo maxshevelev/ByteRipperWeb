@@ -1120,6 +1120,8 @@
 "Unknown entry %1$@" = "Неизвестная запись %1$@";
 "Windows key" = "Ключ Windows";
 "part badge|Plain" = "Без кодирования";
+"part badge|Assembled" = "Собран";
+"These bytes are gathered from several places of the file, in the order the file is read. Update in Parent writes them back to the same places and leaves the bytes between them as they are." = "Эти байты собраны из нескольких мест файла в том порядке, в котором файл читается. «Записать в исходный файл» возвращает их на те же места; байты между ними не меняются.";
 "%1$@ (Valid for the body encoded again)" = "%1$@ (сходится для закодированного блока)";
 "Part of “%1$@”, whose bytes were converted with %2$@ when taken out of the file." = "Часть фрагмента «%1$@», байты которого при извлечении из файла преобразованы с помощью %2$@.";
 "%1$@ = %2$@" = "%1$@ = %2$@";

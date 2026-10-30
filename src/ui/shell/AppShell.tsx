@@ -151,6 +151,7 @@ import {
 } from "@/state/workspaceStore";
 import { zoneHooks } from "@/state/zoneStore";
 import { TOOLS } from "@/tools/registry";
+import { zoneStretchContaining, zoneStretches } from "@/tools/zone";
 import { AlertDialog } from "@/ui/dialogs/AlertDialog";
 import { ConfirmDialog } from "@/ui/dialogs/ConfirmDialog";
 import { CutDialog } from "@/ui/dialogs/CutDialog";
@@ -2502,14 +2503,17 @@ export function AppShell() {
       onDeleteBytes: doDeleteBytes,
       onSelectBlockFrom: (pane, offset) => setSelectBlock({ pane, start: offset }),
       onSplitHere: (pane, offset) => setCutAt({ pane, offset }),
-      onSelectZone: (pane, zone) => {
+      onSelectZone: (pane, zone, offset) => {
         const slot = paneState(pane);
         if (slot === undefined) return;
         recordJump(pane);
-        void slot.typing.setSelection(zone.start, zone.end);
+        // A selection is one stretch: for a scattered zone, the one the menu was opened on.
+        const stretch = zoneStretchContaining(zone, offset) ?? zoneStretches(zone)[0];
+        if (stretch === undefined) return;
+        void slot.typing.setSelection(stretch.start, stretch.end);
         // The zone is selected, then shown: scroll alone, so the reveal's caret
         // move does not collapse the selection just made.
-        revealIn(pane, zone.start, false);
+        revealIn(pane, stretch.start, false);
         // The bytes are the host's half; telling the tool that published the
         // zone is the other one, and it is the only side that knows what the
         // zone stands for.

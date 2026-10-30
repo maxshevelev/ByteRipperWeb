@@ -175,6 +175,13 @@ const ZONE_ALPHA = 0.9;
 const AGENT_MARK_DASH = [4, 3];
 /** One whole dash, which is what a note's outline may be folded by. */
 const AGENT_MARK_DASH_PERIOD = AGENT_MARK_DASH.reduce((sum, one) => sum + one, 0);
+/**
+ * The size of the number on a scattered zone's stretch: small enough to sit on
+ * the outline's corner without hiding the byte it starts at.
+ *
+ * @upstream ByteRipperApp/Hex/HexView.swift#HexView.zonePieceFontSize
+ */
+const ZONE_PIECE_FONT_SIZE = 9;
 /** @upstream ByteRipperApp/Hex/HexView.swift#HexView.zoneFillAlpha */
 const ZONE_FILL_ALPHA = 0.1;
 
@@ -183,12 +190,20 @@ const ZONE_FILL_ALPHA = 0.1;
  *
  * @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan
  */
-interface DrawnZone {
+export interface DrawnZone {
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.range */
   readonly start: number;
   readonly end: number;
   /** @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.isFocused */
   readonly focused: boolean;
+  /**
+   * Which stretch of a scattered zone this is, from 1 in the owner's order —
+   * drawn as a badge on the stretch's first corner. Absent for a zone of one
+   * stretch.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexZoneSpan.piece
+   */
+  readonly piece?: number | undefined;
 }
 
 export interface HexGridColors extends Record<InkRole, string> {
@@ -222,6 +237,12 @@ export interface HexGridColors extends Record<InkRole, string> {
   readonly zoneFocused: string;
   /** Every other zone a tool has published. */
   readonly zoneOther: string;
+  /** The badge on a scattered zone's stretch, focused: the outline's hue a step darker in the light theme, lighter in the dark. */
+  readonly zonePieceFocused: string;
+  /** The badge on a stretch of every other scattered zone. */
+  readonly zonePieceOther: string;
+  /** The number on that badge: white in the light theme, black in the dark. */
+  readonly zonePieceInk: string;
   /**
    * A mark an agent put on the dump: its own hue, drawn dashed, so what the agent is pointing at is
    * never taken for a tool's map or for a difference.
@@ -611,12 +632,17 @@ export class HexGridRenderer {
    * @upstream ByteRipperApp/Hex/HexView.swift#HexViewDataSource.hexZoneSpans
    */
   setZones(
-    zones: readonly { readonly id: string; readonly start: number; readonly end: number }[],
+    zones: readonly {
+      readonly id: string;
+      readonly start: number;
+      readonly end: number;
+      readonly stretches?: readonly { readonly start: number; readonly end: number }[] | undefined;
+    }[],
     focus: string | undefined
   ): void {
-    const next = zones
-      .map((zone) => ({ start: zone.start, end: zone.end, focused: zone.id === focus }))
-      .sort((left, right) => Number(left.focused) - Number(right.focused));
+    const next = zoneSpans(zones, focus).sort(
+      (left, right) => Number(left.focused) - Number(right.focused)
+    );
     if (sameZones(this.zones, next)) return;
     for (const zone of [...this.zones, ...next]) {
       const rows = contourRowSpan(zone.start, zone.end);
@@ -1506,6 +1532,7 @@ export class HexGridRenderer {
    */
   private paintOutlines(rowStart: number, y: number): void {
     this.paintZoneOutlines(rowStart, y);
+    this.paintZonePieceBadges(rowStart, y);
     this.paintAgentMarkOutlines(rowStart, y);
     this.paintPeerSelection(rowStart, y);
     this.paintContextMenuFrame(rowStart, y);
@@ -1617,6 +1644,57 @@ export class HexGridRenderer {
       const colour = zone.focused ? config.colors.zoneFocused : config.colors.zoneOther;
       this.strokeContours(y, contours, colour, ZONE_LINE_WIDTH, ZONE_ALPHA);
     }
+  }
+
+  /**
+   * The number of each stretch of a scattered zone — an ME file's chunks — on
+   * the stretch's top-left corner, in a shade of the outline's hue: the order
+   * the file is read in, which is not the order of the addresses.
+   *
+   * Over the outline, centred on its corner, so the most of it lies in the gaps
+   * beside the first byte and the row above it — which is why the row above a
+   * stretch draws its badge too, each row its own slice (the outline's span,
+   * `contourRowSpan`, already repaints it).
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawZonePieceBadges
+   */
+  private paintZonePieceBadges(rowStart: number, y: number): void {
+    const config = this.config;
+    if (config === undefined) return;
+    const { layout, colors } = config;
+    const row = rowStart / BYTES_PER_ROW;
+    const size = this.source?.size ?? 0;
+    const badges = this.zones.filter((zone) => {
+      if (zone.piece === undefined || zone.start >= size) return false;
+      const first = Math.floor(zone.start / BYTES_PER_ROW);
+      return first === row || first === row + 1;
+    });
+    if (badges.length === 0) return;
+    const context = this.context;
+    context.save();
+    this.clipToRow(y);
+    context.font = `600 ${ZONE_PIECE_FONT_SIZE}px system-ui, sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    const height = Math.ceil(ZONE_PIECE_FONT_SIZE * 1.2) + 1;
+    // Focused last, so its badge lies over another zone's.
+    for (const zone of badges) {
+      const { row: first, column } = layout.rowColumn(zone.start);
+      // The outline's own corner (`selectionContours`): padded out at a word
+      // boundary, flush otherwise.
+      const x =
+        layout.hexByteX(column) - (column % layout.wordSize === 0 ? PEER_CONTOUR_PADDING : 0);
+      const top = layout.rowFrame(first).y - this.originY;
+      const text = String(zone.piece);
+      const width = Math.max(height, Math.ceil(context.measureText(text).width) + 6);
+      context.fillStyle = zone.focused ? colors.zonePieceFocused : colors.zonePieceOther;
+      context.beginPath();
+      context.roundRect(x - width / 2, top - height / 2, width, height, height / 2);
+      context.fill();
+      context.fillStyle = colors.zonePieceInk;
+      context.fillText(text, x, top);
+    }
+    context.restore();
   }
 
   /**
@@ -1990,6 +2068,32 @@ function contextMenuFrameRows(
   return { first: Math.max(0, row - 1), end: row + 2 };
 }
 
+/**
+ * The zones as the dump draws them. A scattered zone is drawn as its stretches,
+ * each outlined in the zone's colour and numbered in the owner's order for its
+ * badge, and nothing between them; a zone of one stretch carries no number.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexZoneSpans
+ */
+export function zoneSpans(
+  zones: readonly {
+    readonly id: string;
+    readonly start: number;
+    readonly end: number;
+    readonly stretches?: readonly { readonly start: number; readonly end: number }[] | undefined;
+  }[],
+  focus: string | undefined
+): DrawnZone[] {
+  return zones.flatMap((zone) =>
+    (zone.stretches ?? [zone]).map((stretch, index) => ({
+      start: stretch.start,
+      end: stretch.end,
+      focused: zone.id === focus,
+      piece: zone.stretches !== undefined && zone.stretches.length > 1 ? index + 1 : undefined,
+    }))
+  );
+}
+
 function sameZones(left: readonly DrawnZone[], right: readonly DrawnZone[]): boolean {
   return (
     left.length === right.length &&
@@ -1999,7 +2103,8 @@ function sameZones(left: readonly DrawnZone[], right: readonly DrawnZone[]): boo
         other !== undefined &&
         zone.start === other.start &&
         zone.end === other.end &&
-        zone.focused === other.focused
+        zone.focused === other.focused &&
+        zone.piece === other.piece
       );
     })
   );

@@ -1,6 +1,6 @@
 import { createStore } from "@/state/store";
 import { type PaneId, paneState } from "@/state/workspaceStore";
-import { EMPTY_ZONES, normalizedZones, type ZoneMap } from "@/tools/zone";
+import { EMPTY_ZONES, normalizedZones, type ZoneMap, zoneStart } from "@/tools/zone";
 
 /**
  * The ranges the open tool wants drawn, per pane.
@@ -63,7 +63,8 @@ export function publishZones(pane: PaneId, zones: ZoneMap): void {
   if (focus === undefined || focus === previousFocus) return;
   const zone = drawable.zones.find((one) => one.id === focus);
   if (zone === undefined) return;
-  zoneHooks.onZoneFocused?.(pane, zone.start);
+  // A scattered zone begins at its first stretch in the owner's order.
+  zoneHooks.onZoneFocused?.(pane, zoneStart(zone));
 }
 
 export function clearZones(pane: PaneId): void {

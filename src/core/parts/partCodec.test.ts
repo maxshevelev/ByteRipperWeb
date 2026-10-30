@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LocalizedText } from "@/core/localization/localization";
 import {
   CopyPartCodec,
+  GatherPartCodec,
   overwriting,
   type PartParent,
   type PartReader,
@@ -74,5 +75,26 @@ describe("a part's codec", () => {
     );
     expect(codec.keepsOffsets).toBe(false);
     expect(codec.badge.text).toBe("Read-only");
+  });
+
+  // A scattered thing opens as its stretches one after another, in the owner's order, and goes
+  // back to the same places: the bytes between them stay what they were.
+  // @upstream Packages/PartCodec/Tests/PartCodecTests/PartCodecTests.swift#PartCodecTests.testAGatheredPartOpensInTheOwnersOrderAndGoesBackToTheSamePlaces
+  it("opens a gathered part in the owner's order and puts it back in the same places", async () => {
+    const scattered: PartParent = { ...parent, source: [4, 16] };
+    const codec = new GatherPartCodec([
+      [12, 16],
+      [4, 6],
+    ]);
+
+    expect(await codec.decode(scattered)).toEqual(Uint8Array.from([12, 13, 14, 15, 4, 5]));
+    expect(await codec.encode(Uint8Array.from([0xa, 0xb, 0xc, 0xd, 0xe, 0xf]), scattered)).toEqual(
+      overwriting([4, 16], Uint8Array.from([0xe, 0xf, 6, 7, 8, 9, 10, 11, 0xa, 0xb, 0xc, 0xd]))
+    );
+    expect(codec.keepsOffsets).toBe(false);
+    const refused = await codec
+      .encode(Uint8Array.from([1, 2, 3]), scattered)
+      .catch((error: unknown) => error);
+    expect((refused as PartRefusal).title.textIn("en")).toBe("The length changed");
   });
 });
