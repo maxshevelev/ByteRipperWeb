@@ -24,7 +24,7 @@ import {
 } from "@/state/toolController";
 import { beginBlockingWork, reportToolResult } from "@/state/toolWork";
 import { showTransientMessage } from "@/state/transientMessageStore";
-import { useStore } from "@/state/useStore";
+import { useStore, useStoreSelector } from "@/state/useStore";
 import {
   isSlot,
   PANE_IDS,
@@ -34,11 +34,12 @@ import {
   type SlotId,
   type SurfaceId,
   WORKSPACE_SURFACE,
+  windowPanesAreReachable,
   workspaceStore,
 } from "@/state/workspaceStore";
 import type { ToolContext } from "@/tools/toolModule";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
-import { singleFileDropTargetTitle } from "@/ui/drag/dragDrop";
+import { dropZonePlates, singleFileDropTargetTitle } from "@/ui/drag/dragDrop";
 import { dragCarried } from "@/ui/drag/PaneDropBands";
 import { SIDE_INSET } from "@/ui/fragments/fragmentPanelLayout";
 import { HelpButton } from "@/ui/help/HelpButton";
@@ -100,11 +101,11 @@ export function ToolPanel({
   const switchable = selectorEnabled(choices);
   const keyboardRing = useKeyboardInput();
   const drag = useStore(paneDragStore);
+  // A fragment panel that is up covers the panes and this panel, so its zone stays down.
+  const reachable = useStoreSelector(workspaceStore, windowPanesAreReachable);
   /**
-   * Whether the pointer is over the panel with something in hand. The zone is
-   * shown for that, not for the whole drag: upstream puts it up in
-   * `draggingEntered` and takes it down on the way out, where the panes' bands
-   * are up for the session's whole length.
+   * Whether the pointer is over the panel with something in hand: the zone is up
+   * for the whole drag, and lit while the pointer is here.
    *
    * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZone
    */
@@ -121,9 +122,8 @@ export function ToolPanel({
 
   /**
    * What the zone says it will do, or `undefined` to refuse — a panel that
-   * takes no drops, and a pane the tool is already reading, both wear the
-   * refusal rather than staying blank: an area that does nothing and says
-   * nothing does not say why (§4.3).
+   * takes no drops, and a pane the tool is already reading. Nothing is shown
+   * where nothing can land; the cursor refuses (§4.3).
    *
    * @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.draggingEntered
    */
@@ -142,8 +142,11 @@ export function ToolPanel({
     // Ours whichever way it goes: a panel that cannot take what is carried
     // refuses it rather than letting the workspace behind it open something.
     event.stopPropagation();
-    // A file entering the panel is what tells the workspace a drag is on, as it
-    // is anywhere else: the panes' bands have to come up too.
+    // A file over the panel is what tells the window the file is over it, as it
+    // is anywhere else — even where the panel refuses it: the panes' zones have to
+    // stay up.
+    // @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.onFileDragPresence
+    // @upstream-differs entering alone, as a region's: the window hears the file leave
     if (carried === "file") beginFileDrag();
     setDragOver(true);
     if (zoneTitle() === undefined) {
@@ -370,14 +373,21 @@ export function ToolPanel({
       {/* @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setContent */}
       <div className="tool-panel-body">
         <tool.View key={`${tool.id}:${boundPane}`} context={context} />
-        {/* Over the body and only while the pointer is here with something in
-            hand, inset from the panel's edges as upstream insets it.
-            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.show */}
-        {dragOver && drag.inFlight !== undefined ? (
-          <div className="tool-panel-drop">
-            <DropTargetView title={zoneTitle()} highlighted={zoneTitle() !== undefined} />
+        {/* Over the body for the whole drag when the panel would take what is
+            carried, lit while the pointer is here; a panel that would refuse it
+            shows nothing at all.
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.show
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.showForFileDrag
+            @upstream ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.showForPaneDrag */}
+        {dropZonePlates(["panel"] as const, {
+          up: drag.inFlight !== undefined && reachable,
+          hovered: dragOver ? "panel" : undefined,
+          titleFor: zoneTitle,
+        }).map(({ title, highlighted }) => (
+          <div key="panel" className="tool-panel-drop">
+            <DropTargetView title={title} highlighted={highlighted} inset={{}} />
           </div>
-        ) : null}
+        ))}
       </div>
 
       <EdgeSplitter

@@ -706,7 +706,6 @@
 "No more same block" = "Одинаковых блоков больше нет";
 "Non-UEFI data" = "Данные не-UEFI";
 "None" = "Нет";
-"Not allowed here" = "Сюда нельзя";
 "Not checked" = "Не проверялось";
 "Not found" = "Не найдено";
 "Not placed" = "Не размещён";
@@ -728,7 +727,6 @@
 "One panel was opened out of it and will lose its way back. Its bytes stay as they are; only the way back goes." = "Из неё открыта одна панель, и она потеряет обратный путь: байты в ней остаются прежними, утрачивается только связь с источником.";
 "Only a microcode entry can be removed." = "Удалить можно только запись микрокода.";
 "Only CPUIDs in this image" = "Только CPUID из этого образа";
-"Open as Second File" = "Открыть вторым файлом";
 "Open Body of “%1$@”" = "Открыть тело «%1$@»";
 "Open Decompressed Body" = "Открыть распакованное тело";
 "Open File" = "Открыть файл";
@@ -1737,3 +1735,6 @@
 "The settings are read on CSME 11 to 18, from the configuration files the image carries." = "Настройки читаются для CSME 11–18, из файлов конфигурации, которые есть в образе.";
 "Setting help" = "Справка о настройке";
 "Show what Flash Image Tool says about this setting" = "Показать, что Flash Image Tool говорит об этой настройке";
+
+/* M10: the drop zones */
+"Open for Comparison" = "Открыть для сравнения";

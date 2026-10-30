@@ -1,10 +1,17 @@
 import { type ReactNode, useRef } from "react";
 import { L } from "@/core/localization/localization";
 import { paneDragStore, type RemoteDraggedPane } from "@/state/paneDragStore";
-import { useStore } from "@/state/useStore";
-import type { PaneLayout, PartId, SlotId } from "@/state/workspaceStore";
+import { useStore, useStoreSelector } from "@/state/useStore";
+import {
+  type PaneLayout,
+  type PartId,
+  type SlotId,
+  windowPanesAreReachable,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { DropZoneView } from "@/ui/drag/DropZoneView";
 import {
+  dropZonePlates,
   isDuplicate,
   type SingleFileDropTarget,
   singleFileDropTargetTitle,
@@ -19,7 +26,7 @@ import {
  * Single-file mode's content view (§4.3, amended by §22.4): wraps the pane and
  * splits the workspace into two targeted drop regions along the current pane
  * layout. The "this file" half is divided into the three bands; the "second
- * file" half is the single Open-as-Second target.
+ * file" half is the single Open for Comparison target.
  *
  * A plain container, and the drop destination for the whole content area: the
  * two overlay halves are purely visual and pass the pointer through to the pane
@@ -85,6 +92,9 @@ export interface SingleFileDropProps {
  * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.clearDragTarget
  * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.retitlePaneZones
  * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.endPaneDrag
+ * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.showForFileDrag
+ * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.showForPaneDrag
+ * @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.applyAdjoiningEdges
  */
 export function SingleFileDrop({
   layout,
@@ -96,6 +106,8 @@ export function SingleFileDrop({
   children,
 }: SingleFileDropProps) {
   const { inFlight, copying, zone } = useStore(paneDragStore);
+  // A fragment panel that is up covers the panes, so their zones stay down.
+  const reachable = useStoreSelector(workspaceStore, windowPanesAreReachable);
   /**
    * The "this file" half, whose box the three bands divide.
    *
@@ -135,27 +147,38 @@ export function SingleFileDrop({
       onDrop={onDrop}
     >
       {children}
-      <div className="single-file-drop-bands" ref={bandsRef} hidden={!secondHalf}>
-        <PaneDropBands outcomeFor={outcomeFor} />
+      {/* The halves share an edge — the bands' right or bottom, the free half's left or
+          top — whose padding each takes half of; with no second half on offer the bands
+          take the whole view and every edge is a pane's. */}
+      <div className="single-file-drop-bands" ref={bandsRef} hidden={inFlight === undefined}>
+        <PaneDropBands
+          outcomeFor={outcomeFor}
+          adjoiningEdge={secondHalf ? (layout === "sideBySide" ? "right" : "bottom") : undefined}
+        />
       </div>
       {secondHalf ? (
         // Captioned from what it will do: a pane from elsewhere becomes this
         // workspace's second one, so the zone's own name is the right words for
-        // it; this workspace's own pane is copied, and "Open as Second File"
+        // it; this workspace's own pane is copied, and "Open for Comparison"
         // would say nothing about the copy being made (§23).
         <div className="single-file-drop-second">
-          {/* Up only while the pointer is over this half, as upstream's `updateDragTarget`
-              shows the half under the pointer and hides the other. */}
-          {zone !== "addSecond" ? null : (
+          {/* Up for the whole drag beside the bands, lit while the pointer is over this
+              half, as upstream's `updateDragTarget` shows both halves and lights one. */}
+          {dropZonePlates(["addSecond"] as const, {
+            up: reachable,
+            hovered: zone === "addSecond" ? zone : undefined,
+            titleFor: () =>
+              second !== undefined && isDuplicate(second)
+                ? L("Duplicate Here")
+                : singleFileDropTargetTitle("addSecond"),
+          }).map(({ title, highlighted }) => (
             <DropZoneView
-              title={
-                second !== undefined && isDuplicate(second)
-                  ? L("Duplicate Here")
-                  : singleFileDropTargetTitle("addSecond")
-              }
-              highlighted
+              key="addSecond"
+              title={title}
+              highlighted={highlighted}
+              adjoiningEdge={layout === "sideBySide" ? "left" : "top"}
             />
-          )}
+          ))}
         </div>
       ) : null}
     </div>

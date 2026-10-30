@@ -2084,7 +2084,6 @@
         "ByteRipperApp/Tools/ToolController.swift#ToolController.surface": "n/a — the controller holds one session per surface, keyed by SurfaceId, rather than one controller per surface holding its own",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.draggingEnded": "n/a — AppKit ends a drag twice, on exit and on end; a browser fires dragleave for the one and nothing for the other, and the drop handler takes the zone down itself",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneCaption": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
-        "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.dropZoneIsRefusing": "n/a — upstream's read-back for its tests; here the caption is `paneDropTitle`'s own answer, tested where it is decided",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.helpButtonFrameInHeader": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.setHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
         "ByteRipperApp/Tools/ToolPanelView.swift#ToolPanelView.shownHelpTopic": "n/a — an AppKit test hook of the header's help button; the web draws it in React",
@@ -2353,7 +2352,10 @@
         "ByteRipperApp/DragDrop/SingleFileDropView.swift#*.setPaneDragCopying": "n/a — one writer: `notePaneDragCopying` records the modifier once and every overlay subscribes, so there is nobody to relay it to",
         "ByteRipperApp/DragDrop/SingleFileDropView.swift#*ForTesting": "later — no React component tests in this project yet",
         "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.draggingEnded": "n/a — the strip comes down with the drag in the pane-drag store, which the source's own `dragend` ends (`endLocalPaneDrag`)",
-        "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.prepareForDragOperation": "n/a — a browser asks a drop target nothing before the drop"
+        "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.prepareForDragOperation": "n/a — a browser asks a drop target nothing before the drop",
+        "ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.onFileDragPresence": "n/a — the shell's strip (NewWindowStrip) is up for as long as the file drag is in paneDragStore, which the window's own handlers keep (fileDragPresenceChanged); the strip has nothing to report to it",
+        "ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.init": "n/a — there is no view to register: the backstop is the window's own drag listeners (AppShell)",
+        "ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.prepareForDragOperation": "n/a — a browser asks a drop target nothing before the drop; and a file let go in a gap opens, as handleEmptyDrop's @upstream-differs says"
       },
       "files": {
         "ByteRipperApp/DragDrop/DragDrop.swift": [
@@ -2539,6 +2541,7 @@
         "ByteRipperTests/OffsetContextMenuTests.swift": "tests/e2e",
         "ByteRipperTests/OpenPlacementTests.swift": "src/state/openPlacement.test.ts",
         "ByteRipperTests/PaneDragTests.swift": "tests/e2e",
+        "ByteRipperTests/FileDragZonesTests.swift": "tests/e2e",
         "ByteRipperTests/PaneHeaderIconTests.swift": "tests/e2e",
         "ByteRipperTests/PaneViewModelTests.swift": "tests/e2e",
         "ByteRipperTests/PanelAppearanceTests.swift": "tests/e2e",

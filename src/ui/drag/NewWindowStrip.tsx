@@ -29,11 +29,11 @@ import { dragCarriesPane } from "@/ui/drag/dragDrop";
  */
 
 /**
- * How tall the strip is.
+ * How tall the strip is: deep enough to hold its plate with the zones' padding round it.
  *
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#NewTabDropStrip.height
  */
-export const NEW_WINDOW_STRIP_HEIGHT = 44;
+export const NEW_WINDOW_STRIP_HEIGHT = 52;
 
 /** How long after a drag starts the strip comes up. */
 const STRIP_DELAY_MS = 150;
@@ -156,7 +156,7 @@ export function NewWindowStrip({ onPane, onFiles }: NewWindowStripProps) {
         }
       }}
     >
-      <DropTargetView title={title} highlighted={hovered} />
+      <DropTargetView title={title} highlighted={hovered} inset={{}} />
     </div>
   );
 }

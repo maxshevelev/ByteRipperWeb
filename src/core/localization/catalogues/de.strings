@@ -706,7 +706,6 @@
 "No more same block" = "Keine weiteren gleichen Blöcke";
 "Non-UEFI data" = "Nicht-UEFI-Daten";
 "None" = "Keine";
-"Not allowed here" = "Hier nicht erlaubt";
 "Not checked" = "Nicht geprüft";
 "Not found" = "Nicht gefunden";
 "Not placed" = "Nicht platziert";
@@ -728,7 +727,6 @@
 "One panel was opened out of it and will lose its way back. Its bytes stay as they are; only the way back goes." = "Ein Bereich wurde daraus geöffnet und verliert den Weg zurück. Seine Bytes bleiben unverändert; verloren geht allein die Verbindung zur Herkunft.";
 "Only a microcode entry can be removed." = "Nur ein Microcode-Eintrag lässt sich entfernen.";
 "Only CPUIDs in this image" = "Nur CPUIDs aus diesem Image";
-"Open as Second File" = "Als zweite Datei öffnen";
 "Open Body of “%1$@”" = "Rumpf von „%1$@“ öffnen";
 "Open Decompressed Body" = "Entpackten Rumpf öffnen";
 "Open File" = "Datei öffnen";
@@ -1738,3 +1736,6 @@
 "The settings are read on CSME 11 to 18, from the configuration files the image carries." = "Die Einstellungen werden für CSME 11 bis 18 aus den Konfigurationsdateien des Abbilds gelesen.";
 "Setting help" = "Hilfe zur Einstellung";
 "Show what Flash Image Tool says about this setting" = "Zeigt, was Flash Image Tool zu dieser Einstellung sagt";
+
+/* M10: the drop zones */
+"Open for Comparison" = "Zum Vergleich öffnen";

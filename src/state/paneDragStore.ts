@@ -79,17 +79,79 @@ const IDLE: PaneDragState = {
 export const paneDragStore = createStore<PaneDragState>(IDLE);
 
 /**
+ * Where a file drag stands with the window, as what hears it reports it (§4.3):
+ * it came over the window or one of its zones, it left, or the drag is over —
+ * dropped or cancelled.
+ *
+ * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragPresence
+ */
+export type FileDragPresence = "entered" | "exited" | "ended";
+
+/**
+ * How long a file that has left is given to be taken up again before the zones
+ * go. Moving from one zone to the next is a leave and an entry in the same step,
+ * so a leave takes nothing down by itself.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fileDragHideTimer
+ */
+export const FILE_DRAG_HIDE_DELAY_MS = 120;
+
+let fileDragHideTimer: ReturnType<typeof setTimeout> | undefined;
+
+function cancelFileDragHide(): void {
+  if (fileDragHideTimer === undefined) return;
+  clearTimeout(fileDragHideTimer);
+  fileDragHideTimer = undefined;
+}
+
+/**
+ * A file drag coming over the window, leaving it, or ending.
+ *
+ * While the file is over the window every zone it could go to is up and unlit,
+ * and the one under the pointer lights itself over that — the zones read this
+ * store. A leave takes nothing down by itself: the zones go only when nothing in
+ * the window has taken the drag up again a moment later — the pointer has left
+ * the window — or when the drag ends. A browser that names no element the pointer
+ * went to, as WebKit does, reports every crossing as a leave, and the next
+ * `dragover` takes it back.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.fileDragPresenceChanged
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFileDropZones
+ */
+export function fileDragPresenceChanged(presence: FileDragPresence): void {
+  cancelFileDragHide();
+  switch (presence) {
+    case "entered":
+      paneDragStore.update((state) =>
+        state.inFlight === "file" ? state : { ...IDLE, inFlight: "file" }
+      );
+      return;
+    case "exited":
+      if (paneDragStore.getSnapshot().inFlight !== "file") return;
+      // Nothing is lit once the file has left the zone it was over.
+      notePaneDragZone(undefined);
+      fileDragHideTimer = setTimeout(() => {
+        fileDragHideTimer = undefined;
+        if (paneDragStore.getSnapshot().inFlight === "file") endDrag();
+      }, FILE_DRAG_HIDE_DELAY_MS);
+      return;
+    case "ended":
+      if (paneDragStore.getSnapshot().inFlight === "file") endDrag();
+      return;
+  }
+}
+
+/**
  * A file drag is over the workspace.
  *
  * The window raises this one, since a file can be dropped anywhere on it — and
- * on the landing screen, where there is no pane to enter.
+ * on the landing screen, where there is no pane to enter — and so does every
+ * region a file comes over, whose `dragover` the window never hears.
  *
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onDragSessionChanged
  */
 export function beginFileDrag(): void {
-  paneDragStore.update((state) =>
-    state.inFlight === "file" ? state : { ...IDLE, inFlight: "file" }
-  );
+  fileDragPresenceChanged("entered");
 }
 
 /**
@@ -147,6 +209,7 @@ export function draggedRemotePane(): RemoteDraggedPane | undefined {
  * nothing to answer for — the very bug `forgetDraggedPane`'s own comment describes
  */
 export function endDrag(): void {
+  cancelFileDragHide();
   paneDragStore.update((state) => (state.inFlight === undefined ? state : IDLE));
 }
 
