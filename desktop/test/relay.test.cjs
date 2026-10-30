@@ -299,3 +299,17 @@ test("a relay running from the temporary folder ends with the app", async () => 
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test("a relay running from the temporary folder that finds no app answers with the reason and ends", async () => {
+  const folder = temporary();
+  const above = path.dirname(path.dirname(process.execPath));
+  const relay = startRelay(addressIn(folder), { TMPDIR: above, TEMP: above, TMP: above });
+  try {
+    relay.send(1);
+    assert.equal(reason(await relay.answer()), NOT_STARTED_MESSAGE);
+    await waitUntil("the relay ends instead of waiting for an app", () => !relay.isRunning);
+  } finally {
+    await relay.stop();
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

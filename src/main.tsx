@@ -27,14 +27,17 @@ if (!host) throw new Error("index.html is missing its #root element");
 installOpfsJournals();
 
 const own = ownWindowKind();
-const settled = Promise.all([
+// Every one of them settled before the first render, whichever of the others failed: a page drawn
+// before its maps are in names nothing through them, and keeps the empty answer it drew.
+const settled = Promise.allSettled([
   restoreSettings(),
   loadBundledMapsInPage(),
   own === undefined
     ? loadRestoresWorkspace().then((restores) => settleWorkspaceIdentity(restores))
     : undefined,
 ]);
-void settled.finally(() => {
+void settled.then((results) => {
+  for (const result of results) if (result.status === "rejected") console.error(result.reason);
   // In the language the settings chose, which is the one the page draws in.
   publishFieldMenu();
   createRoot(host).render(

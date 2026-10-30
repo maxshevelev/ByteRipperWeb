@@ -1242,7 +1242,8 @@ export function ConfigurationView({
     block.rows.some((row) => row.help !== undefined || row.note !== undefined)
   );
   const nameWidth = `calc(${Math.min(longest, 48)}ch * 0.82${reservesHelp ? " + 1.4em" : ""})`;
-  // A value one copy does not carry is the quiet dash; a switched-off setting is quiet too.
+  // A value one copy does not carry is the quiet dash; a switched-off setting is quiet too —
+  // in either column.
   const cell = (text: string | undefined, differs: boolean, quiet: boolean) => ({
     value: text ?? CONFIGURATION_ABSENT,
     strong: differs && !quiet,

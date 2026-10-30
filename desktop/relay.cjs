@@ -270,7 +270,11 @@ function serveClient() {
     if (line.trim().length === 0) return;
     const id = requestID(line);
     if (upstream === undefined) {
-      if (id !== undefined) answerUnavailable(id);
+      if (id === undefined) return;
+      answerUnavailable(id);
+      // A relay that ends with the app does not wait for one either: told why, the client is
+      // done with it, and the folder it runs from is not held open.
+      if (!outlivesTheApp) process.stdout.end(() => process.exit(0));
       return;
     }
     // On the list before it is written: if the app goes now, the socket's close answers it.
@@ -293,7 +297,7 @@ if (require.main === module) {
   attach().then((socket) => {
     if (socket === undefined) {
       process.stderr.write(`${unavailableMessage}\n`);
-      follow();
+      if (outlivesTheApp) follow();
     } else {
       adopt(socket);
     }

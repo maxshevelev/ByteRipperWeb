@@ -165,4 +165,15 @@ describe("a second value", () => {
     ]);
     expect(copied(html)).toBe("A\t1\t2\nB\t3\t4");
   });
+
+  // A quiet second value is drawn grey as a quiet first one is: the dash of a copy the image
+  // does not carry, a switched-off setting in both columns.
+  // @web-only upstream's second value is an attributed string, which carries its own colour
+  it("is drawn grey when quiet", () => {
+    const html = markup([
+      row("A", "1", { muted: true, second: { value: "—", muted: true } }),
+      row("B", "3", { second: { value: "4" } }),
+    ]);
+    expect(html.match(/data-soon/g)).toHaveLength(2);
+  });
 });

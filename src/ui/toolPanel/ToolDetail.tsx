@@ -821,7 +821,14 @@ export interface ListedField extends DetailField {
    *
    * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.Field.second
    */
-  readonly second?: { readonly value: string; readonly strong?: boolean | undefined } | undefined;
+  readonly second?:
+    | {
+        readonly value: string;
+        readonly strong?: boolean | undefined;
+        /** Drawn grey, as the first value is: a copy the image does not carry, a switched-off setting. */
+        readonly muted?: boolean | undefined;
+      }
+    | undefined;
   /**
    * What the row's `?` offers, where the tool the row came from has something to say
    * about it. Absent on a row with no such button.
@@ -921,6 +928,7 @@ export function DetailFields({
           {one.second === undefined ? null : (
             <dd
               data-mono={one.second.value.startsWith("0x") ? "" : undefined}
+              data-soon={one.second.muted === true ? "" : undefined}
               data-strong={one.second.strong === true ? "" : undefined}
             >
               {one.second.value}
