@@ -276,6 +276,19 @@ test("a window of the workspace turning the service on has the Agent window's pa
   assert.equal(made, 1);
 });
 
+// Upstream's `AgentUITests.testTheRelayHandedOutIsTheInstalledCopyOfThisBuildsHelper`, the shell's
+// half: what a client is told to run is this build's relay — not an installed copy beside the
+// endpoint (upstream's `AgentRelayInstall`), but the script beside the app's own executable, run
+// by it as Node, which is this build's by construction.
+test("the relay handed out is this build's own, run by this build's executable", async () => {
+  const { invoke } = harness();
+  const info = await invoke("agent:info");
+  assert.equal(info.command, process.execPath);
+  assert.equal(info.script, path.join(__dirname, "..", "relay.cjs"));
+  assert.equal(fs.existsSync(info.script), true, "the relay is there to run");
+  assert.deepEqual(info.environment, { ELECTRON_RUN_AS_NODE: "1" });
+});
+
 test("a document's id comes from one counter for every window", () => {
   const minted = [];
   const ipc = new EventEmitter();
