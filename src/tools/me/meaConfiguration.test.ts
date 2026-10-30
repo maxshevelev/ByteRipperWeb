@@ -166,6 +166,41 @@ describe("the Configuration tab", () => {
     expect(flag?.note).toBeUndefined();
   });
 
+  // A condition and a switch-off are the setting's own, not its file's: in a file that holds a
+  // conditional setting, a switched-off one and a plain one, each row carries only what the tool
+  // says about that setting.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAConditionBelongsToItsSettingNotToItsFile
+  it("gives a condition to its setting, not to its file", () => {
+    const a: FirmwareAnalysis = {
+      ...csme(15, 0, 1, 100),
+      configuration: [
+        file("/home/mctp/smt2_devices", "Smt2Devices", {
+          mfs: page(8, [
+            setting("Plain", 1),
+            setting("MctpEcAddress", 0, { condition: condition("eSpiEnabled", 0, true) }),
+            setting("SwitchedOff", 2, { disabled: condition("eSpiEnabled", 1) }),
+          ]),
+        }),
+      ],
+    };
+    const rows = buildConfiguration(a)[0]?.rows ?? [];
+    const row = (identifier: string) => rows.find((one) => one.identifier === identifier);
+
+    // A plain setting beside a conditional one has nothing to add, and is not drawn quiet.
+    expect(row("Plain")?.note).toBeUndefined();
+    expect(row("Plain")?.condition).toBeUndefined();
+    expect(row("Plain")?.disabled).toBe(false);
+
+    // The switch-off is the other setting's.
+    expect(row("MctpEcAddress")?.note).toBe("eSpiEnabled = No, assumed");
+    expect(row("MctpEcAddress")?.disabled).toBe(false);
+
+    // And the condition is the other setting's.
+    expect(row("SwitchedOff")?.note).toBe("disabled by eSpiEnabled = Yes");
+    expect(row("SwitchedOff")?.condition).toBeUndefined();
+    expect(row("SwitchedOff")?.disabled).toBe(true);
+  });
+
   // The tab reads the board's own half of the generation's map: a file the mobile map lays out
   // and the desktop one does not is labelled from the mobile map and reaches the desktop tab by
   // its identifier alone — the same map the engine read the values through.

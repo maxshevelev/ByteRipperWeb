@@ -109,8 +109,10 @@ export function buildConfiguration(analysis: FirmwareAnalysis): MEAConfiguration
       // The tool's own name for the setting where it has one, and the identifier where not.
       const auto = configurationAuto(setting?.auto === true);
       const label = (setting?.label ?? name) + (auto === "" ? "" : ` · ${auto}`);
-      const condition = copies.find((one) => one.condition !== undefined)?.condition;
-      const disabled = copies.find((one) => one.disabled !== undefined)?.disabled;
+      // What placed the setting and what switches it off are the setting's own, not its file's.
+      const own = copies.filter((one) => one.name === name);
+      const condition = own.find((one) => one.condition !== undefined)?.condition;
+      const disabled = own.find((one) => one.disabled !== undefined)?.disabled;
       const note = [
         ...(condition === undefined ? [] : [configurationCondition(condition, map)]),
         ...(disabled === undefined ? [] : [configurationDisabled(disabled, map)]),
