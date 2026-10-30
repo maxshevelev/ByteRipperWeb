@@ -6057,26 +6057,24 @@ button.uefi-title {
   vertical-align: -3px;
 }
 
-/* The popover a firmware row's `?` opens: one word, explained where it is being
-   read. A `<dialog>` shown modelessly, so the browser's own Escape and the
-   panel behind it both keep working — upstream's is an NSPopover with an arrow,
-   which a browser has no equivalent of.
-   A column the way upstream's box is: the name and the way out stay put and
-   only the body scrolls — a popover whose "Open in Help" can scroll away is
-   one the reader cannot leave. */
+/* A help popover (`HelpPopover`): a `<dialog>` shown modelessly, so the
+   browser's own Escape and the panel behind it both keep working — upstream's
+   is an NSPopover with an arrow, which a browser has no equivalent of. As wide
+   as its layout asks, never wider than the box it stands in. */
 .help-popover {
   position: absolute;
   z-index: 30;
   display: flex;
   flex-direction: column;
-  width: min(460px, calc(100% - 16px));
+  width: fit-content;
+  max-width: calc(100% - 16px);
   /* The box takes the less of its own 80% and the room left below the button
      that opened it, which the component sets — a dialog that reaches for
      room it has not got is one the browser answers by scrolling the reader
      away from the title. */
   max-height: min(80%, var(--help-popover-room, 100%));
   margin: 0;
-  padding: 12px 14px;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
@@ -6085,34 +6083,117 @@ button.uefi-title {
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
 }
 
+/* The one shape every help popover has (`HelpPopoverLayout`): a title over the
+   words, flat on the popover's own background and from one left edge, as tall
+   as the words up to the cap past which they scroll. Set in the panels' type —
+   their body size for the words, a pixel over it for the title — so it is read
+   at the size of the rows it explains and follows them when it moves; the
+   width and the cap are in `em` of that type, set by the component, so the box
+   grows with it. A column, so the title and the way out stay put and only the
+   words scroll: a popover whose "Open in Help" can scroll away is one the
+   reader cannot leave. */
+.help-popover-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: var(--help-popover-width);
+  max-width: 100%;
+  padding: 12px var(--help-popover-margin) 12px;
+  font-size: var(--hex-font-size, 13px);
+  font-weight: 400;
+  line-height: 1.4;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .help-popover-name {
   flex: 0 0 auto;
-  margin: 0 0 4px;
-  font-size: 13px;
+  margin: 0;
+  overflow: hidden;
+  font-size: calc(1em + 1px);
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The caller's line under the title: quiet, the words' size, and wrapping onto
+   as many lines as it takes rather than being cut to one. */
+.help-popover-note {
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Words that fit do not scroll: the box is as tall as they are up to its cap,
+   and there is no bounce to say there was more to see. */
+.help-popover-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: var(--help-popover-body-max);
+  margin-top: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.help-popover-footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* The book's blocks brought to the popover's size: every size and spacing the
+   panel's rules give them, in `em` of the popover's type, so the text keeps its
+   proportions (upstream's HelpPopoverLayout.fitted). */
+.help-popover-summary,
+.help-popover-prose {
+  margin: 0 0 calc(10em / 13);
 }
 
 .help-popover-summary {
-  margin: 0 0 8px;
-  font-size: 12px;
   color: var(--text-muted);
 }
 
-.help-popover-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
+/* The tool's own words keep their line breaks. */
+.help-popover-prose {
+  white-space: pre-line;
+}
+
+.help-popover-body .help-heading {
+  margin: calc(20em / 14) 0 calc(6em / 14);
+  font-size: calc(14em / 13);
 }
 
 .help-popover-body .help-paragraph,
 .help-popover-body .help-bullets,
 .help-popover-body .help-steps {
-  font-size: 12px;
-  line-height: 1.5;
+  margin: 0 0 calc(10em / 13);
+  font-size: 1em;
+  line-height: 1.55;
 }
 
-.help-popover-more {
-  margin-top: 6px;
+.help-popover-body .help-bullets,
+.help-popover-body .help-steps {
+  padding-left: calc(22em / 13);
+}
+
+.help-popover-body .help-bullets li,
+.help-popover-body .help-steps li {
+  margin-bottom: calc(4em / 13);
+}
+
+.help-popover-body .help-caution {
+  margin: calc(12em / 13) 0;
+  padding: calc(8em / 13) calc(12em / 13);
+  font-size: 1em;
+}
+
+/* The newline that ends the book's last paragraph is not carried in: in a box
+   sized to its words it is an empty line under them. */
+.help-popover-body > :last-child {
+  margin-bottom: 0;
 }
 
 /* The `?` beside a detail's title, level with the name it explains and
