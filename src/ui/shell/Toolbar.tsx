@@ -1091,6 +1091,11 @@ export function Toolbar({
           </IconButton>
         );
       case "toggleMinimap":
+        // The icon and the pressed state say whether the map in front is
+        // showing — the panel's when one is up, the workspace's otherwise —
+        // since that is the one the click toggles.
+        // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.validateToolbarItem
+        // @upstream-differs the name stays "Toggle Minimap" and `aria-pressed` carries the state, which is how a toggle button reads to a screen reader; upstream swaps the accessibility description
         return (
           <IconButton
             key={key}
@@ -1100,7 +1105,7 @@ export function Toolbar({
             disabled={disabled}
             onClick={() => toggleMinimap()}
           >
-            <MinimapGlyph />
+            <MinimapGlyph shown={minimap.visible} />
           </IconButton>
         );
     }

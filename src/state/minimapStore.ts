@@ -168,10 +168,11 @@ export const minimapStore = createStore<MinimapsState>({ surfaces: {} });
 /**
  * The map `surface` has.
  *
- * A surface nothing has touched yet answers with the workspace's own visibility,
- * mode and width and nothing else — which is how a panel opens with the map the
- * workspace has. The moment anything about that panel's map is changed it
- * becomes the panel's own.
+ * A part's surface nothing has touched yet answers hidden, whatever the
+ * workspace's map is, with the workspace's mode and width for when it is shown —
+ * which is how a panel opens. Opening a part is not a reason to put a column
+ * beside it nobody asked for. The moment anything about that panel's map is
+ * changed it becomes the panel's own.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.prepareFragmentMinimap
  * @upstream-differs upstream prepares a panel's map as the panel opens; here the
@@ -183,7 +184,7 @@ export function mapOn(state: MinimapsState, surface: SurfaceId): MinimapState {
   if (held !== undefined) return held;
   if (surface === WORKSPACE_SURFACE) return IDLE;
   const workspace = state.surfaces[WORKSPACE_SURFACE] ?? IDLE;
-  return { ...IDLE, visible: workspace.visible, mode: workspace.mode, width: workspace.width };
+  return { ...IDLE, visible: false, mode: workspace.mode, width: workspace.width };
 }
 
 /** The map of the surface in front — what the toolbar's toggle means. */

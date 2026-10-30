@@ -17,6 +17,7 @@ import {
   foldParts,
   openEmptyInPane,
   openPart,
+  raisePart,
   WORKSPACE_SURFACE,
   workspaceStore,
 } from "@/state/workspaceStore";
@@ -52,26 +53,60 @@ afterEach(() => {
 
 describe("a panel's own map", () => {
   /**
-   * Someone who works with the minimap on wants it on the part too — and a
-   * panel that opened with it off would be answering a question nobody asked.
+   * It opens with its map hidden, even over a workspace whose map is on, and
+   * stays so when it is folded and raised again: opening a part is not a reason
+   * to put a column beside it nobody asked for. Shown, it takes the workspace's
+   * mode.
+   *
+   * @upstream ByteRipperTests/FragmentMinimapTests.swift#FragmentMinimapTests.testThePanelOpensWithItsMapHiddenAndTheWindowStill
+   * @upstream-differs the browser owns the window's size, so what is checked is the map, not the frame
    */
-  it("opens with the map the workspace has", () => {
+  it("opens with its map hidden, whatever the workspace's is", () => {
     openEmptyInPane("a");
     setMinimapVisible(WORKSPACE_SURFACE, true);
     setMinimapMode(WORKSPACE_SURFACE, "detail");
 
     const part = openPart(bytes, "body.bin");
 
-    expect(map(part).visible).toBe(true);
+    expect(map(part).visible).toBe(false);
+    expect(map(WORKSPACE_SURFACE).visible).toBe(true);
+
+    foldParts();
+    raisePart(part);
+    expect(map(part).visible).toBe(false);
+
+    toggleMinimap();
     expect(map(part).mode).toBe("detail");
   });
 
-  it("opens shut where the workspace's map is shut", () => {
+  it("opens hidden where the workspace's map is hidden", () => {
     openEmptyInPane("a");
 
     const part = openPart(bytes, "body.bin");
 
     expect(map(part).visible).toBe(false);
+  });
+
+  /**
+   * The toolbar button and the View menu item read the map in front: the
+   * panel's while it is up, the workspace's once it is folded.
+   *
+   * @upstream ByteRipperTests/FragmentMinimapTests.swift#FragmentMinimapTests.testTheToggleShowsTheStateOfTheMapInFront
+   */
+  it("shows the state of the map in front", () => {
+    openEmptyInPane("a");
+    setMinimapVisible(WORKSPACE_SURFACE, true);
+    openPart(bytes, "part.bin");
+    const front = () => frontMap(minimapStore.getSnapshot()).visible;
+
+    expect(front()).toBe(false);
+
+    toggleMinimap();
+    expect(front()).toBe(true);
+
+    toggleMinimap();
+    foldParts();
+    expect(front()).toBe(true);
   });
 
   /** From then on it is the panel's own: neither map answers for the other. */
@@ -80,10 +115,11 @@ describe("a panel's own map", () => {
     setMinimapVisible(WORKSPACE_SURFACE, true);
     const part = openPart(bytes, "body.bin");
 
-    setMinimapVisible(part, false);
+    setMinimapVisible(part, true);
+    setMinimapVisible(WORKSPACE_SURFACE, false);
 
-    expect(map(part).visible).toBe(false);
-    expect(map(WORKSPACE_SURFACE).visible).toBe(true);
+    expect(map(part).visible).toBe(true);
+    expect(map(WORKSPACE_SURFACE).visible).toBe(false);
   });
 
   it("moves its own edge, not the window's", () => {
@@ -105,15 +141,15 @@ describe("a panel's own map", () => {
 
     toggleMinimap();
 
-    expect(map(part).visible).toBe(false);
+    expect(map(part).visible).toBe(true);
     expect(map(WORKSPACE_SURFACE).visible).toBe(true);
-    expect(frontMap(minimapStore.getSnapshot()).visible).toBe(false);
+    expect(frontMap(minimapStore.getSnapshot()).visible).toBe(true);
 
     foldParts();
     toggleMinimap();
 
     expect(map(WORKSPACE_SURFACE).visible).toBe(false);
-    expect(map(part).visible).toBe(false);
+    expect(map(part).visible).toBe(true);
   });
 
   it("goes when the part does", () => {
