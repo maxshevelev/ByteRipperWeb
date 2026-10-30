@@ -34,12 +34,23 @@ import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
 import { meAgentComparisons, meAgentLocator, meAgentQueries } from "@/tools/me/agent/meAgentModule";
 import {
+  buildConfiguration,
+  configurationRowDiffers,
+  type MEAConfigurationBlock,
+  type MEAConfigurationRow,
+} from "@/tools/me/meaConfiguration";
+import {
   buildSummary,
   isEmphasized,
   type MEASummaryBlock,
   type MEASummaryRow,
   summaryValueText,
 } from "@/tools/me/meaSummary";
+import {
+  CONFIGURATION_ABSENT,
+  configurationFITC,
+  configurationMFS,
+} from "@/tools/meaConfigurationText";
 import {
   CHECKSUMS_TITLE,
   type MEAChecksums,
@@ -58,6 +69,8 @@ import { useToolNavigation } from "@/tools/toolNavigation";
 import { useParkedToolState } from "@/tools/toolParkedState";
 import type { ToolValueTone } from "@/tools/toolValueTone";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
+import { HelpPopover } from "@/ui/help/HelpPopover";
+import { HelpPopoverLayout, HelpPopoverProse } from "@/ui/help/HelpPopoverLayout";
 import { CameraShapes, CopyDocumentShapes } from "@/ui/shell/copyGlyphs";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
 import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
@@ -67,6 +80,7 @@ import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMa
 import {
   DetailFields,
   detailSelectionHandlers,
+  type FieldHelp,
   type ListedField,
   ToolDetail,
 } from "@/ui/toolPanel/ToolDetail";
@@ -88,7 +102,13 @@ import { ROW_KEY_ATTRIBUTE, useTreeMotion } from "@/ui/toolPanel/treeMotion";
  * pane, so a panel put away and brought back is the panel that was left.
  */
 
-type Tab = "summary" | "tree";
+/**
+ * The panel's three tabs, kept by name: a tab added between two others moves no kept tab.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState.tabNames
+ */
+type Tab = "summary" | "configuration" | "tree";
+const TABS: readonly Tab[] = ["summary", "configuration", "tree"];
 
 /**
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAParkedState
@@ -111,7 +131,7 @@ interface Parked {
 function restoredParked(state: ToolSessionState | undefined): Parked | undefined {
   const held = state as Partial<Parked> | undefined;
   if (held === undefined) return undefined;
-  if (held.tab !== "summary" && held.tab !== "tree") return undefined;
+  if (held.tab === undefined || !TABS.includes(held.tab)) return undefined;
   if (!(held.open instanceof Set)) return undefined;
   if (held.focus !== undefined && typeof held.focus !== "string") return undefined;
   return { tab: held.tab, open: held.open, focus: held.focus };
@@ -235,7 +255,10 @@ function detailOf(node: MEANode | undefined): NodeDetail {
     // The tone travels with the field: the detail draws a status bold, in the
     // tone's colour and with the tick a passed check carries — the same
     // rendering the Summary tab's row gets from the same tone.
-    fields: node.fields.map((one) => tonedField(one.label, one.value, one.tone ?? "standard")),
+    fields: node.fields.map((one) => ({
+      ...tonedField(one.label, one.value, one.tone ?? "standard"),
+      ...(one.evidence === undefined ? {} : { evidence: one.evidence }),
+    })),
     tables: [],
   };
 }
@@ -482,6 +505,10 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
     () => (analysis === undefined ? [] : buildSummary(analysis, pending)),
     [analysis, pending]
   );
+  const configurationBlocks = useMemo(
+    () => (analysis === undefined ? [] : buildConfiguration(analysis)),
+    [analysis]
+  );
   const rows = useMemo(() => rowsOf(tree, open), [tree, open]);
   // A branch opens and shuts in motion, as the UEFI tree's does.
   const motion = useTreeMotion(rows, rowKeyOf, treeRef, ROW_HEIGHT);
@@ -635,7 +662,8 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
   const onTabKey = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    setTab((current) => (current === "summary" ? "tree" : "summary"));
+    const step = event.key === "ArrowRight" ? 1 : TABS.length - 1;
+    setTab((current) => TABS[(TABS.indexOf(current) + step) % TABS.length] ?? current);
   }, []);
 
   const changeTreeShare = useCallback((share: number) => {
@@ -708,6 +736,9 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           <TabButton tab="summary" current={tab} onChoose={setTab}>
             {L("Summary")}
           </TabButton>
+          <TabButton tab="configuration" current={tab} onChoose={setTab}>
+            {L("Configuration")}
+          </TabButton>
           <TabButton tab="tree" current={tab} onChoose={setTab}>
             {L("Full Info")}
           </TabButton>
@@ -743,7 +774,13 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
       <div
         className="me-content"
         role="tabpanel"
-        aria-label={tab === "summary" ? L("Summary") : L("Full Info")}
+        aria-label={
+          tab === "summary"
+            ? L("Summary")
+            : tab === "configuration"
+              ? L("Configuration")
+              : L("Full Info")
+        }
       >
         {result.phase === "waiting" ? (
           // Two waits wear one placeholder upstream, because upstream's own is
@@ -778,6 +815,27 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
           />
         ) : tab === "summary" ? (
           <SummaryView blocks={blocks} scrollRef={summaryRef} />
+        ) : tab === "configuration" ? (
+          configurationBlocks.length > 0 ? (
+            <ConfigurationView blocks={configurationBlocks} />
+          ) : pending.fileTable ? (
+            // While the reading that names the files is still on, an empty tab is no answer yet.
+            <Placeholder
+              symbol="list"
+              title={L("Reading the configuration…")}
+              detail={L("The settings appear when the analysis finishes.")}
+            />
+          ) : (
+            <Placeholder
+              symbol="list"
+              title={L("No configuration read")}
+              // @upstream-differs upstream's caption still says CSME 13 to 16, the generations
+              // it read when the sentence was written; the maps now read 11 to 18
+              detail={L(
+                "The settings are read on CSME 11 to 18, from the configuration files the image carries."
+              )}
+            />
+          )
         ) : (
           <div
             className="tool-split"
@@ -999,7 +1057,7 @@ function Placeholder({
   detail,
   fraction,
 }: {
-  readonly symbol: "cpu" | "question" | "failed";
+  readonly symbol: "cpu" | "question" | "failed" | "list";
   readonly title: string;
   readonly detail: string;
   /**
@@ -1017,6 +1075,11 @@ function Placeholder({
             <rect x="8" y="8" width="16" height="16" rx="2.5" />
             <rect x="12.5" y="12.5" width="7" height="7" rx="1" />
             <path d="M12 4v4M16 4v4M20 4v4M12 24v4M16 24v4M20 24v4M4 12h4M4 16h4M4 20h4M24 12h4M24 16h4M24 20h4" />
+          </>
+        ) : symbol === "list" ? (
+          <>
+            <rect x="4" y="6" width="24" height="20" rx="2.5" />
+            <path d="M9 12h1.5M9 16h1.5M9 20h1.5M14 12h9M14 16h9M14 20h9" />
           </>
         ) : symbol === "question" ? (
           <>
@@ -1072,6 +1135,15 @@ const SUMMARY_LABEL_WIDTH = "calc(200em / 11)";
  */
 function summaryField(row: MEASummaryRow): ListedField {
   const muted = row.value.kind === "comingSoon" || row.value.kind === "pending";
+  // A verdict is drawn as its two parts: the answer in the row's tone, the evidence plain.
+  if (row.value.kind === "verdict") {
+    return {
+      label: row.label,
+      value: row.value.text,
+      evidence: row.value.evidence,
+      tone: row.tone,
+    };
+  }
   return { label: row.label, value: valueText(row), tone: muted ? "standard" : row.tone, muted };
 }
 
@@ -1123,6 +1195,157 @@ export function SummaryView({
         </Fragment>
       ))}
     </div>
+  );
+}
+
+/**
+ * The Configuration tab: one block per configuration file, each setting with the two copies of
+ * the file it lives in side by side — the shared detail list's rows, with a row's second value
+ * being the column the detail list does not otherwise carry, so the tab reads as a table and
+ * behaves as a list.
+ *
+ * The name column is one width for every list in the tab, and so are the two value columns,
+ * which is what makes the columns of one file line up with the next and with the heading row.
+ * Where the two copies disagree, **the file system's value** is drawn bold — the one emphasis the
+ * tab uses, and no colour: it is the state in force, and a setting the platform rewrote is not a
+ * fault. A value one copy does not carry is the quiet dash; a setting the tool switches off is
+ * quiet, value and all.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.showConfiguration
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderConfiguration
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.configurationColumns
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.configurationHeadingRow
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.configurationFileHeading
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.configurationCell
+ * @upstream-differs the shared name column is the longest name in characters, the browser
+ * measuring no text before it lays it out
+ */
+export function ConfigurationView({
+  blocks,
+}: {
+  readonly blocks: readonly MEAConfigurationBlock[];
+}) {
+  const [shownHelp, setShownHelp] = useState<
+    { help: FieldHelp; anchor: HTMLElement } | undefined
+  >();
+  // Which copies carry anything at all: a copy the image does not carry in *any* file is not a
+  // column of dashes — the tab then names the one copy it has, in the one value column.
+  const fitc = blocks.some((block) => block.rows.some((row) => row.fitc !== undefined));
+  const mfs = blocks.some((block) => block.rows.some((row) => row.mfs !== undefined));
+  const compares = fitc && mfs;
+  const first = (row: MEAConfigurationRow) => (fitc ? row.fitc : row.mfs);
+  const longest = Math.max(
+    0,
+    ...blocks.flatMap((block) => block.rows.map((row) => row.name.length))
+  );
+  const reservesHelp = blocks.some((block) =>
+    block.rows.some((row) => row.help !== undefined || row.note !== undefined)
+  );
+  const nameWidth = `calc(${Math.min(longest, 48)}ch * 0.82${reservesHelp ? " + 1.4em" : ""})`;
+  // A value one copy does not carry is the quiet dash; a switched-off setting is quiet too.
+  const cell = (text: string | undefined, differs: boolean, quiet: boolean) => ({
+    value: text ?? CONFIGURATION_ABSENT,
+    strong: differs && !quiet,
+    muted: text === undefined || quiet,
+  });
+  const selecting = detailSelectionHandlers();
+  // Two files can share an alias; the repeats are numbered apart, as the Summary's blocks are.
+  const blockKeys = uniqueKeys(blocks.map((block) => block.alias));
+  return (
+    <div className="me-summary me-configuration">
+      <div className="me-configuration-heading">
+        <DetailFields
+          nameWidth={nameWidth}
+          fields={[
+            {
+              label: "",
+              value: fitc ? configurationFITC() : configurationMFS(),
+              tone: "standard",
+              ...(compares ? { second: { value: configurationMFS() } } : {}),
+            },
+          ]}
+        />
+      </div>
+      {blocks.map((block, index) => (
+        <Fragment key={blockKeys[index]}>
+          <h3 className="me-summary-title me-configuration-file">
+            {block.alias} <span className="me-configuration-detail">{block.detail}</span>
+          </h3>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: the keys select text, not a control's */}
+          <div
+            className="me-summary-block"
+            tabIndex={selecting.tabIndex}
+            onCopy={selecting.onCopy}
+            onKeyDown={(event) => selecting.selectAll(event)}
+          >
+            <DetailFields
+              nameWidth={nameWidth}
+              onHelp={(help, anchor) => setShownHelp({ help, anchor })}
+              fields={block.rows.map((row): ListedField => {
+                const value = cell(first(row), false, row.disabled);
+                return {
+                  label: row.name,
+                  value: value.value,
+                  tone: "standard",
+                  muted: value.muted,
+                  ...(compares
+                    ? { second: cell(row.mfs, configurationRowDiffers(row), row.disabled) }
+                    : {}),
+                  // The tool's own words about the setting, where it has them — and a row with
+                  // a condition and no help has the `?` too: the condition is the answer its
+                  // name has no room for.
+                  ...(row.help !== undefined || row.note !== undefined
+                    ? {
+                        help: {
+                          identifier: row.identifier,
+                          text: row.help ?? "",
+                          note: row.note,
+                          buttonName: L("Setting help"),
+                          buttonTooltip: L("Show what Flash Image Tool says about this setting"),
+                        },
+                      }
+                    : {}),
+                };
+              })}
+            />
+          </div>
+        </Fragment>
+      ))}
+      {shownHelp === undefined ? null : (
+        <SettingHelpPopover
+          help={shownHelp.help}
+          anchor={shownHelp.anchor}
+          onClose={() => setShownHelp(undefined)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * What Flash Image Tool says about one setting: a popover off the `?` beside its name, in every
+ * help popover's shape, the tool's own words under the identifier the row does not show and the
+ * condition that placed the setting as its subtitle.
+ *
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEASettingHelpPopover.swift#MEASettingHelpPopover
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEASettingHelpPopover.swift#MEASettingHelpPopover.show
+ * @upstream Modules/MEATool/Sources/MEAToolUI/MEASettingHelpPopover.swift#MEASettingHelpPopover.makeContent
+ */
+function SettingHelpPopover({
+  help,
+  anchor,
+  onClose,
+}: {
+  readonly help: FieldHelp;
+  readonly anchor: HTMLElement;
+  readonly onClose: () => void;
+}) {
+  return (
+    <HelpPopover anchor={anchor} label={help.identifier} onClose={onClose}>
+      <HelpPopoverLayout title={help.identifier} note={help.note}>
+        <HelpPopoverProse text={help.text} />
+      </HelpPopoverLayout>
+    </HelpPopover>
   );
 }
 

@@ -1,11 +1,18 @@
-import { L } from "@/core/localization/localization";
 import type { MFSPCHInit } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
   type PowerDownMitigation,
   powerDownMitigationText,
 } from "@/firmware/me/models/firmwareFacts";
-import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
+import {
+  bootGuardProfileText,
+  hardwareBindingText,
+  manufacturingEvidence,
+  manufacturingLockText,
+  manufacturingStateText,
+  oemPublicKeyHashText,
+} from "@/tools/meaBenchFactsText";
+import { fileSystemStateEvidence } from "@/tools/meaStateBasisText";
 import {
   chipsetSteppingText,
   downgradeBlacklistText,
@@ -18,8 +25,14 @@ import {
   titleText,
   yesNo,
 } from "@/tools/meaText";
-import { fileSystemStateWithBasis, stateBasis } from "@/tools/meaTones";
-import { manufactureDate, pendingValue } from "@/tools/meaTree";
+import {
+  bootGuardProfileTone,
+  fileSystemStateWithBasis,
+  hardwareBindingTone,
+  manufacturingLockTone,
+  manufacturingStateTone,
+} from "@/tools/meaTones";
+import { manufactureDate } from "@/tools/meaTree";
 import { type MEAPending, NOTHING_PENDING } from "@/tools/mePending";
 import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 
@@ -39,6 +52,14 @@ import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 /** @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue */
 export type MEASummaryValue =
   | { readonly kind: "value"; readonly text: string }
+  /**
+   * A verdict with the evidence it was read from: the panel draws the verdict in the row's
+   * tone and the evidence in brackets in the ordinary font and colour, so the answer and what
+   * stands behind it cannot be mistaken for one another.
+   *
+   * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.verdict
+   */
+  | { readonly kind: "verdict"; readonly text: string; readonly evidence: string }
   | { readonly kind: "comingSoon" }
   /**
    * The analysis on screen was read without a database this row depends on, and the
@@ -76,16 +97,41 @@ export const COMING_SOON: MEASummaryValue = { kind: "comingSoon" };
 export const PENDING: MEASummaryValue = { kind: "pending" };
 
 /**
- * What the row says — the one wording the panel and a copy of it share.
+ * A verdict with its evidence, or the plain value where there is no evidence to show.
+ *
+ * @web-only upstream picks between the two cases where it builds each row
+ */
+export const verdict = (text: string, evidence: string): MEASummaryValue =>
+  evidence.length === 0 ? shown(text) : { kind: "verdict", text, evidence };
+
+/**
+ * What the row says — the one wording the panel and a copy of it share. English in every
+ * language, as MEA's console table and the tools' own option words are: the Summary is the
+ * table a technician quotes and compares against a report, and a translated verdict cannot be
+ * compared with one.
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.text
  */
-export const summaryValueText = (value: MEASummaryValue): string =>
-  value.kind === "value"
-    ? value.text
-    : value.kind === "pending"
-      ? pendingValue()
-      : L("Coming soon");
+export const summaryValueText = (value: MEASummaryValue): string => {
+  switch (value.kind) {
+    case "value":
+      return value.text;
+    case "verdict":
+      return `${value.text} (${value.evidence})`;
+    case "pending":
+      return "Loading…";
+    case "comingSoon":
+      return "Coming soon";
+  }
+};
+
+/**
+ * Whether the value is a real one, which can be selected and copied.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue
+ */
+export const isSummaryValue = (value: MEASummaryValue): boolean =>
+  value.kind === "value" || value.kind === "verdict";
 
 /**
  * Whether a row's value is drawn emphasized — bold as well as coloured, so the
@@ -104,7 +150,7 @@ export const summaryValueText = (value: MEASummaryValue): string =>
  * @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.richText
  */
 export function isEmphasized(row: MEASummaryRow): boolean {
-  return row.value.kind === "value" && isStatusTone(row.tone);
+  return isSummaryValue(row.value) && isStatusTone(row.tone);
 }
 
 const nonEmpty = (text: string | undefined): text is string =>
@@ -135,23 +181,23 @@ export function buildSummary(
   // 1 · Family. 2 · Version, in the shape this family writes it. 3 · Release.
   add("Family", shown(familyText(a.family)));
   add(
-    L("Version"),
+    "Version",
     shown(firmwareVersionText(a.variant, major, a.version.minor, a.version.hotfix, a.version.build))
   );
-  add(L("Release"), shown(releaseText(a)));
+  add("Release", shown(releaseText(a)));
 
   // 4 · Type — only an image on the Stock / Update / Extracted axis has a word.
-  if (identified) fact(L("Type"), axisType(a.type));
+  if (identified) fact("Type", axisType(a.type));
   // 5 · SKU.
   fact("SKU", a.sku);
   // 6 · One chipset row: every chipset the initialisation tables named, else the
   // recorded stepping letters, else upstream's own "Unknown".
   if (identified && hasChipsetRow(a)) {
     const chipset = chipsetCell(a.chipsetInit);
-    if (chipset !== undefined) add(L("Chipset"), shown(chipset));
+    if (chipset !== undefined) add("Chipset", shown(chipset));
     else if (nonEmpty(a.chipsetStepping)) {
       add("Chipset Stepping", shown(chipsetSteppingText(a.chipsetStepping)));
-    } else add(L("Chipset"), shown(L("Unknown")));
+    } else add("Chipset", shown("Unknown"));
   }
   // 7 · NVM Compatibility — Undefined prints no row, and nor does no R2 extension.
   if (a.nvmCompatibility !== undefined && a.nvmCompatibility !== 0) {
@@ -184,7 +230,7 @@ export function buildSummary(
   // 14 · OEM Configuration.
   if (isOEMFamily(a) && identified) {
     add(
-      L("OEM Configuration"),
+      "OEM Configuration",
       a.oemCustomized === undefined ? COMING_SOON : shown(yesNo(a.oemCustomized))
     );
   }
@@ -196,7 +242,7 @@ export function buildSummary(
     );
   }
   // 16 · Date.
-  fact(L("Date"), manufactureDate(a));
+  fact("Date", manufactureDate(a));
   // 17 · File System State, in the colour of the state.
   if (isMFSFamily(a)) {
     // An EFS volume lists no files until the file table is read, and whether it holds
@@ -204,29 +250,24 @@ export function buildSummary(
     if (pending.fileTable && a.efsVolume !== undefined && a.mfsState !== undefined) {
       add("File System State", PENDING);
     } else if (a.mfsState !== undefined) {
+      // The state, with what it rests on in brackets after it — the evidence in the ordinary
+      // font and colour, the caution for a step that could not be taken on the state itself.
       add(
         "File System State",
-        shown(titleText(a.mfsState)),
+        verdict(
+          titleText(a.mfsState),
+          a.mfsStateBasis === undefined ? "" : fileSystemStateEvidence(a.mfsState, a.mfsStateBasis)
+        ),
         fileSystemStateWithBasis(a.mfsState, a.mfsStateBasis)
       );
-      // Under it, what the state rests on — the same paragraph as the Firmware row's detail in Full
-      // Info. Not upstream's row: MEAnalyzer prints the state alone, and a state that a step which
-      // could not be taken left standing then reads as settled, in green, with the reason only in
-      // the messages at the bottom.
-      if (a.mfsStateBasis !== undefined) {
-        add(
-          L("State basis"),
-          shown(fileSystemStateBasisText(a.mfsState, a.mfsStateBasis)),
-          stateBasis(a.mfsStateBasis)
-        );
-      }
     } else if (identified) {
       add("File System State", COMING_SOON);
     }
   }
+  benchRows(a, pending, identified, add);
   // 18 · Size — how far the firmware reaches from its $FPT, and the region
   // analysed only where that could not be worked out.
-  add(L("Size"), shown(sizeText(a.firmwareSizeBytes ?? a.sizeBytes)));
+  add("Size", shown(sizeText(a.firmwareSizeBytes ?? a.sizeBytes)));
   // 19 · Flash Image Tool: the first boot BPDT with a real FIT on an IFWI, the
   // $FPT header's otherwise.
   if (a.bootPartitions !== undefined) {
@@ -255,15 +296,13 @@ export function buildSummary(
     add(
       "Downgrade Blacklist 7.0",
       shown(
-        blacklist?.sevenZero === undefined
-          ? L("Empty")
-          : downgradeBlacklistText(blacklist.sevenZero)
+        blacklist?.sevenZero === undefined ? "Empty" : downgradeBlacklistText(blacklist.sevenZero)
       )
     );
     add(
       "Downgrade Blacklist 7.1",
       shown(
-        blacklist?.sevenOne === undefined ? L("Empty") : downgradeBlacklistText(blacklist.sevenOne)
+        blacklist?.sevenOne === undefined ? "Empty" : downgradeBlacklistText(blacklist.sevenOne)
       )
     );
   }
@@ -285,9 +324,9 @@ export function buildSummary(
     }));
     // The module checks are the half of the messages that wait for the dictionaries.
     if (pending.huffman) {
-      messages.push({ label: L("Module checks"), value: PENDING, tone: "standard" });
+      messages.push({ label: "Module checks", value: PENDING, tone: "standard" });
     }
-    blocks.push({ title: L("Messages"), rows: messages });
+    blocks.push({ title: "Messages", rows: messages });
   }
   return blocks;
 }
@@ -310,7 +349,7 @@ function independentBlock(
 
   add("Family", familyText(firmware.family));
   add(
-    L("Version"),
+    "Version",
     firmwareVersionText(
       firmware.variant,
       firmware.version.major,
@@ -319,8 +358,8 @@ function independentBlock(
       firmware.version.build
     )
   );
-  add(L("Release"), releaseText(firmware));
-  add(L("Type"), "Independent");
+  add("Release", releaseText(firmware));
+  add("Type", "Independent");
 
   if (firmware.family === "pmc") {
     // A modern host prints the chipset SKU whatever the platform; otherwise only
@@ -333,7 +372,7 @@ function independentBlock(
     // A discrete-graphics PMC has no stepping row at all.
     if (!platform.startsWith("DG")) {
       const stepping = firmware.chipsetStepping;
-      add("Chipset Stepping", stepping === undefined || stepping === "U" ? L("Unknown") : stepping);
+      add("Chipset Stepping", stepping === undefined || stepping === "U" ? "Unknown" : stepping);
     }
   } else if (firmware.family === "phy" && nonEmpty(firmware.sku)) {
     add("SKU", firmware.sku);
@@ -345,8 +384,8 @@ function independentBlock(
   const ready = firmware.manifest?.productionReady;
   if (ready !== undefined) add("Production Ready", yesNo(ready));
   const date = manufactureDate(firmware);
-  if (date !== undefined) add(L("Date"), date);
-  add(L("Size"), sizeText(firmware.sizeBytes));
+  if (date !== undefined) add("Date", date);
+  add("Size", sizeText(firmware.sizeBytes));
   const meu = meuVersion(firmware);
   if (meu !== undefined) add("Manifest Extension Utility", meu);
   if (platform.length > 0) add("Chipset Support", platform);
@@ -423,7 +462,7 @@ function axisType(type: FirmwareAnalysis["type"]): string | undefined {
     case "stock":
       return "Stock";
     case "update":
-      return L("Update");
+      return "Update";
     case "extracted":
       return "Extracted";
     default:
@@ -479,4 +518,77 @@ function isOEMFamily(a: FirmwareAnalysis): boolean {
 
 function isMFSFamily(a: FirmwareAnalysis): boolean {
   return ["csme", "cstxe", "cssps", "gsc"].includes(a.family);
+}
+
+/**
+ * Our own rows, in the order a technician reads a machine in: what End of Manufacturing the
+ * image will do, what the board has done, what the image is built for, whether it binds its
+ * SPI part, and which key it carries. MEAnalyzer prints none of them.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummary.build
+ */
+function benchRows(
+  a: FirmwareAnalysis,
+  pending: MEAPending,
+  identified: boolean,
+  add: (label: string, value: MEASummaryValue, tone?: ToolValueTone) => void
+): void {
+  const fromCSME11 = a.family === "csme" && a.version.major >= 11;
+  // Manufacturing is gated on the generations that decide it at all: CSME 11 and later. An
+  // older firmware would only ever answer `noSwitch`, and a row that can only say "not
+  // applicable" is noise.
+  // help: panel.me.manufacturing
+  if (fromCSME11) {
+    const state = a.manufacturingState;
+    if (state !== undefined) {
+      add(
+        "EOM on First Boot",
+        verdict(
+          manufacturingStateText(state, a.manufacturingBasis),
+          manufacturingEvidence(state, a.manufacturingBasis)
+        ),
+        manufacturingStateTone(state)
+      );
+    } else if (identified) {
+      add("EOM on First Boot", COMING_SOON);
+    }
+  }
+  // The board's own record, beside the image's verdict, on the file systems that carry such
+  // records; while the table that names its files is on the way, the row says it is loading.
+  // Not found is a dash, not a sentence: a board that has not made the mark simply has none.
+  if (a.family === "csme" && a.mfsVolume?.usesFTBL === true) {
+    const lock = a.manufacturingLock;
+    if (lock !== undefined) {
+      add("Manufacturing Lock", shown(manufacturingLockText(lock)), manufacturingLockTone(lock));
+    } else {
+      add("Manufacturing Lock", pending.fileTable ? PENDING : shown("—"));
+    }
+  }
+  if (!fromCSME11) return;
+  // The profile is a record the image either has or has not got: an image without one
+  // answers so rather than a number a vendor may have configured on some other machine.
+  const profile = a.bootGuardProfile;
+  if (profile !== undefined) {
+    add("Boot Guard", shown(bootGuardProfileText(profile)), bootGuardProfileTone(profile));
+  } else if (identified) {
+    add("Boot Guard", shown("No profile record in this image"));
+  }
+  // RPMC's own state is a file the tool keeps on CSME 13 and later. Found through
+  // `FileTable.dat`: until the reading with that table lands, "not recorded" is a claim the
+  // reading cannot have checked, and the row says it is still loading.
+  const binding = a.hardwareBinding;
+  if (binding !== undefined && a.version.major >= 13) {
+    const waits = pending.fileTable && binding.kind === "notInImage";
+    add(
+      "RPMC Hardware Binding",
+      waits ? PENDING : shown(hardwareBindingText(binding)),
+      waits ? "standard" : hardwareBindingTone(binding)
+    );
+  }
+  const key = a.oemPublicKeyHash;
+  if (key !== undefined) {
+    add("OEM Public Key Hash", shown(oemPublicKeyHashText(key)));
+  } else if (identified) {
+    add("OEM Public Key Hash", shown("No key material in this image"));
+  }
 }

@@ -11,9 +11,15 @@ import {
   type MFSStateStep,
   mfsStateBasisIsIncomplete,
 } from "@/firmware/me/models/firmwareFacts";
-import { buildSummary, summaryValueText } from "@/tools/me/meaSummary";
-import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
-import { type MEANode, meaNodeAt } from "@/tools/meaTree";
+import {
+  bootGuardProfileIndex,
+  type ManufacturingBasis,
+  type ManufacturingState,
+} from "@/firmware/me/models/manufacturingFacts";
+import { buildSummary, isSummaryValue, summaryValueText } from "@/tools/me/meaSummary";
+import { manufacturingEvidence, manufacturingStateText } from "@/tools/meaBenchFactsText";
+import { fileSystemStateText } from "@/tools/meaStateBasisText";
+import { type MEANode, meaFieldText, meaNodeAt } from "@/tools/meaTree";
 import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
 
 /**
@@ -40,10 +46,22 @@ export const ME_SUMMARY = {
     "The File System State row carries `basis`: what each of the three steps that decide it found " +
     "(the reserved MFS files, whether the EFS volume holds files, the configuration partitions), " +
     "which step decided it, `complete: false` when a step that could have raised the state could " +
-    "not be taken — an EFS partition that could not be read — and an `explanation`. Say the basis " +
+    "not be taken — an EFS partition that could not be read — and an `explanation`, which is the " +
+    "row's own line: the state and, in brackets, the evidence it was read from. Say the evidence " +
     "when you report the state: Configured with an unreadable EFS is not the same fact as " +
-    "Configured with an empty one. The first call on a dump analyses its ME region, which takes a " +
-    "second or two.",
+    "Configured with an empty one. Rows of our own answer what a bench asks of a dump it is about " +
+    'to flash: "EOM on First Boot" (whether the platform closes End of Manufacturing on the first ' +
+    'boot of this image — "Will close on the EOM flag" or "Will close on the descriptor\'s rights" ' +
+    "(the two mechanisms: the flag only MFIT sets, and the access rights a serial image relies " +
+    'on), "Will not close", "Will close on the EOM flag, with the descriptor open", "Not readable ' +
+    'from this image" or "No such switch in this firmware"), which carries a `basis` of its own ' +
+    "(the flag and which page it was read from, `flexible_eom_settings` — MFIT's " +
+    "`FlexibleEomSettings` — and the descriptor's state); \"Manufacturing Lock\", the board's own " +
+    'record of having been through End of Manufacturing; "Boot Guard", the profile the image is ' +
+    "built for (0 - No_FVME, 3 - VM, 4 - FVE, 5 - FVME, with `profile` and `profile_index` beside " +
+    'it, or "No profile record in this image"); "RPMC Hardware Binding"; and "OEM Public Key ' +
+    'Hash", the hash the ME region carries, all zeros meaning OEM signing is disabled. The first ' +
+    "call on a dump analyses its ME region, which takes a second or two.",
   properties: {},
 } as const;
 
@@ -58,16 +76,40 @@ export function meSummaryAnswer(analysis: FirmwareAnalysis): Json {
             label: row.label,
             value: summaryValueText(row.value),
           };
-          if (row.value.kind === "value" && isStatusTone(row.tone)) entry.tone = row.tone;
+          if (isSummaryValue(row.value) && isStatusTone(row.tone)) entry.tone = row.tone;
           // The one verdict whose evidence is not in the row: what each of its three steps found,
           // and which decided it.
           if (
             row.label === "File System State" &&
-            row.value.kind === "value" &&
+            isSummaryValue(row.value) &&
             analysis.mfsState !== undefined &&
             analysis.mfsStateBasis !== undefined
           ) {
             entry.basis = basisJson(analysis.mfsState, analysis.mfsStateBasis);
+          }
+          // The Manufacturing verdict's evidence likewise: the two pages of the setting, and
+          // the descriptor's state.
+          // @upstream-differs matched by the row's label as the Summary now names it, "EOM on
+          // First Boot": upstream still asks for "Manufacturing", a label no row carries since
+          // c6e5f94f, so its answer never has the basis
+          if (
+            row.label === "EOM on First Boot" &&
+            isSummaryValue(row.value) &&
+            analysis.manufacturingState !== undefined &&
+            analysis.manufacturingBasis !== undefined
+          ) {
+            entry.basis = manufacturingBasisJson(
+              analysis.manufacturingState,
+              analysis.manufacturingBasis
+            );
+          }
+          if (
+            row.label === "Boot Guard" &&
+            isSummaryValue(row.value) &&
+            analysis.bootGuardProfile !== undefined
+          ) {
+            entry.profile = analysis.bootGuardProfile;
+            entry.profile_index = bootGuardProfileIndex(analysis.bootGuardProfile);
           }
           return entry;
         }),
@@ -75,6 +117,29 @@ export function meSummaryAnswer(analysis: FirmwareAnalysis): Json {
       if (block.title !== undefined) members.title = block.title;
       return members;
     }),
+  };
+}
+
+// MARK: - The Manufacturing verdict's basis
+
+/**
+ * The End of Manufacturing verdict's evidence, for the same reason the File System State
+ * carries its own: an agent that acts on the verdict needs to see what it was read from.
+ *
+ * @upstream Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.manufacturingBasisJSON
+ */
+export function manufacturingBasisJson(state: ManufacturingState, basis: ManufacturingBasis): Json {
+  const verdict = manufacturingStateText(state, basis);
+  const evidence = manufacturingEvidence(state, basis);
+  return {
+    flag: basis.flag ?? null,
+    flexible_eom_settings: basis.flexible ?? null,
+    flag_page: basis.page ?? "none",
+    descriptor:
+      basis.descriptorOpen === undefined ? "not read" : basis.descriptorOpen ? "open" : "locked",
+    live_files: basis.liveFilesResolved ? "read" : "not read",
+    // What the row itself reads, brackets and all.
+    explanation: evidence === "" ? verdict : `${verdict} (${evidence})`,
   };
 }
 
@@ -140,14 +205,13 @@ export function efsText(efs: MFSStateEFS): string {
 }
 
 /**
- * One paragraph: the state, the step that set it, and — when a step that could have raised it was
- * not taken — what is not known. The panel's own words, in the English every agent call is answered
- * in.
+ * What the row itself reads: the state, then its evidence in brackets — the panel's own words
+ * in the English every agent call is answered in.
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.explanation
  */
 export const explanation = (state: MFSState, basis: MFSStateBasis): string =>
-  fileSystemStateBasisText(state, basis);
+  fileSystemStateText(state, basis);
 
 // MARK: - me_tree
 
@@ -202,7 +266,7 @@ export function meTreeAnswer(
     }
     const detail = summaryOf(node) as { [key: string]: Json };
     detail.fields = node.fields.map((field): Json => {
-      const entry: { [key: string]: Json } = { label: field.label, value: field.value };
+      const entry: { [key: string]: Json } = { label: field.label, value: meaFieldText(field) };
       const tone: ToolValueTone = field.tone ?? "standard";
       if (isStatusTone(tone)) entry.tone = tone;
       return entry;

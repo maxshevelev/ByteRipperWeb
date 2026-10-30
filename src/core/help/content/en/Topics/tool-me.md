@@ -4,7 +4,7 @@
 
 @covers panel.me
 
-**Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the file in its pane and reports the result on two tabs.
+**Tools ▸ ME Analyzer** analyses the [[term:me-region|ME region]] of the file in its pane and reports the result on three tabs.
 
 ## Summary
 
@@ -15,6 +15,12 @@ The row labels are in English in every language of the interface, as they are th
 The tab is shown as soon as the region has been read. Some values depend on databases of the project the analysis is derived from, which are downloaded while the panel is open. Until they have been downloaded and taken into account, those values read **Loading…**, and the line at the bottom of the panel says what is being downloaded. They are the **File System State** of a firmware with an EFS volume, and **Module checks** at the end of **Messages**; the **Issues** group on the **Full Info** tab shows the same row. The messages above it are final. If a database cannot be downloaded, the values shown stand.
 
 The two buttons in the tab row copy the tab as text or as an image of the panel.
+
+## Configuration
+
+The settings of the configuration files the image carries, read on CSME 11 to 18 by the layouts Intel's Flash Image Tool works with. Each file is a block of its own, headed by the tool's name for it, where it lives and how long it is. Every setting is a row with the tool's name for it and its value. An image keeps a file in up to two copies — the one the build wrote (**FITC**) and the one in the [[term:mfs|ME file system]] (**MFS**) — and where it keeps both, the two values stand side by side and a value that differs from the other copy is drawn in bold. **auto** marks a setting the tool fills in itself. A setting whose place depends on another setting's value names that value, marked as assumed where the image does not hold it; a setting the tool switches off under another setting's value is drawn grey and names that value. The **?** beside a setting opens what Flash Image Tool says about it.
+
+Where the generation is not one of these, or the image carries none of the files, the tab says that no configuration was read.
 
 ## Full Info
 

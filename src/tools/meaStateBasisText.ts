@@ -1,72 +1,61 @@
-import { L } from "@/core/localization/localization";
-import {
-  type MFSState,
-  type MFSStateBasis,
-  mfsStateBasisIsIncomplete,
-} from "@/firmware/me/models/firmwareFacts";
-import { hex, titleText } from "@/tools/meaText";
+import type { MFSState, MFSStateBasis } from "@/firmware/me/models/firmwareFacts";
+import { mfsStateBasisIsIncomplete } from "@/firmware/me/models/firmwareFacts";
+import { titleText } from "@/tools/meaText";
 
 /**
- * What the File System State was decided from, in one paragraph — the Firmware
- * row's detail in the panels. The state is upstream's; the paragraph is ours, so a
- * state left standing by a step that could not be taken is not read as one the
- * flash shows (`MFSStateBasis`).
+ * What the File System State was decided from, as short as it can be put: the state is the
+ * row's answer, and this is what stands behind it, in brackets after it — "Initialized (EFS:
+ * holds files)". Drawn in the ordinary font and colour, because it is evidence and not a
+ * second answer; English in every language, as the state it stands behind is. The long
+ * explanation lives in the help. The state itself is upstream's; the brackets are ours.
+ */
+
+/**
+ * The evidence, as clauses joined by "; " — the deciding fact first, then the caveat a step
+ * that could not be taken leaves. Empty when there is nothing to say.
  *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift#MEAText.fileSystemStateBasis
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift#MEAText.fileSystemStateEvidence
  */
 // help: panel.me.state-basis
-export function fileSystemStateBasisText(state: MFSState, basis: MFSStateBasis): string {
-  const name = titleText(state);
-  const sentences: string[] = [];
+export function fileSystemStateEvidence(_state: MFSState, basis: MFSStateBasis): string {
+  const clauses: string[] = [];
   switch (basis.decidedBy) {
     case "reservedFiles":
-      sentences.push(L("%1$@, from the reserved MFS files present.", name));
+      if (
+        basis.reservedFiles.kind === "initializing" ||
+        basis.reservedFiles.kind === "configuring"
+      ) {
+        clauses.push(`reserved files: ${basis.reservedFiles.indices.join(", ")}`);
+      }
       break;
     case "efs":
-      sentences.push(
-        L(
-          "%1$@, because the EFS volume holds file content: the engine has run and written its files.",
-          name
-        )
-      );
+      clauses.push("EFS: holds files");
       break;
     case "configuration":
-      sentences.push(
-        L(
-          "%1$@, from the configuration found (%2$@), not from files the engine wrote.",
-          name,
-          basis.configuration.join(", ")
-        )
-      );
+      clauses.push(`configuration: ${basis.configuration.join(", ")}`);
       break;
     case "nothing":
-      sentences.push(
-        L("%1$@: no reserved MFS file, no EFS content and no configuration partition.", name)
-      );
+      clauses.push("nothing found");
       break;
   }
+  // A step that could have raised the state and was not taken: the row's tone turns to a
+  // caution for it, and the clause says which step.
   if (mfsStateBasisIsIncomplete(basis)) {
-    if (basis.efs.kind === "unreadable") {
-      sentences.push(
-        L(
-          "The EFS partition at %1$@ could not be read, so whether it holds files — which would make the state Initialized — is unknown. Check its system page before relying on this state.",
-          hex(Math.max(0, basis.efs.offset))
-        )
-      );
-    } else if (basis.efs.kind === "filesNotNamed") {
-      sentences.push(
-        L(
-          "The EFS volume's files cannot be told without the firmware database's file table, so whether it holds files — which would make the state Initialized — is unknown."
-        )
-      );
-    }
+    if (basis.efs.kind === "unreadable") clauses.push("EFS: unreadable");
+    else if (basis.efs.kind === "filesNotNamed") clauses.push("EFS: files not named");
   }
-  if (basis.reservedFiles.kind === "notRead" && basis.decidedBy !== "efs") {
-    sentences.push(
-      L(
-        "This volume does not name its reserved files by index, so only the EFS and the configuration decide."
-      )
-    );
-  }
-  return sentences.join(" ");
+  return clauses.join("; ");
+}
+
+/**
+ * The row as one line for a copy of it: the state, then its evidence in brackets where there
+ * is any.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift#MEAText.fileSystemState
+ */
+export function fileSystemStateText(state: MFSState, basis: MFSStateBasis | undefined): string {
+  const name = titleText(state);
+  if (basis === undefined) return name;
+  const evidence = fileSystemStateEvidence(state, basis);
+  return evidence.length === 0 ? name : `${name} (${evidence})`;
 }

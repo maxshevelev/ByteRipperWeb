@@ -911,6 +911,12 @@ export function DetailFields({
           >
             {one.tone === "good" && one.muted !== true ? <DoneMark /> : null}
             {one.value}
+            {
+              // What the verdict was read from, in brackets, in the ordinary weight and colour.
+              one.evidence === undefined || one.evidence === "" ? null : (
+                <span className="tool-detail-evidence"> ({one.evidence})</span>
+              )
+            }
           </dd>
           {one.second === undefined ? null : (
             <dd

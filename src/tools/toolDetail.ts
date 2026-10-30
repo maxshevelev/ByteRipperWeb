@@ -30,6 +30,14 @@ export interface DetailField {
    * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetailField.tone
    */
   readonly tone: ToolValueTone;
+  /**
+   * What a verdict was read from, drawn in brackets after the value in the ordinary font and
+   * colour: the tone is the verdict's, and the evidence beside it must not borrow it.
+   *
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.evidence
+   * @upstream-differs on the shared field, which the ME panel's rows and its detail both draw
+   */
+  readonly evidence?: string | undefined;
 }
 
 /**

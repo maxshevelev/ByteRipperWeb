@@ -3,6 +3,12 @@ import {
   type MFSStateBasis,
   mfsStateBasisIsIncomplete,
 } from "@/firmware/me/models/firmwareFacts";
+import type {
+  BootGuardProfile,
+  HardwareBinding,
+  ManufacturingLock,
+  ManufacturingState,
+} from "@/firmware/me/models/manufacturingFacts";
 import type { ToolValueTone } from "@/tools/toolValueTone";
 
 /**
@@ -53,12 +59,59 @@ export function fileSystemStateWithBasis(
   return own === "bad" ? "bad" : "caution";
 }
 
+// The State basis row has no tone of its own any more: it is drawn in brackets on the state's
+// row, in the ordinary font and colour, and the caution for a step that could not be taken sits on
+// the state itself (`fileSystemStateWithBasis`).
+
 /**
- * The State basis row's tone: a caution when the basis is incomplete, so the row that says why the
- * state cannot be relied on is not passed over; plain otherwise.
+ * The Manufacturing row's tone. A machine that will **not** close Manufacturing boots on and
+ * can still be worked on, which is the state a bench wants to see: green. One that **will**
+ * close on its next boot is committing itself — the same tone the File System State draws for
+ * `Initialized`. The flag set with an open descriptor reads the same way.
  *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.stateBasis
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.manufacturingState
  */
-export function stateBasis(basis: MFSStateBasis): ToolValueTone {
-  return mfsStateBasisIsIncomplete(basis) ? "caution" : "standard";
+export function manufacturingStateTone(state: ManufacturingState): ToolValueTone {
+  switch (state) {
+    case "willNotClose":
+      return "good";
+    case "willClose":
+    case "unexpectedCombination":
+      return "caution";
+    default:
+      return "standard";
+  }
+}
+
+/**
+ * The Manufacturing Lock row's tone: **Locked** is the machine's End of Manufacturing having
+ * run, the committed state; **Not locked** is a board that has not been through it, green. A
+ * byte the reading does not know is an ordinary value.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.manufacturingLock
+ */
+export function manufacturingLockTone(lock: ManufacturingLock): ToolValueTone {
+  return lock.kind === "locked" ? "caution" : lock.kind === "open" ? "good" : "standard";
+}
+
+/**
+ * The RPMC Hardware Binding row's tone: **Disabled** — the SPI part can be replaced — is green;
+ * **Enabled** is the caution of a committed state. A byte the tool's class does not name, and
+ * an image that does not record one, are ordinary values.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.hardwareBinding
+ */
+export function hardwareBindingTone(binding: HardwareBinding): ToolValueTone {
+  return binding.kind === "disabled" ? "good" : binding.kind === "enabled" ? "caution" : "standard";
+}
+
+/**
+ * The Boot Guard row's tone. Profile 0 — `No_FVME`, the boot chain verifies and measures
+ * nothing — is green; every other profile is a state the board has been committed to, the
+ * caution. What a level means for an edit is the help's to explain, not the colour's.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEATones.swift#MEATones.bootGuardProfile
+ */
+export function bootGuardProfileTone(profile: BootGuardProfile): ToolValueTone {
+  return profile === "0" ? "good" : "caution";
 }

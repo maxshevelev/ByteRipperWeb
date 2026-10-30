@@ -57,7 +57,7 @@ The window holds five stories and some housekeeping:
 - [x] **M5 — the bench's ME verdicts in the engine: Manufacturing, Boot Guard, the OEM key hash, RPMC, the file system state**
 - [x] **M6 — the ME configuration in the engine: configuration, UEP/FPF, GPIO, CSME 18 layouts**
 - [x] **M7 — the detail list's second value and a row's `?`** (`ToolFieldList`)
-- [ ] **M8 — the ME panel: the verdict rows, the Configuration tab, the tab kept by name, the agent's evidence**
+- [x] **M8 — the ME panel: the verdict rows, the Configuration tab, the tab kept by name, the agent's evidence**
 - [ ] **M9 — the help popovers: one flat shape sized to its words, the panels' type, the zoom**
 - [ ] **M10 — the drop zones: every zone a drag can land on, refused zones never shown**
 - [ ] **M11 — a fragment panel's minimap and the zoom**

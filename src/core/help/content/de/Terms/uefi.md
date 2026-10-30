@@ -1,4 +1,4 @@
-@source-sha 7676e5f842c9cfd246d5669dfe6b61683415650f6f616a79abb6c04b4486fd46
+@source-sha 686d4ddbc3de942758a5574cffd27786c60a22e7c4aec2c937c9717cd5e88ecf
 @term flash-descriptor
 @name Flash Descriptor
 @short Die ersten `0x1000` Bytes eines Intel-Flash-Images: die Karte des Chips.
@@ -763,7 +763,7 @@ Die Profile in ihrer üblichen Schreibweise:
 
 Den *gebrannten* Wert bekommt kein Werkzeug aus dem Die eines [[term:pch|Chipsatzes]] heraus, der bereits auf einem Board verbaut ist, ByteRipper eingeschlossen: Er liegt in den [[term:otp|Fuses]], und nichts im Abbild sagt, womit ein bestimmtes Exemplar gebrannt wurde.
 
-Wohl aber kann ein Abbild sagen, womit es einen neuen [[term:pch|Chipsatz]] brennen wird, der noch nie auf einem Board verbaut war. Genau das ist der Fall nach einem Tausch des [[term:pch|Hubs]]: Das Profil und der Schlüssel-Hash des Herstellers liegen als Konfiguration in der [[term:me-region|ME-Region]], von Intels Image-Werkzeug dort hineingeschrieben, und daneben steht die Einstellung, ob sie beim ersten Einschalten des Boards übernommen werden. Diese beiden Felder liest ByteRipper noch nicht. Was es heute zeigt, sind die [[term:boot-policy|geschützten Bereiche]], die das Abbild deklariert.
+Wohl aber kann ein Abbild sagen, womit es einen neuen [[term:pch|Chipsatz]] brennen wird, der noch nie auf einem Board verbaut war. Genau das ist der Fall nach einem Tausch des [[term:pch|Hubs]]: Das Profil und der Schlüssel-Hash des Herstellers liegen als Konfiguration in der [[term:me-region|ME-Region]], von Intels Image-Werkzeug dort hineingeschrieben, und daneben steht die Einstellung, ob sie beim ersten Einschalten des Boards übernommen werden. Beide Felder — das Profil und der Schlüssel-Hash — liest ByteRipper aus dem Abbild, im ME Analyzer, neben den [[term:boot-policy|geschützten Bereichen]], die das Abbild deklariert.
 
 ! Ein Board mit dem Profil `VM` bootet auch mit verändertem Bootblock. Genau deshalb macht eine Änderung, die auf einer Maschine „funktioniert hat“, die nächste zum Briefbeschwerer: Das Profil ist eine Eigenschaft des Boards, nicht des Abbilds.
 

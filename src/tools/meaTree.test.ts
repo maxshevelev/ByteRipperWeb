@@ -16,6 +16,7 @@ import {
   CHECKSUMS_TITLE,
   checksumsPath,
   type MEANode,
+  meaFieldText,
   meaZones,
   pendingValue,
   presentMEA,
@@ -37,6 +38,8 @@ const region = (name: string, offset: number, size: number) => ({
   flags: 0x8000,
 });
 const titles = (nodes: readonly MEANode[]) => nodes.map((one) => one.title);
+const stateField = (node: MEANode | undefined) =>
+  node?.fields.find((one) => one.label === "File System State");
 
 describe("group presence and order", () => {
   // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testPresentSkipsAbsentGroupsAndOrdersTheRest
@@ -196,38 +199,44 @@ describe("the identity", () => {
 });
 
 describe("the state's basis", () => {
-  // The state's basis follows it on the Firmware row: drawn as a caution when
-  // the EFS step could not be taken, plain when it could.
-  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheStateIsFollowedByWhatItRestsOn
-  it("follows the state, a caution when a step could not be taken", () => {
-    const basis = (efs: MFSStateEFS) =>
-      presentMEA(
-        analysisWith({
-          mfsState: "configured",
-          mfsStateBasis: {
-            reservedFiles: { kind: "notRead" },
-            efs,
-            configuration: ["FITC"],
-            decidedBy: "configuration",
-          },
-        }),
-        undefined
-      )[0];
+  // The state's own field carries what it rests on in brackets, as the Manufacturing row does: a
+  // caution when the EFS step could not be taken, green and plainly worded when it could.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheStateFieldCarriesWhatItRestsOn
+  it("is carried in brackets on the state's own field", () => {
+    const firmware = (efs: MFSStateEFS) =>
+      find(
+        "Firmware",
+        presentMEA(
+          analysisWith({
+            mfsState: "configured",
+            mfsStateBasis: {
+              reservedFiles: { kind: "notRead" },
+              efs,
+              configuration: ["FITC"],
+              decidedBy: "configuration",
+            },
+          }),
+          undefined
+        )
+      );
 
-    const unread = basis({ kind: "unreadable", offset: 0x267000 });
-    expect(tone("State basis", unread)).toBe("caution");
-    expect(field("State basis", unread)).toContain(
-      "The EFS partition at 0x267000 could not be read"
-    );
-    const labels = unread?.fields.map((one) => one.label) ?? [];
-    expect(labels.indexOf("State basis")).toBe(labels.indexOf("File System State") + 1);
-
+    const unread = firmware({ kind: "unreadable", offset: 0x267000 });
+    const state = stateField(unread);
     // A state the unread EFS left standing is not drawn as settled.
-    expect(tone("File System State", unread)).toBe("caution");
+    expect(state?.tone).toBe("caution");
+    expect(state?.value).toBe("Configured");
+    // The evidence is kept apart, so it is not drawn in the state's tone.
+    expect(state?.evidence).toBe("configuration: FITC; EFS: unreadable");
+    expect(state === undefined ? undefined : meaFieldText(state)).toBe(
+      "Configured (configuration: FITC; EFS: unreadable)"
+    );
+    expect(unread?.fields.find((one) => one.label === "State basis")).toBeUndefined();
 
-    const settled = basis({ kind: "noFileContent" });
-    expect(tone("State basis", settled)).toBeUndefined();
-    expect(tone("File System State", settled)).toBe("good");
+    const settled = stateField(firmware({ kind: "noFileContent" }));
+    expect(settled?.tone).toBe("good");
+    expect(settled === undefined ? undefined : meaFieldText(settled)).toBe(
+      "Configured (configuration: FITC)"
+    );
   });
 });
 
@@ -640,5 +649,322 @@ describe("what is not known yet", () => {
     expect(issues?.children.map((one) => one.title)).toEqual(["Module checks"]);
     expect(issues?.children[0]?.subtitle).toBe(pendingValue());
     expect(find("Issues", presentMEA(quiet, undefined))).toBeUndefined();
+  });
+});
+
+describe("the bench's own facts on the Firmware row", () => {
+  const fileTablePending = { fileTable: true, huffman: false } as const;
+  const presentPending = (a: FirmwareAnalysis) =>
+    presentMEA(a, undefined, undefined, undefined, undefined, fileTablePending);
+
+  // RPMC's file is found through `FileTable.dat`, so a reading taken without it says it is
+  // still loading rather than that the image does not record one; a binding the image did show
+  // is a value already.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheRPMCBindingWaitsForTheFileTable
+  it("makes the RPMC binding wait for the file table", () => {
+    const absent = analysisWith({ hardwareBinding: { kind: "notInImage" } });
+    const waiting = presentPending(absent)[0];
+    expect(field("RPMC Hardware Binding", waiting)).toBe("Loading…");
+
+    const read = presentMEA(absent, undefined)[0];
+    expect(field("RPMC Hardware Binding", read)).toBe("Not recorded in this image");
+
+    const carried = presentPending({ ...absent, hardwareBinding: { kind: "enabled" } })[0];
+    expect(field("RPMC Hardware Binding", carried)).toBe("Enabled");
+    // The two settled states read as a bench needs them, the same tone the Summary row carries:
+    // Disabled green, Enabled the Initialized caution. A byte the tool does not name and the
+    // absence stay ordinary.
+    expect(tone("RPMC Hardware Binding", carried)).toBe("caution");
+    const unbound = presentMEA({ ...absent, hardwareBinding: { kind: "disabled" } }, undefined)[0];
+    expect(tone("RPMC Hardware Binding", unbound)).toBe("good");
+    expect(tone("RPMC Hardware Binding", read)).toBeUndefined();
+  });
+
+  // Manufacturing Lock: the board's own `manuf_lock`, beside the image's verdict — Locked the
+  // committed state, Not locked the board that has not been through End of Manufacturing; shown
+  // only on a file system whose files carry File IDs, and loading while their table is on the
+  // way.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheManufacturingLockIsTheBoardsOwnRecord
+  it("reads the Manufacturing Lock from the board's own record", () => {
+    const volume = (ftbl: boolean) => ({ ...mfsVolumeFixture(), usesFTBL: ftbl });
+    const a = analysisWith({
+      mfsVolume: volume(true),
+      manifest: manifestFixture(),
+      manufacturingBasis: {
+        flag: undefined,
+        flexible: undefined,
+        page: undefined,
+        descriptorOpen: undefined,
+        liveFilesResolved: true,
+      },
+    });
+    const locked = presentMEA({ ...a, manufacturingLock: { kind: "locked" } }, undefined)[0];
+    expect(field("Manufacturing Lock", locked)).toBe("Locked");
+    expect(tone("Manufacturing Lock", locked)).toBe("caution");
+
+    const open = presentMEA({ ...a, manufacturingLock: { kind: "open" } }, undefined)[0];
+    expect(field("Manufacturing Lock", open)).toBe("Not locked");
+    expect(tone("Manufacturing Lock", open)).toBe("good");
+
+    const waiting = presentPending(a)[0];
+    expect(field("Manufacturing Lock", waiting)).toBe("Loading…");
+    // A board that has made no mark is a dash.
+    expect(field("Manufacturing Lock", presentMEA(a, undefined)[0])).toBe("—");
+
+    const legacy = analysisWith({
+      mfsVolume: volume(false),
+      manifest: manifestFixture(),
+      manufacturingLock: { kind: "locked" },
+    });
+    expect(field("Manufacturing Lock", presentMEA(legacy, undefined)[0])).toBeUndefined();
+  });
+
+  // The Boot Guard profile is a number the image holds: profile 0 — nothing verified or
+  // measured — is green, every other profile the caution the File System State draws for
+  // Initialized.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheBootGuardProfileToneFollowsTheProfile
+  it("tones the Boot Guard profile by the profile", () => {
+    const none = presentMEA(analysisWith({ bootGuardProfile: "0" }), undefined)[0];
+    expect(field("Boot Guard", none)).toBe("0 - No_FVME");
+    expect(tone("Boot Guard", none)).toBe("good");
+
+    const fvme = presentMEA(analysisWith({ bootGuardProfile: "5" }), undefined)[0];
+    expect(field("Boot Guard", fvme)).toBe("5 - FVME");
+    expect(tone("Boot Guard", fvme)).toBe("caution");
+  });
+});
+
+describe("the tool's own settings", () => {
+  // The FPF settings the area records are a group of the full tree, under the tool's own
+  // sections: `RPMC Supported` sits in `RpmcConfiguration` with the value the image holds, and
+  // the tool's identifiers stand in for the bits it gives no label.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheFPFSettingsAreAGroupOfTheirOwn
+  it("makes the FPF settings a group of their own", () => {
+    const roots = presentMEA(
+      analysisWith({
+        version: versionWith(16, 1, 25, 1991),
+        uepSettings: [
+          { name: "RpmcSupported", value: 0 },
+          { name: "RpmcRebindEn", value: 1 },
+          { name: "comp_eom", value: 1 },
+        ],
+      }),
+      undefined
+    );
+    const group = find("FPF Settings", roots);
+    // The tool's sections first, and the bits it does not file.
+    expect(titles(group?.children ?? [])).toEqual(["RpmcConfiguration", "Other"]);
+    const rpmc = group?.children[0]?.children[0];
+    expect(rpmc?.title).toBe("RPMC Supported");
+    expect(rpmc?.subtitle).toBe("0");
+    const rebind = group?.children[0]?.children.at(-1);
+    expect(rebind?.title).toBe("RPMC Rebinding Enabled");
+    expect(rebind?.subtitle).toBe("1");
+    // A bit the tool names by its identifier alone.
+    expect(group?.children[1]?.children[0]?.title).toBe("comp_eom");
+  });
+
+  // CSME 18's map carries the tool's words for an enumerated value: the profile's 5 is what MFIT
+  // calls "Verified and Measured Boot", while a number its documents do not enumerate stays the
+  // number.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testAnEnumeratedFPFSettingShowsTheToolsWord
+  it("shows the tool's word for an enumerated FPF setting", () => {
+    const group = find(
+      "FPF Settings",
+      presentMEA(
+        analysisWith({
+          version: versionWith(18, 0, 10, 2288),
+          uepSettings: [
+            { name: "BTG_PROFILE", value: 5 },
+            { name: "OEM_ID", value: 0x103c },
+          ],
+        }),
+        undefined
+      )
+    );
+    expect(titles(group?.children ?? [])).toEqual([
+      "BootGuardConfiguration",
+      "IntelUniquePlatformIdConfiguration",
+    ]);
+    const profile = group?.children[0]?.children[0];
+    expect(profile?.title).toBe("Boot Guard Profile");
+    expect(profile?.subtitle).toBe("Verified and Measured Boot (5)");
+    expect(group?.children[1]?.children[0]?.subtitle).toBe("4156");
+  });
+
+  // CSME 18's CPU straps are a group of their own, with the tool's words and the message's
+  // length and CRC-16 beside them.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheCPUStrapsAreAGroupWithTheToolsWords
+  it("makes the CPU straps a group with the tool's words", () => {
+    const group = find(
+      "CPU straps",
+      presentMEA(
+        analysisWith({
+          version: versionWith(18, 0, 10, 2288),
+          cpuStraps: {
+            messageLengthWords: 3,
+            crcStored: 0xd6ce,
+            crcValid: true,
+            readings: [
+              { name: "CPU_smip_Strap_CPU_SMT_Disable", value: 0 },
+              { name: "CPU_smip_Strap_CPU_NUM_OF_SOC_ATOM_CORES", value: 2 },
+            ],
+          },
+        }),
+        undefined
+      )
+    );
+    expect(group?.fields.map((one) => one.value)).toEqual(["3 words", "0xD6CE", "Yes"]);
+    expect(titles(group?.children ?? [])).toEqual([
+      "Disable Hyperthreading",
+      "Number of Active Small Cores",
+    ]);
+    expect(group?.children.map((one) => one.subtitle)).toEqual(["No (0)", "2 Cores Active (2)"]);
+  });
+
+  // The MIP table's other containers — CSME and IOE — are groups of their own, with the tool's
+  // words for their values.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheMIPStrapContainersAreGroupsOfTheirOwn
+  it("makes the MIP strap containers groups of their own", () => {
+    const roots = presentMEA(
+      analysisWith({
+        version: versionWith(18, 0, 10, 2288),
+        mipStraps: [
+          {
+            name: "CSME",
+            blockType: 0,
+            length: 8,
+            readings: [
+              { name: "CSME_smip_Strap_CSME_Early_USB_DbC_ME_Boot_Stall_Enable", value: 1 },
+            ],
+          },
+          {
+            name: "IOE",
+            blockType: 4,
+            length: 208,
+            readings: [{ name: "IOE_smip_Strap_IOEP_PCIED_LNREV", value: 1 }],
+          },
+          {
+            name: "PMC SoC",
+            blockType: 1,
+            length: 72,
+            readings: [{ name: "PMC_SoC_smip_Strap_T573_TIMING", value: 3 }],
+          },
+          {
+            name: "CPU 2",
+            blockType: 3,
+            length: 24,
+            readings: [{ name: "CPU_2_smip_Strap_CPU2_SMT_Disable", value: 1 }],
+          },
+          {
+            name: "PMC SOC 2",
+            blockType: 3,
+            length: 72,
+            readings: [{ name: "PMC_SOC_2_smip_Strap_pmc_soc_smip2_CPWRG_STCH_WTDIS", value: 1 }],
+          },
+        ],
+      }),
+      undefined
+    );
+    const soc = find("PMC SoC straps", roots);
+    expect(titles(soc?.children ?? [])).toEqual([
+      "PCH clock output stable to PROCPWRGD high (tPCH45)",
+    ]);
+    expect(soc?.children[0]?.subtitle).toBe("1ms (3)");
+    const cpu2 = find("CPU 2 straps", roots);
+    expect(titles(cpu2?.children ?? [])).toEqual(["Disable Hyperthreading"]);
+    expect(cpu2?.children[0]?.subtitle).toBe("Yes (1)");
+    expect(find("PMC SOC 2 straps", roots)).toBeDefined();
+    const csme = find("CSME straps", roots);
+    expect(csme?.fields.map((one) => one.value)).toEqual(["0", "8 bytes"]);
+    expect(titles(csme?.children ?? [])).toEqual(["Enable early USB2 DbC connection"]);
+    expect(csme?.children[0]?.subtitle).toBe("Yes (1)");
+    const ioe = find("IOE straps", roots);
+    expect(titles(ioe?.children ?? [])).toEqual(["PCIe Controller 4 (Port 13-16)"]);
+    expect(ioe?.children[0]?.subtitle).toBe("1x4 Lane Reversed (1)");
+  });
+
+  // The SPHY OEM configuration is a group of its own: the tool's field names with the image's
+  // values, shown flat.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheSphyNvarIsAGroup
+  it("makes the SPHY OEM configuration a group", () => {
+    const group = find(
+      "SPHY OEM configuration",
+      presentMEA(
+        analysisWith({
+          version: versionWith(18, 0, 10, 2288),
+          sphyNvar: [
+            { name: "SPHY_OEM_NVAR_Common_Header_1", value: 3 },
+            { name: "Sub_Section_Entry0_Header_1", value: 5 },
+          ],
+        }),
+        undefined
+      )
+    );
+    expect(group?.fields.map((one) => one.value)).toEqual(["2"]);
+    expect(titles(group?.children ?? [])).toEqual([
+      "SPHY_OEM_NVAR_Common_Header_1",
+      "Sub_Section_Entry0_Header_1",
+    ]);
+    expect(group?.children.map((one) => one.subtitle)).toEqual(["3", "5"]);
+  });
+
+  // The feature pins the image configures are a group of their own: one row per pin, named by
+  // what the pin is for (its usage) and located by group and pad, with the file and the copy the
+  // bytes came from beside them.
+  // @upstream Packages/MEPresentation/Tests/MEPresentationTests/MEACuratorTests.swift#MEACuratorTests.testTheGPIOPinsAreAGroup
+  it("makes the GPIO pins a group", () => {
+    const pin = (
+      usage: string,
+      usageID: number,
+      group: string,
+      groupID: number,
+      pad: number,
+      ownership: string,
+      ownershipID: number,
+      padMode: string,
+      padModeID: number
+    ) => ({
+      feature: undefined,
+      featureID: undefined,
+      usage,
+      usageID,
+      group,
+      groupID,
+      pad,
+      ownership,
+      ownershipID,
+      padMode,
+      padModeID,
+    });
+    const group = find(
+      "GPIO Pins",
+      presentMEA(
+        analysisWith({
+          version: versionWith(11, 8, 92, 4222),
+          gpioPins: {
+            path: "/home/gpio/csme_pins",
+            fromImage: false,
+            pins: [
+              pin("NFC_RST", 0, "GPP_E", 4, 4, "HOST_MODE", 0, "DEFAULT_MODE", 4),
+              pin("FWUPDATE", 8, "GPP_B", 1, 15, "CSME_MODE", 1, "GPIO_MODE", 0),
+            ],
+          },
+        }),
+        undefined
+      )
+    );
+    expect(group?.fields.map((one) => one.value)).toEqual([
+      "/home/gpio/csme_pins",
+      "ME file system",
+    ]);
+    expect(titles(group?.children ?? [])).toEqual(["NFC_RST", "FWUPDATE"]);
+    expect(group?.children.map((one) => one.subtitle)).toEqual(["GPP_E_4", "GPP_B_15"]);
+    expect(group?.children[1]?.fields.map((one) => one.value)).toEqual([
+      "GPP_B_15",
+      "FWUPDATE",
+      "CSME_MODE",
+      "GPIO_MODE",
+    ]);
   });
 });

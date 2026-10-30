@@ -1353,8 +1353,14 @@
         "MEASummary.swift": "src/tools/me/meaSummary.ts",
         "MEAToolUI/MEAToolViewController.swift": "src/tools/me/meTool.tsx",
         "MEAToolUI/MEAToolModule.swift": "src/tools/me/meTool.tsx",
-        "MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
-        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": "src/tools/me/meaSummary.test.ts",
+        "MEAToolTests/MEASummaryTests.swift": [
+          "src/tools/me/meaSummary.test.ts",
+          "src/tools/me/meaConfiguration.test.ts"
+        ],
+        "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift": [
+          "src/tools/me/meaSummary.test.ts",
+          "src/tools/me/meaConfiguration.test.ts"
+        ],
         "MEAAgentQueries.swift": "src/tools/me/agent/meAgentAnswers.ts",
         "MEAAgentFiles.swift": "src/tools/me/agent/meAgentFiles.ts",
         "MEAAgentLocator.swift": "src/tools/me/agent/meAgentLocator.ts",
@@ -1362,7 +1368,9 @@
         "Tests/MEAToolTests/MEAAgentFilesTests.swift": [
           "src/tools/me/agent/meAgentFiles.test.ts",
           "src/tools/me/agent/meAgentLocator.test.ts"
-        ]
+        ],
+        "MEAConfiguration.swift": "src/tools/me/meaConfiguration.ts",
+        "MEAToolUI/MEASettingHelpPopover.swift": "src/tools/me/meTool.tsx"
       },
       "unported": {
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.init": "n/a — an object literal",
@@ -1385,11 +1393,13 @@
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheDetailDrawsStatusValuesLikeTheOtherPanels": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAnEmptySectionIsGreyThroughoutInTheTree": "later — an app flow test; the port has no component or end-to-end test for it yet. The behaviour it checks is already here and was before upstream: an empty section's whole row reads faint (.me-row[data-empty] in app.css), which is what a9c1e34 brought upstream to",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolModule.swift#MEAToolModule.helpTopic": "n/a — a hook of the native Help window; the panel's `?` reads the `// help:` anchors",
-        "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryValue.isValue": "n/a — `value.kind === \"value\"` where it is asked",
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
         "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
-        "Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.hex": "n/a — `hex` in `meAgentAnswers.ts`"
+        "Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.hex": "n/a — `hex` in `meAgentAnswers.ts`",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheTabIsKeptByName": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheConfigurationTabOfFirmwareWithoutAMapSaysNoConfiguration": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAWorkspaceFromBeforeTheConfigurationTabKeepsItsTab": "n/a — the web has always kept the tab by name, so no workspace holds a tab number"
       }
     },
     {
@@ -1420,7 +1430,9 @@
         "MEAPending.swift": "src/tools/mePending.ts",
         "Packages/MEPresentation/Sources/MEPresentation/MEAStateBasisText.swift": "src/tools/meaStateBasisText.ts",
         "MEFileComparison.swift": "src/tools/meFileComparison.ts",
-        "Tests/MEPresentationTests/MEFileComparisonTests.swift": "src/tools/meFileComparison.test.ts"
+        "Tests/MEPresentationTests/MEFileComparisonTests.swift": "src/tools/meFileComparison.test.ts",
+        "MEABenchFactsText.swift": "src/tools/meaBenchFactsText.ts",
+        "MEAConfigurationText.swift": "src/tools/meaConfigurationText.ts"
       },
       "unported": {
         "Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode.isExpandable": "n/a — children.length > 0 where it is asked",

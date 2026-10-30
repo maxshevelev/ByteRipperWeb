@@ -1,9 +1,9 @@
-@source-sha e8541a923fd3e193afa375c49e8e5b7c0cccd10d9bd4f255a638860cf94da3a7
+@source-sha 9a8d918dea9fc43f448aa9fd154024bebb61188151cbaa65e7c0350dd9c3b939
 # ME Analyzer
 
 > Welche Intel-Management-Engine-Firmware das Image enthält und aus welchen Strukturen sie besteht.
 
-**Werkzeuge ▸ ME Analyzer** analysiert die [[term:me-region|ME-Region]] der Datei im zugehörigen Bereich und meldet das Ergebnis auf zwei Registerkarten.
+**Werkzeuge ▸ ME Analyzer** analysiert die [[term:me-region|ME-Region]] der Datei im zugehörigen Bereich und meldet das Ergebnis auf drei Registerkarten.
 
 ## Übersicht
 
@@ -11,9 +11,15 @@ Ein Bericht darüber, was die Firmware ist: Familie und Version, die [[term:sku|
 
 Die Zeilenbezeichnungen stehen in jeder Sprache der Oberfläche auf Englisch: Es sind die Bezeichnungen des Projekts, auf dem die Analyse beruht. Siehe [[topic:provenance|Woher dieses Wissen stammt]].
 
-Die Registerkarte erscheint, sobald die Region gelesen ist. Manche Werte hängen von Datenbanken des Projekts ab, auf dem die Analyse beruht; sie werden geladen, während der Bereich geöffnet ist. Solange sie nicht geladen und berücksichtigt sind, steht bei diesen Werten **Wird geladen…**, und die Zeile am unteren Rand des Bereichs nennt, was gerade geladen wird. Das betrifft den **File System State** einer Firmware mit EFS-Volume sowie die Zeile **Modulprüfung** am Ende der **Meldungen**; dieselbe Zeile enthält die Gruppe **Probleme** auf der Registerkarte **Vollständige Angaben**. Die Meldungen darüber sind endgültig. Lässt sich eine Datenbank nicht laden, bleiben die angezeigten Werte bestehen.
+Die Registerkarte erscheint, sobald die Region gelesen ist. Manche Werte hängen von Datenbanken des Projekts ab, auf dem die Analyse beruht; sie werden geladen, während der Bereich geöffnet ist. Solange sie nicht geladen und berücksichtigt sind, steht bei diesen Werten **Loading…**, und die Zeile am unteren Rand des Bereichs nennt, was gerade geladen wird. Das betrifft den **File System State** einer Firmware mit EFS-Volume sowie die Zeile **Module checks** am Ende der **Messages**; dieselbe Zeile enthält die Gruppe **Probleme** auf der Registerkarte **Vollständige Angaben**. Die Meldungen darüber sind endgültig. Lässt sich eine Datenbank nicht laden, bleiben die angezeigten Werte bestehen.
 
 Die beiden Tasten in der Registerkartenzeile kopieren die Registerkarte als Text oder als Bild des Bereichs.
+
+## Konfiguration
+
+Die Einstellungen der Konfigurationsdateien, die das Image enthält, für CSME 11 bis 18 nach den Strukturbeschreibungen gelesen, mit denen das Intel Flash Image Tool arbeitet. Jede Datei bildet einen eigenen Block; seine Überschrift nennt den Namen der Datei im Flash Image Tool, ihren Ort und ihre Länge. Jede Einstellung ist eine Zeile mit ihrem Namen im Flash Image Tool und ihrem Wert. Ein Image kann eine Datei in zwei Exemplaren führen — dem beim Build geschriebenen (**FITC**) und dem im [[term:mfs|ME-Dateisystem]] (**MFS**); sind beide vorhanden, stehen die Werte nebeneinander, und ein Wert, der vom anderen Exemplar abweicht, ist fett gesetzt. **auto** kennzeichnet eine Einstellung, die das Werkzeug selbst ausfüllt. Hängt die Lage einer Einstellung vom Wert einer anderen ab, wird dieser Wert genannt, und als angenommen gekennzeichnet, wenn das Image ihn nicht enthält. Eine Einstellung, die das Werkzeug bei einem bestimmten Wert einer anderen außer Kraft setzt, erscheint grau, und dieser Wert wird genannt.
+
+Die Taste **?** neben einer Einstellung zeigt, was das Flash Image Tool zu ihr sagt. Gehört die Generation nicht zu diesem Bereich oder enthält das Image keine der Dateien, meldet die Registerkarte, dass keine Konfiguration gelesen wurde.
 
 ## Vollständige Angaben
 

@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { forgetCatalogues, installCatalogue } from "@/core/localization/localization";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import type { MFSStateBasis, MFSStateEFS } from "@/firmware/me/models/firmwareFacts";
+import type {
+  HardwareBinding,
+  ManufacturingBasis,
+  ManufacturingLock,
+} from "@/firmware/me/models/manufacturingFacts";
 import {
   buildSummary,
   COMING_SOON,
@@ -9,8 +15,8 @@ import {
   type MEASummaryValue,
   PENDING,
   shown,
+  summaryValueText,
 } from "@/tools/me/meaSummary";
-import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
 import {
   analysisWith,
   bootFixture,
@@ -28,6 +34,11 @@ const value = (label: string, rows: readonly MEASummaryRow[]): MEASummaryValue |
   rows.find((row) => row.label === label)?.value;
 const tone = (label: string, rows: readonly MEASummaryRow[]) =>
   rows.find((row) => row.label === label)?.tone;
+/** The row as one line, as a copy of it reads. */
+const text = (label: string, rows: readonly MEASummaryRow[]) => {
+  const one = value(label, rows);
+  return one === undefined ? undefined : summaryValueText(one);
+};
 /** Whether the row's value is drawn bold as well as coloured. */
 const emphasis = (label: string, rows: readonly MEASummaryRow[]) => {
   const row = rows.find((one) => one.label === label);
@@ -79,10 +90,20 @@ describe("the primary table, filled in", () => {
       "FWUpdate Support",
       "Date",
       "File System State",
+      // Our three rows, between the file system state they are read beside and the size: a
+      // CSME 15 image with a manifest that carries none of the three facts answers each of them
+      // honestly — a promise for the Manufacturing row, and the two Boot Guard facts as "this
+      // image has none".
+      "EOM on First Boot",
+      "Boot Guard",
+      "OEM Public Key Hash",
       "Size",
       "Flash Image Tool",
       "Manifest Extension Utility",
     ]);
+    expect(value("EOM on First Boot", rows)).toEqual(COMING_SOON);
+    expect(value("Boot Guard", rows)).toEqual(shown("No profile record in this image"));
+    expect(value("OEM Public Key Hash", rows)).toEqual(shown("No key material in this image"));
     expect(value("NVM Compatibility", rows)).toEqual(shown("SPI"));
     expect(value("Manifest Extension Utility", rows)).toEqual(shown("1.4.0.0014"));
     expect(value("Family", rows)).toEqual(shown("CSME"));
@@ -169,11 +190,11 @@ describe("the primary table, filled in", () => {
     expect(tone("Family", state("configured"))).toBe("standard");
   });
 
-  // The Summary says what the File System State rests on, directly under it, in the same words as
-  // Full Info — and a state an unread EFS left standing is neither green nor its basis plain. The
-  // case is a CSME 15 dump whose EFS system page was erased: Configured from the FITC alone.
-  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheStateBasisFollowsTheStateInTheSummary
-  it("follows the File System State with the state's basis", () => {
+  // The Summary states what the File System State rests on in brackets on its own row — one
+  // line, in the same words as Full Info — and a state an unread EFS left standing is not green.
+  // The case is a dump whose EFS system page was erased: Configured from the FITC alone.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheStateCarriesWhatItRestsOn
+  it("carries what the File System State rests on in brackets on its own row", () => {
     const basis = (efs: MFSStateEFS): MFSStateBasis => ({
       reservedFiles: { kind: "notRead" },
       efs,
@@ -182,18 +203,27 @@ describe("the primary table, filled in", () => {
     });
     const unread = basis({ kind: "unreadable", offset: 0x267000 });
     const rows = tableRows(identified({ mfsState: "configured", mfsStateBasis: unread }));
-    const labels = rows.map((row) => row.label);
-    expect(labels[labels.indexOf("File System State") + 1]).toBe("State basis");
-    expect(value("State basis", rows)).toEqual(
-      shown(fileSystemStateBasisText("configured", unread))
+    expect(value("File System State", rows)).toEqual({
+      kind: "verdict",
+      text: "Configured",
+      evidence: "configuration: FITC; EFS: unreadable",
+    });
+    expect(text("File System State", rows)).toBe(
+      "Configured (configuration: FITC; EFS: unreadable)"
     );
-    expect(tone("State basis", rows)).toBe("caution");
+    // An incomplete state is not green.
     expect(tone("File System State", rows)).toBe("caution");
+    // The basis is in the brackets now.
+    expect(value("State basis", rows)).toBeUndefined();
 
     const settled = tableRows(
       identified({ mfsState: "configured", mfsStateBasis: basis({ kind: "noFileContent" }) })
     );
-    expect(tone("State basis", settled)).toBe("standard");
+    expect(value("File System State", settled)).toEqual({
+      kind: "verdict",
+      text: "Configured",
+      evidence: "configuration: FITC",
+    });
     expect(tone("File System State", settled)).toBe("good");
   });
 
@@ -724,5 +754,264 @@ describe("what is not known yet", () => {
     const messages = block.find((one) => one.title === "Messages");
     expect(messages?.rows.at(-1)?.value).toEqual(PENDING);
     expect(rows({}).find((one) => one.title === "Messages")).toBeUndefined();
+  });
+});
+
+describe("our three rows (End of Manufacturing, Boot Guard, OEM key hash)", () => {
+  afterEach(() => forgetCatalogues());
+
+  /** What the Manufacturing verdict was read from, with what a test leaves out absent. */
+  const manufacturing = (basis: Partial<ManufacturingBasis>): ManufacturingBasis => ({
+    flag: undefined,
+    flexible: undefined,
+    page: undefined,
+    descriptorOpen: undefined,
+    liveFilesResolved: false,
+    ...basis,
+  });
+  const csme = (
+    major: number,
+    minor: number,
+    hotfix: number,
+    build: number,
+    overrides: Partial<FirmwareAnalysis> = {}
+  ) =>
+    identified({ family: "csme", version: versionWith(major, minor, hotfix, build), ...overrides });
+  const verdictOf = (text: string, evidence: string): MEASummaryValue => ({
+    kind: "verdict",
+    text,
+    evidence,
+  });
+
+  // The RPMC row: whether the platform binds its SPI part to the chipset — one byte the tool
+  // keeps in `bup_sku/hw_binding`, which its own help names the FPF hardware and RPMC / RPMB
+  // binding. Read for the generations whose tool has the setting, and saying so where the image
+  // does not carry the file.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheRPMCBindingIsARow
+  it("gives the RPMC binding a row", () => {
+    const rows = (binding: HardwareBinding | undefined, major: number) =>
+      tableRows(csme(major, 0, 1, 100, { hardwareBinding: binding }));
+    expect(value("RPMC Hardware Binding", rows({ kind: "enabled" }, 15))).toEqual(shown("Enabled"));
+    expect(value("RPMC Hardware Binding", rows({ kind: "disabled" }, 15))).toEqual(
+      shown("Disabled")
+    );
+    expect(value("RPMC Hardware Binding", rows({ kind: "other", byte: 0x02 }, 16))).toEqual(
+      shown("Unexpected value 0x02")
+    );
+    expect(value("RPMC Hardware Binding", rows({ kind: "notInImage" }, 16))).toEqual(
+      shown("Not recorded in this image")
+    );
+    // The two settled states read as a bench needs them: Disabled — the part is not bound — is
+    // green, and Enabled is the caution the File System State draws for Initialized. A byte the
+    // tool does not name and an absence are ordinary values.
+    expect(tone("RPMC Hardware Binding", rows({ kind: "disabled" }, 15))).toBe("good");
+    expect(tone("RPMC Hardware Binding", rows({ kind: "enabled" }, 15))).toBe("caution");
+    expect(tone("RPMC Hardware Binding", rows({ kind: "other", byte: 0x02 }, 16))).toBe("standard");
+    expect(tone("RPMC Hardware Binding", rows({ kind: "notInImage" }, 16))).toBe("standard");
+    // CSME 12 has no such setting: no row, rather than one that can only say the image does not
+    // carry it.
+    expect(value("RPMC Hardware Binding", rows({ kind: "notInImage" }, 12))).toBeUndefined();
+    expect(value("RPMC Hardware Binding", rows(undefined, 15))).toBeUndefined();
+  });
+
+  // The binding's file is found through `FileTable.dat`: until the reading with it lands, "not
+  // recorded in this image" is an answer the reading has not checked for, and the row says it is
+  // still loading. A binding the image did show is a value already, and the absence is the
+  // answer once the table is in.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheRPMCBindingWaitsForTheFileTable
+  it("makes the RPMC binding wait for the file table", () => {
+    const absent = csme(15, 0, 1, 100, { hardwareBinding: { kind: "notInImage" } });
+    const waiting = buildSummary(absent, { fileTable: true, huffman: false })[0]?.rows ?? [];
+    expect(value("RPMC Hardware Binding", waiting)).toEqual(PENDING);
+    expect(tone("RPMC Hardware Binding", waiting)).toBe("standard");
+    expect(value("RPMC Hardware Binding", tableRows(absent))).toEqual(
+      shown("Not recorded in this image")
+    );
+
+    const enabled = { ...absent, hardwareBinding: { kind: "enabled" } as const };
+    const carried = buildSummary(enabled, { fileTable: true, huffman: false })[0]?.rows ?? [];
+    expect(value("RPMC Hardware Binding", carried)).toEqual(shown("Enabled"));
+  });
+
+  // The four dumps whose answers are known, as the rows read them: the factory dump that closed
+  // Manufacturing already, the same image built with MFIT's flag set, the one built without it,
+  // and the pair of Boot Guard facts under them.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheBenchRowsReadTheFourKnownDumps
+  it("reads the four known dumps", () => {
+    const protectedDump = csme(16, 1, 25, 1991, {
+      manufacturingState: "willClose",
+      manufacturingBasis: manufacturing({
+        flag: true,
+        flexible: 0,
+        page: "imageConfiguration",
+        descriptorOpen: false,
+        liveFilesResolved: true,
+      }),
+      bootGuardProfile: "5",
+    });
+    const protectedKey = {
+      ...protectedDump,
+      oemPublicKeyHash: { kind: "hash", hex: "05".repeat(48) } as const,
+    };
+    const rows = tableRows(protectedKey);
+    expect(value("EOM on First Boot", rows)).toEqual(
+      verdictOf("Will close on the EOM flag", "EOM: on, descriptor: locked")
+    );
+    // It will close: the tone the File System State draws for Initialized.
+    expect(tone("EOM on First Boot", rows)).toBe("caution");
+    expect(value("Boot Guard", rows)).toEqual(shown("5 - FVME"));
+    // A profile the boot chain is committed to: the caution the File System State draws for
+    // Initialized.
+    expect(tone("Boot Guard", rows)).toBe("caution");
+    expect(value("OEM Public Key Hash", rows)).toEqual(
+      shown(Array.from({ length: 48 }, () => "05").join(" "))
+    );
+    // One line for a copy: the verdict, then what it was read from in brackets — and only the
+    // verdict is emphasised.
+    expect(text("EOM on First Boot", rows)).toBe(
+      "Will close on the EOM flag (EOM: on, descriptor: locked)"
+    );
+    expect(emphasis("EOM on First Boot", rows)).toBe(true);
+    expect(value("Flexible EOM Settings", rows)).toBeUndefined();
+    expect(protectedDump.manufacturingBasis?.flexible).toBe(0);
+    expect(value("Manufacturing basis", rows)).toBeUndefined();
+
+    const willClose = csme(16, 1, 25, 1991, {
+      manufacturingState: "willClose",
+      manufacturingBasis: manufacturing({
+        flag: true,
+        flexible: 0,
+        page: "imageConfiguration",
+        descriptorOpen: false,
+        liveFilesResolved: false,
+      }),
+      bootGuardProfile: "0",
+    });
+    expect(value("EOM on First Boot", tableRows(willClose))).toEqual(
+      verdictOf("Will close on the EOM flag", "EOM: on, descriptor: locked")
+    );
+    expect(tone("EOM on First Boot", tableRows(willClose))).toBe("caution");
+    // Profile 0 verifies nothing: the one green profile.
+    expect(tone("Boot Guard", tableRows(willClose))).toBe("good");
+
+    const willNotClose = csme(16, 1, 25, 1991, {
+      manufacturingState: "willNotClose",
+      manufacturingBasis: manufacturing({
+        flag: false,
+        flexible: 0,
+        page: "imageConfiguration",
+        descriptorOpen: true,
+        liveFilesResolved: false,
+      }),
+    });
+    expect(value("EOM on First Boot", tableRows(willNotClose))).toEqual(
+      verdictOf("Will not close", "EOM: off, descriptor: open")
+    );
+    expect(text("EOM on First Boot", tableRows(willNotClose))).toBe(
+      "Will not close (EOM: off, descriptor: open)"
+    );
+    expect(tone("EOM on First Boot", tableRows(willNotClose))).toBe("good");
+  });
+
+  // Manufacturing Lock: the board's own record (`manuf_lock`), beside the image's verdict.
+  // Locked is the committed state — the caution the File System State draws for Initialized —
+  // and Not locked the board that has not been through End of Manufacturing. The record exists
+  // only on a file system whose files carry File IDs; while the table that names them is on the
+  // way, the row says it is loading.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheManufacturingLockIsTheBoardsOwnRecord
+  it("reads the Manufacturing Lock from the board's own record", () => {
+    const volume = (ftbl: boolean) => ({ ...mfsVolumeFixture(), usesFTBL: ftbl });
+    const rows = (lock: ManufacturingLock | undefined, ftbl = true) =>
+      tableRows(
+        identified({
+          mfsVolume: volume(ftbl),
+          manufacturingBasis: manufacturing({ liveFilesResolved: true }),
+          manufacturingLock: lock,
+        })
+      );
+    expect(value("Manufacturing Lock", rows({ kind: "locked" }))).toEqual(shown("Locked"));
+    expect(tone("Manufacturing Lock", rows({ kind: "locked" }))).toBe("caution");
+    expect(value("Manufacturing Lock", rows({ kind: "open" }))).toEqual(shown("Not locked"));
+    expect(tone("Manufacturing Lock", rows({ kind: "open" }))).toBe("good");
+    expect(value("Manufacturing Lock", rows({ kind: "other", byte: 0x02 }))).toEqual(
+      shown("Unexpected value 0x02")
+    );
+    // A board that has made no mark is a dash, not a sentence.
+    expect(value("Manufacturing Lock", rows(undefined))).toEqual(shown("—"));
+    // A legacy volume carries no such record.
+    expect(value("Manufacturing Lock", rows({ kind: "locked" }, false))).toBeUndefined();
+
+    const unmarked = identified({ mfsVolume: volume(true), manufacturingLock: undefined });
+    const waiting = buildSummary(unmarked, { fileTable: true, huffman: false })[0]?.rows ?? [];
+    expect(value("Manufacturing Lock", waiting)).toEqual(PENDING);
+    expect(value("Manufacturing Lock", tableRows(unmarked))).toEqual(shown("—"));
+  });
+
+  // The Summary is English in every language — MEA's console table, which a technician quotes
+  // and compares with a report — and its rows keep the console's names: the Manufacturing row is
+  // "EOM on First Boot".
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheSummaryIsEnglishAndKeepsItsNames
+  it("is English in every language and keeps its names", () => {
+    // A catalogue that would translate the row's words, were the Summary to ask for them.
+    installCatalogue({
+      language: "de",
+      entries: {
+        "EOM on First Boot": "EOM beim ersten Start",
+        "Will not close": "Wird nicht geschlossen",
+        "File System State": "Dateisystemzustand",
+      },
+    });
+    const a = csme(16, 1, 25, 1991, {
+      manufacturingState: "willNotClose",
+      manufacturingBasis: manufacturing({
+        flag: false,
+        flexible: 0,
+        page: "imageConfiguration",
+        descriptorOpen: true,
+        liveFilesResolved: true,
+      }),
+    });
+    const rows = buildSummary(a)[0]?.rows ?? [];
+    const row = rows.find((one) => one.label === "EOM on First Boot");
+    expect(row?.value).toEqual(verdictOf("Will not close", "EOM: off, descriptor: open"));
+    expect(row === undefined ? undefined : summaryValueText(row.value)).toBe(
+      "Will not close (EOM: off, descriptor: open)"
+    );
+  });
+
+  // The three rows belong to CSME 11 and later. Manufacturing is decided there by the
+  // descriptor's access rights — which is how it was done before MFIT grew the flag, and CSME 12
+  // is such a generation: it reads a verdict of its own, not `noSwitch`.
+  // @upstream Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testTheBenchRowsBelongToCSME11AndLater
+  it("belongs to CSME 11 and later", () => {
+    const a = csme(12, 0, 3, 1091, {
+      manufacturingState: "willClose",
+      manufacturingBasis: manufacturing({ descriptorOpen: false, liveFilesResolved: false }),
+      bootGuardProfile: "4",
+      oemPublicKeyHash: { kind: "allZeros" },
+    });
+    const rows = tableRows(a);
+    expect(value("EOM on First Boot", rows)).toEqual(
+      verdictOf("Will close on the descriptor's rights", "descriptor: locked")
+    );
+    expect(tone("EOM on First Boot", rows)).toBe("caution");
+    // No flag in this image, so the evidence names the descriptor alone.
+    expect(text("EOM on First Boot", rows)).toBe(
+      "Will close on the descriptor's rights (descriptor: locked)"
+    );
+    expect(a.manufacturingBasis?.flexible).toBeUndefined();
+    expect(value("Boot Guard", rows)).toEqual(shown("4 - FVE"));
+    // A profile the boot chain is committed to: the Initialized caution.
+    expect(tone("Boot Guard", rows)).toBe("caution");
+    // CSME 12 with a zeroed key field: a finding of its own, not silence.
+    expect(value("OEM Public Key Hash", rows)).toEqual(shown("Not set (all zeros)"));
+
+    // ME 7 has none of this machinery.
+    const me7 = identified({
+      family: "me",
+      version: versionWith(7, 1, 70, 2264),
+      manufacturingState: "noSwitch",
+    });
+    expect(value("EOM on First Boot", tableRows(me7))).toBeUndefined();
   });
 });

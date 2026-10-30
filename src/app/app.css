@@ -3820,11 +3820,20 @@ button.uefi-title {
 /* A list with a comparing row (`ToolFieldList.Field.second`): the two values are columns
    of one width, so they line up down the list; a row with one value spans both. */
 .tool-detail-fields[data-second] {
-  grid-template-columns: min(var(--tool-detail-name, 9.5em), calc(50% - 3px)) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns:
+    min(var(--tool-detail-name, 9.5em), calc(50% - 3px))
+    minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .tool-detail-row dd[data-spans] {
   grid-column: span 2;
+}
+
+/* What a verdict rests on, after it in brackets: evidence, not a second answer, so neither
+   the verdict's colour nor its weight. */
+.tool-detail-row .tool-detail-evidence {
+  color: var(--text);
+  font-weight: 400;
 }
 
 .tool-detail-row dd[data-strong] {
@@ -4491,6 +4500,19 @@ button.uefi-title {
 
 /* A block's list, focusable so a select-all and a copy arrive at it — and the
    ring that would say so is not wanted on a list of text. */
+/* The Configuration tab's file heading: MFIT's own name for the file in bold, where it lives
+   and how long it is in the ordinary weight and the quiet colour, on one line. */
+.me-configuration-detail {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* The column names over the rows: a table's header weight and colour. */
+.me-configuration-heading dd {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .me-summary-block {
   outline: none;
 }

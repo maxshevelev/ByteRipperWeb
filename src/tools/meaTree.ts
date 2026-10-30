@@ -1,5 +1,8 @@
 import { type HelpTermId, termId } from "@/core/help/helpIds";
 import { L, localized } from "@/core/localization/localization";
+import { cpuStrapMapForME, mipStrapMapForME } from "@/firmware/me/configuration/layoutMaps";
+import { uepMapForME } from "@/firmware/me/configuration/uepMap";
+import { gpioPinName } from "@/firmware/me/models/configurationFacts";
 import type {
   EFSFile,
   MFSConfigIDRecord,
@@ -13,7 +16,15 @@ import type { CPDExtension } from "@/firmware/me/partition/extensions";
 import { UNLOCK_TOKEN_FLAGS_SIZE } from "@/firmware/me/partition/unlockToken";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
-import { fileSystemStateBasisText } from "@/tools/meaStateBasisText";
+import {
+  bootGuardProfileText,
+  hardwareBindingText,
+  manufacturingEvidence,
+  manufacturingLockText,
+  manufacturingStateText,
+  oemPublicKeyHashText,
+} from "@/tools/meaBenchFactsText";
+import { fileSystemStateEvidence } from "@/tools/meaStateBasisText";
 import {
   countText,
   dateText,
@@ -32,7 +43,13 @@ import {
   titleText,
   yesNo,
 } from "@/tools/meaText";
-import { fileSystemStateWithBasis, stateBasis } from "@/tools/meaTones";
+import {
+  bootGuardProfileTone,
+  fileSystemStateWithBasis,
+  hardwareBindingTone,
+  manufacturingLockTone,
+  manufacturingStateTone,
+} from "@/tools/meaTones";
 import {
   codePartitionMarks,
   manifestMarks,
@@ -72,7 +89,24 @@ export interface MEAField {
    * @upstream-differs absent reads as standard
    */
   readonly tone?: ToolValueTone;
+  /**
+   * What a verdict was read from, shown in brackets after it. Kept apart from `value` so the
+   * panel draws it in the ordinary font and colour: the tone is the verdict's, and the
+   * evidence beside it must not borrow it.
+   *
+   * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.evidence
+   * @upstream-differs absent reads as none
+   */
+  readonly evidence?: string;
 }
+
+/**
+ * The field as one line, brackets and all — what an agent and a copy read.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.text
+ */
+export const meaFieldText = (one: MEAField): string =>
+  one.evidence === undefined || one.evidence === "" ? one.value : `${one.value} (${one.evidence})`;
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEANode */
 export interface MEANode {
@@ -174,8 +208,17 @@ interface Draft {
 }
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.init */
-const field = (label: string, value: string, tone: ToolValueTone = "standard"): MEAField =>
-  tone === "standard" ? { label, value } : { label, value, tone };
+const field = (
+  label: string,
+  value: string,
+  tone: ToolValueTone = "standard",
+  evidence = ""
+): MEAField => ({
+  label,
+  value,
+  ...(tone === "standard" ? {} : { tone }),
+  ...(evidence === "" ? {} : { evidence }),
+});
 
 /** Label/value rows, leaving out a value that is absent — or empty, where that is asked. */
 class Fields {
@@ -219,6 +262,11 @@ export function presentMEA(
     codePartition(analysis),
     manifest(analysis),
     mfsVolume(analysis, names, configPaths),
+    uepGroup(analysis),
+    cpuStrapGroup(analysis),
+    ...mipStrapGroups(analysis),
+    sphyGroup(analysis),
+    gpioGroup(analysis),
     // The fact groups — everything else a dump carried, each only when present.
     chipsetInitGroup(analysis),
     backupGroup(analysis),
@@ -337,25 +385,18 @@ function firmware(a: FirmwareAnalysis, pending: MEAPending): Draft {
     // any is half of what makes the volume Initialized rather than Configured.
     fields.rows.push(field("File System State", pendingValue()));
   } else if (a.mfsState !== undefined) {
+    // The state, and in brackets what it rests on — the evidence kept apart, so it is drawn in
+    // the ordinary font and colour beside the state's.
     fields.rows.push(
       field(
         "File System State",
         titleText(a.mfsState),
-        fileSystemStateWithBasis(a.mfsState, a.mfsStateBasis)
+        fileSystemStateWithBasis(a.mfsState, a.mfsStateBasis),
+        a.mfsStateBasis === undefined ? "" : fileSystemStateEvidence(a.mfsState, a.mfsStateBasis)
       )
     );
-    // What the state rests on, and — a caution — when a step that could have
-    // raised it could not be taken.
-    if (a.mfsStateBasis !== undefined) {
-      fields.rows.push(
-        field(
-          L("State basis"),
-          fileSystemStateBasisText(a.mfsState, a.mfsStateBasis),
-          stateBasis(a.mfsStateBasis)
-        )
-      );
-    }
   }
+  benchFields(a, pending, fields.rows);
   // A non-IFWI image's $FPT header FIT; an IFWI's sits on each boot BPDT.
   if (a.fptHeaderFIT !== undefined) {
     const fit = a.fptHeaderFIT;
@@ -1402,4 +1443,222 @@ function numberText(value: number | bigint, path: string): string {
     l.includes("vendorid");
   if (!isCode) return String(value);
   return typeof value === "bigint" ? `0x${value.toString(16).toUpperCase()}` : hex(value);
+}
+
+/**
+ * The bench's own facts, under the same names the Summary tab gives them — the two panels
+ * are one reading of one dump — on the same gates as the Summary rows.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.firmware
+ */
+function benchFields(a: FirmwareAnalysis, pending: MEAPending, rows: MEAField[]): void {
+  const fromCSME11 = a.family === "csme" && a.version.major >= 11;
+  const state = a.manufacturingState;
+  if (fromCSME11 && state !== undefined) {
+    rows.push(
+      field(
+        "EOM on First Boot",
+        manufacturingStateText(state, a.manufacturingBasis),
+        manufacturingStateTone(state),
+        manufacturingEvidence(state, a.manufacturingBasis)
+      )
+    );
+  }
+  // The board's own record — the live `manuf_lock`, which no build writes. Only a file
+  // system whose files carry File IDs has it, and a reading taken without the table says it
+  // is still loading; a board that has not made the mark has a dash.
+  if (a.family === "csme" && a.mfsVolume?.usesFTBL === true) {
+    const lock = a.manufacturingLock;
+    rows.push(
+      lock === undefined
+        ? field(L("Manufacturing Lock"), pending.fileTable ? pendingValue() : "—")
+        : field(L("Manufacturing Lock"), manufacturingLockText(lock), manufacturingLockTone(lock))
+    );
+  }
+  const binding = a.hardwareBinding;
+  if (binding !== undefined && a.version.major >= 13) {
+    const waits = pending.fileTable && binding.kind === "notInImage";
+    rows.push(
+      field(
+        "RPMC Hardware Binding",
+        waits ? "Loading…" : hardwareBindingText(binding),
+        waits ? "standard" : hardwareBindingTone(binding)
+      )
+    );
+  }
+  if (!fromCSME11) return;
+  const profile = a.bootGuardProfile;
+  rows.push(
+    field(
+      L("Boot Guard"),
+      profile === undefined ? L("No profile record in this image") : bootGuardProfileText(profile),
+      profile === undefined ? "standard" : bootGuardProfileTone(profile)
+    )
+  );
+  if (a.oemPublicKeyHash !== undefined) {
+    rows.push(field(L("OEM Public Key Hash"), oemPublicKeyHashText(a.oemPublicKeyHash)));
+  } else if (a.manifest !== undefined) {
+    rows.push(field(L("OEM Public Key Hash"), L("No key material in this image")));
+  }
+}
+
+/** The tool's word for an enumerated value where its documents give one, the number otherwise. */
+const optionText = (options: ReadonlyMap<number, string> | undefined, value: number): string => {
+  const word = options?.get(value);
+  return word === undefined ? `${value}` : `${word} (${value})`;
+};
+
+/**
+ * The FPF/UEP settings the `$UEP` area's bit arrays record, under the tool's own sections —
+ * the bits the platform would burn at End of Manufacturing. The values are what the build
+ * wrote, and most of them are zero.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.uepGroup
+ */
+function uepGroup(a: FirmwareAnalysis): Draft | undefined {
+  const map = uepMapForME(a.version.major);
+  if (a.uepSettings === undefined || map === undefined) return undefined;
+  const byName = new Map(map.settings.map((one) => [one.name, one]));
+  const sections = new Map<string, Draft[]>();
+  for (const reading of a.uepSettings) {
+    const setting = byName.get(reading.name);
+    const section = setting?.section ?? "";
+    const rows = sections.get(section) ?? [];
+    rows.push({
+      title: setting?.label ?? reading.name,
+      subtitle: optionText(setting?.options, reading.value),
+    });
+    sections.set(section, rows);
+  }
+  return {
+    title: L("FPF Settings"),
+    children: [...sections].map(([section, children]) => ({
+      title: section === "" ? L("Other") : section,
+      children,
+    })),
+  };
+}
+
+/**
+ * The CPU strap message a CSME 18 image keeps in the FITC partition's MIP table, under the
+ * tool's own words — with the message length and its CRC-16, which say the reading is aligned.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.cpuStrapGroup
+ */
+function cpuStrapGroup(a: FirmwareAnalysis): Draft | undefined {
+  const map = cpuStrapMapForME(a.version.major);
+  const straps = a.cpuStraps;
+  if (straps === undefined || map === undefined) return undefined;
+  const byName = new Map(map.fields.map((one) => [one.name, one]));
+  return {
+    title: L("CPU straps"),
+    fields: [
+      field(L("Message length"), L("%1$@ words", `${straps.messageLengthWords}`)),
+      field("CRC-16", `0x${straps.crcStored.toString(16).toUpperCase().padStart(4, "0")}`),
+      field("CRC Valid", yesNo(straps.crcValid)),
+    ],
+    children: straps.readings.map((reading) => {
+      const one = byName.get(reading.name);
+      return {
+        title: one?.label ?? reading.name,
+        subtitle: optionText(one?.options, reading.value),
+      };
+    }),
+  };
+}
+
+/** The tool's container names, as the panel titles their groups. */
+const MIP_CONTAINER_TITLES: Readonly<Record<string, () => string>> = {
+  "PMC SoC": () => L("PMC SoC straps"),
+  "PMC SOC 2": () => L("PMC SOC 2 straps"),
+  "CPU 2": () => L("CPU 2 straps"),
+  CSME: () => L("CSME straps"),
+  IOE: () => L("IOE straps"),
+  "PMC IOE": () => L("PMC IOE straps"),
+};
+
+/**
+ * The MIP table's other strap containers — each a group of its own under the tool's words,
+ * a layout picked by the block's type and length, as the reading was.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.mipStrapGroups
+ */
+function mipStrapGroups(a: FirmwareAnalysis): Draft[] {
+  const map = mipStrapMapForME(a.version.major);
+  if (a.mipStraps === undefined || map === undefined) return [];
+  const groups: Draft[] = [];
+  for (const container of a.mipStraps) {
+    const layout = map.containers.find(
+      (one) => one.blockType === container.blockType && one.length === container.length
+    );
+    if (layout === undefined) continue;
+    const byName = new Map(layout.fields.map((one) => [one.name, one]));
+    groups.push({
+      title: MIP_CONTAINER_TITLES[container.name]?.() ?? container.name,
+      fields: [
+        field(L("Block type"), `${container.blockType}`),
+        field(L("Length"), L("%1$@ bytes", `${container.length}`)),
+      ],
+      children: container.readings.map((reading) => {
+        const one = byName.get(reading.name);
+        return {
+          title: one?.label ?? reading.name,
+          subtitle: optionText(one?.options, reading.value),
+        };
+      }),
+    });
+  }
+  return groups;
+}
+
+/**
+ * The SPHY OEM configuration the image's `phy_oem_cfg` nvar holds, in the tool's own field
+ * names, shown flat: the names carry their section.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.sphyGroup
+ */
+function sphyGroup(a: FirmwareAnalysis): Draft | undefined {
+  const readings = a.sphyNvar;
+  if (readings === undefined || readings.length === 0) return undefined;
+  return {
+    title: L("SPHY OEM configuration"),
+    fields: [field(L("Fields"), `${readings.length}`)],
+    children: readings.map((reading) => ({ title: reading.name, subtitle: `${reading.value}` })),
+  };
+}
+
+/**
+ * The feature pins the image configures: `/home/gpio/csme_pins`, read through the tool's
+ * own value classes. One row per pin, named by what the pin is for and where it is.
+ *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEACurator.swift#MEACurator.gpioGroup
+ */
+function gpioGroup(a: FirmwareAnalysis): Draft | undefined {
+  const readings = a.gpioPins;
+  if (readings === undefined || readings.pins.length === 0) return undefined;
+  return {
+    title: L("GPIO Pins"),
+    subtitle: `${readings.pins.length}`,
+    fields: [
+      field(L("File"), readings.path),
+      field(
+        L("Read from"),
+        readings.fromImage ? L("OEM Configuration partition") : L("ME file system")
+      ),
+    ],
+    children: readings.pins.map((pin) => {
+      const usage = pin.usage ?? `${pin.usageID}`;
+      return {
+        title: usage,
+        subtitle: gpioPinName(pin),
+        fields: [
+          field(L("Pin"), gpioPinName(pin)),
+          field(L("Usage"), usage),
+          ...(pin.feature === undefined ? [] : [field(L("Feature"), pin.feature)]),
+          field(L("Ownership"), pin.ownership),
+          field(L("Pad Mode"), pin.padMode),
+        ],
+      };
+    }),
+  };
 }
