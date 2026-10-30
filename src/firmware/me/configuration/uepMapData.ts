@@ -8,7 +8,9 @@ import type { UEPMap, UEPSetting } from "@/firmware/me/configuration/uepMap";
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/UEPMapData.swift#LoadedUEPMap
  */
 export interface LoadedUEPMap {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/UEPMapData.swift#LoadedUEPMap.id */
   readonly id: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/UEPMapData.swift#LoadedUEPMap.map */
   readonly map: UEPMap;
 }
 

@@ -98,27 +98,50 @@ export interface SphyNvarMap {
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.name */
   readonly name: string;
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.anchors */
-  readonly anchors: readonly {
-    readonly name: string;
-    readonly bitOffset: number;
-    readonly count: number;
-    readonly value: number;
-  }[];
+  readonly anchors: readonly SphyNvarAnchor[];
   /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.fields */
-  readonly fields: readonly {
-    readonly name: string;
-    readonly bitOffset: number;
-    readonly count: number;
-  }[];
+  readonly fields: readonly SphyNvarField[];
+}
+
+/**
+ * A value the nvar must hold before any of its fields is read.
+ *
+ * @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Anchor
+ */
+export interface SphyNvarAnchor {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Anchor.name */
+  readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Anchor.bitOffset */
+  readonly bitOffset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Anchor.count */
+  readonly count: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Anchor.value */
+  readonly value: number;
+}
+
+/** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Field */
+export interface SphyNvarField {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Field.name */
+  readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Field.bitOffset */
+  readonly bitOffset: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/SphyNvarMap.swift#SphyNvarMap.Field.count */
+  readonly count: number;
 }
 
 /** One layout as the binary states it. @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap */
 interface LoadedLayoutMap {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.id */
   readonly id: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.name */
   readonly name: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.layout */
   readonly layout: number;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.containers */
   readonly containers: readonly MIPStrapContainer[];
-  readonly anchors: SphyNvarMap["anchors"];
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.anchors */
+  readonly anchors: readonly SphyNvarAnchor[];
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/LayoutMapData.swift#LoadedLayoutMap.fields */
   readonly fields: readonly (LayoutField & { readonly bit: number })[];
 }
 

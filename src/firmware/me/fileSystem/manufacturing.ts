@@ -69,15 +69,17 @@ export interface ManufacturingInputs {
   /**
    * The **image configuration** record for `/home/mca/eom_config` — what the build wrote
    * and the platform applies at EOM.
+   *
+   * @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/Manufacturing.swift#ManufacturingDecoder.Inputs.imageEOMConfig
    */
   readonly imageEOMConfig?: number | undefined;
-  /** The live `/home/mca/eom_config` record of the MFS volume. */
+  /** The live `/home/mca/eom_config` record of the MFS volume. @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/Manufacturing.swift#ManufacturingDecoder.Inputs.liveEOMConfig */
   readonly liveEOMConfig?: number | undefined;
-  /** Whether the descriptor's BIOS master is open; `undefined` with no descriptor. */
+  /** Whether the descriptor's BIOS master is open; `undefined` with no descriptor. @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/Manufacturing.swift#ManufacturingDecoder.Inputs.descriptorOpen */
   readonly descriptorOpen?: boolean | undefined;
-  /** Whether this generation decides End of Manufacturing at all: CSME 11 and later. */
+  /** Whether this generation decides End of Manufacturing at all: CSME 11 and later. @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/Manufacturing.swift#ManufacturingDecoder.Inputs.hasSwitch */
   readonly hasSwitch: boolean;
-  /** Whether the live file system could be looked in (its File IDs were resolved). */
+  /** Whether the live file system could be looked in (its File IDs were resolved). @upstream Packages/MEFirmware/Sources/MEFirmware/FileSystem/Manufacturing.swift#ManufacturingDecoder.Inputs.liveFilesResolved */
   readonly liveFilesResolved: boolean;
 }
 

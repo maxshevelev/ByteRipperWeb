@@ -58,11 +58,11 @@ The window holds five stories and some housekeeping:
 - [x] **M6 — the ME configuration in the engine: configuration, UEP/FPF, GPIO, CSME 18 layouts**
 - [x] **M7 — the detail list's second value and a row's `?`** (`ToolFieldList`)
 - [x] **M8 — the ME panel: the verdict rows, the Configuration tab, the tab kept by name, the agent's evidence**
-- [ ] **M9 — the help popovers: one flat shape sized to its words, the panels' type, the zoom**
-- [ ] **M10 — the drop zones: every zone a drag can land on, refused zones never shown**
-- [ ] **M11 — a fragment panel's minimap and the zoom**
-- [ ] **M12 — the agent relay outlives the app**
-- [ ] **M13 — closing the window: housekeeping, the map, `GAPS.md`, the baseline at `bb5e9a2`, the version**
+- [x] **M9 — the help popovers: one flat shape sized to its words, the panels' type, the zoom**
+- [x] **M10 — the drop zones: every zone a drag can land on, refused zones never shown**
+- [x] **M11 — a fragment panel's minimap and the zoom**
+- [x] **M12 — the agent relay outlives the app**
+- [x] **M13 — closing the window: housekeeping, the map, `GAPS.md`, the baseline at `bb5e9a2`, the version**
 
 M1 → M2 → M3 → M4 and M1 → M5 → M6 → M8 are chains; M7 comes before M8.
 M9 through M12 depend on nothing in the window and may run in any order.

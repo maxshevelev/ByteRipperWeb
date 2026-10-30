@@ -19,7 +19,9 @@ import type {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorRegisterMapData.swift#LoadedRegisterMap
  */
 export interface LoadedRegisterMap {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorRegisterMapData.swift#LoadedRegisterMap.id */
   readonly id: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/DescriptorRegisterMapData.swift#LoadedRegisterMap.map */
   readonly map: DescriptorRegisterMap;
 }
 

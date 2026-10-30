@@ -15,7 +15,9 @@ import type { GPIOPinMap } from "@/firmware/me/configuration/gpioPinMap";
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/GPIOPinMapData.swift#LoadedGPIOPinMap
  */
 export interface LoadedGPIOPinMap {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/GPIOPinMapData.swift#LoadedGPIOPinMap.id */
   readonly id: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/GPIOPinMapData.swift#LoadedGPIOPinMap.map */
   readonly map: GPIOPinMap;
 }
 

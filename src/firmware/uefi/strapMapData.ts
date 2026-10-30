@@ -15,8 +15,11 @@ import type { DescriptorStrapMap, StrapField } from "@/firmware/uefi/strapMap";
  * @upstream Packages/UEFIImage/Sources/UEFIImage/StrapMapData.swift#LoadedStrapMap
  */
 export interface LoadedStrapMap {
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/StrapMapData.swift#LoadedStrapMap.id */
   readonly id: string;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/StrapMapData.swift#LoadedStrapMap.set */
   readonly set: number;
+  /** @upstream Packages/UEFIImage/Sources/UEFIImage/StrapMapData.swift#LoadedStrapMap.map */
   readonly map: DescriptorStrapMap;
 }
 

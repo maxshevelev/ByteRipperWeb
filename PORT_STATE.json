@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "9ceb2c4ccc5bcc7e81d738d87aefd94df6f5739f",
-  "baselineNote": "Set 0.9.5, and say in the README what it is (2026-10-24)"
+  "baseCommit": "bb5e9a2c3db778c8c8ecb3eaefbc3a367238f4ba",
+  "baselineNote": "The hovered drop zone is the calm blue it was before the glass (2026-10-29)"
 }

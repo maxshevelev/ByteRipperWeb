@@ -13,7 +13,9 @@ import type {
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/MEConfigurationData.swift#LoadedConfigurationMap
  */
 export interface LoadedConfigurationMap {
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/MEConfigurationData.swift#LoadedConfigurationMap.id */
   readonly id: string;
+  /** @upstream Packages/MEFirmware/Sources/MEFirmware/Configuration/MEConfigurationData.swift#LoadedConfigurationMap.map */
   readonly map: MEConfigurationMap;
 }
 
