@@ -29,7 +29,7 @@ import type { PaneId, SlotId } from "@/state/workspaceStore";
 /**
  * The targeted drop destinations inside a pane (§4.3, amended by §22.4): the
  * "this file" half divided into three bands, and the "second file" half's single
- * Open-as-Second zone — a file dropped there opens beside this one instead of
+ * Open for Comparison zone — a file dropped there opens beside this one instead of
  * replacing it.
  *
  * @upstream ByteRipperApp/DragDrop/DragDrop.swift#SingleFileDropTarget
@@ -50,7 +50,7 @@ export function singleFileDropTargetTitle(target: SingleFileDropTarget): string 
     case "appendAtEnd":
       return L("Append at End");
     case "addSecond":
-      return L("Open as Second File");
+      return L("Open for Comparison");
   }
 }
 
@@ -358,8 +358,7 @@ export function dragCarriesPane(transfer: DataTransfer | null): boolean {
 
 /**
  * What a band says about the pane in flight, or `undefined` when it has nothing
- * to offer — and a band with nothing to offer shows the refusal symbol rather
- * than an empty plate.
+ * to offer — and a band with nothing to offer is refused, and not shown at all.
  *
  * The ends reuse the file bands' own words: it is the same operation, and a
  * second vocabulary for it would only suggest a difference that does not exist.
@@ -379,4 +378,148 @@ export function paneBandTitle(outcome: PaneDropOutcome): string | undefined {
     case "none":
       return undefined;
   }
+}
+
+// MARK: - The zones on screen (§4.3)
+
+/**
+ * How far a zone's plate stands in from the edges of the box it lies over, and
+ * how far apart two zones side by side stand: the plate never meets a pane's
+ * border, a divider or its neighbour, so each reads as a place of its own. Where
+ * two zones meet, each takes half.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.edgePadding
+ */
+export const DROP_EDGE_PADDING = 10;
+
+/**
+ * The plate's corners.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.cornerRadius
+ */
+export const DROP_CORNER_RADIUS = 14;
+
+/**
+ * How much of the dump an idle zone lets through. Every zone a drag can go to is
+ * up while it is over the window, so an idle plate has to leave the dump readable
+ * under it: it marks where a zone is, the hovered one's fill says which.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.idleFillAlpha
+ */
+export const DROP_IDLE_FILL_ALPHA = 0.5;
+
+/**
+ * How strong the hovered zone's accent fill is.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.hoverFillAlpha
+ */
+export const DROP_HOVER_FILL_ALPHA = 0.25;
+
+/**
+ * An edge of the box a set of zones lies over, top-down as the page is.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.adjoiningEdge
+ * @upstream-differs named by side rather than AppKit's `NSRectEdge`, whose `maxY` is the top of a
+ * view that is not flipped
+ */
+export type DropEdge = "top" | "bottom" | "left" | "right";
+
+/** Where a plate lies in the box it stands for: insets from each edge, top-down. */
+export interface DropPlateInsets {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+}
+
+/**
+ * How far a zone's plate stands in from each edge of its box: the padding, or half
+ * of it on the edge the box shares with another zone, so the gap between the two
+ * plates is the padding once rather than twice.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropZoneView.setAdjoiningEdge
+ */
+export function dropPlateInsets(adjoiningEdge?: DropEdge): DropPlateInsets {
+  const pad = (edge: DropEdge) =>
+    edge === adjoiningEdge ? DROP_EDGE_PADDING / 2 : DROP_EDGE_PADDING;
+  return { top: pad("top"), bottom: pad("bottom"), left: pad("left"), right: pad("right") };
+}
+
+/** One plate of a pane's three bands, top-down within the box the bands divide. */
+export interface BandPlateFrame {
+  readonly top: number;
+  readonly height: number;
+  readonly left: number;
+  readonly right: number;
+}
+
+/**
+ * Where each of the three bands' plates lies. The plates stand in from the box's
+ * edges and from each other by `DROP_EDGE_PADDING`; the bands they stand for still
+ * meet, so a drop between two plates lands in the band it is in — `band(atTopDownY:)`
+ * is unchanged.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.layout
+ */
+export function bandPlateFrames(
+  layout: DropBandLayout,
+  adjoiningEdge?: DropEdge
+): Record<"insertAtStart" | "replace" | "appendAtEnd", BandPlateFrame> {
+  const h = layout.halfHeight;
+  const inset = layout.topInset;
+  const strip = layout.stripHeight;
+  const gap = DROP_EDGE_PADDING / 2;
+  const pad = dropPlateInsets(adjoiningEdge);
+  const frame = (top: number, bottom: number): BandPlateFrame => ({
+    top,
+    height: Math.max(0, bottom - top),
+    left: pad.left,
+    right: pad.right,
+  });
+  return {
+    insertAtStart: frame(inset + pad.top, inset + strip - gap),
+    // The middle collapses to nothing in a very short box.
+    replace: frame(inset + strip + gap, h - strip - gap),
+    appendAtEnd: frame(h - strip + gap, h - pad.bottom),
+  };
+}
+
+/** One zone on screen: what it says, and whether it is the one under the pointer. */
+export interface DropZonePlate<Zone extends string> {
+  readonly zone: Zone;
+  readonly title: string;
+  readonly highlighted: boolean;
+}
+
+/**
+ * Which of a set of zones are on screen, and which of them is lit.
+ *
+ * While a drag is over the window every zone it can land on is up, unlit, and the
+ * one under the pointer is lit over that: what the drop can do is read before the
+ * pointer gets there, not discovered zone by zone. A zone that would refuse what is
+ * carried — its title `undefined` — is not a place to go and is never shown, under
+ * the pointer included: the cursor says no, and the other zones stay up.
+ *
+ * `up` is whether the window has its zones up at all: something is in flight, and
+ * no fragment panel covers the panes they lie over.
+ *
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.applyBands
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.isRefused
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#DropTargetView.setRefused
+ * @upstream-differs a refusal is a title that is not there rather than a flag the zone is set to and
+ * a caption clears: the plates are rebuilt from the drag on every render
+ */
+export function dropZonePlates<Zone extends string>(
+  zones: readonly Zone[],
+  options: {
+    readonly up: boolean;
+    readonly hovered: Zone | undefined;
+    readonly titleFor: (zone: Zone) => string | undefined;
+  }
+): DropZonePlate<Zone>[] {
+  if (!options.up) return [];
+  return zones.flatMap((zone) => {
+    const title = options.titleFor(zone);
+    return title === undefined ? [] : [{ zone, title, highlighted: zone === options.hovered }];
+  });
 }

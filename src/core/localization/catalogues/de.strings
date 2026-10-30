@@ -708,7 +708,6 @@
 "No more same block" = "Keine weiteren gleichen Blöcke";
 "Non-UEFI data" = "Nicht-UEFI-Daten";
 "None" = "Keine";
-"Not allowed here" = "Hier nicht erlaubt";
 "Not checked" = "Nicht geprüft";
 "Not found" = "Nicht gefunden";
 "Not placed" = "Nicht platziert";
@@ -730,7 +729,6 @@
 "One panel was opened out of it and will lose its way back. Its bytes stay as they are; only the way back goes." = "Ein Bereich wurde daraus geöffnet und verliert den Weg zurück. Seine Bytes bleiben unverändert; verloren geht allein die Verbindung zur Herkunft.";
 "Only a microcode entry can be removed." = "Nur ein Microcode-Eintrag lässt sich entfernen.";
 "Only CPUIDs in this image" = "Nur CPUIDs aus diesem Image";
-"Open as Second File" = "Als zweite Datei öffnen";
 "Open Body of “%1$@”" = "Rumpf von „%1$@“ öffnen";
 "Open Decompressed Body" = "Entpackten Rumpf öffnen";
 "Open File" = "Datei öffnen";
@@ -1690,3 +1688,6 @@
 "Reading the changes kept for “%1$@”" = "Die für „%1$@“ aufbewahrten Änderungen werden gelesen";
 "Their changes came back, but not the steps to undo them: the kept history no longer led back:" = "Die Änderungen wurden wiederhergestellt, nicht aber die Schritte, sie zu widerrufen: Der aufbewahrte Verlauf führte nicht mehr zurück:";
 "Their kept changes could not be read. Files were opened as they are on disk and parts as their file holds them; documents with no file were not opened:" = "Die aufbewahrten Änderungen ließen sich nicht lesen. Dateien wurden so geöffnet, wie sie auf dem Datenträger liegen, und Teile so, wie ihre Datei sie enthält; Dokumente ohne Datei wurden nicht geöffnet:";
+
+/* M10: the drop zones */
+"Open for Comparison" = "Zum Vergleich öffnen";

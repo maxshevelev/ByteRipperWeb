@@ -50,7 +50,9 @@ import {
   draggedPartId,
   draggedRemotePane,
   endDrag,
+  fileDragPresenceChanged,
   notePaneDragCopying,
+  paneDragStore,
   type RemoteDraggedPane,
 } from "@/state/paneDragStore";
 import { PANE_IDS } from "@/state/paneId";
@@ -664,6 +666,21 @@ export function AppShell() {
     perform(copying: boolean): void;
   }>({ outcome: () => undefined, perform: () => undefined });
 
+  /**
+   * The window's own drag handlers: what lies under every drop zone and hears a
+   * file in the gaps between them — the toolbar, the minimap, a divider — so the
+   * zones stay up while the file is over the window, and what hears it leave.
+   *
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.onFileDragPresence
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.draggingEntered
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.draggingUpdated
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.draggingExited
+   * @upstream ByteRipperApp/DragDrop/DragDrop.swift#FileDragBackstopView.draggingEnded
+   * @upstream-differs the window's listeners rather than a view under the content: an event a
+   * region does not stop bubbles up to them, which is the backstop's reach without a view of its
+   * own; and a file let go in a gap opens, as `handleEmptyDrop` below says
+   */
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
       // A pane from another window of the desktop shell, or one of this window's own back after
@@ -694,7 +711,10 @@ export function AppShell() {
       // Leaving for a child element is not leaving the window.
       if (event.relatedTarget !== null) return;
       setDragging(false);
-      endDrag();
+      // A file's zones stay up a moment: a browser that names nothing it went to reports every
+      // crossing as this, and the next `dragover`, here or in a region, takes it back.
+      if (paneDragStore.getSnapshot().inFlight === "file") fileDragPresenceChanged("exited");
+      else endDrag();
     };
     /**
      * The window's own drop: what takes a file let go where no band is — the

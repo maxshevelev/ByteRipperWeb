@@ -1567,7 +1567,6 @@ textarea,
   right: 0;
   z-index: 8;
   box-sizing: border-box;
-  padding: 4px;
 }
 
 /*
@@ -1585,33 +1584,31 @@ textarea,
 }
 
 /*
- * One band, placed from the ported geometry rather than by flex: the strips at
- * either end are the joins and the middle is the replacement, and how tall each
- * is comes from the pane's own measured height.
+ * One band's plate, placed from the ported geometry rather than by flex: the
+ * strips at either end are the joins and the middle is the replacement, how tall
+ * each is comes from the pane's own measured height, and each plate stands in from
+ * the pane's edges and from its neighbours (`bandPlateFrames`).
  */
 .pane-drop-band {
   position: absolute;
-  left: 0;
-  right: 0;
   display: grid;
   place-items: center;
-  overflow: hidden;
 }
 
 /*
- * The zone itself: the whole of the box a drop lands in — a pane's band, or the
- * free half of a single-file window. The fill and the border span all of it, as
- * upstream's do, where they are painted on the zone view's own layer; only the
- * caption in the middle keeps a plate of its own, below.
+ * The zone's plate: placed by its owner — a band's plate from the ported geometry,
+ * the free half's and the tool panel's standing in from their box — with the
+ * caption in the middle of it. Every zone a drag can land on is up while it is over
+ * the window, so the idle plate lets half the dump through: its edge is what tells
+ * it from its neighbours, in the faint text colour rather than the separator's,
+ * which on a busy dump could hardly be seen.
  *
  * The idle fill is the sunken grey rather than the surface the pane is drawn on:
  * upstream resolves `windowBackgroundColor`, which is the window's own backdrop
- * and never the content's white, and a zone that went white over a white dump
- * would read as a hole in the pane rather than a target over it. The caption's
- * frosted plate is the lighter of the two, standing out of it.
+ * and never the content's white. How much of it there is, the corners and the
+ * hover's strength come from the constants in `dragDrop.ts`, set on the element.
  *
- * The border is drawn inside the box, so thickening it on hover moves nothing:
- * the zone is the band, and the band is where the ported geometry put it.
+ * The border is drawn inside the box, so thickening it on hover moves nothing.
  */
 .drop-target {
   box-sizing: border-box;
@@ -1619,22 +1616,22 @@ textarea,
   place-items: center;
   width: 100%;
   height: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-sunken) 90%, transparent);
+  overflow: hidden;
+  border: 1.5px solid var(--text-faint);
+  border-radius: var(--drop-corner, 14px);
+  background: color-mix(in srgb, var(--surface-sunken) var(--drop-idle-fill, 50%), transparent);
 }
 
-/* Hover is also signalled by the accent border and a thicker stroke. */
+/* Hover is the calm accent fill, the accent border and a thicker stroke. */
 .drop-target[data-hovered] {
   border: 2px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--drop-hover-fill, 25%), transparent);
 }
 
 /*
  * The caption's frosted plate over the zone's fill — the popover material
  * upstream uses, which changes with the theme on its own. It hugs the words, so
- * neither the milky fill nor the accent one ever bleeds into the text, and it is
- * squared for a refusal, whose symbol stands in the words' place.
+ * neither the milky fill nor the accent one ever bleeds into the text.
  *
  * It takes the surface the zone gave up, one step above it: the two are a pair,
  * and the plate has to stay the lighter of them for the caption to read as
@@ -1644,25 +1641,20 @@ textarea,
   box-sizing: border-box;
   display: grid;
   place-items: center;
+  max-width: calc(100% - 16px);
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: blur(6px);
   color: var(--text);
 }
 
 .drop-caption {
+  overflow: hidden;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-}
-
-/* Nothing to offer, so nothing is said: the symbol is the muted one, and the
-   zone behind it never lights up for it. */
-.drop-refusal {
-  width: 30px;
-  height: 30px;
-  color: var(--text-muted);
+  text-overflow: ellipsis;
 }
 
 /*
@@ -1670,6 +1662,7 @@ textarea,
  * and the same pass-through the bands have.
  */
 .drop-zone {
+  position: relative;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -3001,12 +2994,12 @@ textarea,
   overflow: hidden;
 }
 
-/* The panel's own drop zone, over the tool's view and inset from the panel's
-   edges as upstream insets it (8 points). Never hit-testable: the panel itself
-   is the drop region, and the zone only says what letting go would do. */
+/* The panel's own drop zone, over the tool's view; its plate stands in from the
+   panel's edges by the zones' padding. Never hit-testable: the panel itself is
+   the drop region, and the zone only says what letting go would do. */
 .tool-panel-drop {
   position: absolute;
-  inset: 8px;
+  inset: 0;
   z-index: 3;
   pointer-events: none;
 }

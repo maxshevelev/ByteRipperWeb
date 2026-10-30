@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  bandPlateFrames,
+  DROP_EDGE_PADDING,
   DropBandLayout,
+  dropPlateInsets,
+  dropZonePlates,
   fragmentDropOutcome,
   isDuplicate,
   isJoin,
@@ -261,7 +265,7 @@ describe("what the zones say", () => {
     expect(singleFileDropTargetTitle("insertAtStart")).toBe("Insert at Start");
     expect(singleFileDropTargetTitle("appendAtEnd")).toBe("Append at End");
     expect(singleFileDropTargetTitle("replace")).toBe("Replace Current File");
-    expect(singleFileDropTargetTitle("addSecond")).toBe("Open as Second File");
+    expect(singleFileDropTargetTitle("addSecond")).toBe("Open for Comparison");
     expect(paneBandTitle({ kind: "swap" })).toBe("Swap Panes");
     expect(paneBandTitle({ kind: "move", intoPane: "b" })).toBe("Move Here");
   });
@@ -292,10 +296,16 @@ describe("what the zones say", () => {
     expect(isJoin("addSecond")).toBe(false);
   });
 
-  // @upstream ByteRipperTests/PaneDragTests.swift#PaneDragTests.testARefusingBandShowsTheRefusalSymbol
+  // @upstream ByteRipperTests/PaneDragTests.swift#PaneDragTests.testARefusingBandIsMarkedRefused
   it("says nothing where there is nothing to offer", () => {
-    // Nothing to say means the symbol, not an empty caption.
+    // Nothing to say means refused, not an empty caption: such a band is not shown.
     expect(paneBandTitle({ kind: "none" })).toBeUndefined();
+    const plates = dropZonePlates(["replace"] as const, {
+      up: true,
+      hovered: undefined,
+      titleFor: () => paneBandTitle({ kind: "none" }),
+    });
+    expect(plates).toEqual([]);
   });
 
   // @upstream ByteRipperTests/PaneDragTests.swift#PaneDragTests.testTheMiddleBandIsTheOneThatRefusesOverAPanesOwnSlot
@@ -359,5 +369,105 @@ describe("a fragment panel let go on a pane", () => {
 
   it("finds no free half where the pane is open", () => {
     expect(fragmentDropOutcome("b", "addSecond", true, 16, false)).toEqual(PANE_DROP_NONE);
+  });
+});
+
+/**
+ * Which zones are on screen and which is lit (§4.3): the rule `FileDragZonesTests`
+ * and the newer `PaneDragTests` drive through real views and a window, asked here of
+ * the rule the overlays render from. A region's bands are lit only where the pointer
+ * is over that region, so "the other pane" is a call with nothing hovered.
+ */
+describe("the zones a drag shows", () => {
+  const BANDS = ["insertAtStart", "replace", "appendAtEnd"] as const;
+  const fileTitle = (band: (typeof BANDS)[number]) => singleFileDropTargetTitle(band);
+  const shown = (plates: { zone: string }[]) => plates.map((plate) => plate.zone);
+  const lit = (plates: { highlighted: boolean }[]) => plates.map((plate) => plate.highlighted);
+
+  // @upstream ByteRipperTests/FileDragZonesTests.swift#FileDragZonesTests.testAFileOverOnePaneShowsTheOtherPanesZonesUnlit
+  it("puts up every pane's bands for a file, lighting only the one under the pointer", () => {
+    const left = dropZonePlates(BANDS, { up: true, hovered: "replace", titleFor: fileTitle });
+    const right = dropZonePlates(BANDS, { up: true, hovered: undefined, titleFor: fileTitle });
+
+    expect(shown(left)).toEqual([...BANDS]);
+    expect(lit(left)).toEqual([false, true, false]);
+    expect(shown(right)).toEqual([...BANDS]); // the other pane's zones are up too
+    expect(lit(right)).toEqual([false, false, false]); // and unlit
+  });
+
+  // @upstream ByteRipperTests/FileDragZonesTests.swift#FileDragZonesTests.testSingleFileModeShowsBothHalvesAndLightsTheOneUnderThePointer
+  it("keeps both halves of a single-file view up and lights the one under the pointer", () => {
+    const zones = [...BANDS, "addSecond"] as const;
+    const title = (zone: (typeof zones)[number]) => singleFileDropTargetTitle(zone);
+
+    const overBands = dropZonePlates(zones, { up: true, hovered: "replace", titleFor: title });
+    expect(lit(overBands)).toEqual([false, true, false, false]);
+
+    const overSecond = dropZonePlates(zones, { up: true, hovered: "addSecond", titleFor: title });
+    expect(shown(overSecond)).toEqual([...zones]); // the bands stay up over the other half
+    expect(lit(overSecond)).toEqual([false, false, false, true]);
+    expect(overSecond[3]?.title).toBe("Open for Comparison");
+  });
+
+  // @upstream ByteRipperTests/FileDragZonesTests.swift#FileDragZonesTests.testAPaneDragShowsEveryPanesZonesAndNoneThatRefuse
+  it("puts up, for a pane, every band that would take it and none that would refuse it", () => {
+    const over = (pane: "a" | "b") =>
+      dropZonePlates(BANDS, {
+        up: true,
+        hovered: undefined,
+        titleFor: (band) => paneBandTitle(paneDropOutcome("a", onto(pane, true, band))),
+      });
+
+    // Its own slot joins at either end; its middle refuses and is not shown.
+    expect(shown(over("a"))).toEqual(["insertAtStart", "appendAtEnd"]);
+    expect(shown(over("b"))).toEqual([...BANDS]);
+    expect(lit([...over("a"), ...over("b")])).toEqual(Array(5).fill(false));
+  });
+
+  // @upstream ByteRipperTests/PaneDragTests.swift#PaneDragTests.testTheRefusedBandLeavesTheOtherBandsUp
+  it("leaves the other bands up over the refused one, with nothing lit", () => {
+    // The region refuses under the pointer, so nothing is hovered there.
+    const plates = dropZonePlates(BANDS, {
+      up: true,
+      hovered: undefined,
+      titleFor: (band) => paneBandTitle(paneDropOutcome("a", onto("a", true, band))),
+    });
+    expect(shown(plates)).toEqual(["insertAtStart", "appendAtEnd"]);
+    expect(lit(plates)).toEqual([false, false]);
+  });
+
+  it("shows nothing while no drag is on, or while a panel covers the panes", () => {
+    expect(dropZonePlates(BANDS, { up: false, hovered: "replace", titleFor: fileTitle })).toEqual(
+      []
+    );
+  });
+});
+
+describe("where the plates stand", () => {
+  it("stands every plate in from the edges, and halves the padding on a shared edge", () => {
+    expect(DROP_EDGE_PADDING).toBe(10);
+    expect(dropPlateInsets()).toEqual({ top: 10, bottom: 10, left: 10, right: 10 });
+    expect(dropPlateInsets("left")).toEqual({ top: 10, bottom: 10, left: 5, right: 10 });
+  });
+
+  it("keeps the plates apart while the bands they stand for still meet", () => {
+    const layout = new DropBandLayout({ halfHeight: 400 });
+    const frames = bandPlateFrames(layout, "right");
+    const strip = layout.stripHeight; // 100
+
+    expect(frames.insertAtStart).toEqual({ top: 10, height: strip - 5 - 10, left: 10, right: 5 });
+    expect(frames.replace.top).toBe(strip + 5);
+    expect(frames.replace.top + frames.replace.height).toBe(400 - strip - 5);
+    expect(frames.appendAtEnd.top).toBe(400 - strip + 5);
+    expect(frames.appendAtEnd.top + frames.appendAtEnd.height).toBe(400 - 10);
+    // The gap between two plates is the padding once.
+    expect(frames.replace.top - (frames.insertAtStart.top + frames.insertAtStart.height)).toBe(10);
+    // The bands themselves are where they were.
+    expect(layout.band(strip - 1)).toBe("insertAtStart");
+    expect(layout.band(strip)).toBe("replace");
+  });
+
+  it("collapses the middle plate to nothing in a very short box", () => {
+    expect(bandPlateFrames(new DropBandLayout({ halfHeight: 90 })).replace.height).toBe(0);
   });
 });

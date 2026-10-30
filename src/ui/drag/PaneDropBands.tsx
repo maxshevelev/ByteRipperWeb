@@ -13,13 +13,21 @@ import {
   paneDragStore,
   type RemoteDraggedPane,
 } from "@/state/paneDragStore";
-import { useStore } from "@/state/useStore";
+import { useStore, useStoreSelector } from "@/state/useStore";
 import { followPaneDrag } from "@/state/workspace/paneTransfer";
-import type { PartId, SlotId } from "@/state/workspaceStore";
+import {
+  type PartId,
+  type SlotId,
+  windowPanesAreReachable,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { DropTargetView } from "@/ui/drag/DropTargetView";
 import {
+  bandPlateFrames,
   DropBandLayout,
+  type DropEdge,
   dragCarriesPane,
+  dropZonePlates,
   PANE_DROP_NONE,
   type PaneDropOutcome,
   paneBandTitle,
@@ -65,28 +73,49 @@ export type PaneDropOutcomeResolver = (
 export interface PaneDropBandsProps {
   /** Asks what a band would do with the pane in flight. */
   readonly outcomeFor: PaneDropOutcomeResolver;
+  /**
+   * The edge these bands share with another zone — the second half beside them in
+   * single-file mode — which takes half the padding, so the gap between the two is
+   * the padding once. Left out where every edge is a pane's.
+   *
+   * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.adjoiningEdge
+   */
+  readonly adjoiningEdge?: DropEdge | undefined;
 }
 
 /** The three bands of a pane, top to bottom as they are laid out. */
 const BANDS = ["insertAtStart", "replace", "appendAtEnd"] as const;
 
 /**
- * The overlay's plates, drawn only while the drag is over **this** pane and the
- * band under the pointer has something to offer, as upstream's view raises its
- * bands on entering and drops them on leaving: the other pane shows nothing.
+ * The overlay's plates, up for the whole of a drag over the window: every band of
+ * every pane that would take what is carried, unlit, and the one under the pointer
+ * lit over that. A band that would refuse is not shown, under the pointer included,
+ * and the others stay up (`dropZonePlates`).
+ *
+ * A file has no source to say when it comes and goes, so the window keeps that
+ * (`fileDragPresenceChanged`); a pane drag has one, and is up from its first
+ * movement to the drop. Either way it is one fact in `paneDragStore`, which every
+ * overlay reads — where upstream's window has to tell each view, by
+ * `showForFileDrag` and `showForPaneDrag`, what AppKit told only the one under the
+ * pointer.
  *
  * The geometry is the ported rule, measured rather than assumed: a pane can be
  * any height, and `DropBandLayout` is what decides how its two strips and its
- * middle divide it.
+ * middle divide it; `bandPlateFrames` is where each plate stands within its band.
  *
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.layout
- * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.showBands
- * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.hideBands
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.showForFileDrag
+ * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.showForPaneDrag
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.retitleBands
  * @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.retitleBandsForFile
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showPaneDropZones
+ * @upstream-differs read from the store on every render rather than put up and taken down by the
+ * window: React re-renders every overlay when the drag changes, so there is nobody to tell
  */
-export function PaneDropBands({ outcomeFor }: PaneDropBandsProps) {
+export function PaneDropBands({ outcomeFor, adjoiningEdge }: PaneDropBandsProps) {
   const { inFlight, copying, zone, zoneRegion } = useStore(paneDragStore);
+  // A fragment panel that is up covers the panes, so their zones stay down.
+  const reachable = useStoreSelector(workspaceStore, windowPanesAreReachable);
   const ref = useRef<HTMLDivElement | null>(null);
   // Held as state as well, so the bands are rendered again once they are in the page and can
   // tell whether the lit region is theirs.
@@ -105,47 +134,45 @@ export function PaneDropBands({ outcomeFor }: PaneDropBandsProps) {
   // a click over a pane.
   if (inFlight === undefined) return null;
 
-  // Only the region under the pointer shows its bands, as each of upstream's views raises its own:
-  // the zone names a band, and every pane has one of that name. A zone outside the bands — the free
-  // half of a single-file workspace — leaves them down, as `updateDragTarget` does upstream.
+  // Every pane has a band of each name, so the zone lights a band only in the region it names.
   const ours = element !== null && zoneRegion?.contains(element) === true;
-  const lit = ours ? BANDS.find((band) => band === zone) : undefined;
-  const layout = new DropBandLayout({ halfHeight: height, topInset: inset });
-  const strip = layout.stripHeight;
-  // Top-down, as the layout rule is: the strips at either end, the middle band
-  // between them, collapsing to nothing in a very short pane.
-  const frames: Record<(typeof BANDS)[number], { top: number; height: number }> = {
-    insertAtStart: { top: inset, height: strip },
-    replace: { top: inset + strip, height: Math.max(0, layout.bandHeight - 2 * strip) },
-    appendAtEnd: { top: Math.max(0, height - strip), height: strip },
-  };
+  const frames = bandPlateFrames(
+    new DropBandLayout({ halfHeight: height, topInset: inset }),
+    adjoiningEdge
+  );
+  const plates = dropZonePlates(BANDS, {
+    up: reachable,
+    hovered: ours ? BANDS.find((band) => band === zone) : undefined,
+    // A band is captioned from **its own** outcome, never from the one under the
+    // pointer: the others would then be captioned for something they do not do. A
+    // file always has something to offer, so it gets the file words.
+    titleFor: (band) =>
+      inFlight === "pane"
+        ? paneBandTitle(outcomeFor(band, copying) ?? PANE_DROP_NONE)
+        : singleFileDropTargetTitle(band),
+  });
 
   return (
     // The container stays while the drag is on, so it can be measured and can tell whose the zone
     // is; the plates are what come and go.
     <div className="pane-drop-bands" ref={holdElement} aria-hidden="true">
-      {lit === undefined
-        ? null
-        : BANDS.map((band) => {
-            // A band is captioned from **its own** outcome, never from the one under
-            // the pointer: the others would then be captioned for something they do
-            // not do, and a band that will not take what is carried says so with the
-            // refusal symbol rather than with an empty plate. A file always has
-            // something to offer, so it gets the file words.
-            const outcome =
-              inFlight === "pane" ? (outcomeFor(band, copying) ?? PANE_DROP_NONE) : undefined;
-            const title =
-              outcome === undefined ? singleFileDropTargetTitle(band) : paneBandTitle(outcome);
-            return (
-              <div
-                key={band}
-                className="pane-drop-band"
-                style={{ top: frames[band].top, height: frames[band].height }}
-              >
-                <DropTargetView title={title} highlighted={lit === band} />
-              </div>
-            );
-          })}
+      {plates.map(({ zone: band, title, highlighted }) => {
+        const frame = frames[band];
+        return (
+          <div
+            key={band}
+            className="pane-drop-band"
+            style={{
+              top: frame.top,
+              height: frame.height,
+              left: frame.left,
+              right: frame.right,
+            }}
+          >
+            <DropTargetView title={title} highlighted={highlighted} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -344,9 +371,15 @@ export function paneDropRegion(options: PaneDropRegionOptions): PaneDropRegion {
       if (carried === undefined) return;
       const band = bandUnder(event);
       if (band === undefined) return;
-      // A file entering a region is what tells the window a drag is on: the New
-      // Window strip has to come up too, and only this store reaches it.
+      // A file over a region is what tells the window the file is over it: every
+      // zone, and the New Window strip, comes up with it, and a leave the window
+      // heard a moment ago is taken back. Only the coming is told — the window
+      // hears the file go itself (`fileDragPresenceChanged`).
       // @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onDragSessionChanged
+      // @upstream ByteRipperApp/DragDrop/DropBands.swift#PaneDropBandsView.onFileDragPresence
+      // @upstream ByteRipperApp/DragDrop/SingleFileDropView.swift#SingleFileDropView.onFileDragPresence
+      // @upstream-differs entering alone: the region's own leave is not the file leaving the window,
+      // and the window's handlers hear that one
       if (carried === "file") beginFileDrag();
       // A join and a duplicate both copy — the pane they came from is left as
       // it was — so the cursor carries the + that says so.

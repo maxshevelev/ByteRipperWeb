@@ -4,6 +4,8 @@ import {
   beginPaneDrag,
   draggedPaneId,
   endDrag,
+  FILE_DRAG_HIDE_DELAY_MS,
+  fileDragPresenceChanged,
   leavePaneDragZone,
   notePaneDragCopying,
   notePaneDragZone,
@@ -122,5 +124,50 @@ describe("the pane drag store", () => {
       copying: false,
       zone: undefined,
     });
+  });
+});
+
+// §4.3: while a file is over the window every zone is up; the window keeps that.
+describe("a file over the window", () => {
+  // @upstream ByteRipperTests/FileDragZonesTests.swift#FileDragZonesTests.testTheZonesGoOnceTheFileHasLeftTheWindow
+  it("keeps the zones up a moment after a leave, and takes them down once nothing took it up", () => {
+    vi.useFakeTimers();
+    try {
+      beginFileDrag();
+      notePaneDragZone("replace");
+      fileDragPresenceChanged("exited");
+      // Not at once: the file may be on its way to another zone. Nothing is lit meanwhile.
+      expect(paneDragStore.getSnapshot().inFlight).toBe("file");
+      expect(paneDragStore.getSnapshot().zone).toBeUndefined();
+
+      vi.advanceTimersByTime(FILE_DRAG_HIDE_DELAY_MS);
+      expect(paneDragStore.getSnapshot().inFlight).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays up when the leave was a crossing into another zone", () => {
+    vi.useFakeTimers();
+    try {
+      beginFileDrag();
+      fileDragPresenceChanged("exited");
+      beginFileDrag(); // the next zone's dragover, in the same step
+      vi.advanceTimersByTime(FILE_DRAG_HIDE_DELAY_MS * 2);
+      expect(paneDragStore.getSnapshot().inFlight).toBe("file");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("goes at once when the drag ends, and leaves a pane drag alone", () => {
+    beginFileDrag();
+    fileDragPresenceChanged("ended");
+    expect(paneDragStore.getSnapshot().inFlight).toBeUndefined();
+
+    beginPaneDrag("a");
+    fileDragPresenceChanged("exited");
+    fileDragPresenceChanged("ended");
+    expect(draggedPaneId()).toBe("a");
   });
 });
