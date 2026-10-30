@@ -6,10 +6,11 @@ import { MapDataError, MapFile } from "@/firmware/mapData/mapFile";
  *
  * Upstream reads each family out of its bundle once, synchronously, the first
  * time a reader asks (`static let loaded`). The web keeps that shape — every
- * reader of a descriptor or an ME image is synchronous, in a worker — behind a
- * source the worker installs (`src/workers/mapDataSource.ts`, which reads the
- * app's own copy in `data/`) and a test installs too, reading the same files
- * from disk. The binaries are brought across by
+ * reader of a descriptor or an ME image is synchronous — behind a source
+ * installed where the maps are read (`src/platform/mapData/bundledMaps.ts`,
+ * which reads the app's own copy in `data/`: a worker for its parsers, the page
+ * for the presenters that name what they found) and a test installs too,
+ * reading the same files from disk. The binaries are brought across by
  * `Skills/port-from-byteripper/scripts/sync_maps.py`.
  */
 
@@ -29,7 +30,7 @@ export const MAP_FILE_NAMES: Readonly<Record<MapFamily, string>> = {
   layout: "LayoutMaps.bin",
 };
 
-/** Until a worker installs the app's own copy (`src/workers/mapDataSource.ts`), there is none. */
+/** Until the app's own copy is installed (`src/platform/mapData/bundledMaps.ts`), there is none. */
 const none: MapBytesSource = () => undefined;
 
 let source: MapBytesSource = none;

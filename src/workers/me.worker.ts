@@ -10,11 +10,11 @@ import {
 } from "@/firmware/me/decompress/huffman";
 import { analyzeMeRegion, checksums } from "@/firmware/me/engine/analyzer";
 import { meRegion } from "@/firmware/me/layout/flashDescriptor";
+import { installBundledMapsInWorker } from "@/platform/mapData/bundledMaps";
 import { ConfigRecordPaths } from "@/tools/configRecordPaths";
 import { EFSFileNames } from "@/tools/efsFileNames";
 import { MFSFileNames } from "@/tools/mfsFileNames";
 import { BlobByteSource } from "@/workers/blobByteSource";
-import { installBundledMaps } from "@/workers/mapDataSource";
 import type { MeWorkerRequest, MeWorkerResponse } from "@/workers/protocol";
 
 /**
@@ -35,7 +35,7 @@ import type { MeWorkerRequest, MeWorkerResponse } from "@/workers/protocol";
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
 // The compiled map files the descriptor and ME readers look their layouts up in.
-installBundledMaps();
+installBundledMapsInWorker();
 const post = (message: MeWorkerResponse) => scope.postMessage(message);
 
 /** The image the pane shows, as its tree's worker reads it; nothing before the first ask. */

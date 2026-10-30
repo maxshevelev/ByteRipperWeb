@@ -1057,12 +1057,12 @@
       "swift": "Packages/MapData",
       "web": [
         "src/firmware/mapData",
-        "src/workers/mapDataSource.ts",
+        "src/platform/mapData/bundledMaps.ts",
         "src/firmware/testing/mapDataSetup.ts",
         "Skills/port-from-byteripper/scripts/sync_maps.py"
       ],
       "status": "ported",
-      "note": "The BRM1 envelope every compiled map family ships in (upstream's Design/MAP_DATA.md): the header, the section table, the string pool, the bounds-checked record arrays and the FNV-1a checksum, with the six readers built on it in the modules that own their kinds. The binaries come across byte for byte into src/firmware/mapData/data/, and the version marks upstream generates into each family's *DataVersion.swift are one generated module, mapDataVersions.ts — both written by sync_maps.py, whose --check fails when either differs from upstream's. Upstream reads a family out of its bundle once, synchronously; the web keeps that shape behind a source a worker installs (a synchronous request for the app's own asset, which a worker may make) and a test installs too (the same files from disk), so every reader stays synchronous. Strings are decoded by hand, the domain having no TextDecoder (D1).",
+      "note": "The BRM1 envelope every compiled map family ships in (upstream's Design/MAP_DATA.md): the header, the section table, the string pool, the bounds-checked record arrays and the FNV-1a checksum, with the six readers built on it in the modules that own their kinds. The binaries come across byte for byte into src/firmware/mapData/data/, and the version marks upstream generates into each family's *DataVersion.swift are one generated module, mapDataVersions.ts — both written by sync_maps.py, whose --check fails when either differs from upstream's. Upstream reads a family out of its bundle once, synchronously; the web keeps that shape behind a source installed in each place the maps are read — a worker (a synchronous request for the app's own asset, which a worker may make) and the page, whose presenters build the Configuration tab and the FPF and strap groups from the analysis (the six files fetched before the first render, a page being refused the synchronous request) — and a test installs too (the same files from disk), so every reader stays synchronous. Strings are decoded by hand, the domain having no TextDecoder (D1).",
       "files": {
         "Sources/MapData/MapFile.swift": "src/firmware/mapData/mapFile.ts",
         "Tests/MapDataTests/MapFileTests.swift": "src/firmware/mapData/mapFile.test.ts"
