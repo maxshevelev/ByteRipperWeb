@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "23d37206ee4ee5ddeee4f0360d5b4728155bb66d",
-  "baselineNote": "A scattered zone's badge is the outline's hue a step darker in the light theme, lighter in the dark (2026-10-30)"
+  "baseCommit": "835e1695dd8486d59abf2824cdbc56507188be19",
+  "baselineNote": "Merge pull request #40 from maxshevelev/automation/refresh-jedec-ids (2026-11-01)"
 }

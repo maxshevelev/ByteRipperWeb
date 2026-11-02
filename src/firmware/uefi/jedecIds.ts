@@ -283,6 +283,7 @@ const TABLE: Readonly<Record<number, JedecChip>> = {
   2144802: { name: "Micron MT25QL02G", sizeKB: 262144, source: "linux" },
   2145057: { name: "Micron N25Q00A", sizeKB: 131072, source: "linux" },
   2145058: { name: "Micron MT25QU02G", sizeKB: 262144, source: "linux" },
+  2906906: { name: "Micron MICRON", sizeKB: undefined, source: "linux" },
   2906908: { name: "Micron MT35XU02G", sizeKB: 262144, source: "linux" },
   3430938: { name: "Spansion S28HL512T", sizeKB: undefined, source: "linux" },
   3430939: { name: "Spansion S28HL01GT", sizeKB: undefined, source: "linux" },
