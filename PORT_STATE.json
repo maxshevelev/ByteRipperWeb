@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "835e1695dd8486d59abf2824cdbc56507188be19",
-  "baselineNote": "Merge pull request #40 from maxshevelev/automation/refresh-jedec-ids (2026-11-01)"
+  "baseCommit": "9abf3501381ea0f6e54e1e1f214498e15b96aabf",
+  "baselineNote": "README: the ME Analyzer's new rows are listed, not introduced as questions (2026-11-05)"
 }
