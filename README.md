@@ -44,8 +44,8 @@ Beside the dump sit the firmware tools: the **UEFI Structure** tree with its
 checksums and the descriptor's soft straps laid out as Flash Image Tool's
 fields, the **FIT Table** with microcode added, replaced and removed in place,
 and the **ME Analyzer**'s reading of the Intel ME/CSME region — the Summary's
-rows for what is checked before an image is flashed (Manufacturing, Boot Guard,
-the OEM public key hash, RPMC binding), the **Configuration** tab in Flash Image
+rows for what is checked before an image is flashed (End of Manufacturing, Boot
+Guard, the OEM public key hash, RPMC binding), the **Configuration** tab in Flash Image
 Tool's own names, and any row opened as a part over the dump. Settings
 cover the font, the theme, the grouping and the text decoding table.
 
