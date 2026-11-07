@@ -162,3 +162,33 @@ export function windowLaunch(): WindowLaunch | undefined {
 export function resetWindowLaunchForTesting(): void {
   launched = undefined;
 }
+
+/** One batch of files the system handed the app, as the shell gave it to this window. */
+export interface HandedPaths {
+  /** The files' full paths, in the order handed. */
+  readonly paths: readonly string[];
+  /** Whether this window was made for them, or by the launch they started — a window they may take. */
+  readonly atHand: boolean;
+}
+
+/**
+ * The files the system handed the app — dropped on its shortcut, opened from Explorer or with
+ * Open With — that the shell gave this window (`desktop/handedFiles.cjs`).
+ *
+ * @web-only a page in a browser is handed no files by the system
+ */
+export interface DesktopHandedBridge {
+  /** What was handed to this window and not yet taken. */
+  take(): Promise<readonly HandedPaths[]>;
+  /** Calls `callback` when more is handed; answers the means to stop. */
+  onHanded(callback: () => void): () => void;
+  /** Centres this window on its screen, clear of the taskbar. */
+  centre(): void;
+}
+
+/** The shell's handed files, where the page runs in it; nothing in a browser. */
+export function desktopHanded(): DesktopHandedBridge | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as { byteripperDesktop?: { handed?: DesktopHandedBridge } }).byteripperDesktop
+    ?.handed;
+}

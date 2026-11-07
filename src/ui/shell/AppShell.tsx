@@ -7,7 +7,11 @@ import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import { type ShiftingEdit, type ShiftWarning, shiftWarning } from "@/core/text/shiftWarning";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
-import { desktopWindowFocus } from "@/platform/desktop/desktopWindows";
+import {
+  desktopHanded,
+  desktopWindowFocus,
+  type HandedPaths,
+} from "@/platform/desktop/desktopWindows";
 import { dragCarriesFiles, filesFromDrop } from "@/platform/files/dragDrop";
 import { type OpenedFile, openedFileFrom } from "@/platform/files/openedFile";
 import { openFiles } from "@/platform/files/openFile";
@@ -27,6 +31,7 @@ import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { manageFavoritesRequests, restoreFavorites } from "@/state/favoritesStore";
+import { openFileAtPath } from "@/state/fileReopen";
 import { noteFirmwareOperations } from "@/state/firmwareStore";
 import { forgetReopeningInBrowser } from "@/state/forgetReopening";
 import { startHelpAddress } from "@/state/helpAddress";
@@ -43,7 +48,12 @@ import {
   noteCaretIfOnScreen,
   recordJump,
 } from "@/state/navigationStore";
-import { type OpenPanePlacement, type OpenPlan, planFor } from "@/state/openPlacement";
+import {
+  type OpenPanePlacement,
+  type OpenPlan,
+  planFor,
+  planHandedFiles,
+} from "@/state/openPlacement";
 import {
   beginFileDrag,
   draggedPaneId,
@@ -96,7 +106,7 @@ import { keyboardIsInTreePanel, openTreeSearch } from "@/state/uefiSearchSetting
 import { redoLast, undoHooks, undoLast } from "@/state/undoRouter";
 import { watchForUnsavedWork } from "@/state/unsavedWork";
 import { useStore } from "@/state/useStore";
-import { openOnce, openOnceHooks } from "@/state/workspace/openOnce";
+import { openOnce, openOnceHooks, revealOpenFile } from "@/state/workspace/openOnce";
 import {
   bringPane,
   filesToNewTab,
@@ -490,7 +500,6 @@ export function AppShell() {
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFiles
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openableFiles
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.isOpenableFile
-   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openFiles
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.openSecond
    * @upstream ByteRipperApp/Documents/OpenPlacement.swift#OpenPlacement.Result.ignoredCount
@@ -623,8 +632,78 @@ export function AppShell() {
    *
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openInNewTab
    */
+  /**
+   * Files handed over by their paths, read through the shell and opened as files dropped on an
+   * empty window are: two compared, a third not opened. One that cannot be read is said, in Open
+   * Recent's words.
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openHandedFiles
+   */
+  const openHandedPaths = useCallback(
+    async (paths: readonly string[]) => {
+      const files: OpenedFile[] = [];
+      for (const path of paths) {
+        const read = await openFileAtPath(path);
+        if (read.kind === "opened") files.push(read.file);
+        else if (read.kind === "gone") {
+          const name = path.split(/[\\/]/).pop() ?? path;
+          reportAlert(L("File not found"), L("“%1$@” is no longer there.", name));
+        } else {
+          reportAlert(
+            L("Could not open file."),
+            read.kind === "failed" && read.reason.length > 0
+              ? read.reason
+              : L("This file could not be opened.")
+          );
+        }
+      }
+      if (files.length > 0) await accept(files);
+    },
+    [accept]
+  );
+
+  /**
+   * One batch of files the system handed the app, as the shell gave it to this window: a file
+   * open already comes forward; otherwise a window of their own — this one, when it was made for
+   * them and is still empty, centred on the screen; or a new one, which the shell centres.
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openHandedFiles
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
+   * @upstream-differs the window in front decides, its page knowing which windows hold which
+   *   files; upstream's app delegate decides from its registry
+   */
+  const placeHandedPaths = useCallback(
+    async ({ paths, atHand }: HandedPaths) => {
+      const [only] = paths;
+      if (only === undefined) return;
+      const alreadyOpen = paths.length === 1 && (await revealOpenFile(only));
+      const { panes } = workspaceStore.getSnapshot();
+      const empty = panes.a === undefined && panes.b === undefined;
+      switch (planHandedFiles(paths.length, alreadyOpen, atHand && empty)) {
+        case "bringForward":
+          return;
+        case "windowAtHand":
+          desktopHanded()?.centre();
+          await openHandedPaths(paths);
+          return;
+        case "newWindow": {
+          const peer = panePeer();
+          if (peer !== undefined) {
+            desktopBridge()?.newWindow({ kind: "paths", from: peer.me, paths: [...paths] });
+          }
+          return;
+        }
+      }
+    },
+    [openHandedPaths]
+  );
+
   const takeUpHanded = useCallback(
     async (handed: Handed) => {
+      if (handed.paths !== undefined) {
+        await openHandedPaths(handed.paths);
+        return;
+      }
       const [first] = handed.files;
       if (first === undefined) return;
       await accept([...handed.files]);
@@ -632,7 +711,7 @@ export function AppShell() {
       if (place?.kind === "annotation") await showHandedAnnotation(place.id);
       else if (place?.kind === "range") await showHandedRange(first, place.start, place.end);
     },
-    [accept]
+    [accept, openHandedPaths]
   );
 
   /**
@@ -1037,16 +1116,31 @@ export function AppShell() {
     const leave = startShellWorkspace();
     const stopTransfer = startPaneTransfer();
     // A window torn off from another takes up what it was made for once it is up (D5).
+    // Files the system handed the app — dropped on its shortcut, opened from Explorer — that the
+    // shell gave this window, taken once the window has taken up what it was made for, one batch
+    // after another.
+    let stopHanded = () => {};
+    let placing = Promise.resolve();
+    const takeHanded = () => {
+      placing = placing.then(async () => {
+        for (const batch of (await desktopHanded()?.take()) ?? []) await placeHandedPaths(batch);
+      });
+    };
     void restoreWorkspace()
       .then(() => receiveHandover())
-      .then((handed) => takeUpHanded(handed));
+      .then((handed) => takeUpHanded(handed))
+      .then(() => {
+        stopHanded = desktopHanded()?.onHanded(takeHanded) ?? (() => {});
+        takeHanded();
+      });
     return () => {
+      stopHanded();
       stopTransfer();
       leave();
       stop();
     };
-    // `takeUpHanded` is stable: it is made once.
-  }, [takeUpHanded]);
+    // `takeUpHanded` and `placeHandedPaths` are stable: each is made once.
+  }, [takeUpHanded, placeHandedPaths]);
 
   // A browser's tabs share the session host, so a pane goes on in a new tab as it does in a new
   // window of the shell: this tab joins the others, and one opened for a pane takes it up.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCompare, planFill, planOpen } from "@/state/openPlacement";
+import { planCompare, planFill, planHandedFiles, planOpen } from "@/state/openPlacement";
 
 /**
  * Ported from upstream's `OpenPlacementTests` and `OpenIntoActivePaneTests`: ⌘O
@@ -65,5 +65,40 @@ describe("Compare with…", () => {
 
   it("is a plain open with nothing open", () => {
     expect(planCompare("a", false, false, 2)).toEqual({ slots: ["a", "b"], ignoredCount: 0 });
+  });
+});
+
+/** Files the system hands over: dropped on the shortcut, opened from Explorer. */
+describe("files handed to the app", () => {
+  /**
+   * @upstream ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests.testHandedFilesOpenInANewWindow
+   */
+  it("open in a new window, one to look at or two to compare", () => {
+    expect(planHandedFiles(1, false, false)).toBe("newWindow");
+    expect(planHandedFiles(2, false, false)).toBe("newWindow");
+    expect(planHandedFiles(3, false, false)).toBe("newWindow");
+  });
+
+  /**
+   * @upstream ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests.testAFileOpenAlreadyComesForward
+   */
+  it("bring forward the window of a file open already, but a pair opens as a comparison", () => {
+    expect(planHandedFiles(1, true, false)).toBe("bringForward");
+    expect(planHandedFiles(1, true, true)).toBe("bringForward");
+    expect(planHandedFiles(2, true, false)).toBe("newWindow");
+  });
+
+  /**
+   * @upstream ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests.testALaunchsEmptyWindowTakesTheFiles
+   */
+  it("go into the empty window the launch they started made", () => {
+    expect(planHandedFiles(2, false, true)).toBe("windowAtHand");
+  });
+
+  /**
+   * @upstream ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests.testANewWindowComparesTheFirstTwo
+   */
+  it("are placed in their window as in any empty one: two compared, a third not opened", () => {
+    expect(planFill("a", false, false, 3)).toEqual({ slots: ["a", "b"], ignoredCount: 1 });
   });
 });

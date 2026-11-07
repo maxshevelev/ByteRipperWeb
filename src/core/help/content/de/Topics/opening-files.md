@@ -1,4 +1,4 @@
-@source-sha 77aeac5b5a4d0280d5597e42840fa2e4d8aa957a42373abc374767f85dab7070
+@source-sha 509051251cb6074f7d4f24296624684fb697e185024fc15a8fd9e32925efe97a
 # Dateien öffnen: ein Bereich oder zwei
 
 > Der Arbeitsbereich hält zwei Dateibereiche. Eine Datei ist ein Editor; eine zweite bringt den Vergleich dazu. Bearbeiten lässt sich in beiden.
@@ -15,6 +15,7 @@ Der zweite Bereich ist freiwillig. Nichts außer dem Vergleich selbst braucht ei
 - **Die Öffnen-Taste** auf dem leeren Bildschirm, oder **Ablage ▸ Öffnen…** [[edition:im Menü der Symbolleiste||im Menü]]. Die Datei ersetzt den **aktiven** Bereich; einen zweiten Bereich legt der Befehl nicht von selbst an. Nur wenn beide Bereiche leer sind, füllen die ersten beiden gewählten Dateien sie. Was darüber hinaus gewählt ist, wird nicht geöffnet.
 - **Ziehen und Ablegen.** Ziehen Sie eine Datei auf den Arbeitsbereich; die Bänder zeigen, wo sie abgelegt werden kann — diesen Bereich ersetzen, am Anfang oder am Ende anfügen oder zum Vergleich öffnen. Solange sich die Datei über dem Arbeitsbereich befindet, sind alle Bänder halbtransparent sichtbar; das Band unter dem Zeiger ist hervorgehoben, und dort wird die Datei beim Loslassen abgelegt. Zwei Dateien auf einmal: die zweite öffnet im anderen Bereich, sofern dieser frei ist.
 - **Ablage ▸ Vergleichen mit…** öffnet die Datei im anderen Bereich: im freien, sonst im nicht aktiven. So kommt die zweite Datei für den Vergleich hinzu. Der Befehl ist verfügbar, solange eine Datei offen ist.
+[[edition:||- **Aus dem Explorer** — Dateien, die auf die Verknüpfung des Programms gezogen oder im Explorer mit **Öffnen mit** geöffnet werden. Eine Datei öffnet sich in einem neuen Fenster; ist sie bereits geöffnet, wird stattdessen ihr Fenster nach vorn geholt. Zwei Dateien öffnen sich in einem neuen Fenster nebeneinander, zum Vergleich. Von drei oder mehr Dateien werden die ersten zwei verglichen, die übrigen werden nicht geöffnet. Das neue Fenster steht mittig auf dem Bildschirm, ohne die Taskleiste zu verdecken.]]
 - **Ablage ▸ Neue Datei** legt eine leere, unbenannte Datei an — ein Ort, um Bytes hineinzusetzen.
 
 ## Wie lange [[edition:der Tab||das Fenster]] die Datei hält

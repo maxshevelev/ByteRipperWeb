@@ -33,6 +33,7 @@
       "windows.cjs",
       "projects.cjs",
       "hostDisk.cjs",
+      "handedFiles.cjs",
       "agent-endpoint.cjs",
       "relay.cjs",
       "web/**/*"

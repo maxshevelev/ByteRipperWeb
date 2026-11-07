@@ -2460,7 +2460,8 @@
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift#OpenDocumentRegistry.location": "n/a — no registry to keep: each window of the desktop shell answers for its own panes, asked over a channel (openOnce.ts); a browser tab has no other window",
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift#OpenDocumentRegistry.controllers": "n/a — no registry to keep: each window of the desktop shell answers for its own panes, asked over a channel (openOnce.ts); a browser tab has no other window",
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift#OpenDocumentRegistry.compact": "n/a — no registry to keep: each window of the desktop shell answers for its own panes, asked over a channel (openOnce.ts); a browser tab has no other window",
-        "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.cancelButton": "n/a — an AppKit sheet's button; the web's dialogs own theirs"
+        "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.cancelButton": "n/a — an AppKit sheet's button; the web's dialogs own theirs",
+        "ByteRipperApp/Documents/HandedFilesBatch.swift#HandedFilesBatch*": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `handedFilesBatch`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs"
       }
     },
     {
@@ -2579,7 +2580,10 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.isSwitchingProjects": "n/a — the desktop shell's main process (desktop/windows.cjs, `switching`), outside src/, which the anchor check reads: every window closed for a project's is not a quit",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.lastRestoreIssues": "n/a — a test seam; the issues are reported as the restore ends (reportRestoreIssues)",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.restoringParts": "n/a — parts torn off into windows of their own, put back after the tabs; a part here is a panel of its tab, restored with it",
-        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.workspaceRecorder": "n/a — the recorder is module state of the page (workspaceRecorder.ts), not an object the app holds"
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.workspaceRecorder": "n/a — the recorder is module state of the page (workspaceRecorder.ts), not an object the app holds",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.handedFiles": "n/a — the desktop shell's main process (desktop/main.cjs over desktop/handedFiles.cjs, the files of one gesture gathered), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperApp/App/AppDelegate.swift#AppDelegate.launchWindowAtHand": "n/a — the desktop shell's main process (desktop/windows.cjs, `atHand`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.fitAndCentre": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `centredFrame`; centred at its size, the shell sizing no window to its dump), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs"
       }
     },
     {
@@ -4891,7 +4895,11 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testATableWithANoteShowsTheNoteUnderIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnUnansweredRevealLeavesNoScrollBehind": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingTheSelectedRowScrollsItBackIntoView": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests": "n/a — test scaffolding",
+        "ByteRipperTests/OpenPlacementTests.swift#HandedFilesBatchTests*": "n/a — the desktop shell's main process (desktop/handedFiles.cjs), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testAWindowForHandedFilesIsFittedAndCentredClearOfTheDock": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `centredFrame`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperTests/MinimapTests.swift#MinimapTests.testShowingTheMinimapNeverGrowsTheWindowPastTheScreen": "n/a — the browser owns the window's size; showing the minimap never grows the window"
       }
     },
     {
@@ -5303,7 +5311,8 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.hasOtherTabs": "n/a — one workspace per browser tab; the app has no sibling tabs for an emptied one to close into",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.findNextMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findPreviousMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findPreviousMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.grantedByScreen": "n/a — AppKit layout: no window grows for a panel here; CSS takes the panel's room from the dump"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

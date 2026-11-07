@@ -62,3 +62,7 @@ The changes ByteRipper keeps beside the workspace are checked the same way. Chan
 A version of ByteRipper restores the workspace that an earlier version wrote: what is new in it simply starts empty.
 
 A workspace written by a newer version is left untouched — the older version cannot read it, and writing over it would lose that work. At launch a message says so, and until the program is quit it keeps no workspace: it opens with an empty window, and quitting asks about unsaved changes as it does with the switch off. The next launch of the newer version finds its workspace as it was.
+
+## Opening a file from Explorer
+
+When ByteRipper is started by files dropped on its shortcut or opened in Explorer, the workspace is restored first and the files open in a new window. A file that is already open in the workspace is not opened a second time: its window is brought to the front.

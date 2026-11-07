@@ -47,6 +47,14 @@ contextBridge.exposeInMainWorld("byteripperDesktop", {
   zoom: (step) => ipcRenderer.send("zoom", step),
   quit: () => ipcRenderer.send("quit"),
   newWindow: (handover) => ipcRenderer.send("window:new", handover),
+  // Files the system handed the app — dropped on its shortcut, opened from Explorer — that the
+  // shell gave this window: told when some come, and taken once the page is up. The window is
+  // centred when its page keeps them.
+  handed: {
+    take: () => ipcRenderer.invoke("files:take"),
+    onHanded: (callback) => listen("files:handed", callback),
+    centre: () => ipcRenderer.send("window:centre"),
+  },
   // The workspace this window's page is (Design/DESKTOP_WINDOWS.md, D2): what its launch restores,
   // asked once as the page starts, and the page's word back on which it is and whether it records.
   workspace: {

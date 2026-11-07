@@ -137,3 +137,44 @@ export function planFor(
       return planCompare(active, aOpen, bOpen, fileCount);
   }
 }
+
+/**
+ * Where files the system handed the app go — dropped on its shortcut, opened from Explorer or with
+ * Open With, which arrive alike and cannot be told apart. A window of their own: one file is
+ * looked at by itself and two are compared, so either is a new task rather than a change to the
+ * window in front, whose panes stay as they were. In that window they are placed as in any empty
+ * one (`planFill`): the first two in the panes, anything past them not opened, with a word why.
+ *
+ * @upstream ByteRipperApp/Documents/OpenPlacement.swift#HandedFilesPlacement
+ * @upstream-differs a string union, where upstream has an enum
+ */
+export type HandedFilesPlacement =
+  /**
+   * The one file is open already: its window comes forward, and it is not opened a second time.
+   *
+   * @upstream ByteRipperApp/Documents/OpenPlacement.swift#HandedFilesPlacement.bringForward
+   */
+  | "bringForward"
+  /**
+   * A new window.
+   *
+   * @upstream ByteRipperApp/Documents/OpenPlacement.swift#HandedFilesPlacement.newWindow
+   */
+  | "newWindow"
+  /**
+   * The window made for them, or by the launch they started, still empty: a launch the files
+   * started does not leave an empty window beside theirs.
+   *
+   * @upstream ByteRipperApp/Documents/OpenPlacement.swift#HandedFilesPlacement.windowAtHand
+   */
+  | "windowAtHand";
+
+/** @upstream ByteRipperApp/Documents/OpenPlacement.swift#HandedFilesPlacement.plan */
+export function planHandedFiles(
+  fileCount: number,
+  alreadyOpen: boolean,
+  emptyWindowAtHand: boolean
+): HandedFilesPlacement {
+  if (fileCount === 1 && alreadyOpen) return "bringForward";
+  return emptyWindowAtHand ? "windowAtHand" : "newWindow";
+}

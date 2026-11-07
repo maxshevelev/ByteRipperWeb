@@ -7,7 +7,11 @@
 // which holds every window and is replaced whole (D3).
 
 /** How far a new window stands off the one in front of it, down and to the right. */
+const { centredFrame } = require("./handedFiles.cjs");
+
 const CASCADE = 26;
+/** A new window's size with no window in front to take it from, as `createWindow` makes one. */
+const NEW_WINDOW_SIZE = { width: 1400, height: 900 };
 /** How long the structure waits after a move before it is written: a drag is many moves. */
 const WRITE_DELAY_MS = 500;
 /** How long a page is given to write its last snapshot and answer whether it asks. */
@@ -239,14 +243,25 @@ function register({
   function makeWindow(restored) {
     const anchor = front();
     const bounds =
-      restored?.frame !== undefined
-        ? reachableFrame(
-            restored.frame,
-            screen.getAllDisplays().map((display) => display.workArea)
+      restored?.centred === true
+        ? centredFrame(
+            anchor?.getBounds() ?? NEW_WINDOW_SIZE,
+            (anchor === undefined
+              ? screen.getPrimaryDisplay()
+              : screen.getDisplayMatching(anchor.getBounds())
+            ).workArea
           )
-        : anchor === undefined
-          ? undefined
-          : cascadeFrom(anchor.getBounds(), screen.getDisplayMatching(anchor.getBounds()).workArea);
+        : restored?.frame !== undefined
+          ? reachableFrame(
+              restored.frame,
+              screen.getAllDisplays().map((display) => display.workArea)
+            )
+          : anchor === undefined
+            ? undefined
+            : cascadeFrom(
+                anchor.getBounds(),
+                screen.getDisplayMatching(anchor.getBounds()).workArea
+              );
     const info = projectInfo();
     const window = create(bounds, {
       ...(restored?.id === undefined ? {} : { id: restored.id }),
@@ -643,7 +658,9 @@ function register({
       ? saved.windows.filter((one) => typeof one?.id === "string")
       : [];
     if (windows.length === 0) {
-      makeWindow({ adopt: true });
+      // The one window a launch that restored nothing makes: files that started the launch go
+      // into it, where its page finds it empty, rather than into a second window beside it.
+      atHand = makeWindow({ adopt: true });
       return;
     }
     const keep = windows.map((one) => one.id);
@@ -657,6 +674,52 @@ function register({
       });
     }
     front()?.focus();
+  }
+
+  /** The window a launch that restored nothing made, for the first files handed to take. */
+  let atHand;
+  /** The files handed to each window, kept until its page is up to take them. */
+  const handed = new WeakMap();
+
+  /**
+   * Files the system handed the app, one batch of them: to the window the launch made, while it
+   * is there, or else to the one in front, whose page decides where they go — its own window, the
+   * one that has the file open already, or a new one (`HandedFilesPlacement`). With no window at
+   * all, a new one takes them.
+   *
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openHandedFiles
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.launchWindowAtHand
+   */
+  function handFiles(paths) {
+    if (paths.length === 0) return;
+    let target = atHand !== undefined && !atHand.isDestroyed() ? atHand : undefined;
+    atHand = undefined;
+    // The window made for these files, or by the launch they started, may take them; any other
+    // is a window someone works in, and they go to a window of their own.
+    let made = target !== undefined;
+    target ??= front();
+    if (target === undefined) {
+      target = makeWindow({ centred: true });
+      made = true;
+    }
+    const list = handed.get(target) ?? [];
+    list.push({ paths, atHand: made });
+    handed.set(target, list);
+    if (!target.webContents.isLoading()) target.webContents.send("files:handed");
+  }
+
+  /** What was handed to `window`, taken by its page once it is up. */
+  function takeHanded(window) {
+    const list = handed.get(window) ?? [];
+    handed.delete(window);
+    return list;
+  }
+
+  /** Centres `window` in its screen's work area, at the size it has. */
+  function centre(window) {
+    if (window.isDestroyed()) return;
+    const area = screen.getDisplayMatching(window.getBounds()).workArea;
+    window.setBounds(centredFrame(window.getBounds(), area));
   }
 
   /** A second launch hands itself over: the window in front comes forward. */
@@ -674,6 +737,9 @@ function register({
   return {
     makeWindow,
     launch,
+    handFiles,
+    takeHanded,
+    centre,
     hold,
     setMenu,
     quit,

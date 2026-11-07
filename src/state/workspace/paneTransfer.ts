@@ -118,7 +118,14 @@ export type Handover =
       readonly ask: string;
       /** The place the files were opened to show, gone to once they are open. */
       readonly place?: HandedPlace | undefined;
-    };
+    }
+  /**
+   * Files the system handed the app, by their paths: the shell's window opened for them.
+   *
+   * @web-only a page is handed no files by the system, and a window torn off carries files
+   *   collected from the window it left
+   */
+  | { readonly kind: "paths"; readonly from: string; readonly paths: readonly string[] };
 
 type Message =
   | { readonly kind: "drag"; readonly pane: RemotePane }
@@ -543,6 +550,8 @@ export async function adoptTaken(slot: SlotId, taken: TakenPane): Promise<void> 
 export interface Handed {
   readonly files: readonly OpenedFile[];
   readonly place?: HandedPlace | undefined;
+  /** Files the system handed the app, to be read by their paths (`Handover` "paths"). */
+  readonly paths?: readonly string[] | undefined;
 }
 
 /**
@@ -564,6 +573,7 @@ export async function receiveHandover(): Promise<Handed> {
     await adoptTaken("a", taken);
     return { files: [] };
   }
+  if (handover.kind === "paths") return { files: [], paths: handover.paths };
   const { files, marks } = await peer.collect(handover.from, handover.ask);
   adoptBookmarks(marks);
   return { files, place: handover.place };

@@ -233,3 +233,24 @@ export async function openOnce(slot: SlotId, file: OpenedFile): Promise<boolean>
   await adoptTaken(slot, moved.taken);
   return false;
 }
+
+/**
+ * Shows the file at `path` where it is open — in this window or another of the desktop shell —
+ * bringing that window forward. Answers whether it was open anywhere.
+ *
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.revealOpenFile
+ * @upstream-differs the windows asked over the channel, where upstream looks the file up in its
+ *   registry (`OpenDocumentRegistry.location`)
+ */
+export async function revealOpenFile(path: string): Promise<boolean> {
+  const ref: FileRef = { path };
+  const here = await thisWindow.holding(ref);
+  if (here !== undefined) {
+    thisWindow.reveal(here);
+    return true;
+  }
+  const holder = await broker?.where(ref);
+  if (holder === undefined) return false;
+  broker?.show(holder, ref);
+  return true;
+}

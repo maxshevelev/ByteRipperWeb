@@ -142,25 +142,33 @@ export async function reopenFile(identity: FileIdentity): Promise<Reopened> {
       missing = true;
     }
   }
-  const files = desktopFiles();
   const path = identity.path;
-  if (path !== undefined && files !== undefined) {
-    try {
-      const { stat, blob } = await readFileByPath(files, path);
-      return {
-        kind: "opened",
-        file: {
-          name: stat.path.split(/[\\/]/).pop() ?? identity.name,
-          size: stat.size,
-          lastModified: Math.floor(stat.modified),
-          source: blob,
-          path: stat.path,
-        },
-      };
-    } catch (error) {
-      if (isMissingFile(error)) return { kind: "gone", where: path };
-      return { kind: "failed", reason: shellReason(error) };
-    }
-  }
+  if (path !== undefined && desktopFiles() !== undefined)
+    return openFileAtPath(path, identity.name);
   return missing ? { kind: "gone", where: path ?? identity.name } : { kind: "unreachable" };
+}
+
+/**
+ * The file at `path` read through the desktop shell — `name` when its path ends in none — or why
+ * it was not; nothing to reach it by in a browser.
+ */
+export async function openFileAtPath(path: string, name?: string): Promise<Reopened> {
+  const files = desktopFiles();
+  if (files === undefined) return { kind: "unreachable" };
+  try {
+    const { stat, blob } = await readFileByPath(files, path);
+    return {
+      kind: "opened",
+      file: {
+        name: stat.path.split(/[\\/]/).pop() ?? name ?? stat.path,
+        size: stat.size,
+        lastModified: Math.floor(stat.modified),
+        source: blob,
+        path: stat.path,
+      },
+    };
+  } catch (error) {
+    if (isMissingFile(error)) return { kind: "gone", where: path };
+    return { kind: "failed", reason: shellReason(error) };
+  }
 }

@@ -1,4 +1,4 @@
-@source-sha 1134554cdf4fd57ba069c67bc88377b4f616ac59dfe126f9cfc67b37cde6b530
+@source-sha 47a2d710b5f78f6ed4df92e23b087a946779905f713cbc4bcaedd92ebabb8ef5
 # Der Arbeitsbereich
 
 > Bei eingeschalteter Einstellung öffnet ByteRipper beim Start, was beim Beenden geöffnet war.
@@ -58,3 +58,7 @@ Ebenso werden die Änderungen geprüft, die ByteRipper neben dem Arbeitsbereich 
 Eine Version von ByteRipper stellt den Arbeitsbereich wieder her, den eine frühere Version geschrieben hat; was in ihr neu hinzugekommen ist, beginnt einfach leer.
 
 Einen Arbeitsbereich, den eine neuere Version geschrieben hat, lässt das Programm unberührt: Lesen kann es ihn nicht, und ihn zu überschreiben würde diese Arbeit vernichten. Beim Start weist eine Meldung darauf hin, und bis zum Beenden wird kein Arbeitsbereich gespeichert: Das Programm öffnet sich mit einem leeren Fenster und fragt beim Beenden nach ungesicherten Änderungen wie bei ausgeschalteter Einstellung. Beim nächsten Start findet die neuere Version ihren Arbeitsbereich unverändert vor.
+
+## Eine Datei aus dem Explorer öffnen
+
+Wird ByteRipper durch Dateien gestartet, die auf seine Verknüpfung gezogen oder im Explorer geöffnet werden, wird zuerst der Arbeitsbereich wiederhergestellt, und die Dateien öffnen sich in einem neuen Fenster. Eine Datei, die im Arbeitsbereich bereits geöffnet ist, wird nicht ein zweites Mal geöffnet: Ihr Fenster wird nach vorn geholt.

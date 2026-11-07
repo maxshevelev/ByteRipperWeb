@@ -27,6 +27,7 @@ const updates = require("./update.cjs");
 const appWindows = require("./windows.cjs");
 const projects = require("./projects.cjs");
 const hostDisk = require("./hostDisk.cjs");
+const { pathsOfCommandLine, handedFilesBatch } = require("./handedFiles.cjs");
 
 const SCHEME = "app";
 const HOST = "byteripper";
@@ -475,9 +476,14 @@ app.whenReady().then(() => {
     const valid =
       handover !== null &&
       typeof handover === "object" &&
-      (handover.kind === "pane" || handover.kind === "files") &&
-      typeof handover.from === "string";
-    windows.makeWindow(valid ? { handover } : undefined);
+      (handover.kind === "pane" || handover.kind === "files" || handover.kind === "paths") &&
+      typeof handover.from === "string" &&
+      (handover.kind !== "paths" ||
+        (Array.isArray(handover.paths) && handover.paths.every((one) => typeof one === "string")));
+    // A window for files the system handed over stands centred on the screen (`handedFiles.cjs`).
+    windows.makeWindow(
+      valid ? { handover, ...(handover.kind === "paths" ? { centred: true } : {}) } : undefined
+    );
   });
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
   ipcMain.on("window:close", (event) => {
@@ -586,10 +592,53 @@ app.whenReady().then(() => {
     isHost: (contents) => windows.ownKindOf(BrowserWindow.fromWebContents(contents)) === "agent",
   });
 
+  // Files handed to the app (`handedFiles.cjs`): what came before the windows were up, and
+  // what this launch's own command line names, open once the launch has made its windows.
   windows.launch();
+  handed.add([
+    ...handedEarly.splice(0),
+    ...pathsOfCommandLine(process.argv, process.cwd(), app.isPackaged),
+  ]);
+
+  // The page of a window takes what was handed to it once it is up, and asks for its window to be
+  // centred when it keeps the files itself (`HandedFilesPlacement.windowAtHand`).
+  ipcMain.handle("files:take", (event) => {
+    const window = sender(event);
+    return window ? windows.takeHanded(window) : [];
+  });
+  ipcMain.on("window:centre", (event) => {
+    const window = sender(event);
+    if (window) windows.centre(window);
+  });
 });
 
-app.on("second-instance", () => windows?.bringForward());
+/** Files handed before the windows were up, kept for the launch to open. */
+const handedEarly = [];
+/**
+ * The files of one gesture gathered into one batch: a Mac hands them one event apiece, back to
+ * back, and two dropped together are a comparison, not a window apiece.
+ *
+ * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.handedFiles
+ */
+const handed = handedFilesBatch((paths) => {
+  if (windows === undefined) handedEarly.push(...paths);
+  else windows.handFiles(paths);
+});
+
+// A second launch hands its command line over: the files it names, dropped on the shortcut or
+// opened from Explorer, go where the first launch's windows decide; with none, the window in
+// front comes forward.
+// @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
+app.on("second-instance", (_event, argv, workingDirectory) => {
+  const paths = pathsOfCommandLine(argv, workingDirectory, app.isPackaged);
+  if (paths.length > 0) handed.add(paths);
+  else windows?.bringForward();
+});
+// A Mac hands each file dropped on the Dock icon, or opened from the Finder, as an event.
+app.on("open-file", (event, file) => {
+  event.preventDefault();
+  handed.add([file]);
+});
 // A Mac's Dock icon clicked with every window closed.
 app.on("activate", () => {
   if (windows !== undefined && windows.windows().length === 0) windows.makeWindow();
