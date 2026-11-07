@@ -480,10 +480,7 @@ app.whenReady().then(() => {
       typeof handover.from === "string" &&
       (handover.kind !== "paths" ||
         (Array.isArray(handover.paths) && handover.paths.every((one) => typeof one === "string")));
-    // A window for files the system handed over stands centred on the screen (`handedFiles.cjs`).
-    windows.makeWindow(
-      valid ? { handover, ...(handover.kind === "paths" ? { centred: true } : {}) } : undefined
-    );
+    windows.makeWindow(valid ? { handover } : undefined);
   });
   // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.closeWindow
   ipcMain.on("window:close", (event) => {
@@ -600,15 +597,10 @@ app.whenReady().then(() => {
     ...pathsOfCommandLine(process.argv, process.cwd(), app.isPackaged),
   ]);
 
-  // The page of a window takes what was handed to it once it is up, and asks for its window to be
-  // centred when it keeps the files itself (`HandedFilesPlacement.windowAtHand`).
+  // The page of a window takes what was handed to it once it is up.
   ipcMain.handle("files:take", (event) => {
     const window = sender(event);
     return window ? windows.takeHanded(window) : [];
-  });
-  ipcMain.on("window:centre", (event) => {
-    const window = sender(event);
-    if (window) windows.centre(window);
   });
 });
 

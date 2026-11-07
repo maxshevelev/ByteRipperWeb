@@ -71,23 +71,4 @@ function handedFilesBatch(open, delay = BATCH_DELAY_MS) {
   };
 }
 
-/**
- * Where a window opened for handed files stands: at the size of the window in front, within the
- * work area — the screen less the taskbar — and centred there.
- *
- * @upstream ByteRipperApp/App/MainWindowController.swift#MainWindowController.fitAndCentre
- * @upstream-differs centred at the size it has rather than fitted to its dump: the shell sizes no
- *   window to its content, Window ▸ Zoom being the browser's page zoom here
- */
-function centredFrame(size, workArea) {
-  const width = Math.min(size.width, workArea.width);
-  const height = Math.min(size.height, workArea.height);
-  return {
-    x: Math.round(workArea.x + (workArea.width - width) / 2),
-    y: Math.round(workArea.y + (workArea.height - height) / 2),
-    width,
-    height,
-  };
-}
-
-module.exports = { pathsOfCommandLine, handedFilesBatch, centredFrame, BATCH_DELAY_MS };
+module.exports = { pathsOfCommandLine, handedFilesBatch, BATCH_DELAY_MS };

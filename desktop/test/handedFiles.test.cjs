@@ -1,11 +1,10 @@
-// Files the system hands the app: from the command line, gathered into one batch, and where the
-// window opened for them stands.
+// Files the system hands the app: from the command line, and gathered into one batch.
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { pathsOfCommandLine, handedFilesBatch, centredFrame } = require("../handedFiles.cjs");
+const { pathsOfCommandLine, handedFilesBatch } = require("../handedFiles.cjs");
 
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), "handed-"));
 const a = path.join(folder, "a.bin");
@@ -50,17 +49,4 @@ test("files handed apart open apart, and an empty batch opens nothing", () => {
   assert.deepEqual(opened, [[a], [b]]);
   batch.flush();
   assert.equal(opened.length, 2);
-});
-
-// Upstream: MultiWindowTests.testAWindowForHandedFilesIsFittedAndCentredClearOfTheDock.
-test("the window for handed files is centred in the work area, clear of the taskbar", () => {
-  const workArea = { x: 0, y: 0, width: 1920, height: 1040 };
-  assert.deepEqual(centredFrame({ width: 1400, height: 900 }, workArea), {
-    x: 260,
-    y: 70,
-    width: 1400,
-    height: 900,
-  });
-  const large = centredFrame({ width: 2500, height: 1200 }, workArea);
-  assert.deepEqual(large, { x: 0, y: 0, width: 1920, height: 1040 }, "never larger than it");
 });

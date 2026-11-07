@@ -7,11 +7,7 @@
 // which holds every window and is replaced whole (D3).
 
 /** How far a new window stands off the one in front of it, down and to the right. */
-const { centredFrame } = require("./handedFiles.cjs");
-
 const CASCADE = 26;
-/** A new window's size with no window in front to take it from, as `createWindow` makes one. */
-const NEW_WINDOW_SIZE = { width: 1400, height: 900 };
 /** How long the structure waits after a move before it is written: a drag is many moves. */
 const WRITE_DELAY_MS = 500;
 /** How long a page is given to write its last snapshot and answer whether it asks. */
@@ -243,25 +239,14 @@ function register({
   function makeWindow(restored) {
     const anchor = front();
     const bounds =
-      restored?.centred === true
-        ? centredFrame(
-            anchor?.getBounds() ?? NEW_WINDOW_SIZE,
-            (anchor === undefined
-              ? screen.getPrimaryDisplay()
-              : screen.getDisplayMatching(anchor.getBounds())
-            ).workArea
+      restored?.frame !== undefined
+        ? reachableFrame(
+            restored.frame,
+            screen.getAllDisplays().map((display) => display.workArea)
           )
-        : restored?.frame !== undefined
-          ? reachableFrame(
-              restored.frame,
-              screen.getAllDisplays().map((display) => display.workArea)
-            )
-          : anchor === undefined
-            ? undefined
-            : cascadeFrom(
-                anchor.getBounds(),
-                screen.getDisplayMatching(anchor.getBounds()).workArea
-              );
+        : anchor === undefined
+          ? undefined
+          : cascadeFrom(anchor.getBounds(), screen.getDisplayMatching(anchor.getBounds()).workArea);
     const info = projectInfo();
     const window = create(bounds, {
       ...(restored?.id === undefined ? {} : { id: restored.id }),
@@ -699,7 +684,7 @@ function register({
     let made = target !== undefined;
     target ??= front();
     if (target === undefined) {
-      target = makeWindow({ centred: true });
+      target = makeWindow();
       made = true;
     }
     const list = handed.get(target) ?? [];
@@ -713,13 +698,6 @@ function register({
     const list = handed.get(window) ?? [];
     handed.delete(window);
     return list;
-  }
-
-  /** Centres `window` in its screen's work area, at the size it has. */
-  function centre(window) {
-    if (window.isDestroyed()) return;
-    const area = screen.getDisplayMatching(window.getBounds()).workArea;
-    window.setBounds(centredFrame(window.getBounds(), area));
   }
 
   /** A second launch hands itself over: the window in front comes forward. */
@@ -739,7 +717,6 @@ function register({
     launch,
     handFiles,
     takeHanded,
-    centre,
     hold,
     setMenu,
     quit,

@@ -665,7 +665,7 @@ export function AppShell() {
   /**
    * One batch of files the system handed the app, as the shell gave it to this window: a file
    * open already comes forward; otherwise a window of their own — this one, when it was made for
-   * them and is still empty, centred on the screen; or a new one, which the shell centres.
+   * them and is still empty, or a new one, which stands off the window in front as any does.
    *
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.openHandedFiles
    * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.application
@@ -683,7 +683,6 @@ export function AppShell() {
         case "bringForward":
           return;
         case "windowAtHand":
-          desktopHanded()?.centre();
           await openHandedPaths(paths);
           return;
         case "newWindow": {

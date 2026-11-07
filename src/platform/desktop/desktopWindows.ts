@@ -182,8 +182,6 @@ export interface DesktopHandedBridge {
   take(): Promise<readonly HandedPaths[]>;
   /** Calls `callback` when more is handed; answers the means to stop. */
   onHanded(callback: () => void): () => void;
-  /** Centres this window on its screen, clear of the taskbar. */
-  centre(): void;
 }
 
 /** The shell's handed files, where the page runs in it; nothing in a browser. */

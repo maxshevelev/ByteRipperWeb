@@ -2592,7 +2592,7 @@
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.workspaceRecorder": "n/a — the recorder is module state of the page (workspaceRecorder.ts), not an object the app holds",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.handedFiles": "n/a — the desktop shell's main process (desktop/main.cjs over desktop/handedFiles.cjs, the files of one gesture gathered), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
         "ByteRipperApp/App/AppDelegate.swift#AppDelegate.launchWindowAtHand": "n/a — the desktop shell's main process (desktop/windows.cjs, `atHand`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
-        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.fitAndCentre": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `centredFrame`; centred at its size, the shell sizing no window to its dump), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs"
+        "ByteRipperApp/App/MainWindowController.swift#MainWindowController.fitToFiles": "n/a — the shell sizes no window to its dump (Window ▸ Zoom is the page zoom): a window for handed files stands off the window in front at its size, as any new window does (desktop/windows.cjs, `cascadeFrom`)"
       }
     },
     {
@@ -4903,7 +4903,8 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/OpenPlacementTests.swift#HandedFilesPlacementTests": "n/a — test scaffolding",
         "ByteRipperTests/OpenPlacementTests.swift#HandedFilesBatchTests*": "n/a — the desktop shell's main process (desktop/handedFiles.cjs), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
-        "ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testAWindowForHandedFilesIsFittedAndCentredClearOfTheDock": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `centredFrame`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testAWindowForHandedFilesIsFittedClearOfTheDock": "n/a — the shell sizes no window to its dump: a window for handed files is placed as any new window, tested in desktop/test/windows.test.cjs (cascadeFrom), outside src/",
+        "ByteRipperTests/MultiWindowTests.swift#MultiWindowTests.testNewWindowsCascadeClearOfTheDock": "n/a — the desktop shell's: desktop/test/windows.test.cjs (a new window stands off the one in front; one that would leave the work area starts again at its top or left), outside src/",
         "ByteRipperTests/MinimapTests.swift#MinimapTests.testShowingTheMinimapNeverGrowsTheWindowPastTheScreen": "n/a — the browser owns the window's size; showing the minimap never grows the window",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testPickingTheTablesZoneInTheDumpFocusesTheTable": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheBackupsCPUIDRowsAreGreyLikeItsRows": "later — an app flow test; the port has no component or end-to-end test for it yet",
