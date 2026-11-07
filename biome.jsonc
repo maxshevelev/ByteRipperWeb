@@ -13,7 +13,10 @@
       "!Skills",
       "!Design",
       "!desktop/web",
-      "!desktop/release"
+      "!desktop/release",
+      // Upstream's resource, copied as it ships (`processorNames.ts`): a
+      // reformat would make every port of it a diff against upstream's bytes.
+      "!src/tools/fit/IntelCPUIDBrandNames.json"
     ]
   },
   "formatter": {

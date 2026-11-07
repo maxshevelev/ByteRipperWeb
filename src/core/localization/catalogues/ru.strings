@@ -442,6 +442,7 @@
 "Could not save “%1$@”." = "Не удалось сохранить «%1$@».";
 "Could not update “%1$@”." = "Не удалось обновить «%1$@».";
 "CPUID" = "CPUID";
+"CPUID, model or S-SPEC" = "CPUID, модель или S-SPEC";
 "CPUID %1$@" = "CPUID %1$@";
 "CPUID %1$@ copied." = "CPUID %1$@ скопирован.";
 "CSE Layout Table" = "CSE Layout Table";
@@ -567,7 +568,7 @@
 "Glossary: UEFI Images" = "Глоссарий: образы UEFI";
 "Go To" = "Перейти";
 "Go to an offset or a bookmark" = "Перейти к адресу или закладке";
-"Go to Offset" = "Перейти к адресу";
+"Show Target" = "Показать цель";
 "Go To Position…" = "Перейти к адресу…";
 "Group Differences Within:" = "Объединять различия в пределах:";
 "GSC Info" = "GSC Info";
@@ -772,6 +773,9 @@
 "Put the Panes Side by Side" = "Расположить панели рядом";
 "Put “%1$@” back into %2$@?" = "Записать «%1$@» обратно в %2$@?";
 "r.%1$@" = "r.%1$@";
+"No processor names known for CPUID %1$@" = "Модели процессоров для CPUID %1$@ неизвестны";
+"platform %1$@" = "платформа %1$@";
+"series, models not listed" = "серия, модели не перечислены";
 "Range" = "Диапазон";
 "RBE/PM Metadata" = "Метаданные RBE/PM";
 "Read" = "Чтение";

@@ -154,13 +154,14 @@ function Glyph({ mark }: { readonly mark: ToolRowMark }) {
         </>
       );
 
-    // `arrow.up.circle`.
+    // `arrow.down.circle`: a newer revision, there to be brought down into the
+    // image.
     case "newerListed":
       return (
         <>
           <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
           <path
-            d="M8 11.8V5.4M5.4 8 8 5.4 10.6 8"
+            d="M8 4.2v6.4M5.4 8 8 10.6 10.6 8"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.7"

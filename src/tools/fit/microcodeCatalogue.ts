@@ -1,4 +1,13 @@
-import { type MicrocodeHeader, microcodeProcessorPlatforms } from "@/firmware/uefi/microcodeParser";
+import {
+  type MicrocodeHeader,
+  microcodeCpuid,
+  microcodeProcessorPlatforms,
+} from "@/firmware/uefi/microcodeParser";
+import {
+  familyMatches,
+  type ProcessorFamily,
+  SHIPPED_PROCESSORS,
+} from "@/tools/fit/processorNames";
 
 /**
  * The list of what can be added, read from the repository's file names.
@@ -259,20 +268,47 @@ export function filterCatalogue(
     readonly vendor?: MicrocodeVendor | undefined;
     readonly search?: string;
     readonly cpuidsInTheImage?: ReadonlySet<number> | undefined;
+    readonly processors?: readonly ProcessorFamily[];
   } = {}
 ): MicrocodeCatalogueEntry[] {
   const needle = (options.search ?? "").trim().toUpperCase();
+  const named = familiesNamed(needle, options.processors ?? SHIPPED_PROCESSORS);
   return entries.filter((entry) => {
     if (options.vendor !== undefined && entry.vendor !== options.vendor) return false;
     if (options.cpuidsInTheImage !== undefined) {
       if (entry.cpuid === undefined || !options.cpuidsInTheImage.has(entry.cpuid)) return false;
     }
     if (needle.length === 0) return true;
-    // A search is by the CPUID — what a bench writes down and looks up — and by
-    // nothing else: the revision and the file name are the catalogue's, and
+    // A search is by what a bench writes down and looks up: the CPUID, or the
+    // processor on the board — part of its model name, or its S-SPEC — found
+    // through the table of brand names and turned into the CPUIDs it is sold
+    // with. Not the revision or the file name: they are the catalogue's, and
     // matching them is a guess about which the user meant.
-    return entry.cpuidText.startsWith(needle);
+    if (entry.cpuidText.startsWith(needle)) return true;
+    if (entry.vendor !== "Intel" || named.length === 0 || entry.cpuid === undefined) return false;
+    const text = microcodeCpuid(entry.cpuid);
+    return named.some((family) => familyMatches(family, text));
   });
+}
+
+/**
+ * The groups of processors a search names: one with a model whose name holds
+ * the text — `12800H`, `i7-1260P`; three characters at least, or every name
+ * would match — or one sold under exactly that S-SPEC, `SRLD1`. A part of an
+ * S-SPEC is not one: `SRL` names a hundred parts. `needle` is upper-cased.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogue.families
+ */
+export function familiesNamed(
+  needle: string,
+  processors: readonly ProcessorFamily[]
+): ProcessorFamily[] {
+  if (needle.length < 3) return [];
+  return processors.filter((family) =>
+    family.processors.some(
+      (model) => model.sSpec.includes(needle) || model.name.toUpperCase().includes(needle)
+    )
+  );
 }
 
 /**

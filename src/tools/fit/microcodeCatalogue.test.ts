@@ -8,11 +8,17 @@ import {
   entriesFromTree,
   entryAt,
   entryFileName,
+  familiesNamed,
   filterCatalogue,
   latestOf,
   type MicrocodeCatalogueEntry,
   platformText,
 } from "@/tools/fit/microcodeCatalogue";
+import {
+  familyMatches,
+  type ProcessorFamily,
+  SHIPPED_PROCESSORS,
+} from "@/tools/fit/processorNames";
 
 /**
  * The list of microcode that can be browsed and added, read from the file names
@@ -196,6 +202,46 @@ describe("narrowing it down", () => {
     // type them, so neither matches.
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "B27" })).toEqual([]);
     expect(filterCatalogue(entries(), { vendor: "Intel", search: "1996" })).toEqual([]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testSearchingByAModelOrAnSSpecFindsItsCpuid
+  it("finds a microcode by part of a model's name, or by its S-SPEC", () => {
+    // Turned into the CPUIDs the table of brand names sells the processor with.
+    const processors: readonly ProcessorFamily[] = [
+      {
+        cpuids: ["906EB"],
+        codeNames: ["Coffee Lake S"],
+        productFamilies: [],
+        steppings: ["B0"],
+        segments: ["Desktop"],
+        processors: [{ name: "Intel Core i3-8100", sSpec: ["SR3N5"] }],
+      },
+    ];
+    const found = (search: string) =>
+      filterCatalogue(entries(), { vendor: "Intel", search, processors }).map(
+        (one) => one.cpuidText
+      );
+    expect(found("8100"), "part of the model's name").toEqual(["906EB", "906EB"]);
+    expect(found("i3-8100")).toEqual(["906EB", "906EB"]);
+    expect(found("sr3n5"), "the S-SPEC, in any case").toEqual(["906EB", "906EB"]);
+    expect(found("SR3N"), "a part of an S-SPEC is not one").toEqual([]);
+    expect(found("81"), "too short to be a name").toEqual([]);
+    // Through the AMD list too, a name of Intel's finds nothing.
+    expect(filterCatalogue(entries(), { vendor: "AMD", search: "8100", processors })).toEqual([]);
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheShippedTableFindsAlderLakeByModelAndSSpec
+  it("finds Alder Lake in the shipped table by model and by S-SPEC", () => {
+    const named = familiesNamed("12800H", SHIPPED_PROCESSORS);
+    expect(
+      named.some((family) => familyMatches(family, "906A3")),
+      "i7-12800H is Alder Lake-P/H"
+    ).toBe(true);
+    const bySSpec = familiesNamed("SRLFU", SHIPPED_PROCESSORS);
+    expect(
+      bySSpec.some((family) => familyMatches(family, "906A4")),
+      "SRLFU is the i3-1215U"
+    ).toBe(true);
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testFilteringToTheCpuidsAlreadyInTheImage

@@ -442,6 +442,7 @@
 "Could not save “%1$@”." = "„%1$@“ konnte nicht gesichert werden.";
 "Could not update “%1$@”." = "„%1$@“ konnte nicht aktualisiert werden.";
 "CPUID" = "CPUID";
+"CPUID, model or S-SPEC" = "CPUID, Modell oder S-SPEC";
 "CPUID %1$@" = "CPUID %1$@";
 "CPUID %1$@ copied." = "CPUID %1$@ kopiert.";
 "CSE Layout Table" = "CSE Layout Table";
@@ -567,7 +568,7 @@
 "Glossary: UEFI Images" = "Glossar: UEFI-Images";
 "Go To" = "Gehe zu";
 "Go to an offset or a bookmark" = "Zu einem Offset oder Lesezeichen springen";
-"Go to Offset" = "Zum Offset springen";
+"Show Target" = "Ziel anzeigen";
 "Go To Position…" = "Gehe zu Offset…";
 "Group Differences Within:" = "Unterschiede zusammenfassen bis:";
 "GSC Info" = "GSC Info";
@@ -772,6 +773,9 @@
 "Put the Panes Side by Side" = "Bereiche nebeneinander";
 "Put “%1$@” back into %2$@?" = "„%1$@“ zurück in %2$@ schreiben?";
 "r.%1$@" = "r.%1$@";
+"No processor names known for CPUID %1$@" = "Für CPUID %1$@ sind keine Prozessormodelle bekannt";
+"platform %1$@" = "Plattform %1$@";
+"series, models not listed" = "Serie, Modelle nicht aufgeführt";
 "Range" = "Bereich";
 "RBE/PM Metadata" = "RBE/PM-Metadaten";
 "Read" = "Lesen";

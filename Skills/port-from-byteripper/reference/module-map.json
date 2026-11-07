@@ -207,6 +207,10 @@
     {
       "prefix": "Packages/MapData/Package.swift",
       "why": "SwiftPM manifest."
+    },
+    {
+      "prefix": "Skills/update-cpuid-brand-names",
+      "why": "The generator of IntelCPUIDBrandNames.json: the article's import, the Wikipedia and Intel release-note enrichment, and the ARK agents' S-SPECs. The data is upstream's to refresh; the web takes the JSON as upstream ships it, and it arrives here with a port (src/tools/fit/IntelCPUIDBrandNames.json), as the compiled ME maps and the JEDEC table do (the owner's decision, 2026-11-07)."
     }
   ],
   "modules": [
@@ -1377,11 +1381,12 @@
         "src/tools/toolParkedState.ts"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch: a value held in `Freshened`, one conditional request when the day's check is due, and the Cache API as the seat of the last body rather than a lifetime (G16). The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the # / Type / Address / Size / Points at entries at upstream's widths over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, the Add Microcode… button, and the notice line with the catalogue's wait, cancel and named failure. The version is the Type cell's tooltip, the catalogue verdict, the problem mark and up to two role badges sit ahead of the type in that order (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch: a value held in `Freshened`, one conditional request when the day's check is due, and the Cache API as the seat of the last body rather than a lifetime (G16). The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the entries as an outline in one column, Type — a row says its type and, after it, what it points at; the number, the address and the size are the detail's — over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, and the notice line. A microcode row opens a level by itself into a row per CPUID it serves, and a CPUID into the models and S-SPECs of IntelCPUIDBrandNames.json (ProcessorNames.swift, processorNames.ts; fitOutline.ts decides the rows, their levels and where Add Microcode… sits: under the table's last microcode, never in the Top Swap backup's copy). The JSON is upstream's resource as it ships, refreshed upstream by Skills/update-cpuid-brand-names and brought across with each port, as the compiled ME maps and the JEDEC table are. The dump outlines the tables and the one zone in focus (`publishedZones`); every zone the panel can focus is `allZones` with the catalogue's wait, cancel and named failure. The version is the row's tooltip; the problem mark and up to two role badges sit ahead of the type, and the catalogue verdict right after the word \"Microcode\" (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID, part of a model's name or a whole S-SPEC (through the same table of brand names) and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
       "files": {
         "FITToolViewController.swift": [
           "src/tools/fit/fitTool.tsx",
-          "src/tools/fit/fitColumns.ts"
+          "src/tools/fit/fitColumns.ts",
+          "src/tools/fit/fitOutline.ts"
         ],
         "FITAddMicrocodeViewController.swift": [
           "src/tools/fit/MicrocodeForm.tsx",
@@ -1425,7 +1430,10 @@
         "FITAgentCatalogueTools.swift": "src/tools/fit/agent/fitAgentModule.ts",
         "ByteRipperTests/AgentFirmwareToolsTests.swift": [
           "src/tools/fit/agent/fitAgentAnswers.test.ts"
-        ]
+        ],
+        "Modules/FITTool/Sources/FITTool/ProcessorNames.swift": "src/tools/fit/processorNames.ts",
+        "Modules/FITTool/Tests/FITToolTests/ProcessorNamesTests.swift": "src/tools/fit/processorNames.test.ts",
+        "Modules/FITTool/Sources/FITTool/Resources/IntelCPUIDBrandNames.json": "src/tools/fit/IntelCPUIDBrandNames.json"
       },
       "unported": {
         "Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.ranges": "n/a — the protected ranges are the pane's already (`protectedRanges` in `firmwareStore.ts`), read once and kept until an edit, so the kept table need not carry them",
@@ -1450,7 +1458,6 @@
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.problems": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.showBusy": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.endBusy": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
-        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.show": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.menuNeedsUpdate": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.numberOfRows": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableView": "n/a — AppKit tables, menus and busy lines; the web view renders them from state",
@@ -1474,7 +1481,9 @@
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.protected": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.reader": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.table": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
-        "Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.hex": "n/a — `hex` in `fitAgentAnswers.ts`"
+        "Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.hex": "n/a — `hex` in `fitAgentAnswers.ts`",
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITOutlineItem.init": "n/a — the outline item is a value literal (`fitOutline.ts`); there is nothing to construct",
+        "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewColumnDidResize": "n/a — AppKit table column resizing; the one column is laid out by `fittedColumnWidths`"
       }
     },
     {
@@ -3085,7 +3094,6 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.typeCell": "n/a — test scaffolding",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.marker": "n/a — test scaffolding",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheAppShipsIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableAndWhatItPointsAtAreMarkedInTheDump": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testThePanelSaysWhereTheTableIsAndWhatIsInIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheLatestVerdictSurvivesTheTargetNaming": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testATargetsNameArrivesAfterTheTable": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -3097,7 +3105,6 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testGoingToARowsOffsetFocusesTheComponentWithoutSelectingIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testClickingTheTitleShowsTheWholeTable": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTitleDoesNothingWithoutATable": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testPickingAZoneInTheDumpSelectsItsRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAReadingShowsItselfInTheModulesOwnRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testIdleTheModuleHasNoProgressBar": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAParseStandsTheAddButtonDown": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -4755,8 +4762,6 @@
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testTallContentCapsAtScreenHeight": "n/a — the browser owns the window's size; nothing is sized to fit the dump",
         "ByteRipperTests/ZoomToFitTests.swift#ZoomToFitTests.testZoomGivesTheFragmentPanelsDumpItsGrid": "n/a — the browser owns the window's size; nothing is sized to fit the dump, a fragment panel's margins included",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testATopSwapBackupIsListedUnderItsHeading": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testResizingThePanelMovesOnlyPointsAt": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableKeepsInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testOpeningARowKeepsTheTreeInsideItsScrollView": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/AppVersionTests.swift#*": "ported — src/core/updates/appVersion.test.ts checks the same comparison, with the build number this edition adds",
         "ByteRipperTests/ReleaseCheckTests.swift#*": "ported — src/platform/net/githubReleases.test.ts reads a fixture and takes a stub source, as upstream's does",
@@ -4891,7 +4896,12 @@
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testATableWithANoteShowsTheNoteUnderIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testAnUnansweredRevealLeavesNoScrollBehind": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testRevealingTheSelectedRowScrollsItBackIntoView": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet"
+        "ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheStrapFieldsFoldUnderTheirWord": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testPickingTheTablesZoneInTheDumpFocusesTheTable": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheBackupsCPUIDRowsAreGreyLikeItsRows": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAnotherLineOfTheFocusedMicrocodeShowsNothingAgain": "later — an app flow test; the port has no component or end-to-end test for it yet. The rule itself is `chooseItem` in fitTool.tsx: a line of the microcode already in focus sets the line chosen and tells nothing else",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testChoosingARowDoesNotScrollTheTable": "n/a — NSOutlineView knows a row by its item's identity, so a show with new items closed and opened the tree and pulled the scroll up; the web's rows are keyed by their id (`fitOutline.ts`), and a re-render neither closes the outline nor moves its scroll",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.text": "n/a — test scaffolding"
       }
     },
     {

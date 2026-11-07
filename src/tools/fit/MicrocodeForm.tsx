@@ -170,10 +170,12 @@ export function MicrocodeForm({
             <input
               type="search"
               className="microcode-search"
-              placeholder={L("CPUID")}
-              aria-label={L("CPUID")}
+              placeholder={L("CPUID, model or S-SPEC")}
+              aria-label={L("CPUID, model or S-SPEC")}
               value={search}
-              // The list is searched by what a bench writes down: the CPUID.
+              // The list is searched by what a bench writes down: the CPUID, or
+              // the processor — part of its model name, or its S-SPEC
+              // (`filterCatalogue`).
               onChange={(event) => setSearch(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "ArrowDown") {

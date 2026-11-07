@@ -82,7 +82,7 @@ describe("the catalogue", () => {
       if (rowMarkChannel(mark) !== "verdict") continue;
       expect(problemSymbols).not.toContain(rowMarkSymbol(mark));
     }
-    expect(rowMarkSymbol("newerListed")).toBe("arrow.up.circle");
+    expect(rowMarkSymbol("newerListed")).toBe("arrow.down.circle");
   });
 
   it("puts every mark in exactly one channel, and names each channel once", () => {

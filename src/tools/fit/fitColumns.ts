@@ -2,44 +2,37 @@ import { L, localized } from "@/core/localization/localization";
 import { columnsMinWidth, type TableColumn } from "@/ui/toolPanel/columnWidths";
 
 /**
- * The FIT table's columns, and how they share a panel that is not as wide as
- * they were laid out for.
+ * The FIT table's column, and how it shares a panel that is not as wide as it
+ * was laid out for.
  *
- * "Points at" takes the width the other columns leave. Below its floor, Size and
- * then Type give way down to theirs; with room again, Type and then Size get
- * back what they gave, and "Points at" the rest. Only past every floor does the
- * table become wider than the panel and the list scroll sideways.
+ * One column, Type: it says the entry's type and, after it, what the entry
+ * points at. It takes the panel's width, and only below its floor does the
+ * table become wider than the panel and the list scroll sideways. The rule for
+ * several columns stays — the last takes the slack, the yielding ones give way
+ * after it — with nothing left to yield.
  *
  * Ported from the column half of upstream's `FITToolViewController`.
  */
 
 /**
- * The columns, with the width each was laid out at — upstream's design widths
- * (20, 96, 76, 84, 300 points at its 11-point design size) at this panel's 13
- * pixels.
- *
- * `min` is how far a column gives way when the panel is narrow: the row number
- * and the eight hex digits of an address not at all, the rest to where their
- * text starts to be cut short.
+ * The one column, with the width it was laid out at — upstream's design width
+ * (300 points at its 11-point design size, with a floor of 80) at this panel's
+ * 13 pixels. No row number, no address and no size: all three are in the
+ * detail.
  *
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryColumns
  */
 export const FIT_COLUMNS: () => readonly TableColumn[] = localized(() => [
-  { id: "index", title: "#", width: 24, min: 24 },
-  { id: "type", title: L("Type"), width: 113, min: 64 },
-  { id: "address", title: L("Address"), width: 90, min: 90 },
-  { id: "size", title: L("Size"), width: 99, min: 48 },
-  { id: "target", title: L("Points at"), width: 355, min: 96, grows: true },
+  { id: "type", title: L("Type"), width: 355, min: 96, grows: true },
 ]);
 
 /**
- * The columns that give way, in order, once "Points at" is down to its floor
- * and the table is still wider than the panel — and get their width back, the
- * other way round, when the panel grows again.
+ * The columns that give way once the last one is down to its floor — none,
+ * with one column.
  *
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.yieldingColumns
  */
-export const FIT_YIELDING_COLUMNS: readonly string[] = ["size", "type"];
+export const FIT_YIELDING_COLUMNS: readonly string[] = [];
 
 /**
  * The narrowest the row can be: every column at its floor. Below this the table
@@ -91,7 +84,7 @@ export function fittedColumnWidths(
   };
 
   sizeLastColumnToFit();
-  // Above zero only once "Points at" is at its floor and the row is still
+  // Above zero only once the last column is at its floor and the row is still
   // wider than the panel.
   let overflow = sumOthers() + widthOf(grower.id) - available;
 
@@ -105,8 +98,8 @@ export function fittedColumnWidths(
     overflow -= give;
   }
 
-  // Upstream has a third pass here, giving the width back the other way round —
-  // Type first, then Size — when the panel grows again. It needs one because its
+  // Upstream has a third pass here, giving the width back the other way round
+  // when the panel grows again. It needs one because its
   // columns keep what they gave: the pass starts from the squeezed widths and
   // has to walk them home. This starts from `wanted` every time, so a panel that
   // grew is simply a wider `available` and the columns are already home; the

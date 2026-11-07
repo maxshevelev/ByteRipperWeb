@@ -3,6 +3,7 @@
 > The Firmware Interface Table: what the processor is directed to load before it executes firmware code, and whether those components are present.
 
 @covers panel.fit
+@covers fit.processors
 
 **Tools ▸ FIT Table** locates the [[term:fit|Firmware Interface Table]] in the image and lists its entries.
 
@@ -18,9 +19,10 @@ Every entry carries an address, a size and a type: a [[term:microcode|microcode 
 
 ## What the tool reports
 
-- **The entries**, with their type, address and size, in the table's own order.
-- **What each address actually holds.** The **Points at** column is not read from the entry: the tool follows the address and reports what is at it — a microcode update with a valid header, a manifest, an erased area, or nothing recognisable.
-- **Every processor a microcode serves.** An update for several processors lists the others in an extended signature table behind its data, and a processor of such a set may have no update of its own: it is served by an update whose header names another processor. The **Points at** column names them all — the processor in the header first, then, after a `+`, those the table adds: `CPUID B06A2 + B06A3, B06A8`. The comparison with the catalogue and **Only CPUIDs in this image** take every one of them into account. A table that does not fit the update, or whose checksum does not match, is shown in the detail list and is not taken into account.
+- **The entries**, with their type, in the table's own order. The address and size of an entry are in the detail list under the table, with the rest of its fields.
+- **What each address actually holds.** What a row says after its type is not read from the entry: the tool follows the address and reports what is at it — a microcode update with a valid header, a manifest, an erased area, or nothing recognisable. For a microcode it gives the revision, the date and the platform field.
+- **Every processor a microcode serves.** An update for several processors lists the others in an extended signature table behind its data, and a processor of such a set may have no update of its own: it is served by an update whose header names another processor. A microcode row opens into a row for each of them — the processor in the header first, then those the table adds. The comparison with the catalogue and **Only CPUIDs in this image** take every one of them into account. A table that does not fit the update, or whose checksum does not match, is shown in the detail list and is not taken into account.
+- **The processors behind each CPUID.** A microcode row is open to begin with, so its CPUIDs are on screen, each with the code names of its processors. The arrow at the start of a CPUID's row opens it: under it is each model with that CPUID, with the S-SPEC codes it was sold under. The architecture of the cores, the stepping and the market segments are shown when the pointer rests on the CPUID's row. The list comes from a published table of CPUIDs and brand names, completed with S-SPEC codes from Intel ARK and Wikipedia. It is not complete: a CPUID it does not contain is reported as unknown, and a model whose S-SPEC is not known is listed without one. It does not take the platform field into account, so it lists every model with that CPUID, whether or not the board's platform is among those the update serves.
 - **The rules of the table**: the header entry, the entry count, the checksum, the ordering of entries by type, the alignment of addresses, the reserved byte, two microcode entries serving the same processor on the same platforms, and the agreement between the table and its [[term:top-swap|Top Swap]] backup where the image keeps one. The problems found are listed under the table, and double-clicking one moves the dump to the bytes it concerns.
 - **The identity of each microcode**, taken from an online catalogue by processor signature, revision and date. See [[topic:databases|The Online Catalogues]]; without network access the identifiers are reported and the names are omitted.
 
@@ -28,11 +30,11 @@ Every entry carries an address, a size and a type: a [[term:microcode|microcode 
 
 The tool writes to the image as well as reading it. Each operation is one undo step and none of them changes the length of the file.
 
-- **Add Microcode…** in the panel's header places a microcode component in the image and enters it in the table. The list it offers is fetched from an online catalogue, and **Choose File…** takes a microcode from a local file instead.
+- **Add Microcode…**, the button in the table under its last microcode, places a microcode component in the image and enters it in the table. The list it offers is fetched from an online catalogue, and **Choose File…** takes a microcode from a local file instead.
 - **Replace Microcode** exchanges the component a row names for another.
 - **Remove Microcode** takes an entry out of the table and moves the components behind it up.
 - **Fix Checksum**, on the header row, writes the checksum the table should carry.
-- **Copy CPUID** and **Go to Offset** are on the context menu of a row.
+- **Copy CPUID** and **Show Target** are on the context menu of a row. **Show Target**, or a double-click on the row, takes the dump to what the entry points at and outlines it there. Otherwise the dump outlines the table with all its entries, and the row in focus.
 
 The conditions under which these are refused, and what each of them writes, are set out in [[topic:recipe-microcode|Microcode and the FIT]].
 
