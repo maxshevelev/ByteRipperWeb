@@ -1,16 +1,16 @@
-@source-sha a97ecdd28bdbdecd29554128185929109d071f7e359d7cc085be4fdd09f67d1a
+@source-sha d5019d7e0df34be3e10c56f7bd09cf24a23d4325b386898ea42f1f9f34578026
 # Microcode und die FIT-Tabelle
 
 > Was das Werkzeug „FIT-Tabelle“ über den Microcode eines Images meldet und was seine Befehle an der Tabelle ändern.
 
 Der Prozessor lädt ein [[term:microcode|Microcode-Update]], bevor er irgendeinen Firmware-Befehl ausführt, und findet es über die [[term:fit|Firmware Interface Table]]. Die Einträge dieser Tabelle enthalten absolute Adressen im Image; ein von einem Eintrag benanntes Bauteil lässt sich deshalb nicht verschieben, ohne den Eintrag selbst zu berichtigen.
 
-**Werkzeuge ▸ FIT-Tabelle** findet die Tabelle und gibt sie aus. Das Werkzeug selbst ist unter [[topic:tool-fit|FIT-Tabelle]] beschrieben; diese Seite behandelt, was seine Spalten bedeuten und was seine Befehle ändern.
+**Werkzeuge ▸ FIT-Tabelle** findet die Tabelle und gibt sie aus. Das Werkzeug selbst ist unter [[topic:tool-fit|FIT-Tabelle]] beschrieben; diese Seite behandelt, was seine Zeilen angeben und was seine Befehle ändern.
 
-## Was die Spalten bedeuten
+## Was die Zeilen angeben
 
-- **Typ**, **Adresse** und **Größe** stammen aus dem Eintrag selbst.
-- **Zeigt auf** wird nicht aus dem Eintrag gelesen. Das Werkzeug folgt der Adresse und meldet, was tatsächlich dort liegt: ein Microcode-Update mit gültigem Header, ein Manifest, ein gelöschter Bereich oder nichts Erkennbares. Ein Eintrag, der auf einen gelöschten Bereich zeigt, ist ein Eintrag, dessen Bauteil im Image fehlt.
+- **Typ** stammt aus dem Eintrag selbst. Nummer, Adresse und Größe des Eintrags stehen in der Detailliste unter der Tabelle.
+- Was auf den Typ folgt, wird nicht aus dem Eintrag gelesen. Das Werkzeug folgt der Adresse und meldet, was tatsächlich dort liegt: ein Microcode-Update mit gültigem Header, ein Manifest, ein gelöschter Bereich oder nichts Erkennbares. Ein Eintrag, der auf einen gelöschten Bereich zeigt, ist ein Eintrag, dessen Bauteil im Image fehlt.
 - Ein Microcode-Eintrag wird zusätzlich über einen Online-Katalog benannt: Prozessorsignatur (CPUID), Revision und Datum. Der Katalog ist unter [[topic:databases|Die Online-Kataloge]] beschrieben; ohne Netzzugang meldet das Werkzeug die Kennungen und lässt die Namen weg.
 
 Unter der Tabelle stehen die Verstöße gegen die Regeln der Spezifikation: der Header-Eintrag, die Anzahl der Einträge, die Prüfsumme der Tabelle, die Reihenfolge der Einträge nach Typ, die Ausrichtung der Adressen, das reservierte Byte sowie die Übereinstimmung der Tabelle mit ihrer [[term:top-swap|Top-Swap]]-Sicherungskopie, sofern das Image eine führt. Über die Regeln hinaus warnt die Liste, wenn zwei Microcode-Einträge denselben Prozessor auf denselben Plattformen bedienen — meist ist es eine ältere Revision, die neben einer neueren stehen geblieben ist; auch die Prozessorsignaturen aus einer erweiterten Signaturtabelle zählen dabei. Ein Doppelklick auf einen Verstoß bringt den Dump zu den betroffenen Bytes.
@@ -24,7 +24,7 @@ Der Name aus dem Katalog macht zwei Eigenschaften des Images lesbar:
 
 ## Microcode hinzufügen
 
-**Microcode hinzufügen…** in der Kopfzeile des Bereichs öffnet eine Liste von Intel-Microcodes, die aus der Sammlung `platomav/CPUMicrocodes` auf github.com geladen wird, mit den Spalten CPUID, Plattform, Revision, Datum, Freigabestand und Größe. **Nur CPUIDs aus diesem Image** beschränkt die Liste auf die Signaturen, die das geöffnete Image bereits enthält. **Datei wählen…** nimmt einen Microcode aus einer lokalen Datei und braucht keinen Netzzugang.
+**Microcode hinzufügen…**, die Schaltfläche in der Tabelle unter dem letzten Microcode-Eintrag, öffnet eine Liste von Intel-Microcodes, die aus der Sammlung `platomav/CPUMicrocodes` auf github.com geladen wird, mit den Spalten CPUID, Plattform, Revision, Datum, Freigabestand und Größe. **Nur CPUIDs aus diesem Image** beschränkt die Liste auf die Signaturen, die das geöffnete Image bereits enthält. Das Suchfeld findet einen Microcode nach seiner CPUID, nach einem Teil des Modellnamens eines Prozessors (`12800H`) oder nach einem vollständigen S-SPEC-Code (`SRLD1`). Modell und S-SPEC werden über dieselbe Tabelle der Prozessormodelle, die der FIT-Bereich zeigt, in die CPUID übersetzt; das Plattformfeld wird dabei nicht berücksichtigt. **Datei wählen…** nimmt einen Microcode aus einer lokalen Datei und braucht keinen Netzzugang.
 
 Eine Datei aus beiden Quellen wird geprüft, bevor irgendetwas geschrieben wird: Sie muss mit einem Intel-Microcode-Header beginnen, und ihre Prüfsumme muss aufgehen.
 
@@ -42,7 +42,7 @@ Der Befehl leistet dann Folgendes:
 
 ## Ersetzen und Entfernen
 
-Das Kontextmenü einer Microcode-Zeile enthält **Microcode ersetzen**, **Microcode entfernen**, **CPUID kopieren** und **Zum Offset springen**; die Header-Zeile enthält **Prüfsumme korrigieren**.
+Das Kontextmenü einer Microcode-Zeile enthält **Microcode ersetzen**, **Microcode entfernen**, **CPUID kopieren** und **Ziel anzeigen**; die Header-Zeile enthält **Prüfsumme korrigieren**.
 
 - **Microcode ersetzen** tauscht das von der Zeile benannte Bauteil gegen ein anderes beliebiger Signatur. Die Zeile bleibt; ist das neue Bauteil anders groß, rücken die Bauteile dahinter nach, und die Einträge, die sie benennen, werden berichtigt. Ein Ersatz, der einen Prozessor bedient, den eine andere Zeile auf denselben Plattformen bereits bedient, wird abgelehnt: Zu aktualisieren ist diese Zeile.
 - **Microcode entfernen** nimmt den Eintrag aus der Tabelle, rückt die Bauteile dahinter in den frei gewordenen Platz nach und löscht die Bytes am Ende der Reihe. Mindestens ein Microcode-Eintrag muss in der Tabelle verbleiben.

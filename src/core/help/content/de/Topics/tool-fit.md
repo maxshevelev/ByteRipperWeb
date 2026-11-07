@@ -1,4 +1,4 @@
-@source-sha e354b7b853735fb11919f568c513a01a6478a86abfbaa208a7ae974317e366ff
+@source-sha e111cdfca4bc4ef282a877607258738d9d27120393b0e958e341c72b9ffe30f7
 # FIT-Tabelle
 
 > Die Firmware Interface Table: was der Prozessor laden soll, bevor er Firmware-Code ausführt, und ob diese Bauteile vorhanden sind.
@@ -17,9 +17,10 @@ Jeder Eintrag trägt eine Adresse, eine Größe und einen Typ: ein [[term:microc
 
 ## Was das Werkzeug meldet
 
-- **Die Einträge** mit Typ, Adresse und Größe, in der Reihenfolge der Tabelle.
-- **Was an jeder Adresse tatsächlich liegt.** Die Spalte **Zeigt auf** wird nicht aus dem Eintrag gelesen: Das Werkzeug folgt der Adresse und meldet, was dort steht — ein Microcode-Update mit gültigem Header, ein Manifest, ein gelöschter Bereich oder nichts Erkennbares.
-- **Alle Prozessoren, für die ein Microcode bestimmt ist.** Ein Update für mehrere Prozessoren führt die übrigen in einer erweiterten Signaturtabelle hinter seinen Daten auf, und ein Prozessor aus einer solchen Gruppe hat unter Umständen kein eigenes Update: Er wird von einem Update bedient, dessen Header einen anderen Prozessor nennt. Die Spalte **Zeigt auf** nennt sie alle — zuerst den Prozessor aus dem Header, dann nach einem `+` die von der Tabelle hinzugefügten: `CPUID B06A2 + B06A3, B06A8`. Der Abgleich mit dem Katalog und **Nur CPUIDs aus diesem Image** berücksichtigen jeden von ihnen. Eine Tabelle, die nicht in das Update passt oder deren Prüfsumme nicht stimmt, erscheint in der Detailliste und bleibt unberücksichtigt.
+- **Die Einträge** mit ihrem Typ, in der Reihenfolge der Tabelle. Adresse und Größe eines Eintrags stehen mit seinen übrigen Feldern in der Detailliste unter der Tabelle.
+- **Was an jeder Adresse tatsächlich liegt.** Was eine Zeile nach ihrem Typ angibt, wird nicht aus dem Eintrag gelesen: Das Werkzeug folgt der Adresse und meldet, was dort steht — ein Microcode-Update mit gültigem Header, ein Manifest, ein gelöschter Bereich oder nichts Erkennbares. Bei einem Microcode sind das Revision, Datum und Plattformfeld.
+- **Alle Prozessoren, für die ein Microcode bestimmt ist.** Ein Update für mehrere Prozessoren führt die übrigen in einer erweiterten Signaturtabelle hinter seinen Daten auf, und ein Prozessor aus einer solchen Gruppe hat unter Umständen kein eigenes Update: Er wird von einem Update bedient, dessen Header einen anderen Prozessor nennt. Die Zeile eines Microcodes klappt in je eine Zeile für jeden von ihnen auf — zuerst der Prozessor aus dem Header, dann die von der Tabelle hinzugefügten. Der Abgleich mit dem Katalog und **Nur CPUIDs aus diesem Image** berücksichtigen jeden von ihnen. Eine Tabelle, die nicht in das Update passt oder deren Prüfsumme nicht stimmt, erscheint in der Detailliste und bleibt unberücksichtigt.
+- **Die Prozessoren hinter einer CPUID.** Die Zeile eines Microcodes ist von Anfang an aufgeklappt, sodass seine CPUIDs sofort zu sehen sind, jede mit den Codenamen ihrer Prozessoren. Der Pfeil am Anfang der Zeile einer CPUID klappt sie auf: Darunter steht jedes Modell mit dieser CPUID mit den S-SPEC-Codes, unter denen es verkauft wurde. Die Architektur der Kerne, das Stepping und die Marktsegmente erscheinen als Hinweis, wenn der Zeiger auf der Zeile der CPUID verweilt. Die Liste stammt aus einer veröffentlichten Zuordnungstabelle von CPUIDs und Handelsnamen und ist um S-SPEC-Codes aus Intel ARK und Wikipedia ergänzt. Sie ist nicht vollständig: Eine CPUID, die sie nicht enthält, wird als unbekannt gemeldet, und ein Modell ohne bekannten S-SPEC-Code erscheint ohne Code. Das Plattformfeld berücksichtigt sie nicht: Sie führt jedes Modell mit dieser CPUID auf, gleich ob die Plattform der Platine zu denen gehört, für die das Update bestimmt ist.
 - **Die Regeln der Tabelle**: den Header-Eintrag, die Anzahl der Einträge, die Prüfsumme, die Reihenfolge der Einträge nach Typ, die Ausrichtung der Adressen, das reservierte Byte, zwei Microcode-Einträge für denselben Prozessor auf denselben Plattformen sowie die Übereinstimmung mit der [[term:top-swap|Top-Swap]]-Sicherungskopie, sofern das Image eine führt. Die gefundenen Verstöße stehen unter der Tabelle; ein Doppelklick auf einen bringt den Dump zu den betroffenen Bytes.
 - **Den Namen jedes Microcodes**, aus einem Online-Katalog nach Prozessorsignatur, Revision und Datum. Siehe [[topic:databases|Die Online-Kataloge]]; ohne Netzzugang werden die Kennungen gemeldet und die Namen weggelassen.
 
@@ -27,11 +28,11 @@ Jeder Eintrag trägt eine Adresse, eine Größe und einen Typ: ein [[term:microc
 
 Das Werkzeug liest das Image nicht nur, es schreibt auch hinein. Jeder Vorgang bildet einen Widerrufsschritt, und keiner von ihnen ändert die Länge der Datei.
 
-- **Microcode hinzufügen…** in der Kopfzeile des Bereichs legt ein Microcode-Bauteil in das Image und trägt es in die Tabelle ein. Die angebotene Liste wird aus einem Online-Katalog geladen; **Datei wählen…** nimmt einen Microcode stattdessen aus einer lokalen Datei.
+- **Microcode hinzufügen…**, die Schaltfläche in der Tabelle unter dem letzten Microcode-Eintrag, legt ein Microcode-Bauteil in das Image und trägt es in die Tabelle ein. Die angebotene Liste wird aus einem Online-Katalog geladen; **Datei wählen…** nimmt einen Microcode stattdessen aus einer lokalen Datei.
 - **Microcode ersetzen** tauscht das von einer Zeile benannte Bauteil gegen ein anderes.
 - **Microcode entfernen** nimmt einen Eintrag aus der Tabelle und rückt die Bauteile dahinter nach.
 - **Prüfsumme korrigieren** in der Header-Zeile schreibt die Prüfsumme, die die Tabelle tragen müsste.
-- **CPUID kopieren** und **Zum Offset springen** stehen im Kontextmenü einer Zeile.
+- **CPUID kopieren** und **Ziel anzeigen** stehen im Kontextmenü einer Zeile. **Ziel anzeigen** oder ein Doppelklick auf die Zeile bringt den Dump zu dem, worauf der Eintrag zeigt, und umrandet es dort. Sonst sind im Dump die Tabelle mit allen Einträgen und die gewählte Zeile umrandet.
 
 Unter welchen Bedingungen diese Befehle abgelehnt werden und was jeder von ihnen schreibt, steht unter [[topic:recipe-microcode|Microcode und die FIT-Tabelle]].
 

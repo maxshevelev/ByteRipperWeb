@@ -4118,9 +4118,10 @@ button.uefi-title {
 
 .fit-tool {
   display: grid;
-  /* The table's name, the entries over the detail, the findings, the button
-     and the notice line. The findings collapse to nothing when there are none. */
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  /* The table's name, the entries over the detail, the findings and the notice
+     line. The findings collapse to nothing when there are none; Add Microcode…
+     is a row of the table. */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 6px;
   height: 100%;
   padding: 8px;
@@ -4161,11 +4162,10 @@ button.uefi-title {
   outline: none;
 }
 
-/* The widths are the panel's to decide (`fittedColumnWidths`) and they add up to
-   the room it has, so the table is simply as wide as the list. Its floor — the
-   columns' floors together — is set where that sum is known, and past it there
-   is nothing left to give: the row stays wider than the panel and the scroller
-   does its job. */
+/* The width is the panel's to decide (`fittedColumnWidths`): the one column takes
+   the room the list has, so the table is simply as wide as the list. Its floor is
+   set where it is known, and past it there is nothing left to give: the row stays
+   wider than the panel and the scroller does its job. */
 .fit-table {
   width: 100%;
   table-layout: fixed;
@@ -4200,6 +4200,12 @@ button.uefi-title {
 
 .fit-row:nth-child(even) {
   background: var(--surface-raised);
+}
+
+/* The row Add Microcode… sits in, under the table's last microcode: as tall as
+   the button, never chosen. */
+.fit-add-row > td {
+  padding: 3px 6px 3px 26px;
 }
 
 .fit-row[data-selected] {
@@ -4237,10 +4243,74 @@ button.uefi-title {
   min-width: 0;
 }
 
+/* The type names the row, in the weight of a heading; the verdict follows it, and
+   what the entry points at takes the rest of the line and is cut short first. */
 .fit-type-text {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.fit-target-text,
+.fit-line-text {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.fit-type-text + .tool-row-mark,
+.fit-type-text + .fit-target-text,
+.tool-row-mark + .fit-target-text {
+  margin-left: 4px;
+}
+
+/* A CPUID under a microcode, in the weight of a heading; a model in the body's;
+   and what follows each — the code names, the S-SPECs — quieter after it. */
+.fit-cpuid-text {
+  flex: none;
+  font-weight: 500;
+}
+
+.fit-line-detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+}
+
+/* A CPUID the table of brand names does not know says so, quietly. */
+.fit-line-text[data-unknown] {
+  color: var(--text-muted);
+}
+
+/* Under a row of the Top Swap backup's copy everything reads as quietly as the
+   row does: what it points at and what follows a line, quieter still. */
+.fit-row[data-backup] :is(.fit-target-text, .fit-line-detail) {
+  color: var(--text-faint);
+}
+
+/* A square the row's full height takes the click, as the trees' triangles do. */
+.fit-twist {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 -2px 0 -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.fit-twist:disabled {
+  cursor: default;
 }
 
 /* How a row's microcode stands against the catalogue: a glyph and a colour. */
@@ -4290,11 +4360,6 @@ button.uefi-title {
 
 .fit-problems li[data-severity="warning"] {
   color: var(--text-muted);
-}
-
-.fit-buttons {
-  display: flex;
-  gap: 6px;
 }
 
 /* Named rather than coloured alone: the three failures have three answers. */

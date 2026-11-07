@@ -41,6 +41,7 @@ import {
   type MicrocodeLatest,
   NOT_RATED,
 } from "@/tools/fit/microcodeCatalogue";
+import { type FITProcessorGroup, processorGroups } from "@/tools/fit/processorNames";
 import type { ToolTransaction } from "@/tools/toolTransaction";
 import { EMPTY_ZONES, type Zone, type ZoneMap } from "@/tools/zone";
 
@@ -85,8 +86,9 @@ export function fitCommandTitle(command: FITRowCommand): string {
   switch (command.kind) {
     case "copyCPUID":
       return L("Copy CPUID");
+    // What the double-click does, said in the menu: where the entry leads.
     case "goToOffset":
-      return L("Go to Offset");
+      return L("Show Target");
     case "replaceMicrocode":
       return L("Replace Microcode");
     case "removeMicrocode":
@@ -145,6 +147,14 @@ export interface FITDisplayRow {
    * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.cpuids
    */
   readonly cpuids: readonly number[];
+  /**
+   * What the row opens into: the processors its microcode is for, one group per
+   * CPUID it serves, as the table of brand names lists them (`processorNames`).
+   * Empty for a row that does not lead to microcode.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.processorGroups
+   */
+  readonly processorGroups: readonly FITProcessorGroup[];
   /**
    * Something is wrong with this row, and the panel says so by colour as well
    * as in the list below.
@@ -300,8 +310,20 @@ export interface FITDisplay {
    * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.checksumFix
    */
   readonly checksumFix: ToolTransaction | undefined;
-  /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.zones */
+  /**
+   * What the dump draws: the tables and the one zone in focus (`publishedZones`).
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.zones
+   */
   readonly zones: ZoneMap;
+  /**
+   * Every zone the panel can put in focus — the tables, the pointers, each row
+   * and what each row points at. Not what the dump draws: that is `zones`.
+   * Kept so a focus can move to any of them without a re-read.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplay.allZones
+   */
+  readonly allZones: readonly Zone[];
   /**
    * What the row in focus is, field by field — the entry's own sixteen bytes
    * and what its address leads to. Empty when no row is in focus.
@@ -335,6 +357,7 @@ export const EMPTY_DISPLAY: FITDisplay = {
   problems: [],
   checksumFix: undefined,
   zones: EMPTY_ZONES,
+  allZones: [],
   detail: EMPTY_DETAIL,
   backupStart: undefined,
   backupHeading: undefined,
@@ -441,7 +464,7 @@ export function focusingZone(display: FITDisplay, zoneId: string | undefined): F
   const row = index === undefined ? undefined : display.rows.find((one) => rowKey(one) === index);
   return {
     ...display,
-    zones: { ...display.zones, focus: zoneId },
+    zones: publishedZones(display.allZones, zoneId),
     detail: row === undefined ? EMPTY_DETAIL : detailFor(row, display.problems),
   };
 }
@@ -464,7 +487,7 @@ export function focusingZone(display: FITDisplay, zoneId: string | undefined): F
  */
 export function keepingTheOutline(display: FITDisplay, zone: string | undefined): FITDisplay {
   if (zone === undefined) return display;
-  if (!display.zones.zones.some((one) => one.id === zone)) return focusingZone(display, undefined);
+  if (!display.allZones.some((one) => one.id === zone)) return focusingZone(display, undefined);
   return focusingZone(display, zone);
 }
 
@@ -547,6 +570,7 @@ export function fitDisplay(report: FITReport, focus?: number | undefined): FITDi
       problems: report.problems,
       checksumFix: undefined,
       zones: EMPTY_ZONES,
+      allZones: [],
       detail: EMPTY_DETAIL,
       backupStart: undefined,
       backupHeading: undefined,
@@ -584,12 +608,14 @@ export function fitDisplay(report: FITReport, focus?: number | undefined): FITDi
   // The detail is the row the user has selected, or nothing before a selection
   // — built here so a fresh parse shows the same detail the selection would.
   const focused = focus === undefined ? undefined : rows.find((one) => rowKey(one) === focus);
+  const candidates = zonesOf(table, backup?.table, rows);
   return {
     summary: summaryOf(report),
     rows,
     problems: report.problems,
     checksumFix: fix,
-    zones: zonesOf(table, backup?.table, rows, focus),
+    zones: publishedZones(candidates, focus === undefined ? undefined : rowZoneId(focus)),
+    allZones: candidates,
     detail: focused === undefined ? EMPTY_DETAIL : detailFor(focused, report.problems),
     backupStart,
     backupHeading,
@@ -623,6 +649,10 @@ function displayRows(
           : undefined,
       cpuids:
         row.target.kind === "microcode" ? microcodeProcessorSignatures(row.target.header) : [],
+      processorGroups:
+        row.target.kind === "microcode"
+          ? processorGroups(microcodeProcessorSignatures(row.target.header))
+          : [],
       hasProblem: problemRows.has(row.entry.index),
       zoneId: rowZoneId(isBackup ? backupKey(row.entry.index) : row.entry.index),
       rowRange: { start: row.entry.offset, end: row.entry.offset + FIT_ENTRY_SIZE },
@@ -757,10 +787,8 @@ function sizeTextOf(row: FITRow): string {
 }
 
 /**
- * Everything known about where the row leads, in one line, separated the way
- * the summary is. A microcode row leads with its CPUID rather than with the
- * word "microcode": the type column has already said that, and the CPUID is the
- * thing being looked for.
+ * Everything known about where the row leads, in one line after the row's type,
+ * separated the way the summary is.
  */
 function targetTextOf(row: FITRow): string {
   const target = row.target;
@@ -779,17 +807,19 @@ function targetTextOf(row: FITRow): string {
     case "outsideTheImage":
       return L("outside this image");
     case "microcode": {
-      // The CPUID is what a bench hunts for, so it leads; the offset and the
-      // size have their own columns, and the date closes the line. An update
-      // for several processors names them all: the ones its extended table
-      // adds are as much its own as the header's.
+      // The revision, the date and the platforms. The CPUIDs are not repeated
+      // here: the row opens into one row per CPUID the update serves — the
+      // header's own and those its extended table adds — and that is where the
+      // panel says them (`processorGroups`). Two digits at least for the
+      // platforms, as the catalogue's file names write it. The component's
+      // offset is the detail's, with the entry's address and size.
       const header = target.header;
-      const parts = [
-        L("CPUID %1$@", cpuidsText(microcodeProcessorSignatures(header))),
+      const platform = header.platformIDs.toString(16).toUpperCase();
+      return [
         L("r.%1$@", header.updateRevision.toString(16).toUpperCase()),
         microcodeDate(header),
-      ];
-      return [...parts, hex(header.offset)].join(" · ");
+        L("platform %1$@", platform.length < 2 ? `0${platform}` : platform),
+      ].join(" · ");
     }
     case "emptyMicrocodeSlot":
       return `${L("empty slot")} · ${hex(target.offset)}`;
@@ -825,16 +855,35 @@ function targetRangeOf(row: FITRow): { readonly start: number; readonly end: num
 // MARK: - Zones
 
 /**
- * What the dump draws: the table, the pointer that leads to it, each row, and
- * what each row points at — the last being the useful one, since the components
- * are scattered across the image and the table is not.
+ * What the dump draws: the table — the Top Swap backup's copy too — with every
+ * row in it, as one zone each, and the one zone in focus. Nothing else: the
+ * components the rows point at are scattered across the image, and a map that
+ * outlined every one of them at once drew the whole dump over. A component is
+ * outlined when the reader goes to it, as the focus.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.published
+ */
+export function publishedZones(zones: readonly Zone[], focus: string | undefined): ZoneMap {
+  return {
+    zones: zones.filter(
+      (zone) => zone.id === TABLE_ZONE_ID || zone.id === BACKUP_TABLE_ZONE_ID || zone.id === focus
+    ),
+    focus,
+  };
+}
+
+/**
+ * Every zone the panel can focus: the table, the pointer that leads to it, each
+ * row, and what each row points at. The Top Swap backup's copy has the same,
+ * under names that say so.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITPresenter.zones
  */
 function zonesOf(
   table: FITTable,
   backup: FITTable | undefined,
-  rows: readonly FITDisplayRow[],
-  focus: number | undefined
-): ZoneMap {
+  rows: readonly FITDisplayRow[]
+): Zone[] {
   const zones: Zone[] = [
     { id: TABLE_ZONE_ID, name: L("FIT table"), start: table.range.start, end: table.range.end },
     {
@@ -888,5 +937,5 @@ function zonesOf(
       end: row.targetRange.end,
     });
   }
-  return { zones, focus: focus === undefined ? undefined : rowZoneId(focus) };
+  return zones;
 }

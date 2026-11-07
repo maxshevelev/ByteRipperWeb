@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOPIC } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import type { FITProblem } from "@/firmware/fit/fitProblem";
@@ -31,7 +31,6 @@ import { fitAgentEdits, fitAgentQueries } from "@/tools/fit/agent/fitAgentModule
 import { changeMicrocode } from "@/tools/fit/fitChange";
 import { FIT_COLUMNS, FIT_MIN_WIDTH, fittedColumnWidths } from "@/tools/fit/fitColumns";
 import {
-  displayNumber,
   EMPTY_DISPLAY,
   type FITDisplay,
   type FITDisplayRow,
@@ -48,6 +47,17 @@ import {
   TABLE_ZONE_ID,
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
+import {
+  type FITOutlineItem,
+  type FITOutlineOpenings,
+  type FITOutlineRow,
+  fitOutlineRows,
+  isChoosable,
+  NO_OPENINGS,
+  outlineItemId,
+  outlineItemKey,
+  withOpening,
+} from "@/tools/fit/fitOutline";
 import { FIT_ROW_MARKS, fitRowMarks, verdict } from "@/tools/fit/fitRowMarks";
 import { cpuidsText } from "@/tools/fit/fitText";
 import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeForm";
@@ -62,8 +72,8 @@ import type { ToolRowMarks } from "@/tools/toolRowMarks";
 import { useZoneSelection } from "@/tools/toolZoneSelection";
 import { openContextMenu } from "@/ui/shell/ContextMenu";
 import { PaneDivider } from "@/ui/shell/PaneDivider";
-import { ColumnResizer } from "@/ui/toolPanel/ColumnResizer";
-import { useColumnWidths } from "@/ui/toolPanel/columnWidths";
+import { DisclosureChevron } from "@/ui/toolPanel/DisclosureChevron";
+import { RowMarkIcon } from "@/ui/toolPanel/RowMarkIcon";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
@@ -223,7 +233,6 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const tableFocused = focusZone === TABLE_ZONE_ID;
   const [busy, setBusy] = useState(false);
   const [tableShare, setTableShare] = useState(storedTableShare);
-  const { widths, resize, reset: resetWidths } = useColumnWidths(FIT_COLUMNS());
   /**
    * How much room the list has for its columns, watched so the table follows a
    * panel the reader is dragging narrower or wider. `clientWidth` and not the
@@ -247,14 +256,25 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     observerRef.current = observer;
   }, []);
   /**
-   * The widths the table draws at: "Points at" takes what the others leave, and
-   * Size and then Type give way when it cannot. What a drag sets is `widths` —
-   * the width a column was given — and this is where that lands on screen.
+   * The width the table draws at: its one column takes the panel's width, down
+   * to its floor.
    */
-  const drawnWidths = useMemo(
-    () => fittedColumnWidths(FIT_COLUMNS(), widths, listWidth),
-    [widths, listWidth]
-  );
+  const drawnWidths = useMemo(() => fittedColumnWidths(FIT_COLUMNS(), {}, listWidth), [listWidth]);
+  /**
+   * What the reader has opened and closed in the outline — kept across a
+   * re-read, a zoom and an edit; a file replaced in the pane opens afresh.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.expandedKinds
+   */
+  const [openings, setOpenings] = useState<FITOutlineOpenings>(NO_OPENINGS);
+  /**
+   * The line under a microcode the reader chose, when it is a CPUID or a model
+   * rather than the entry: it stands for the microcode, which is what is in
+   * focus, and stays the line chosen while that microcode is.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.show
+   */
+  const [chosenLine, setChosenLine] = useState<FITOutlineItem | undefined>(undefined);
   /**
    * Whether the table paints its rows — the legend's Show Markings switch,
    * which is remembered beside the legend's own state.
@@ -379,6 +399,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     setReport(undefined);
     setFocus(undefined);
     setFocusZone(undefined);
+    // Nothing of the last file's opening is kept: its rows open afresh.
+    // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.rebuildItems
+    setOpenings(NO_OPENINGS);
+    setChosenLine(undefined);
     clearZones(pane);
   }, [reloads, pane]);
   useEffect(() => {
@@ -612,7 +636,6 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
   /**
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onSelect
-   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.tableViewSelectionDidChange
    */
   const choose = useCallback((row: FITDisplayRow) => {
     setFocus(rowKey(row));
@@ -629,13 +652,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onSelectTable
    */
   const chooseTable = useCallback(() => {
-    const table = display.zones.zones.find((zone) => zone.id === TABLE_ZONE_ID);
+    const table = display.allZones.find((zone) => zone.id === TABLE_ZONE_ID);
     if (table === undefined) return;
     context.noteNavigationStep();
     setFocus(undefined);
     setFocusZone(TABLE_ZONE_ID);
     context.reveal(table.start, table.end, false);
-  }, [display.zones, context]);
+  }, [display.allZones, context]);
 
   /**
    * The zone the user picked in the dump, brought to the front: the row it
@@ -654,28 +677,114 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   }, []);
   useZoneSelection(pane, zonePicked);
 
+  /** The outline's visible rows: the entries, what a microcode opens into, Add, the heading. */
+  const outline = useMemo(() => fitOutlineRows(display, openings), [display, openings]);
+
+  /**
+   * The outline row that reads as chosen: the line the reader chose under the
+   * microcode in focus while it is on screen, or else the entry in focus.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.show
+   */
+  const selectedId = useMemo(() => {
+    if (focus === undefined || tableFocused) return undefined;
+    if (chosenLine !== undefined && outlineItemKey(chosenLine) === focus) {
+      const id = outlineItemId(chosenLine);
+      if (outline.some((row) => row.id === id)) return id;
+    }
+    return outlineItemId({ kind: "entry", key: focus });
+  }, [focus, tableFocused, chosenLine, outline]);
+
+  /** The entry a row of the outline stands for: its own, or its microcode's. */
+  const entryOf = useCallback(
+    (item: FITOutlineItem): FITDisplayRow | undefined => {
+      const key = outlineItemKey(item);
+      return key === undefined ? undefined : display.rows.find((row) => rowKey(row) === key);
+    },
+    [display.rows]
+  );
+
+  /**
+   * A row of the outline chosen. An entry is chosen as it always was; a CPUID or
+   * a model stands for its microcode, and puts that in focus. With that
+   * microcode in focus already, another of its lines changes no zone and no
+   * detail, so nothing else is told — the microcode's own row still is: it
+   * brings the focus back to the row from what the row points at.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.selectionDidChange
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewSelectionDidChange
+   */
+  const chooseItem = useCallback(
+    (item: FITOutlineItem, byClick: boolean) => {
+      if (!isChoosable(item)) return;
+      const entry = entryOf(item);
+      if (entry === undefined) return;
+      if (item.kind === "entry") {
+        setChosenLine(undefined);
+      } else {
+        setChosenLine(item);
+        if (rowKey(entry) === focus && !tableFocused) return;
+      }
+      // A click is the reader's choice, and a step for the history; the arrow
+      // keys walking the rows are not (`onWillChoose`).
+      // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onWillChoose
+      if (byClick) context.noteNavigationStep();
+      choose(entry);
+    },
+    [entryOf, focus, tableFocused, context, choose]
+  );
+
+  /**
+   * A row opened or closed by the reader.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.noteExpansion
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewItemDidExpand
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewItemDidCollapse
+   */
+  const toggle = useCallback((row: FITOutlineRow) => {
+    if (!row.expandable) return;
+    setOpenings((now) => withOpening(now, row.item, !row.isOpen));
+  }, []);
+
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      const at = display.rows.findIndex((row) => rowKey(row) === focus);
+      const choosable = outline.filter((row) => isChoosable(row.item));
+      const at = choosable.findIndex((row) => row.id === selectedId);
+      const here = choosable[at];
       const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
       if (step !== 0) {
-        const next =
-          display.rows[at < 0 ? 0 : Math.min(display.rows.length - 1, Math.max(0, at + step))];
-        if (next !== undefined) choose(next);
+        const next = choosable[at < 0 ? 0 : Math.min(choosable.length - 1, Math.max(0, at + step))];
+        if (next !== undefined) chooseItem(next.item, false);
+      } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        // As in an outline: right opens the row, left closes it, or goes to the
+        // row it is under.
+        if (here === undefined) return;
+        const opening = event.key === "ArrowRight";
+        if (here.expandable && here.isOpen !== opening) {
+          toggle(here);
+        } else if (!opening && here.depth > 0) {
+          const parent = choosable
+            .slice(0, at)
+            .reverse()
+            .find((row) => row.depth < here.depth);
+          if (parent !== undefined) chooseItem(parent.item, false);
+        } else {
+          return;
+        }
       } else if (event.key === " ") {
         // Space on the row in focus opens the details in the large view, and closes it
         // again.
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (!toggleLargeDetail(at >= 0, event.currentTarget)) return;
+        if (!toggleLargeDetail(here !== undefined, event.currentTarget)) return;
       } else if (event.key === "Enter") {
-        const row = display.rows[at];
+        const row = here === undefined ? undefined : entryOf(here.item);
         if (row !== undefined) run({ kind: "goToOffset", offset: offsetToGoTo(row) });
       } else {
         return;
       }
       event.preventDefault();
     },
-    [display.rows, focus, choose, run]
+    [outline, selectedId, chooseItem, toggle, entryOf, run]
   );
 
   const changeTableShare = useCallback((share: number) => {
@@ -780,11 +889,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
             takes its room at the pane's bottom edge and the table gives it up,
             so it never covers a row (`Design/ROW_MARKS.md` §6). */}
         <div className="tool-marked-list">
-          {/* biome-ignore lint/a11y/useSemanticElements: the grid role sits on the scroller that takes the keyboard; a <table> may not carry it */}
           <div
             className="fit-entries"
             ref={listRef}
-            role="grid"
+            role="treegrid"
             aria-label={L("FIT entries")}
             tabIndex={0}
             data-key-table=""
@@ -798,85 +906,46 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
               </colgroup>
               <thead>
                 <tr>
-                  {FIT_COLUMNS().map((column, index) => (
+                  {FIT_COLUMNS().map((column) => (
                     <th key={column.id} scope="col" className="fit-head">
                       {column.title}
-                      <ColumnResizer
-                        columns={FIT_COLUMNS()}
-                        index={index}
-                        widths={widths}
-                        onChange={resize}
-                        onReset={resetWidths}
-                      />
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {display.rows.map((row, position) => (
-                  <Fragment key={rowKey(row)}>
-                    {position === display.backupStart ? (
-                      // The Top Swap backup's copy of the table follows under a
-                      // heading of its own, which cannot be selected.
-                      <tr className="fit-backup-heading">
-                        <th colSpan={FIT_COLUMNS().length} scope="colgroup">
-                          {display.backupHeading}
-                        </th>
-                      </tr>
-                    ) : null}
-                    <tr
-                      className="fit-row tool-marked-row"
-                      data-backup={row.isBackup ? "" : undefined}
-                      data-selected={!tableFocused && focus === rowKey(row) ? "" : undefined}
-                      // The row's background in words, so nothing it says is said
-                      // by colour alone (`Design/ROW_MARKS.md` §2). The Type cell
-                      // keeps the version, which is its own tooltip.
-                      title={rowMarkTitle(marksOf(row))}
-                      {...rowPaintAttrs(marksOf(row), showsMarkings)}
-                      onClick={() => {
-                        // A click is the reader's choice, and a step for the history; the arrow
-                        // keys walking the rows are not (`onWillChoose`).
-                        // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onWillChoose
-                        context.noteNavigationStep();
-                        choose(row);
-                      }}
-                      onDoubleClick={() => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
-                      onContextMenu={(event) => {
-                        choose(row);
-                        openContextMenu(
-                          event,
-                          rowCommands(row).map((command) => ({
-                            label: fitCommandTitle(command),
-                            // A command that changes the table stands down while
-                            // an edit is being planned — greyed, not gone.
-                            disabled:
-                              busy &&
-                              (command.kind === "replaceMicrocode" ||
-                                command.kind === "removeMicrocode" ||
-                                command.kind === "fixChecksum"),
-                            onSelect: () => run(command),
-                          }))
-                        );
-                      }}
-                    >
-                      <td className="fit-number">{displayNumber(row)}</td>
-                      <td title={`Version ${row.versionText}`}>
-                        <span className="fit-type">
-                          <RowMarksIcons
-                            marks={marksOf(row)}
-                            verdict={verdict(row.latestState)}
-                            size={12}
-                          />
-                          <span className="fit-type-text">{row.typeText}</span>
-                        </span>
-                      </td>
-                      <td className="fit-number">{row.addressText}</td>
-                      <td className="fit-number">{row.sizeText}</td>
-                      <td title={row.targetText.length === 0 ? undefined : row.targetText}>
-                        {row.targetText}
-                      </td>
-                    </tr>
-                  </Fragment>
+                {outline.map((line) => (
+                  <FitOutlineLine
+                    key={line.id}
+                    line={line}
+                    display={display}
+                    entry={entryOf(line.item)}
+                    selected={line.id === selectedId}
+                    marksOf={marksOf}
+                    showsMarkings={showsMarkings}
+                    addDisabled={busy || display.rows.length === 0}
+                    onAdd={openAdd}
+                    onChoose={() => chooseItem(line.item, true)}
+                    onToggle={() => toggle(line)}
+                    onDoubleClick={(row) => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
+                    onContextMenu={(event, row) => {
+                      chooseItem(line.item, false);
+                      openContextMenu(
+                        event,
+                        rowCommands(row).map((command) => ({
+                          label: fitCommandTitle(command),
+                          // A command that changes the table stands down while
+                          // an edit is being planned — greyed, not gone.
+                          disabled:
+                            busy &&
+                            (command.kind === "replaceMicrocode" ||
+                              command.kind === "removeMicrocode" ||
+                              command.kind === "fixChecksum"),
+                          onSelect: () => run(command),
+                        }))
+                      );
+                    }}
+                  />
                 ))}
               </tbody>
             </table>
@@ -933,18 +1002,6 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         </ul>
       )}
 
-      <div className="fit-buttons">
-        <button
-          type="button"
-          className="toolbar-button"
-          disabled={busy || display.rows.length === 0}
-          onClick={openAdd}
-          title={L("Put a microcode in the image and name it in the table")}
-        >
-          {L("Add Microcode…")}
-        </button>
-      </div>
-
       <footer className="tool-notice">
         {busy ? (
           <>
@@ -996,6 +1053,179 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * One row of the outline: an entry — its marks ahead of its type, the verdict
+ * right after the word "Microcode", what it points at after that — a CPUID or a
+ * model under a microcode, the heading in front of the backup's copy, or the
+ * row Add Microcode… sits in.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineView
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryCell
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.makeEntryCell
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.lineCell
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.twoPart
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.addMicrocodeCell
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.headingView
+ */
+function FitOutlineLine({
+  line,
+  display,
+  entry,
+  selected,
+  marksOf,
+  showsMarkings,
+  addDisabled,
+  onAdd,
+  onChoose,
+  onToggle,
+  onDoubleClick,
+  onContextMenu,
+}: {
+  readonly line: FITOutlineRow;
+  readonly display: FITDisplay;
+  readonly entry: FITDisplayRow | undefined;
+  readonly selected: boolean;
+  readonly marksOf: (row: FITDisplayRow) => ToolRowMarks;
+  readonly showsMarkings: boolean;
+  readonly addDisabled: boolean;
+  readonly onAdd: () => void;
+  readonly onChoose: () => void;
+  readonly onToggle: () => void;
+  readonly onDoubleClick: (row: FITDisplayRow) => void;
+  readonly onContextMenu: (event: React.MouseEvent, row: FITDisplayRow) => void;
+}) {
+  const item = line.item;
+  if (item.kind === "heading") {
+    // The Top Swap backup's copy of the table follows under a heading of its
+    // own, which cannot be chosen.
+    return (
+      <tr className="fit-backup-heading">
+        <th scope="colgroup">{display.backupHeading}</th>
+      </tr>
+    );
+  }
+  if (item.kind === "addMicrocode") {
+    // Where what it adds will go: under the table's last microcode. The row is
+    // not chosen and has no menu; the button stands down while an edit is
+    // being planned.
+    return (
+      <tr className="fit-add-row">
+        <td>
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={addDisabled}
+            onClick={onAdd}
+            title={L("Put a microcode in the image and name it in the table")}
+          >
+            {L("Add Microcode…")}
+          </button>
+        </td>
+      </tr>
+    );
+  }
+  if (entry === undefined) return null;
+  const isEntry = item.kind === "entry";
+  const marks = isEntry ? marksOf(entry) : undefined;
+  let body: React.ReactNode;
+  let title: string | undefined;
+  if (item.kind === "entry") {
+    const shown = verdict(entry.latestState);
+    // The version is a real field and it decides how a policy row's address is
+    // read, but it is the same 1.00 on almost every row — so it lives where a
+    // curious pointer finds it rather than on the line.
+    const said =
+      entry.targetText.length === 0 ? entry.typeText : `${entry.typeText}   ${entry.targetText}`;
+    title = [said, L("Version %1$@", entry.versionText), rowMarkTitle(marks)]
+      .filter((one) => one !== undefined)
+      .join("\n");
+    body = (
+      <>
+        {/* The row wears its problem ahead of its name, and a microcode's
+            verdict against the catalogue after the word "Microcode", the thing
+            the verdict is about; what it points at follows. */}
+        <RowMarksIcons marks={marks} size={12} />
+        <span className="fit-type-text">{entry.typeText}</span>
+        {shown === undefined ? null : (
+          <RowMarkIcon mark={shown.mark} size={12} label={shown.toolTip} title={shown.toolTip} />
+        )}
+        {entry.targetText.length === 0 ? null : (
+          <span className="fit-target-text">{entry.targetText}</span>
+        )}
+      </>
+    );
+  } else {
+    const group = entry.processorGroups[item.group];
+    if (group === undefined) return null;
+    if (item.kind === "cpuid") {
+      // The cores, the stepping and the segments are under the pointer: the row
+      // says the CPUID and its code names, and nothing more.
+      const names = group.codeNames.join(", ");
+      title = group.notes.length === 0 ? undefined : group.notes.join("\n");
+      body = (
+        <>
+          <span className="fit-cpuid-text">{L("CPUID %1$@", group.cpuid)}</span>
+          {names.length === 0 ? null : <span className="fit-line-detail">{names}</span>}
+        </>
+      );
+    } else {
+      const one = group.lines[item.line];
+      if (one === undefined) return null;
+      title = one.detail.length === 0 ? one.text : `${one.text}   ${one.detail}`;
+      body = (
+        <>
+          <span className="fit-line-text" data-unknown={one.kind === "unknown" ? "" : undefined}>
+            {one.text}
+          </span>
+          {one.detail.length === 0 ? null : <span className="fit-line-detail">{one.detail}</span>}
+        </>
+      );
+    }
+  }
+  return (
+    <tr
+      className={isEntry ? "fit-row tool-marked-row" : "fit-row fit-processor-row"}
+      aria-level={line.depth + 1}
+      aria-expanded={line.expandable ? line.isOpen : undefined}
+      // The backup's rows read quieter all the way down: they are there to be
+      // compared, and nothing on them is changed on its own.
+      data-backup={entry.isBackup ? "" : undefined}
+      data-selected={selected ? "" : undefined}
+      title={title}
+      // The lines under a microcode are about the processor, not about bytes of
+      // the image, and keep the plain row.
+      {...(isEntry ? rowPaintAttrs(marks, showsMarkings) : {})}
+      onClick={onChoose}
+      onDoubleClick={() => onDoubleClick(entry)}
+      onContextMenu={(event) => onContextMenu(event, entry)}
+    >
+      <td>
+        {/* The arrow leads the row, as in the UEFI tree, and the levels under it
+            are indented under their microcode — inside the column, not added to
+            it. */}
+        {/* help: fit.processors */}
+        <span className="fit-type" style={{ paddingLeft: `${line.depth * 16}px` }}>
+          <button
+            type="button"
+            className="fit-twist"
+            tabIndex={-1}
+            disabled={!line.expandable}
+            aria-label={line.isOpen ? L("Collapse") : L("Expand")}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            onDoubleClick={(event) => event.stopPropagation()}
+          >
+            {line.expandable ? <DisclosureChevron open={line.isOpen} /> : null}
+          </button>
+          {body}
+        </span>
+      </td>
+    </tr>
   );
 }
 

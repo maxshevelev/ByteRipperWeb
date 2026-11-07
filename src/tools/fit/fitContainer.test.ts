@@ -544,9 +544,7 @@ describe("a Top Swap image", () => {
       "replaceMicrocode"
     );
     expect(rowIndexOfZone("fit.backup.target.1")).toBe(backupKey(1));
-    expect(display.zones.zones.find((zone) => zone.id === "fit.backup.target.1")?.start).toBe(
-      0x4060
-    );
+    expect(display.allZones.find((zone) => zone.id === "fit.backup.target.1")?.start).toBe(0x4060);
     expect(focusingRow(display, rowKey(copy)).detail.title).toBe("Backup #2 Microcode");
   });
 

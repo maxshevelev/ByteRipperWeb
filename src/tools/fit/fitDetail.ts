@@ -137,8 +137,8 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
 
 function sizeText(entry: FITEntry): string {
   // The header's `Size` counts entries, not bytes — the field everyone reads
-  // wrong. For the rows that use it the field is in 16-byte units; what a
-  // reader wants is the byte count.
+  // wrong. For the rows that use it the field is in 16-byte units — in bytes
+  // for a Boot Guard manifest (§7.4); what a reader wants is the byte count.
   if (isHeaderEntry(entry)) return L("%1$@ rows", entry.size);
   // A row with no size of its own says so in the same word every empty area
   // does.

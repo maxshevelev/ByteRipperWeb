@@ -136,9 +136,17 @@ export const isEmptySlot = (entry: FITEntry): boolean => entry.type === FIT.empt
 /**
  * What `Size` means in bytes, for the types that use it at all.
  *
+ * The field counts 16-byte units — except in a Boot Guard manifest's row (Key
+ * Manifest 0x0B, Boot Policy 0x0C), where it is the manifest's length in bytes
+ * (`FIT_TABLE_FORMAT.md` §4, §7.4). Read as units there, a Key Manifest of
+ * 0x355 bytes became 0x3550 and covered the Boot Policy, the table and the
+ * Startup Module after it in the dump. The UEFI tree's FIT components read
+ * these rows the same way.
+ *
  * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FITEntry.sizeInBytes
  */
-export const sizeInBytes = (entry: FITEntry): number => entry.size * 16;
+export const sizeInBytes = (entry: FITEntry): number =>
+  fitSizeIsInBytes(entry.type) ? entry.size : entry.size * 16;
 
 /**
  * The table's constants and the names for what is in it.
@@ -196,6 +204,15 @@ export const FIT = {
    */
   policyIndexIOVersion: 0,
 } as const;
+
+/**
+ * The types whose `Size` is a length in bytes rather than in 16-byte units: the
+ * Boot Guard manifests.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/FITEntry.swift#FIT.sizeIsInBytes
+ */
+export const fitSizeIsInBytes = (type: number): boolean =>
+  type === FIT.keyManifestType || type === FIT.bootPolicyType;
 
 /**
  * The same eight bytes, derived rather than typed a second time — upstream's

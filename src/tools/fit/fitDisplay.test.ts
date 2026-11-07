@@ -13,6 +13,7 @@ import {
   fitDisplay,
   focusingRow,
   focusingTarget,
+  focusingZone,
   keepingTheOutline,
   POINTER_ZONE_ID,
   ratingLatest,
@@ -122,16 +123,25 @@ describe("the summary", () => {
 });
 
 describe("the rows", () => {
-  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowLeadsWithItsCpuid
-  it("leads a microcode row with its CPUID", () => {
-    // The type column has said "microcode" already, and the CPUID is the thing
-    // being looked for. Hex digits, no leading zero, the way a bench writes it.
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowSaysItsRevisionAndOpensIntoItsCpuid
+  it("says a microcode row's revision, and opens it into its CPUID", () => {
+    // Its CPUID — hex digits, no leading zero, the way a bench writes it — is
+    // the row it opens into, and what Copy CPUID copies.
     const row = display([microcodeRow]).rows[1];
 
     expect(row?.typeText).toBe("Microcode");
     expect(row?.addressText).toBe("0xFFFF2000");
     expect(row?.cpuidText).toBe("806EA");
-    expect(row?.targetText).toBe("CPUID 806EA · r.F0 · 2019-07-15 · 0x2000");
+    expect(row?.targetText).toBe("r.F0 · 2019-07-15 · platform 01");
+    // The row opens into the processors the shipped table names for it.
+    expect(row?.processorGroups.map((group) => group.cpuid)).toEqual(["806EA"]);
+    const lines = row?.processorGroups[0]?.lines ?? [];
+    expect(lines[0]?.kind, "the models, with nothing ahead of them").toBe("model");
+    expect(lines.some((line) => line.text === "Core i5-8250U")).toBe(true);
+    expect(
+      display([microcodeRow]).rows[0]?.processorGroups,
+      "the header opens into nothing"
+    ).toEqual([]);
     // The size has its own column; for a microcode it is the component's, not
     // the row's zero field.
     expect(row?.sizeText).toBe("0x180");
@@ -156,11 +166,20 @@ describe("the rows", () => {
     // Copy CPUID copies the header's own.
     expect(row?.cpuidText).toBe("B06A2");
     expect(row?.cpuids).toEqual([0x000b_06a2, 0x000b_06a3, 0x000b_06a8]);
-    expect(row?.targetText).toBe("CPUID B06A2 + B06A3, B06A8 · r.F0 · 2019-07-15 · 0x2000");
-    expect(shown.zones.zones.find((zone) => zone.id === "fit.target.1")?.name).toBe(
+    expect(row?.targetText).toBe("r.F0 · 2019-07-15 · platform 01");
+    expect(shown.allZones.find((zone) => zone.id === "fit.target.1")?.name).toBe(
       "CPUID B06A2 + B06A3, B06A8"
     );
     expect(display([microcodeRow]).rows[1]?.cpuids).toEqual([0x0008_06ea]);
+    // One group per CPUID, each its own level in the panel's tree.
+    expect(row?.processorGroups.map((group) => group.cpuid)).toEqual(["B06A2", "B06A3", "B06A8"]);
+    expect(row?.processorGroups[0]?.codeNames.some((name) => name.startsWith("Raptor Lake"))).toBe(
+      true
+    );
+    expect(
+      row?.processorGroups[2]?.lines.map((line) => line.kind),
+      "B06A8 is not in the table"
+    ).toEqual(["unknown"]);
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testARowThatLeadsSomewhereElseStillSaysWhereAndHowLong
@@ -183,6 +202,26 @@ describe("the rows", () => {
     // half that arrives second, once the branch covering the address has been
     // read, so it must not push the address sideways when it does.
     expect(row?.targetText).toBe("0x3000 (FFSv2)");
+  });
+
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testABootGuardManifestsSizeIsInBytes
+  it("reads a Boot Guard manifest's size in bytes", () => {
+    // Not in 16-byte units: a Key Manifest of 0x355 bytes is drawn as 0x355
+    // bytes, not as 0x3550 over the Boot Policy and the table behind it.
+    const shown = display([
+      { type: FIT.keyManifestType, target: 0x3000, size: 0x355 },
+      { type: FIT.bootPolicyType, target: 0x3400, size: 0x4a9 },
+      { type: 0x07, target: 0x3800, size: 0x10 },
+    ]);
+    expect(shown.rows[1]?.targetRange).toEqual({ start: 0x3000, end: 0x3355 });
+    expect(shown.rows[1]?.sizeText).toBe("0x355");
+    expect(shown.rows[2]?.targetRange).toEqual({ start: 0x3400, end: 0x38a9 });
+    // The other rows keep their 16-byte units.
+    expect(shown.rows[3]?.targetRange).toEqual({ start: 0x3800, end: 0x3900 });
+    expect(shown.allZones.find((zone) => zone.id === "fit.target.1")).toMatchObject({
+      start: 0x3000,
+      end: 0x3355,
+    });
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheHeaderRowSaysItsCountBothWays
@@ -220,12 +259,14 @@ describe("the rows", () => {
 });
 
 describe("the zones", () => {
-  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheZonesCoverTheTableThePointerAndWhatTheRowsPointAt
-  it("covers the table, the pointer and what the rows point at", () => {
-    const zones = display([microcodeRow]).zones;
-    const find = (id: string) => zones.zones.find((zone) => zone.id === id);
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryZoneThePanelCanFocusIsKept
+  it("keeps every zone the panel can focus", () => {
+    // The table, the pointer that leads to it, every row, and what every row
+    // points at.
+    const zones = display([microcodeRow]).allZones;
+    const find = (id: string) => zones.find((zone) => zone.id === id);
 
-    expect(zones.zones.map((zone) => zone.id).sort()).toEqual([
+    expect(zones.map((zone) => zone.id).sort()).toEqual([
       "fit.pointer",
       "fit.row.0",
       "fit.row.1",
@@ -241,11 +282,27 @@ describe("the zones", () => {
     });
   });
 
+  // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testTheDumpDrawsTheTableAndTheFocusOnly
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheTableIsMarkedInTheDumpAndATargetWhenGoneTo
+  it("draws the table in the dump, and the focus only", () => {
+    // The table, all its rows in one zone, and the one zone in focus — a row,
+    // what a row points at, or the table itself. What the rows point at is not
+    // drawn until the reader goes to it.
+    const shown = display([microcodeRow, { type: FIT.microcodeType, target: 0x3000 }]);
+    const drawn = (one: FITDisplay) => one.zones.zones.map((zone) => zone.id).sort();
+
+    expect(drawn(shown)).toEqual(["fit.table"]);
+    expect(drawn(focusingRow(shown, 1))).toEqual(["fit.row.1", "fit.table"]);
+    expect(drawn(focusingTarget(shown, 1))).toEqual(["fit.table", "fit.target.1"]);
+    expect(drawn(focusingZone(shown, "fit.table"))).toEqual(["fit.table"]);
+    // And back: a focus that moves on takes its zone with it.
+    expect(drawn(focusingRow(focusingTarget(shown, 1), undefined))).toEqual(["fit.table"]);
+  });
+
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryMicrocodeIsAZoneNamedByItsCpuid
-  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testEveryMicrocodeIsAZoneNamedByItsCpuid
   it("names every microcode zone by its CPUID", () => {
-    const zones = display([microcodeRow, { type: FIT.microcodeType, target: 0x3000 }]).zones;
-    const find = (id: string) => zones.zones.find((zone) => zone.id === id);
+    const zones = display([microcodeRow, { type: FIT.microcodeType, target: 0x3000 }]).allZones;
+    const find = (id: string) => zones.find((zone) => zone.id === id);
 
     // The row's number counts from one, so the first microcode — the row after
     // the header — is the second row, not the first.
@@ -325,7 +382,7 @@ describe("the right-button menu", () => {
       { kind: "replaceMicrocode", index: 1 },
     ]);
     expect(commands.map(fitCommandTitle)).toEqual([
-      "Go to Offset",
+      "Show Target",
       "Copy CPUID",
       "Replace Microcode",
     ]);

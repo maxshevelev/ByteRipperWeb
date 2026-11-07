@@ -36,7 +36,8 @@ export const ROW_MARK_SYMBOL: Readonly<Record<ToolRowMark, string | undefined>> 
   // The verdicts: outline shapes, so none of them is ever a problem's — no
   // exclamation mark, which is the problems' (ROW_MARKS.md §4).
   newest: "checkmark.seal.fill",
-  newerListed: "arrow.up.circle",
+  // Down: a newer revision is there to be brought down into the image.
+  newerListed: "arrow.down.circle",
   newerMaybe: "questionmark.circle",
   error: "exclamationmark.octagon.fill",
   caution: "exclamationmark.circle.fill",
