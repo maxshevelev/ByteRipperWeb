@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "65da5d2c94bf74b39eae4128de52b18b9a5d66d9",
-  "baselineNote": "A new window cascades off the one in front, at the size it is fitted to (2026-11-07)"
+  "baseCommit": "71576fc43fe9befc6969a2bbc4b80eae699fd531",
+  "baselineNote": "The CPUID table knows B06F5: Raptor Lake H0, its ten models and their codes (2026-11-07)"
 }

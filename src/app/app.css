@@ -4281,26 +4281,23 @@ button.uefi-title {
   -webkit-user-select: text;
 }
 
+/* One line of text, not a flex row: a browser copies the items of a flex row
+   as lines of their own, and a CPUID copies as "CPUID 906A3  Alder Lake H".
+   The code names come last, so the ellipsis cuts them short first. */
 .fit-cpuid-line {
-  display: flex;
-  align-items: center;
-  min-width: 0;
   height: 20px;
-  white-space: nowrap;
+  overflow: hidden;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 
 .fit-cpuid-text {
-  flex: none;
   font-weight: 500;
 }
 
 .fit-line-detail {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
   color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: pre;
 }
 
 /* Under a row of the Top Swap backup's copy everything reads as quietly as the
@@ -4318,7 +4315,6 @@ button.uefi-title {
    CPUID's weight. A button with no text, so a copy of the words leaves it out;
    on a selected row the selection's rule gives it the selection's text colour. */
 .fit-info-mark {
-  flex: none;
   display: inline-grid;
   place-items: center;
   width: 14px;
