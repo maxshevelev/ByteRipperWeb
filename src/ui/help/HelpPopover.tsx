@@ -5,14 +5,14 @@
  *
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController
  * @upstream-differs upstream's is an `NSPopover` off a view; here it is a
- * `<dialog>` positioned under the button that opened it — a browser has no
- * popover with an arrow, and the element that does have the platform's own
- * Escape is the one to use. Following the size needs nothing here: the words
- * are set by the stylesheet, which lays an open popover out again by itself
+ * popover in the browser's top layer, placed under the button that opened it —
+ * a browser has no popover with an arrow. Following the size needs nothing
+ * here: the words are set by the stylesheet, which lays an open popover out
+ * again by itself
  */
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 /**
  * Closes the popover on a press anywhere outside it, from the next turn of the
@@ -63,54 +63,51 @@ export function HelpPopover({
    */
   readonly children: ReactNode;
 }) {
-  const popover = useRef<HTMLDialogElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
 
-  // Shown as a modeless dialog: the reader keeps the panel behind it, and the
-  // browser's own Escape closes it. A modal would take the panel away, which
-  // is the one thing a popover must not do.
+  // Shown in the browser's top layer, as an NSPopover is a window of its own over everything:
+  // nothing it opens inside — a panel's scroller, the microcode form, which is modal — cuts it
+  // off at its own edges. Modeless: the reader keeps what is behind it.
   //
   // @upstream Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.present
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = popover.current;
     if (element === null) return;
-    const opened = !element.open;
-    // Showing a dialog runs the browser's focusing steps before it is placed,
-    // and a box that scrolls — the microcode form, which a popover opens inside
-    // because the form is modal — is scrolled to wherever the unplaced dialog
-    // fell, taking the form's title out of sight. What every box around it
-    // was scrolled to is put back once the popover is where it belongs.
-    // @web-only a browser's dialog focuses itself on show; an NSPopover moves nothing
-    const held = opened ? scrollsAround(element) : [];
-    if (opened) element.show();
-    if (anchor !== null) place(element, anchor);
-    for (const [box, top, left] of held) {
-      box.scrollTop = top;
-      box.scrollLeft = left;
-    }
-    // A dialog that appears takes the focus of its first link on the way in,
-    // and the browser scrolls the words to that link — their opening goes out.
-    // The reader asked for the word they were on and wants to read it from the
-    // top: the focus lands on the dialog itself, and the words start at theirs.
-    if (opened) {
+    if (typeof element.showPopover === "function" && !element.matches(":popover-open")) {
+      element.showPopover();
+      // The reader asked for the word they were on and wants to read it from the top: the
+      // focus lands on the popover itself, and the words start at theirs.
       element.focus({ preventScroll: true });
       element.querySelector(".help-popover-body")?.scrollTo(0, 0);
     }
-    return holdHelpPopover(
+    const follow = () => {
+      if (anchor !== null) place(element, anchor);
+    };
+    follow();
+    // It stands in the window's coordinates, so it follows its button when what holds the
+    // button scrolls or the window changes size.
+    window.addEventListener("scroll", follow, true);
+    window.addEventListener("resize", follow);
+    const release = holdHelpPopover(
       document,
       (target) =>
         target instanceof Node && (element.contains(target) || anchor?.contains(target) === true),
       onClose
     );
+    return () => {
+      window.removeEventListener("scroll", follow, true);
+      window.removeEventListener("resize", follow);
+      release();
+    };
   }, [anchor, onClose]);
 
   return (
-    <dialog
+    <div
       ref={popover}
+      role="dialog"
+      popover="manual"
       className="help-popover"
-      onCancel={onClose}
-      // A dialog shown modelessly is sent no `cancel` for Escape (measured in
-      // Chromium), so the key is taken here, and kept from the panel behind,
-      // whose own Escape would fold it.
+      // Escape is taken here, and kept from the panel behind, whose own Escape would fold it.
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();
@@ -121,50 +118,34 @@ export function HelpPopover({
       aria-label={label}
     >
       {children}
-    </dialog>
+    </div>
   );
 }
 
-/**
- * Under the button that opened it, and pulled back inside the box it stands in
- * when the button is near its right edge — a popover half off the panel is one
- * whose sentence cannot be read.
- *
- * The dialog stands in the box's own coordinates, which scroll with it: its
- * `top` is measured from the box's content, not from the part of the box that
- * is visible, so what has been scrolled out is added back in.
- */
-/**
- * Every box around `element` and how far each is scrolled, to put back.
- *
- * @web-only see the effect above
- */
-function scrollsAround(element: HTMLElement): [HTMLElement, number, number][] {
-  const held: [HTMLElement, number, number][] = [];
-  for (let box = element.parentElement; box !== null; box = box.parentElement) {
-    held.push([box, box.scrollTop, box.scrollLeft]);
-  }
-  return held;
-}
+/** The gap kept between the popover and the window's edges. */
+const EDGE = 8;
 
-function place(element: HTMLDialogElement, anchor: HTMLElement): void {
+/**
+ * Under the button that opened it — or over it, where the window has more room above the
+ * button than under it and the words do not fit under — and pulled back inside the window
+ * when the button is near its right edge: a popover half off the window is one whose
+ * sentence cannot be read. The room it is given is the room on its side of the button, which
+ * the stylesheet takes into the cap beside its own 80%.
+ */
+function place(element: HTMLElement, anchor: HTMLElement): void {
   const at = anchor.getBoundingClientRect();
-  const parent = element.offsetParent?.getBoundingClientRect();
-  const left = at.left - (parent?.left ?? 0) + (element.offsetParent?.scrollLeft ?? 0);
-  const top = at.bottom - (parent?.top ?? 0) + (element.offsetParent?.scrollTop ?? 0) + 4;
-  element.style.top = `${top}px`;
-  // Pulled back so the box, as wide as it has ended up, still fits — the width
-  // comes from the box itself, not from a number in here that a change to the
+  const width = document.documentElement.clientWidth;
+  const height = document.documentElement.clientHeight;
+  const below = height - at.bottom - 4 - EDGE;
+  const above = at.top - 4 - EDGE;
+  // As tall as its words ask, held only by the stylesheet's own cap: the height it wants.
+  element.style.removeProperty("--help-popover-room");
+  const wanted = element.offsetHeight;
+  const up = wanted > below && above > below;
+  element.style.setProperty("--help-popover-room", `${Math.max(0, up ? above : below)}px`);
+  const tall = element.offsetHeight;
+  element.style.top = `${up ? at.top - 4 - tall : at.bottom + 4}px`;
+  // The width comes from the box itself, not from a number in here that a change to the
   // stylesheet would forget.
-  element.style.left = `${Math.max(
-    4,
-    Math.min(left, (parent?.width ?? left) - element.offsetWidth - 8)
-  )}px`;
-  // The button is at the top of the box it stands in, so the room the dialog
-  // may take is the room left below it, which the stylesheet takes into the
-  // cap beside its own 80%. A dialog that reaches for more is one the browser
-  // answers by scrolling the box down to the link it focuses on the way in —
-  // the title out above, the way out under the box's bottom.
-  const below = (parent?.height ?? 0) - (at.bottom - (parent?.top ?? 0)) - 8;
-  if (below > 0) element.style.setProperty("--help-popover-room", `${below}px`);
+  element.style.left = `${Math.max(EDGE, Math.min(at.left, width - element.offsetWidth - EDGE))}px`;
 }

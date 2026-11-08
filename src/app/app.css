@@ -1293,6 +1293,10 @@ textarea,
 /* A dialog that holds the focus itself is not a control, so it is not ringed.
    The term popover is one: its focus lands on the shell on the way in, and
    the controls inside it keep their own rings when the reader tabs to them. */
+.help-popover:popover-open {
+  display: flex;
+}
+
 .dialog:focus,
 .help-popover:focus {
   outline: none;
@@ -6336,22 +6340,23 @@ button.uefi-title {
   vertical-align: -3px;
 }
 
-/* A help popover (`HelpPopover`): a `<dialog>` shown modelessly, so the
-   browser's own Escape and the panel behind it both keep working — upstream's
-   is an NSPopover with an arrow, which a browser has no equivalent of. As wide
-   as its layout asks, never wider than the box it stands in. */
+/* A help popover (`HelpPopover`): a modeless popover in the browser's top
+   layer, as upstream's NSPopover is a window over everything, so nothing it
+   opens inside — a panel's scroller, the modal microcode form — cuts it off
+   at its own edges. Placed against the window under its button; as wide as
+   its layout asks, never wider than the window. Laid out only while open:
+   the browser's own rule hides it otherwise. */
 .help-popover {
-  position: absolute;
-  z-index: 30;
-  display: flex;
+  position: fixed;
+  inset: auto;
   flex-direction: column;
   width: fit-content;
-  max-width: calc(100% - 16px);
+  max-width: calc(100vw - 16px);
   /* The box takes the less of its own 80% and the room left below the button
      that opened it, which the component sets — a dialog that reaches for
      room it has not got is one the browser answers by scrolling the reader
      away from the title. */
-  max-height: min(80%, var(--help-popover-room, 100%));
+  max-height: min(80vh, var(--help-popover-room, 100vh));
   margin: 0;
   padding: 0;
   overflow: hidden;
