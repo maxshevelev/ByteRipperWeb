@@ -1,15 +1,13 @@
 ---
 name: release
-description: Cut a ByteRipperWeb release — set the version to the upstream release the port was last brought level with, build the single-file HTML page and the Windows build and check both, write the notes, tag, push and publish the GitHub release. Use when asked to make, cut or publish a release, or to prepare one ("сделай релиз"). Invoke as /release.
+description: Cut a ByteRipperWeb release — set the version to the upstream release the port was last brought level with, build the Windows build and check it, write the notes, tag, push and publish the GitHub release. Use when asked to make, cut or publish a release, or to prepare one ("сделай релиз"). Invoke as /release.
 ---
 
 # Releasing ByteRipperWeb
 
-A release is an annotated tag on `main` and a GitHub release carrying six
+A release is an annotated tag on `main` and a GitHub release carrying five
 files:
 
-- **`ByteRipperWeb-<version>.html`** — the whole app in one page, to keep on a
-  stick or send to a bench and open from disk;
 - **`ByteRipper-<version>-setup.exe`**, **`ByteRipper-<version>-portable.exe`**
   and **`ByteRipper-<version>-win.zip`** — the optional Windows build
   (`desktop/`, D15). The setup is the one that starts fast and the one the
@@ -19,6 +17,13 @@ files:
   public key the build carries (`desktop/release-key.cjs`). All three names are
   looked up by the installed app in the release it updates to, so they must be
   spelled exactly so.
+
+**The single-file page is not published.** `npm run build:single`
+(`ByteRipperWeb-<version>.html`, the whole app in one file to open from disk)
+still builds, but it is no release asset and the release script does not make
+it: the browser's edition of a release is the hosted page (below). Do not
+attach it, and do not mention it in the notes (the owner's decision,
+2026-11-08).
 
 **The signing key is never on GitHub.** It lives at
 `~/.config/byteripperweb/release-ed25519.pem` (or `$BYTERIPPER_SIGNING_KEY`),
@@ -56,8 +61,7 @@ The mechanical parts are a script; the notes are the work.
 ```bash
 python3 Skills/release/scripts/release.py version          # upstream's version into the package files
 python3 Skills/release/scripts/release.py version --check  # or only check them
-python3 Skills/release/scripts/release.py build            # release/<version>/: the page, the setup, the .exe, the .zip, SHA256SUMS(.sig)
-python3 Skills/release/scripts/release.py build --skip-html  # the same without the single-file page
+python3 Skills/release/scripts/release.py build            # release/<version>/: the setup, the .exe, the .zip, SHA256SUMS(.sig)
 ```
 
 ## Steps
@@ -97,20 +101,12 @@ python3 Skills/release/scripts/release.py build
 Runs `npm run check` and both help checks first (`--skip-checks` to leave them
 out when they have just run), then:
 
-- `npm run build:single` — one HTML file holding the script, the stylesheet,
-  the four workers (as classic workers from `blob:` URLs) and every lazily
-  loaded help page and catalogue. The script refuses a page that still loads a
-  file of its own or lacks the version.
 - `npm run dist:win` in `desktop/` — x64 setup, portable `.exe` and `.zip`, with
   upstream's icon (`desktop/make-icon.py`); the script checks the icon is in
   the executable. It is cross-built on the Mac and not signed.
 
 Everything lands in `release/<version>/` (git-ignored) with `SHA256SUMS`, signed
 and the signature checked against the build's public key.
-
-**Open the page from disk once** before publishing — the driver does it:
-`node Skills/run-byteripperweb/scripts/drive.mjs open <dump> --tool UEFI --url file://$PWD/release/<version>/ByteRipperWeb-<version>.html`.
-What a page opened from disk cannot do, it says in the notes (see below).
 
 ### 4. The release notes
 
@@ -145,8 +141,7 @@ git add package.json package-lock.json
 git commit      # "Set <version>, the upstream release this edition is level with"
 git tag -a v<version> -m "ByteRipperWeb <version>"
 git push origin main v<version>
-gh release create v<version> release/<version>/ByteRipperWeb-<version>.html \
-    release/<version>/ByteRipper-<version>-setup.exe \
+gh release create v<version> release/<version>/ByteRipper-<version>-setup.exe \
     release/<version>/ByteRipper-<version>-portable.exe \
     release/<version>/ByteRipper-<version>-win.zip release/<version>/SHA256SUMS \
     release/<version>/SHA256SUMS.sig \
@@ -162,7 +157,7 @@ Publishing is outward-facing: confirm with the owner before `git push` and
 gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 ```
 
-Six assets, the tag is the latest release, and the CI run on the tagged
+Five assets — no `.html` among them — the tag is the latest release, and the CI run on the tagged
 commit is green (`gh run list --limit 3`). The *Deploy to Pages* run for the
 tag has finished, and https://maxshevelev.github.io/ByteRipperWeb/ says
 "ByteRipper <version>" on its landing screen. Report the release URL.

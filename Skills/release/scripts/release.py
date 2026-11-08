@@ -16,11 +16,8 @@ package-lock.json; desktop/ takes it from them) and prints what it changed. With
 --check it writes nothing and fails if any of them disagrees with the others
 or names another upstream release.
 
-`build` makes the two things a release ships, and checks both before anything
-could be published:
-  - ByteRipperWeb-<version>.html — the whole app in one file (`npm run
-    build:single`), checked for the version and for anything it would still
-    have to fetch;
+`build` makes what a release ships, and checks it before anything could be
+published:
   - ByteRipper-<version>-setup.exe, -portable.exe and -win.zip — the Windows
     build (desktop/, `npm run dist:win`), checked for the version in their
     names and for upstream's icon inside the executable. The setup,
@@ -31,6 +28,9 @@ Ed25519 signature, SHA256SUMS.sig, made with the key outside the repository
 ($BYTERIPPER_SIGNING_KEY, or ~/.config/byteripperweb/release-ed25519.pem) and
 checked against desktop/release-key.cjs, the public half the Windows build
 carries. `keygen` makes that pair, once.
+
+The single-file page (`npm run build:single`) is not built here: a release
+does not publish it. The hosted page is the browser's edition.
 
 Standard library only, like every script under Skills/.
 """
@@ -175,19 +175,6 @@ def run(command: list[str], cwd: Path) -> None:
         fail(f"{' '.join(command)} failed")
 
 
-def check_html(page: Path, version: str) -> None:
-    text = page.read_text(encoding="utf-8")
-    # What the landing screen says: the build folds the name and the number
-    # into one string.
-    if f"ByteRipper {version}" not in text:
-        fail(f"{page.name} does not say ByteRipper {version}")
-    # Anything the page would still ask for: a page opened from disk cannot.
-    if re.search(r'<(?:script|link)[^>]+(?:src|href)="(?!data:)[^"]+"', text):
-        fail(f"{page.name} still loads a file of its own")
-    if "__VITE_PRELOAD__" in text:
-        fail(f"{page.name} carries an unfilled preload placeholder")
-
-
 def check_windows(exe: Path) -> None:
     icon = upstream_repo() / ICON
     if icon.exists() and icon.read_bytes() not in exe.read_bytes():
@@ -207,7 +194,7 @@ def cmd_keygen() -> None:
     run(["node", str(SIGN), "keygen", str(signing_key()), str(PUBLIC_KEY)], ROOT)
 
 
-def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
+def cmd_build(out: Path | None, skip_checks: bool) -> None:
     version = cmd_version(check=True)
     # Asked first: a build that cannot be signed is a build the installed copies refuse.
     if not signing_key().exists():
@@ -219,13 +206,6 @@ def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
         run(["npm", "run", "check"], ROOT)
         run(["python3", "Skills/help-coverage/scripts/help_coverage.py", "--quiet"], ROOT)
         run(["python3", "Skills/help-names/scripts/help_names.py"], ROOT)
-
-    # The single-file page is left out while what a page opened from disk can
-    # not reach — files — is being sorted out (`--skip-html`).
-    single = ROOT / "dist-single" / "index.html"
-    if not skip_html:
-        run(["npm", "run", "build:single"], ROOT)
-        check_html(single, version)
 
     if not (DESKTOP / "node_modules" / "electron" / "path.txt").exists():
         run(["npm", "install"], DESKTOP)
@@ -243,7 +223,6 @@ def cmd_build(out: Path | None, skip_checks: bool, skip_html: bool) -> None:
     shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True)
     shipped = [
-        *([] if skip_html else [shutil.copy2(single, target / f"ByteRipperWeb-{version}.html")]),
         shutil.copy2(setup, target / setup.name),
         shutil.copy2(portable, target / portable.name),
         shutil.copy2(archive, target / archive.name),
@@ -269,10 +248,9 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     version = sub.add_parser("version", help="set the version to upstream's at the port baseline")
     version.add_argument("--check", action="store_true", help="change nothing; fail if any file disagrees")
-    build = sub.add_parser("build", help="build and check the single-file page and the Windows build")
+    build = sub.add_parser("build", help="build and check the Windows build")
     build.add_argument("--out", type=Path, help="where the artifacts go (default release/<version>/)")
     build.add_argument("--skip-checks", action="store_true", help="skip the test, lint and help checks")
-    build.add_argument("--skip-html", action="store_true", help="leave the single-file page out of the release")
     sub.add_parser("keygen", help="make the key the releases are signed with (once)")
     args = parser.parse_args()
     if args.command == "version":
@@ -280,7 +258,7 @@ def main() -> None:
     elif args.command == "keygen":
         cmd_keygen()
     else:
-        cmd_build(args.out, args.skip_checks, args.skip_html)
+        cmd_build(args.out, args.skip_checks)
 
 
 main()

@@ -1,10 +1,5 @@
 ---
 
-**The page** (`ByteRipperWeb-<version>.html`) is the whole app in one file:
-open it in Chrome or Edge from disk, no installation and no server. Files
-never leave the machine. Opened from disk, a page has no private storage, so
-**File ▸ Duplicate** needs the hosted page or the Windows build.
-
 **Windows** (`ByteRipper-<version>-setup.exe` installs it for the current user
 and starts fastest; `-portable.exe` and the `.zip` need no installation): the
 same app in a window of its own, x64. **Help ▸ Check for Update…** installs the
