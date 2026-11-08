@@ -60,8 +60,6 @@ import { EMPTY_ZONES, type Zone, type ZoneMap } from "@/tools/zone";
  * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITRowCommand
  */
 export type FITRowCommand =
-  /** The number a bench writes down and looks up. */
-  | { readonly kind: "copyCPUID"; readonly cpuid: string }
   /** Go to what the row points at, and put it in focus. */
   | { readonly kind: "goToOffset"; readonly offset: number }
   /**
@@ -84,8 +82,6 @@ export type FITRowCommand =
 /** @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITRowCommand.title */
 export function fitCommandTitle(command: FITRowCommand): string {
   switch (command.kind) {
-    case "copyCPUID":
-      return L("Copy CPUID");
     // What the double-click does, said in the menu: where the entry leads.
     case "goToOffset":
       return L("Show Target");
@@ -275,20 +271,20 @@ export const zoneToFocus = (row: FITDisplayRow): string =>
 /**
  * What the right-button menu offers here. Every row leads with its offset —
  * going where the row points is the point of the row — and a row that leads to
- * microcode offers the CPUID, its replacement, and — when it may go — its
- * removal. The checksum fix is offered on the header row, where the byte lives,
- * when it is needed.
+ * microcode offers its replacement and — when it may go — its removal. The CPUID
+ * is not an item: the lines under the row are text to select and copy. The
+ * checksum fix is offered on the header row, where the byte lives, when it is
+ * needed.
  *
  * A value rather than a menu, so what is on offer is decided here and unit
  * tested: the panel builds items from this and nothing more. An item that does
  * not apply to the row is *absent* rather than present and greyed — a greyed
- * "Copy CPUID" on the header row explains nothing.
+ * "Remove Microcode" on the header row explains nothing.
  *
  * @upstream Modules/FITTool/Sources/FITTool/FITDisplay.swift#FITDisplayRow.commands
  */
 export function rowCommands(row: FITDisplayRow): FITRowCommand[] {
   const commands: FITRowCommand[] = [{ kind: "goToOffset", offset: offsetToGoTo(row) }];
-  if (row.cpuidText !== undefined) commands.push({ kind: "copyCPUID", cpuid: row.cpuidText });
   if (row.canReplace) commands.push({ kind: "replaceMicrocode", index: row.index });
   if (row.canRemove) commands.push({ kind: "removeMicrocode", index: row.index });
   if (row.checksumFixAvailable) commands.push({ kind: "fixChecksum" });

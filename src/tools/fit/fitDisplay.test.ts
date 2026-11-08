@@ -126,7 +126,7 @@ describe("the rows", () => {
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowSaysItsRevisionAndOpensIntoItsCpuid
   it("says a microcode row's revision, and opens it into its CPUID", () => {
     // Its CPUID — hex digits, no leading zero, the way a bench writes it — is
-    // the row it opens into, and what Copy CPUID copies.
+    // the row it opens into.
     const row = display([microcodeRow]).rows[1];
 
     expect(row?.typeText).toBe("Microcode");
@@ -163,7 +163,7 @@ describe("the rows", () => {
     });
     const row = shown.rows[1];
 
-    // Copy CPUID copies the header's own.
+    // The header's own.
     expect(row?.cpuidText).toBe("B06A2");
     expect(row?.cpuids).toEqual([0x000b_06a2, 0x000b_06a3, 0x000b_06a8]);
     expect(row?.targetText).toBe("r.F0 · 2019-07-15 · platform 01");
@@ -370,7 +370,7 @@ describe("the zones", () => {
 
 describe("the right-button menu", () => {
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testAMicrocodeRowOffersItsCpuidAndItsOffset
-  it("offers a microcode row its CPUID and its offset", () => {
+  it("offers a microcode row its target and its replacement", () => {
     // An item that does not apply to the row is absent rather than greyed. The
     // one microcode may be replaced but not removed: the slot stays, so the
     // one-microcode rule is not touched by a swap.
@@ -378,14 +378,9 @@ describe("the right-button menu", () => {
 
     expect(commands).toEqual([
       { kind: "goToOffset", offset: MICROCODE },
-      { kind: "copyCPUID", cpuid: "806EA" },
       { kind: "replaceMicrocode", index: 1 },
     ]);
-    expect(commands.map(fitCommandTitle)).toEqual([
-      "Show Target",
-      "Copy CPUID",
-      "Replace Microcode",
-    ]);
+    expect(commands.map(fitCommandTitle)).toEqual(["Show Target", "Replace Microcode"]);
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/FITDisplayTests.swift#FITDisplayTests.testEveryMicrocodeRowOffersItsReplacement

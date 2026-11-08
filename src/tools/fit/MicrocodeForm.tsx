@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { L, localized } from "@/core/localization/localization";
+import {
+  catalogueProcessorGroup,
+  FitProcessorsPopover,
+  ProcessorsInfoMark,
+} from "@/tools/fit/FitProcessorsPopover";
 import { type MicrocodeCatalogueEntry, platformText } from "@/tools/fit/microcodeCatalogue";
 import {
   actionTitle,
@@ -13,6 +18,7 @@ import {
   shownEntries,
   sizeText,
 } from "@/tools/fit/microcodeFormModel";
+import type { FITProcessorGroup } from "@/tools/fit/processorNames";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -37,7 +43,8 @@ export interface MicrocodeFormStatus {
 const COLUMNS = localized(
   () =>
     [
-      { title: L("CPUID"), width: 83 },
+      // Room for the CPUID and the `ⓘ` after it.
+      { title: L("CPUID"), width: 109 },
       { title: L("Plat", { context: "column" }), width: 54 },
       { title: L("Revision"), width: 87 },
       { title: L("Date"), width: 106 },
@@ -79,6 +86,17 @@ export function MicrocodeForm({
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * The processors' popover a CPUID's `ⓘ` opened — one at a time.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.processorsPopover
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.showProcessors
+   */
+  // help: fit.processors
+  const [processors, setProcessors] = useState<
+    { readonly group: FITProcessorGroup; readonly anchor: HTMLElement } | undefined
+  >(undefined);
+  const closeProcessors = useCallback(() => setProcessors(undefined), []);
   const observerRef = useRef<ResizeObserver | null>(null);
 
   const shown = useMemo(
@@ -230,7 +248,12 @@ export function MicrocodeForm({
                     if (!busy) onPick(one);
                   }}
                 >
-                  <td>{one.cpuidText}</td>
+                  <td>
+                    <CatalogueCpuid
+                      entry={one}
+                      onInfo={(group, anchor) => setProcessors({ group, anchor })}
+                    />
+                  </td>
                   <td>{platformText(one)}</td>
                   <td>{one.revisionText}</td>
                   <td>{one.date}</td>
@@ -272,6 +295,46 @@ export function MicrocodeForm({
           </button>
         </div>
       </div>
+      {/* Inside the form: a modal dialog leaves everything outside it inert. */}
+      {processors === undefined ? null : (
+        <FitProcessorsPopover
+          group={processors.group}
+          anchor={processors.anchor}
+          onClose={closeProcessors}
+        />
+      )}
     </Dialog>
+  );
+}
+
+/**
+ * The CPUID column's cell: the CPUID, and right after it the `ⓘ` that opens the
+ * processors behind it — only where the table of brand names knows any, and
+ * never for another vendor's.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell.show
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell.group
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell.infoButton
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell.infoColor
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITCatalogueCPUIDCell.backgroundStyle
+ * @upstream-differs the colour on a selected row is the stylesheet's: the selected row's rule
+ * gives every button and glyph in it the selection's text colour
+ */
+function CatalogueCpuid({
+  entry,
+  onInfo,
+}: {
+  readonly entry: MicrocodeCatalogueEntry;
+  readonly onInfo: (group: FITProcessorGroup, anchor: HTMLElement) => void;
+}) {
+  const group = catalogueProcessorGroup(entry.cpuid, entry.vendor);
+  return (
+    <span className="microcode-cpuid">
+      {entry.cpuidText}
+      {group === undefined ? null : (
+        <ProcessorsInfoMark onOpen={(anchor) => onInfo(group, anchor)} />
+      )}
+    </span>
   );
 }

@@ -2,13 +2,13 @@
   "source": {
     "url": "https://comsystem-tlt.ru/obzori/primenenie-cpuid-na-praktike-dlja-zameni-soc--kombajnov-",
     "title": "Применение CPUID на практике для замены SoC-комбайнов",
-    "retrieved": "2026-11-06"
+    "retrieved": "2026-11-07"
   },
-  "about": "CPUID (family-model-stepping, as a microcode update's header and its file name write it) to the processors sold with it. An X in a CPUID stands for any one hexadecimal digit. The list is the source's and is not complete; a CPUID can appear in more than one entry. sSpec lists the article's codes and those added from sSpecSources; sSpecSource says, for each added code, which.",
+  "about": "CPUID (family-model-stepping, as a microcode update's header and its file name write it) to the processors sold with it. An X in a CPUID stands for any one hexadecimal digit. The list is the source's and is not complete; a CPUID can appear in more than one entry. An entry with source \"extra\" is not the article's: it is from Skills/update-cpuid-brand-names/scripts/extra-entries.json, which gives each fact's page. sSpec lists the article's codes and those added from sSpecSources; sSpecSource says, for each added code, which.",
   "sSpecSources": {
     "ark": {
       "about": "Intel ARK, the Ordering & Compliance tab of each model's page; the URL per model is in Skills/update-cpuid-brand-names/scripts/ark-sspec.json",
-      "retrieved": "2026-11-06"
+      "retrieved": "2026-11-07"
     },
     "wikipedia": {
       "pages": [
@@ -78,6 +78,12 @@
           "url": "https://en.wikipedia.org/w/index.php?oldid=1377207682"
         }
       ]
+    },
+    "intel": {
+      "about": "an Intel document other than ARK's ordering tab (a specification update, a datasheet, a product change notification) that gives the code for the model; the page per code is in Skills/update-cpuid-brand-names/scripts/found-sspec.json"
+    },
+    "database": {
+      "about": "an S-SPEC database page that gives the code with its stepping or CPUID; the page per code is in Skills/update-cpuid-brand-names/scripts/found-sspec.json"
     },
     "steppings": {
       "about": "stepping per CPUID, from Intel's microcode release notes",
@@ -560,19 +566,39 @@
       "processors": [
         {
           "name": "Intel Core m7-6Y75",
-          "sSpec": []
+          "sSpec": [
+            "SR2EH"
+          ],
+          "sSpecSource": {
+            "SR2EH": "ark"
+          }
         },
         {
           "name": "Intel Core m5-6Y54",
-          "sSpec": []
+          "sSpec": [
+            "SR2EM"
+          ],
+          "sSpecSource": {
+            "SR2EM": "ark"
+          }
         },
         {
           "name": "Intel Core m5-6Y57",
-          "sSpec": []
+          "sSpec": [
+            "SR2EG"
+          ],
+          "sSpecSource": {
+            "SR2EG": "ark"
+          }
         },
         {
           "name": "Intel Core m3-6Y30",
-          "sSpec": []
+          "sSpec": [
+            "SR2EN"
+          ],
+          "sSpecSource": {
+            "SR2EN": "ark"
+          }
         },
         {
           "name": "Intel Pentium 4405Y",
@@ -1215,11 +1241,21 @@
         },
         {
           "name": "Intel Xeon Platinum 8160F",
-          "sSpec": []
+          "sSpec": [
+            "SR3KG"
+          ],
+          "sSpecSource": {
+            "SR3KG": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8160M",
-          "sSpec": []
+          "sSpec": [
+            "SR3B8"
+          ],
+          "sSpecSource": {
+            "SR3B8": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8160T",
@@ -1882,7 +1918,12 @@
         },
         {
           "name": "Intel Core i9-7980XE",
-          "sSpec": []
+          "sSpec": [
+            "SR3RS"
+          ],
+          "sSpecSource": {
+            "SR3RS": "ark"
+          }
         },
         {
           "name": "Intel Core i9-7900X",
@@ -2119,19 +2160,39 @@
         },
         {
           "name": "Intel Xeon Platinum 9221",
-          "sSpec": []
+          "sSpec": [
+            "SRGLK"
+          ],
+          "sSpecSource": {
+            "SRGLK": "intel"
+          }
         },
         {
           "name": "Intel Xeon Platinum 9222",
-          "sSpec": []
+          "sSpec": [
+            "SRGLJ"
+          ],
+          "sSpecSource": {
+            "SRGLJ": "intel"
+          }
         },
         {
           "name": "Intel Xeon Platinum 9242",
-          "sSpec": []
+          "sSpec": [
+            "SRF3L"
+          ],
+          "sSpecSource": {
+            "SRF3L": "intel"
+          }
         },
         {
           "name": "Intel Xeon Platinum 9282",
-          "sSpec": []
+          "sSpec": [
+            "SRF3N"
+          ],
+          "sSpecSource": {
+            "SRF3N": "intel"
+          }
         },
         {
           "name": "Intel Xeon Gold 5215",
@@ -2852,15 +2913,30 @@
         },
         {
           "name": "Intel Core i9-10940X",
-          "sSpec": []
+          "sSpec": [
+            "SRGSH"
+          ],
+          "sSpecSource": {
+            "SRGSH": "intel"
+          }
         },
         {
           "name": "Intel Core i9-10920X",
-          "sSpec": []
+          "sSpec": [
+            "SRGSJ"
+          ],
+          "sSpecSource": {
+            "SRGSJ": "intel"
+          }
         },
         {
           "name": "Intel Core i9-10900X",
-          "sSpec": []
+          "sSpec": [
+            "SRGV7"
+          ],
+          "sSpecSource": {
+            "SRGV7": "intel"
+          }
         },
         {
           "name": "Intel Core i9-9960X",
@@ -2939,63 +3015,140 @@
       "processors": [
         {
           "name": "Intel Xeon Platinum 8380HL",
-          "sSpec": []
+          "sSpec": [
+            "SRJXR"
+          ],
+          "sSpecSource": {
+            "SRJXR": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8380H",
-          "sSpec": []
+          "sSpec": [
+            "SRJXQ"
+          ],
+          "sSpecSource": {
+            "SRJXQ": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8376HL",
-          "sSpec": []
+          "sSpec": [
+            "SRJXT"
+          ],
+          "sSpecSource": {
+            "SRJXT": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8376H",
-          "sSpec": []
+          "sSpec": [
+            "SRJXS"
+          ],
+          "sSpecSource": {
+            "SRJXS": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8360HL",
-          "sSpec": []
+          "sSpec": [
+            "SRK58"
+          ],
+          "sSpecSource": {
+            "SRK58": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8360H",
-          "sSpec": []
+          "sSpec": [
+            "SRK59"
+          ],
+          "sSpecSource": {
+            "SRK59": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8356H",
-          "sSpec": []
+          "sSpec": [
+            "SRK57"
+          ],
+          "sSpecSource": {
+            "SRK57": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8354H",
-          "sSpec": []
+          "sSpec": [
+            "SRK5Y"
+          ],
+          "sSpecSource": {
+            "SRK5Y": "ark"
+          }
         },
         {
           "name": "Intel Xeon Platinum 8353H",
-          "sSpec": []
+          "sSpec": [
+            "SRJY2"
+          ],
+          "sSpecSource": {
+            "SRJY2": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 6348H",
-          "sSpec": []
+          "sSpec": [
+            "SRJXX"
+          ],
+          "sSpecSource": {
+            "SRJXX": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 6330H",
-          "sSpec": []
+          "sSpec": [
+            "SRK5A"
+          ],
+          "sSpecSource": {
+            "SRK5A": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 6328HL",
-          "sSpec": []
+          "sSpec": [
+            "SRJXZ"
+          ],
+          "sSpecSource": {
+            "SRJXZ": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 6328H",
-          "sSpec": []
+          "sSpec": [
+            "SRJXY"
+          ],
+          "sSpecSource": {
+            "SRJXY": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 5320H",
-          "sSpec": []
+          "sSpec": [
+            "SRJY1"
+          ],
+          "sSpecSource": {
+            "SRJY1": "ark"
+          }
         },
         {
           "name": "Intel Xeon Gold 5318H",
-          "sSpec": []
+          "sSpec": [
+            "SRJY3",
+            "SRJGD"
+          ],
+          "sSpecSource": {
+            "SRJY3": "ark",
+            "SRJGD": "ark"
+          }
         }
       ]
     },
@@ -3851,131 +4004,305 @@
         },
         {
           "name": "Intel Core i7-6700HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2FQ",
+            "SR2SL"
+          ],
+          "sSpecSource": {
+            "SR2FQ": "ark",
+            "SR2SL": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6770HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2QY"
+          ],
+          "sSpecSource": {
+            "SR2QY": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6820HK",
-          "sSpec": []
+          "sSpec": [
+            "SR2FL"
+          ],
+          "sSpecSource": {
+            "SR2FL": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6820HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2FU"
+          ],
+          "sSpecSource": {
+            "SR2FU": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6870HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2QX"
+          ],
+          "sSpecSource": {
+            "SR2QX": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6920HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2FT"
+          ],
+          "sSpecSource": {
+            "SR2FT": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6970HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2QW"
+          ],
+          "sSpecSource": {
+            "SR2QW": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6300HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2FP",
+            "SR2SK"
+          ],
+          "sSpecSource": {
+            "SR2FP": "ark",
+            "SR2SK": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6350HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2QZ"
+          ],
+          "sSpecSource": {
+            "SR2QZ": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6440HQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2FS"
+          ],
+          "sSpecSource": {
+            "SR2FS": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6100H",
-          "sSpec": []
+          "sSpec": [
+            "SR2FR"
+          ],
+          "sSpecSource": {
+            "SR2FR": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6700",
-          "sSpec": []
+          "sSpec": [
+            "SR2L2"
+          ],
+          "sSpecSource": {
+            "SR2L2": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6700K",
-          "sSpec": []
+          "sSpec": [
+            "SR2L0"
+          ],
+          "sSpecSource": {
+            "SR2L0": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6700T",
-          "sSpec": []
+          "sSpec": [
+            "SR2L3",
+            "SR2BU"
+          ],
+          "sSpecSource": {
+            "SR2L3": "ark",
+            "SR2BU": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6700TE",
-          "sSpec": []
+          "sSpec": [
+            "SR2LP"
+          ],
+          "sSpecSource": {
+            "SR2LP": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6820EQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2DT"
+          ],
+          "sSpecSource": {
+            "SR2DT": "ark"
+          }
         },
         {
           "name": "Intel Core i7-6822EQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2DW"
+          ],
+          "sSpecSource": {
+            "SR2DW": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6400",
-          "sSpec": []
+          "sSpec": [
+            "SR2L7",
+            "SR2BY"
+          ],
+          "sSpecSource": {
+            "SR2L7": "ark",
+            "SR2BY": "intel"
+          }
         },
         {
           "name": "Intel Core i5-6400T",
-          "sSpec": []
+          "sSpec": [
+            "SR2L1",
+            "SR2BS"
+          ],
+          "sSpecSource": {
+            "SR2L1": "ark",
+            "SR2BS": "intel"
+          }
         },
         {
           "name": "Intel Core i5-6440EQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2DU"
+          ],
+          "sSpecSource": {
+            "SR2DU": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6442EQ",
-          "sSpec": []
+          "sSpec": [
+            "SR2DY"
+          ],
+          "sSpecSource": {
+            "SR2DY": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6500",
-          "sSpec": []
+          "sSpec": [
+            "SR2L6",
+            "SR2BX"
+          ],
+          "sSpecSource": {
+            "SR2L6": "ark",
+            "SR2BX": "intel"
+          }
         },
         {
           "name": "Intel Core i5-6500T",
-          "sSpec": []
+          "sSpec": [
+            "SR2L8",
+            "SR2BZ"
+          ],
+          "sSpecSource": {
+            "SR2L8": "ark",
+            "SR2BZ": "intel"
+          }
         },
         {
           "name": "Intel Core i5-6500TE",
-          "sSpec": []
+          "sSpec": [
+            "SR2LR"
+          ],
+          "sSpecSource": {
+            "SR2LR": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6600",
-          "sSpec": []
+          "sSpec": [
+            "SR2L5"
+          ],
+          "sSpecSource": {
+            "SR2L5": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6600K",
-          "sSpec": []
+          "sSpec": [
+            "SR2L4"
+          ],
+          "sSpecSource": {
+            "SR2L4": "ark"
+          }
         },
         {
           "name": "Intel Core i5-6600T",
-          "sSpec": []
+          "sSpec": [
+            "SR2L9"
+          ],
+          "sSpecSource": {
+            "SR2L9": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6100",
-          "sSpec": []
+          "sSpec": [
+            "SR2HG"
+          ],
+          "sSpecSource": {
+            "SR2HG": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6100E",
-          "sSpec": []
+          "sSpec": [
+            "SR2DV"
+          ],
+          "sSpecSource": {
+            "SR2DV": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6100T",
-          "sSpec": []
+          "sSpec": [
+            "SR2HE"
+          ],
+          "sSpecSource": {
+            "SR2HE": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6100TE",
-          "sSpec": []
+          "sSpec": [
+            "SR2LS"
+          ],
+          "sSpecSource": {
+            "SR2LS": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6102E",
-          "sSpec": []
+          "sSpec": [
+            "SR2DX"
+          ],
+          "sSpecSource": {
+            "SR2DX": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6120",
@@ -3987,15 +4314,30 @@
         },
         {
           "name": "Intel Core i3-6300",
-          "sSpec": []
+          "sSpec": [
+            "SR2HA"
+          ],
+          "sSpecSource": {
+            "SR2HA": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6300T",
-          "sSpec": []
+          "sSpec": [
+            "SR2HD"
+          ],
+          "sSpecSource": {
+            "SR2HD": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6320",
-          "sSpec": []
+          "sSpec": [
+            "SR2H9"
+          ],
+          "sSpecSource": {
+            "SR2H9": "ark"
+          }
         },
         {
           "name": "Intel Core i3-6320T",
@@ -4540,83 +4882,223 @@
         },
         {
           "name": "Intel Xeon D-1702",
-          "sSpec": []
+          "sSpec": [
+            "SRLC5",
+            "SRM1N"
+          ],
+          "sSpecSource": {
+            "SRLC5": "intel",
+            "SRM1N": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1712TR",
-          "sSpec": []
+          "sSpec": [
+            "SRLBZ",
+            "SRM1G"
+          ],
+          "sSpecSource": {
+            "SRLBZ": "intel",
+            "SRM1G": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1713NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLBS",
+            "SRM19"
+          ],
+          "sSpecSource": {
+            "SRLBS": "intel",
+            "SRM19": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1713NTE",
-          "sSpec": []
+          "sSpec": [
+            "SRLBT",
+            "SRM1A"
+          ],
+          "sSpecSource": {
+            "SRLBT": "intel",
+            "SRM1A": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1714",
-          "sSpec": []
+          "sSpec": [
+            "SRLC0",
+            "SRM1H"
+          ],
+          "sSpecSource": {
+            "SRLC0": "intel",
+            "SRM1H": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1715TER",
-          "sSpec": []
+          "sSpec": [
+            "SRLBX",
+            "SRM1E"
+          ],
+          "sSpecSource": {
+            "SRLBX": "intel",
+            "SRM1E": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1718T",
-          "sSpec": []
+          "sSpec": [
+            "SRLBY",
+            "SRM1F"
+          ],
+          "sSpecSource": {
+            "SRLBY": "intel",
+            "SRM1F": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1722NE",
-          "sSpec": []
+          "sSpec": [
+            "SRLC4",
+            "SRM1M"
+          ],
+          "sSpecSource": {
+            "SRLC4": "intel",
+            "SRM1M": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1726",
-          "sSpec": []
+          "sSpec": [
+            "SRLC3",
+            "SRM1L"
+          ],
+          "sSpecSource": {
+            "SRLC3": "intel",
+            "SRM1L": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1732TE",
-          "sSpec": []
+          "sSpec": [
+            "SRLBW",
+            "SRM1D"
+          ],
+          "sSpecSource": {
+            "SRLBW": "intel",
+            "SRM1D": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1733NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLBR",
+            "SRM17"
+          ],
+          "sSpecSource": {
+            "SRLBR": "intel",
+            "SRM17": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1734NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLC7",
+            "SRM1Q"
+          ],
+          "sSpecSource": {
+            "SRLC7": "intel",
+            "SRM1Q": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1735TR",
-          "sSpec": []
+          "sSpec": [
+            "SRLBV",
+            "SRM1C"
+          ],
+          "sSpecSource": {
+            "SRLBV": "intel",
+            "SRM1C": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1736",
-          "sSpec": []
+          "sSpec": [
+            "SRLC2",
+            "SRM1K"
+          ],
+          "sSpecSource": {
+            "SRLC2": "intel",
+            "SRM1K": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1736NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLBQ",
+            "SRM16"
+          ],
+          "sSpecSource": {
+            "SRLBQ": "intel",
+            "SRM16": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1739",
-          "sSpec": []
+          "sSpec": [
+            "SRLC1",
+            "SRM1J"
+          ],
+          "sSpecSource": {
+            "SRLC1": "intel",
+            "SRM1J": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1746TER",
-          "sSpec": []
+          "sSpec": [
+            "SRLBU",
+            "SRM1B"
+          ],
+          "sSpecSource": {
+            "SRLBU": "intel",
+            "SRM1B": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1747NTE",
-          "sSpec": []
+          "sSpec": [
+            "SRLC6",
+            "SRM1P"
+          ],
+          "sSpecSource": {
+            "SRLC6": "intel",
+            "SRM1P": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1748TE",
-          "sSpec": []
+          "sSpec": [
+            "SRLC8",
+            "SRM1R"
+          ],
+          "sSpecSource": {
+            "SRLC8": "intel",
+            "SRM1R": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-1749NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLBP",
+            "SRM15"
+          ],
+          "sSpecSource": {
+            "SRLBP": "intel",
+            "SRM15": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2123IT",
@@ -4676,83 +5158,223 @@
         },
         {
           "name": "Intel Xeon D-2712T",
-          "sSpec": []
+          "sSpec": [
+            "SRLCK",
+            "SRM22"
+          ],
+          "sSpecSource": {
+            "SRLCK": "intel",
+            "SRM22": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2733NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCJ",
+            "SRM21"
+          ],
+          "sSpecSource": {
+            "SRLCJ": "intel",
+            "SRM21": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2738",
-          "sSpec": []
+          "sSpec": [
+            "SRLCQ",
+            "SRM29"
+          ],
+          "sSpecSource": {
+            "SRLCQ": "intel",
+            "SRM29": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2745NX",
-          "sSpec": []
+          "sSpec": [
+            "SRLCC",
+            "SRM1V"
+          ],
+          "sSpecSource": {
+            "SRLCC": "intel",
+            "SRM1V": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2752NTE",
-          "sSpec": []
+          "sSpec": [
+            "SRLCG",
+            "SRM1Z"
+          ],
+          "sSpecSource": {
+            "SRLCG": "intel",
+            "SRM1Z": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2752TER",
-          "sSpec": []
+          "sSpec": [
+            "SRLCN",
+            "SRM27"
+          ],
+          "sSpecSource": {
+            "SRLCN": "intel",
+            "SRM27": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2753NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCH",
+            "SRM20"
+          ],
+          "sSpecSource": {
+            "SRLCH": "intel",
+            "SRM20": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2757NX",
-          "sSpec": []
+          "sSpec": [
+            "SRLCB",
+            "SRM1U"
+          ],
+          "sSpecSource": {
+            "SRLCB": "intel",
+            "SRM1U": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2766NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCS",
+            "SRM2B"
+          ],
+          "sSpecSource": {
+            "SRLCS": "intel",
+            "SRM2B": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2775TE",
-          "sSpec": []
+          "sSpec": [
+            "SRLCM",
+            "SRM26"
+          ],
+          "sSpecSource": {
+            "SRLCM": "intel",
+            "SRM26": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2776NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCF",
+            "SRM1Y"
+          ],
+          "sSpecSource": {
+            "SRLCF": "intel",
+            "SRM1Y": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2777NX",
-          "sSpec": []
+          "sSpec": [
+            "SRLCA",
+            "SRM1T"
+          ],
+          "sSpecSource": {
+            "SRLCA": "intel",
+            "SRM1T": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2779",
-          "sSpec": []
+          "sSpec": [
+            "SRLCP",
+            "SRM28"
+          ],
+          "sSpecSource": {
+            "SRLCP": "intel",
+            "SRM28": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2786NTE",
-          "sSpec": []
+          "sSpec": [
+            "SRLCE",
+            "SRM1X"
+          ],
+          "sSpecSource": {
+            "SRLCE": "intel",
+            "SRM1X": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2795NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCU",
+            "SRM2D"
+          ],
+          "sSpecSource": {
+            "SRLCU": "intel",
+            "SRM2D": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2796NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCR",
+            "SRM2A"
+          ],
+          "sSpecSource": {
+            "SRLCR": "intel",
+            "SRM2A": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2796TE",
-          "sSpec": []
+          "sSpec": [
+            "SRLCL",
+            "SRM23"
+          ],
+          "sSpecSource": {
+            "SRLCL": "intel",
+            "SRM23": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2798NT",
-          "sSpec": []
+          "sSpec": [
+            "SRLCD",
+            "SRM1W"
+          ],
+          "sSpecSource": {
+            "SRLCD": "intel",
+            "SRM1W": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2798NX",
-          "sSpec": []
+          "sSpec": [
+            "SRLC9",
+            "SRM1S"
+          ],
+          "sSpecSource": {
+            "SRLC9": "intel",
+            "SRM1S": "intel"
+          }
         },
         {
           "name": "Intel Xeon D-2799",
-          "sSpec": []
+          "sSpec": [
+            "SRLCT",
+            "SRM2C"
+          ],
+          "sSpecSource": {
+            "SRLCT": "intel",
+            "SRM2C": "intel"
+          }
         }
       ]
     },
@@ -5194,11 +5816,25 @@
       "processors": [
         {
           "name": "Intel Core i3-L13G4",
-          "sSpec": []
+          "sSpec": [
+            "SRH4X",
+            "SRJGC"
+          ],
+          "sSpecSource": {
+            "SRH4X": "ark",
+            "SRJGC": "ark"
+          }
         },
         {
           "name": "Intel Core i5-L16G7",
-          "sSpec": []
+          "sSpec": [
+            "SRH4U",
+            "SRJGA"
+          ],
+          "sSpecSource": {
+            "SRH4U": "ark",
+            "SRJGA": "ark"
+          }
         }
       ]
     },
@@ -5537,35 +6173,75 @@
       "processors": [
         {
           "name": "Intel Core i7-11850HE",
-          "sSpec": []
+          "sSpec": [
+            "SRKWZ"
+          ],
+          "sSpecSource": {
+            "SRKWZ": "ark"
+          }
         },
         {
           "name": "Intel Core i3-11100HE",
-          "sSpec": []
+          "sSpec": [
+            "SRKX2"
+          ],
+          "sSpecSource": {
+            "SRKX2": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11865MRE",
-          "sSpec": []
+          "sSpec": [
+            "SRKWX"
+          ],
+          "sSpecSource": {
+            "SRKWX": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11555MRE",
-          "sSpec": []
+          "sSpec": [
+            "SRKWY"
+          ],
+          "sSpecSource": {
+            "SRKWY": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11155MRE",
-          "sSpec": []
+          "sSpec": [
+            "SRKX1"
+          ],
+          "sSpecSource": {
+            "SRKX1": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11555MLE",
-          "sSpec": []
+          "sSpec": [
+            "SRKX3"
+          ],
+          "sSpecSource": {
+            "SRKX3": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11865MLE",
-          "sSpec": []
+          "sSpec": [
+            "SRKX4"
+          ],
+          "sSpecSource": {
+            "SRKX4": "ark"
+          }
         },
         {
           "name": "Intel Xeon W-11155MLE",
-          "sSpec": []
+          "sSpec": [
+            "SRKX5"
+          ],
+          "sSpecSource": {
+            "SRKX5": "ark"
+          }
         },
         {
           "name": "Intel Celeron 6600HE",
@@ -5672,7 +6348,12 @@
         },
         {
           "name": "Intel Core i7-8510Y",
-          "sSpec": []
+          "sSpec": [
+            "SREKN"
+          ],
+          "sSpecSource": {
+            "SREKN": "intel"
+          }
         },
         {
           "name": "Intel Core i7-8550U",
@@ -5690,11 +6371,9 @@
         {
           "name": "Intel Core i5-8210Y",
           "sSpec": [
-            "SREKN",
             "SREKQ"
           ],
           "sSpecSource": {
-            "SREKN": "ark",
             "SREKQ": "ark"
           }
         },
@@ -6184,15 +6863,32 @@
         },
         {
           "name": "Intel Core i7-10510Y",
-          "sSpec": []
+          "sSpec": [
+            "SRGSC"
+          ],
+          "sSpecSource": {
+            "SRGSC": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10310Y",
-          "sSpec": []
+          "sSpec": [
+            "SRGKS"
+          ],
+          "sSpecSource": {
+            "SRGKS": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10210Y",
-          "sSpec": []
+          "sSpec": [
+            "SRGKT",
+            "SRGSD"
+          ],
+          "sSpecSource": {
+            "SRGKT": "ark",
+            "SRGSD": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10110Y",
@@ -6267,7 +6963,12 @@
         },
         {
           "name": "Intel Celeron J6413",
-          "sSpec": []
+          "sSpec": [
+            "SRKL7"
+          ],
+          "sSpecSource": {
+            "SRKL7": "ark"
+          }
         },
         {
           "name": "Intel Celeron J6412",
@@ -6280,7 +6981,12 @@
         },
         {
           "name": "Intel Celeron N6211",
-          "sSpec": []
+          "sSpec": [
+            "SRKL9"
+          ],
+          "sSpecSource": {
+            "SRKL9": "ark"
+          }
         },
         {
           "name": "Intel Atom x6211E",
@@ -6423,59 +7129,129 @@
         },
         {
           "name": "Intel Core i9-12900K",
-          "sSpec": []
+          "sSpec": [
+            "SRL4H"
+          ],
+          "sSpecSource": {
+            "SRL4H": "ark"
+          }
         },
         {
           "name": "Intel Core i9-12900KF",
-          "sSpec": []
+          "sSpec": [
+            "SRL4J"
+          ],
+          "sSpecSource": {
+            "SRL4J": "ark"
+          }
         },
         {
           "name": "Intel Core i7-12700K",
-          "sSpec": []
+          "sSpec": [
+            "SRL4N"
+          ],
+          "sSpecSource": {
+            "SRL4N": "ark"
+          }
         },
         {
           "name": "Intel Core i7-12700KF",
-          "sSpec": []
+          "sSpec": [
+            "SRL4P"
+          ],
+          "sSpecSource": {
+            "SRL4P": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12600K",
-          "sSpec": []
+          "sSpec": [
+            "SRL4T"
+          ],
+          "sSpecSource": {
+            "SRL4T": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12600KF",
-          "sSpec": []
+          "sSpec": [
+            "SRL4U"
+          ],
+          "sSpecSource": {
+            "SRL4U": "ark"
+          }
         },
         {
           "name": "Intel Core i9-12900",
-          "sSpec": []
+          "sSpec": [
+            "SRL4K"
+          ],
+          "sSpecSource": {
+            "SRL4K": "ark"
+          }
         },
         {
           "name": "Intel Core i9-12900F",
-          "sSpec": []
+          "sSpec": [
+            "SRL4L"
+          ],
+          "sSpecSource": {
+            "SRL4L": "ark"
+          }
         },
         {
           "name": "Intel Core i7-12700",
-          "sSpec": []
+          "sSpec": [
+            "SRL4Q"
+          ],
+          "sSpecSource": {
+            "SRL4Q": "ark"
+          }
         },
         {
           "name": "Intel Core i7-12700F",
-          "sSpec": []
+          "sSpec": [
+            "SRL4R"
+          ],
+          "sSpecSource": {
+            "SRL4R": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12400",
-          "sSpec": []
+          "sSpec": [
+            "SRL4V"
+          ],
+          "sSpecSource": {
+            "SRL4V": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12400F",
-          "sSpec": []
+          "sSpec": [
+            "SRL4W"
+          ],
+          "sSpecSource": {
+            "SRL4W": "ark"
+          }
         },
         {
           "name": "Intel Core i9-12900T",
-          "sSpec": []
+          "sSpec": [
+            "SRL4M"
+          ],
+          "sSpecSource": {
+            "SRL4M": "ark"
+          }
         },
         {
           "name": "Intel Core i7-12700T",
-          "sSpec": []
+          "sSpec": [
+            "SRL4S"
+          ],
+          "sSpecSource": {
+            "SRL4S": "ark"
+          }
         }
       ]
     },
@@ -6502,11 +7278,21 @@
       "processors": [
         {
           "name": "Intel Core i5-12600",
-          "sSpec": []
+          "sSpec": [
+            "SRL5T"
+          ],
+          "sSpecSource": {
+            "SRL5T": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12500",
-          "sSpec": []
+          "sSpec": [
+            "SRL5V"
+          ],
+          "sSpecSource": {
+            "SRL5V": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12400",
@@ -6528,35 +7314,75 @@
         },
         {
           "name": "Intel Core i3-12300",
-          "sSpec": []
+          "sSpec": [
+            "SRL61"
+          ],
+          "sSpecSource": {
+            "SRL61": "ark"
+          }
         },
         {
           "name": "Intel Core i3-12100",
-          "sSpec": []
+          "sSpec": [
+            "SRL62"
+          ],
+          "sSpecSource": {
+            "SRL62": "ark"
+          }
         },
         {
           "name": "Intel Core i3-12100F",
-          "sSpec": []
+          "sSpec": [
+            "SRL63"
+          ],
+          "sSpecSource": {
+            "SRL63": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12600T",
-          "sSpec": []
+          "sSpec": [
+            "SRL5U"
+          ],
+          "sSpecSource": {
+            "SRL5U": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12500T",
-          "sSpec": []
+          "sSpec": [
+            "SRL5W"
+          ],
+          "sSpecSource": {
+            "SRL5W": "ark"
+          }
         },
         {
           "name": "Intel Core i5-12400T",
-          "sSpec": []
+          "sSpec": [
+            "SRL5X"
+          ],
+          "sSpecSource": {
+            "SRL5X": "ark"
+          }
         },
         {
           "name": "Intel Core i3-12300T",
-          "sSpec": []
+          "sSpec": [
+            "SRL60"
+          ],
+          "sSpecSource": {
+            "SRL60": "ark"
+          }
         },
         {
           "name": "Intel Core i3-12100T",
-          "sSpec": []
+          "sSpec": [
+            "SRL64"
+          ],
+          "sSpecSource": {
+            "SRL64": "ark"
+          }
         },
         {
           "name": "Intel Pentium Gold G7400",
@@ -6911,75 +7737,167 @@
       "processors": [
         {
           "name": "Intel Core i7-7700",
-          "sSpec": []
+          "sSpec": [
+            "SR338"
+          ],
+          "sSpecSource": {
+            "SR338": "ark"
+          }
         },
         {
           "name": "Intel Core i7-7700K",
-          "sSpec": []
+          "sSpec": [
+            "SR33A"
+          ],
+          "sSpecSource": {
+            "SR33A": "ark"
+          }
         },
         {
           "name": "Intel Core i7-7700T",
-          "sSpec": []
+          "sSpec": [
+            "SR339"
+          ],
+          "sSpecSource": {
+            "SR339": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7400",
-          "sSpec": []
+          "sSpec": [
+            "SR32W"
+          ],
+          "sSpecSource": {
+            "SR32W": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7400T",
-          "sSpec": []
+          "sSpec": [
+            "SR332"
+          ],
+          "sSpecSource": {
+            "SR332": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7500",
-          "sSpec": []
+          "sSpec": [
+            "SR335"
+          ],
+          "sSpecSource": {
+            "SR335": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7500T",
-          "sSpec": []
+          "sSpec": [
+            "SR337"
+          ],
+          "sSpecSource": {
+            "SR337": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7600",
-          "sSpec": []
+          "sSpec": [
+            "SR334"
+          ],
+          "sSpecSource": {
+            "SR334": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7600K",
-          "sSpec": []
+          "sSpec": [
+            "SR32V"
+          ],
+          "sSpecSource": {
+            "SR32V": "ark"
+          }
         },
         {
           "name": "Intel Core i5-7600T",
-          "sSpec": []
+          "sSpec": [
+            "SR336"
+          ],
+          "sSpecSource": {
+            "SR336": "ark"
+          }
         },
         {
           "name": "Intel Core i3-7100E",
-          "sSpec": []
+          "sSpec": [
+            "SR34V"
+          ],
+          "sSpecSource": {
+            "SR34V": "ark"
+          }
         },
         {
           "name": "Intel Core i3-7101E",
-          "sSpec": []
+          "sSpec": [
+            "SR32Z"
+          ],
+          "sSpecSource": {
+            "SR32Z": "ark"
+          }
         },
         {
           "name": "Intel Core i3-7101TE",
-          "sSpec": []
+          "sSpec": [
+            "SR330",
+            "SR374"
+          ],
+          "sSpecSource": {
+            "SR330": "ark",
+            "SR374": "ark"
+          }
         },
         {
           "name": "Intel Core i3-7102E",
-          "sSpec": []
+          "sSpec": [
+            "SR34W"
+          ],
+          "sSpecSource": {
+            "SR34W": "ark"
+          }
         },
         {
           "name": "Intel Core i3-7120",
-          "sSpec": []
+          "sSpec": [
+            "SR35D"
+          ],
+          "sSpecSource": {
+            "SR35D": "intel"
+          }
         },
         {
           "name": "Intel Core i3-7120T",
-          "sSpec": []
+          "sSpec": [
+            "SR35Q"
+          ],
+          "sSpecSource": {
+            "SR35Q": "intel"
+          }
         },
         {
           "name": "Intel Core i3-7320T",
-          "sSpec": []
+          "sSpec": [
+            "SR35N"
+          ],
+          "sSpecSource": {
+            "SR35N": "intel"
+          }
         },
         {
           "name": "Intel Core i3-7340",
-          "sSpec": []
+          "sSpec": [
+            "SR35A"
+          ],
+          "sSpecSource": {
+            "SR35A": "intel"
+          }
         },
         {
           "name": "Intel Celeron G3930E",
@@ -7093,7 +8011,12 @@
         },
         {
           "name": "Intel Core i5-7640X",
-          "sSpec": []
+          "sSpec": [
+            "SR3FR"
+          ],
+          "sSpecSource": {
+            "SR3FR": "ark"
+          }
         },
         {
           "name": "Intel Core i7-7740X",
@@ -7587,11 +8510,21 @@
         },
         {
           "name": "Intel Core i7-8700K",
-          "sSpec": []
+          "sSpec": [
+            "SR3QR"
+          ],
+          "sSpecSource": {
+            "SR3QR": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8600K",
-          "sSpec": []
+          "sSpec": [
+            "SR3QU"
+          ],
+          "sSpecSource": {
+            "SR3QU": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8650K",
@@ -7607,19 +8540,39 @@
         },
         {
           "name": "Intel Core i7-8700",
-          "sSpec": []
+          "sSpec": [
+            "SR3QS"
+          ],
+          "sSpecSource": {
+            "SR3QS": "ark"
+          }
         },
         {
           "name": "Intel Core i7-8700T",
-          "sSpec": []
+          "sSpec": [
+            "SR3WX"
+          ],
+          "sSpecSource": {
+            "SR3WX": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8400",
-          "sSpec": []
+          "sSpec": [
+            "SR3QT"
+          ],
+          "sSpecSource": {
+            "SR3QT": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8400T",
-          "sSpec": []
+          "sSpec": [
+            "SR3X6"
+          ],
+          "sSpecSource": {
+            "SR3X6": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8420",
@@ -7631,11 +8584,21 @@
         },
         {
           "name": "Intel Core i5-8500",
-          "sSpec": []
+          "sSpec": [
+            "SR3XE"
+          ],
+          "sSpecSource": {
+            "SR3XE": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8500T",
-          "sSpec": []
+          "sSpec": [
+            "SR3XD"
+          ],
+          "sSpecSource": {
+            "SR3XD": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8550",
@@ -7643,11 +8606,21 @@
         },
         {
           "name": "Intel Core i5-8600",
-          "sSpec": []
+          "sSpec": [
+            "SR3X0"
+          ],
+          "sSpecSource": {
+            "SR3X0": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8600T",
-          "sSpec": []
+          "sSpec": [
+            "SR3X3"
+          ],
+          "sSpecSource": {
+            "SR3X3": "ark"
+          }
         },
         {
           "name": "Intel Core i5-8650",
@@ -7679,7 +8652,12 @@
         },
         {
           "name": "Intel Core i3-8000T",
-          "sSpec": []
+          "sSpec": [
+            "SR3YR"
+          ],
+          "sSpecSource": {
+            "SR3YR": "database"
+          }
         },
         {
           "name": "Intel Core i3-8020",
@@ -7687,7 +8665,12 @@
         },
         {
           "name": "Intel Core i3-8100",
-          "sSpec": []
+          "sSpec": [
+            "SR3N5"
+          ],
+          "sSpecSource": {
+            "SR3N5": "ark"
+          }
         },
         {
           "name": "Intel Core i3-8100H",
@@ -7695,7 +8678,12 @@
         },
         {
           "name": "Intel Core i3-8100T",
-          "sSpec": []
+          "sSpec": [
+            "SR3Y8"
+          ],
+          "sSpecSource": {
+            "SR3Y8": "ark"
+          }
         },
         {
           "name": "Intel Core i3-8120",
@@ -7703,15 +8691,30 @@
         },
         {
           "name": "Intel Core i3-8300",
-          "sSpec": []
+          "sSpec": [
+            "SR3XY"
+          ],
+          "sSpecSource": {
+            "SR3XY": "ark"
+          }
         },
         {
           "name": "Intel Core i3-8300T",
-          "sSpec": []
+          "sSpec": [
+            "SR3Y1"
+          ],
+          "sSpecSource": {
+            "SR3Y1": "ark"
+          }
         },
         {
           "name": "Intel Core i3-8350K",
-          "sSpec": []
+          "sSpec": [
+            "SR3N4"
+          ],
+          "sSpecSource": {
+            "SR3N4": "ark"
+          }
         },
         {
           "name": "Intel Pentium Gold G5400",
@@ -8190,23 +9193,48 @@
       "processors": [
         {
           "name": "Intel Core i5-10600",
-          "sSpec": []
+          "sSpec": [
+            "SRH37"
+          ],
+          "sSpecSource": {
+            "SRH37": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10600T",
-          "sSpec": []
+          "sSpec": [
+            "SRH39"
+          ],
+          "sSpecSource": {
+            "SRH39": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10505",
-          "sSpec": []
+          "sSpec": [
+            "SRH38"
+          ],
+          "sSpecSource": {
+            "SRH38": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10500",
-          "sSpec": []
+          "sSpec": [
+            "SRH3A"
+          ],
+          "sSpecSource": {
+            "SRH3A": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10500T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3B"
+          ],
+          "sSpecSource": {
+            "SRH3B": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10400",
@@ -8228,55 +9256,120 @@
         },
         {
           "name": "Intel Core i5-10400T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3F"
+          ],
+          "sSpecSource": {
+            "SRH3F": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10320",
-          "sSpec": []
+          "sSpec": [
+            "SRH3G"
+          ],
+          "sSpecSource": {
+            "SRH3G": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10300",
-          "sSpec": []
+          "sSpec": [
+            "SRH3J"
+          ],
+          "sSpecSource": {
+            "SRH3J": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10300T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3L"
+          ],
+          "sSpecSource": {
+            "SRH3L": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10100",
-          "sSpec": []
+          "sSpec": [
+            "SRH3N"
+          ],
+          "sSpecSource": {
+            "SRH3N": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10100T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3Q"
+          ],
+          "sSpecSource": {
+            "SRH3Q": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10100F",
-          "sSpec": []
+          "sSpec": [
+            "SRH8U"
+          ],
+          "sSpecSource": {
+            "SRH8U": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10325",
-          "sSpec": []
+          "sSpec": [
+            "SRH3H"
+          ],
+          "sSpecSource": {
+            "SRH3H": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10305",
-          "sSpec": []
+          "sSpec": [
+            "SRH3K"
+          ],
+          "sSpecSource": {
+            "SRH3K": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10305T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3M"
+          ],
+          "sSpecSource": {
+            "SRH3M": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10105",
-          "sSpec": []
+          "sSpec": [
+            "SRH3P"
+          ],
+          "sSpecSource": {
+            "SRH3P": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10105F",
-          "sSpec": []
+          "sSpec": [
+            "SRH8V"
+          ],
+          "sSpecSource": {
+            "SRH8V": "ark"
+          }
         },
         {
           "name": "Intel Core i3-10105T",
-          "sSpec": []
+          "sSpec": [
+            "SRH3R"
+          ],
+          "sSpecSource": {
+            "SRH3R": "ark"
+          }
         },
         {
           "name": "Intel Pentium Gold G6600",
@@ -8453,55 +9546,120 @@
       "processors": [
         {
           "name": "Intel Core i9-10900K",
-          "sSpec": []
+          "sSpec": [
+            "SRH91"
+          ],
+          "sSpecSource": {
+            "SRH91": "ark"
+          }
         },
         {
           "name": "Intel Core i9-10900KF",
-          "sSpec": []
+          "sSpec": [
+            "SRH92"
+          ],
+          "sSpecSource": {
+            "SRH92": "ark"
+          }
         },
         {
           "name": "Intel Core i9-10900",
-          "sSpec": []
+          "sSpec": [
+            "SRH8Z"
+          ],
+          "sSpecSource": {
+            "SRH8Z": "ark"
+          }
         },
         {
           "name": "Intel Core i9-10900T",
-          "sSpec": []
+          "sSpec": [
+            "SRH8Y"
+          ],
+          "sSpecSource": {
+            "SRH8Y": "ark"
+          }
         },
         {
           "name": "Intel Core i9-10900F",
-          "sSpec": []
+          "sSpec": [
+            "SRH90"
+          ],
+          "sSpecSource": {
+            "SRH90": "ark"
+          }
         },
         {
           "name": "Intel Core i9-10850K",
-          "sSpec": []
+          "sSpec": [
+            "SRK51"
+          ],
+          "sSpecSource": {
+            "SRK51": "ark"
+          }
         },
         {
           "name": "Intel Core i7-10700K",
-          "sSpec": []
+          "sSpec": [
+            "SRH72"
+          ],
+          "sSpecSource": {
+            "SRH72": "ark"
+          }
         },
         {
           "name": "Intel Core i7-10700KF",
-          "sSpec": []
+          "sSpec": [
+            "SRH74"
+          ],
+          "sSpecSource": {
+            "SRH74": "ark"
+          }
         },
         {
           "name": "Intel Core i7-10700",
-          "sSpec": []
+          "sSpec": [
+            "SRH6Y"
+          ],
+          "sSpecSource": {
+            "SRH6Y": "ark"
+          }
         },
         {
           "name": "Intel Core i7-10700T",
-          "sSpec": []
+          "sSpec": [
+            "SRH6U"
+          ],
+          "sSpecSource": {
+            "SRH6U": "ark"
+          }
         },
         {
           "name": "Intel Core i7-10700F",
-          "sSpec": []
+          "sSpec": [
+            "SRH70"
+          ],
+          "sSpecSource": {
+            "SRH70": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10600K",
-          "sSpec": []
+          "sSpec": [
+            "SRH6R"
+          ],
+          "sSpecSource": {
+            "SRH6R": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10600KF",
-          "sSpec": []
+          "sSpec": [
+            "SRH6S"
+          ],
+          "sSpecSource": {
+            "SRH6S": "ark"
+          }
         },
         {
           "name": "Intel Core i5-10400",
@@ -8675,79 +9833,174 @@
       "processors": [
         {
           "name": "Intel Core i9-11900K",
-          "sSpec": []
+          "sSpec": [
+            "SRKND"
+          ],
+          "sSpecSource": {
+            "SRKND": "ark"
+          }
         },
         {
           "name": "Intel Core i9-11900KF",
-          "sSpec": []
+          "sSpec": [
+            "SRKNF"
+          ],
+          "sSpecSource": {
+            "SRKNF": "ark"
+          }
         },
         {
           "name": "Intel Core i9-11900",
-          "sSpec": []
+          "sSpec": [
+            "SRKNJ"
+          ],
+          "sSpecSource": {
+            "SRKNJ": "ark"
+          }
         },
         {
           "name": "Intel Core i9-11900T",
-          "sSpec": []
+          "sSpec": [
+            "SRKNQ"
+          ],
+          "sSpecSource": {
+            "SRKNQ": "ark"
+          }
         },
         {
           "name": "Intel Core i9-11900F",
-          "sSpec": []
+          "sSpec": [
+            "SRKNK"
+          ],
+          "sSpecSource": {
+            "SRKNK": "ark"
+          }
         },
         {
           "name": "Intel Core i7-11700K",
-          "sSpec": []
+          "sSpec": [
+            "SRKNL"
+          ],
+          "sSpecSource": {
+            "SRKNL": "ark"
+          }
         },
         {
           "name": "Intel Core i7-11700KF",
-          "sSpec": []
+          "sSpec": [
+            "SRKNN"
+          ],
+          "sSpecSource": {
+            "SRKNN": "ark"
+          }
         },
         {
           "name": "Intel Core i7-11700",
-          "sSpec": []
+          "sSpec": [
+            "SRKNS"
+          ],
+          "sSpecSource": {
+            "SRKNS": "ark"
+          }
         },
         {
           "name": "Intel Core i7-11700T",
-          "sSpec": []
+          "sSpec": [
+            "SRKNT"
+          ],
+          "sSpecSource": {
+            "SRKNT": "ark"
+          }
         },
         {
           "name": "Intel Core i7-11700F",
-          "sSpec": []
+          "sSpec": [
+            "SRKNR"
+          ],
+          "sSpecSource": {
+            "SRKNR": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11600K",
-          "sSpec": []
+          "sSpec": [
+            "SRKNU"
+          ],
+          "sSpecSource": {
+            "SRKNU": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11600KF",
-          "sSpec": []
+          "sSpec": [
+            "SRKNV"
+          ],
+          "sSpecSource": {
+            "SRKNV": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11600",
-          "sSpec": []
+          "sSpec": [
+            "SRKNW"
+          ],
+          "sSpecSource": {
+            "SRKNW": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11600T",
-          "sSpec": []
+          "sSpec": [
+            "SRKNX"
+          ],
+          "sSpecSource": {
+            "SRKNX": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11500",
-          "sSpec": []
+          "sSpec": [
+            "SRKNY"
+          ],
+          "sSpecSource": {
+            "SRKNY": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11500T",
-          "sSpec": []
+          "sSpec": [
+            "SRKNZ"
+          ],
+          "sSpecSource": {
+            "SRKNZ": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11400",
-          "sSpec": []
+          "sSpec": [
+            "SRKP0"
+          ],
+          "sSpecSource": {
+            "SRKP0": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11400F",
-          "sSpec": []
+          "sSpec": [
+            "SRKP1"
+          ],
+          "sSpecSource": {
+            "SRKP1": "ark"
+          }
         },
         {
           "name": "Intel Core i5-11400T",
-          "sSpec": []
+          "sSpec": [
+            "SRKP2"
+          ],
+          "sSpecSource": {
+            "SRKP2": "ark"
+          }
         },
         {
           "name": "Intel Xeon E-2388G",
@@ -9158,27 +10411,57 @@
         },
         {
           "name": "Intel Core i9-13900K",
-          "sSpec": []
+          "sSpec": [
+            "SRMBH"
+          ],
+          "sSpecSource": {
+            "SRMBH": "ark"
+          }
         },
         {
           "name": "Intel Core i7-13700K",
-          "sSpec": []
+          "sSpec": [
+            "SRMB8"
+          ],
+          "sSpecSource": {
+            "SRMB8": "ark"
+          }
         },
         {
           "name": "Intel Core i5-13600K",
-          "sSpec": []
+          "sSpec": [
+            "SRMBD"
+          ],
+          "sSpecSource": {
+            "SRMBD": "ark"
+          }
         },
         {
           "name": "Intel Core i9-13900KF",
-          "sSpec": []
+          "sSpec": [
+            "SRMBJ"
+          ],
+          "sSpecSource": {
+            "SRMBJ": "ark"
+          }
         },
         {
           "name": "Intel Core i7-13700KF",
-          "sSpec": []
+          "sSpec": [
+            "SRMB9"
+          ],
+          "sSpecSource": {
+            "SRMB9": "ark"
+          }
         },
         {
           "name": "Intel Core i5-13600KF",
-          "sSpec": []
+          "sSpec": [
+            "SRMBE"
+          ],
+          "sSpecSource": {
+            "SRMBE": "ark"
+          }
         },
         {
           "name": "Intel Core i5-14450HX",
@@ -9701,6 +10984,240 @@
           ]
         }
       ]
+    },
+    {
+      "cpuids": [
+        "B0660"
+      ],
+      "codeNames": [
+        "Grand Ridge"
+      ],
+      "cores": [
+        "Crestmont"
+      ],
+      "productFamilies": [],
+      "steppings": [],
+      "segments": [],
+      "processors": [],
+      "source": "extra"
+    },
+    {
+      "cpuids": [
+        "B0664"
+      ],
+      "codeNames": [
+        "Grand Ridge"
+      ],
+      "cores": [
+        "Crestmont"
+      ],
+      "productFamilies": [
+        "Intel Atom Processor P Series"
+      ],
+      "steppings": [],
+      "segments": [
+        "Server"
+      ],
+      "processors": [
+        {
+          "name": "Intel Atom P6922-3",
+          "sSpec": [
+            "SRPFF",
+            "SA4RS",
+            "SA4RT",
+            "SA4RW"
+          ],
+          "sSpecSource": {
+            "SRPFF": "ark",
+            "SA4RS": "ark",
+            "SA4RT": "ark",
+            "SA4RW": "ark"
+          }
+        },
+        {
+          "name": "Intel Atom P6942-3",
+          "sSpec": [
+            "SRN2X",
+            "SRPFJ"
+          ],
+          "sSpecSource": {
+            "SRN2X": "ark",
+            "SRPFJ": "ark"
+          }
+        },
+        {
+          "name": "Intel Atom P6942-5",
+          "sSpec": [
+            "SRNJG"
+          ],
+          "sSpecSource": {
+            "SRNJG": "ark"
+          }
+        },
+        {
+          "name": "Intel Atom P6952-3",
+          "sSpec": [
+            "SRNJE",
+            "SRV4Q"
+          ],
+          "sSpecSource": {
+            "SRNJE": "ark",
+            "SRV4Q": "ark"
+          }
+        },
+        {
+          "name": "Intel Atom P6962-3",
+          "sSpec": [
+            "SRM9A",
+            "SRV4P"
+          ],
+          "sSpecSource": {
+            "SRM9A": "ark",
+            "SRV4P": "ark"
+          }
+        },
+        {
+          "name": "Intel Atom P6962-5",
+          "sSpec": [
+            "SRN5P",
+            "SRPFL"
+          ],
+          "sSpecSource": {
+            "SRN5P": "ark",
+            "SRPFL": "ark"
+          }
+        }
+      ],
+      "source": "extra"
+    },
+    {
+      "cpuids": [
+        "B0670"
+      ],
+      "codeNames": [
+        "Raptor Lake"
+      ],
+      "cores": [
+        "Raptor Cove",
+        "Enhanced Gracemont"
+      ],
+      "productFamilies": [],
+      "steppings": [
+        "A0"
+      ],
+      "segments": [],
+      "processors": [],
+      "source": "extra"
+    },
+    {
+      "cpuids": [
+        "B06F5"
+      ],
+      "codeNames": [
+        "Raptor Lake"
+      ],
+      "cores": [],
+      "productFamilies": [],
+      "steppings": [
+        "H0"
+      ],
+      "segments": [
+        "Desktop",
+        "Embedded"
+      ],
+      "processors": [
+        {
+          "name": "Intel Core i3-13100",
+          "sSpec": [
+            "SRMBU"
+          ],
+          "sSpecSource": {
+            "SRMBU": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-13100F",
+          "sSpec": [
+            "SRMBV"
+          ],
+          "sSpecSource": {
+            "SRMBV": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-13100T",
+          "sSpec": [
+            "SRMBT"
+          ],
+          "sSpecSource": {
+            "SRMBT": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-13100E",
+          "sSpec": [
+            "SRMFR"
+          ],
+          "sSpecSource": {
+            "SRMFR": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-13100TE",
+          "sSpec": [
+            "SRMFT"
+          ],
+          "sSpecSource": {
+            "SRMFT": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-14100",
+          "sSpec": [
+            "SRMX1"
+          ],
+          "sSpecSource": {
+            "SRMX1": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-14100F",
+          "sSpec": [
+            "SRMX2"
+          ],
+          "sSpecSource": {
+            "SRMX2": "ark"
+          }
+        },
+        {
+          "name": "Intel Core i3-14100T",
+          "sSpec": [
+            "SRMX0"
+          ],
+          "sSpecSource": {
+            "SRMX0": "ark"
+          }
+        },
+        {
+          "name": "Intel Processor 300",
+          "sSpec": [
+            "SRN3J"
+          ],
+          "sSpecSource": {
+            "SRN3J": "ark"
+          }
+        },
+        {
+          "name": "Intel Processor 300T",
+          "sSpec": [
+            "SRN3K"
+          ],
+          "sSpecSource": {
+            "SRN3K": "ark"
+          }
+        }
+      ],
+      "source": "extra"
     }
   ]
 }

@@ -424,7 +424,6 @@
 "conflicting changes" = "abweichende Änderungen";
 "Contents" = "Inhalt";
 "Copy" = "Kopieren";
-"Copy CPUID" = "CPUID kopieren";
 "Copy File Name" = "Dateinamen kopieren";
 "Copy hex size" = "Größe als Hex kopieren";
 "Copy offset" = "Offset kopieren";
@@ -444,7 +443,6 @@
 "CPUID" = "CPUID";
 "CPUID, model or S-SPEC" = "CPUID, Modell oder S-SPEC";
 "CPUID %1$@" = "CPUID %1$@";
-"CPUID %1$@ copied." = "CPUID %1$@ kopiert.";
 "CSE Layout Table" = "CSE Layout Table";
 "Cut" = "Schneiden";
 "Cut at" = "Schnitt bei";
@@ -776,6 +774,10 @@
 "No processor names known for CPUID %1$@" = "Für CPUID %1$@ sind keine Prozessormodelle bekannt";
 "platform %1$@" = "Plattform %1$@";
 "series, models not listed" = "Serie, Modelle nicht aufgeführt";
+"No processor models known for this CPUID" = "Für diese CPUID sind keine Prozessormodelle bekannt";
+"Processors" = "Prozessoren";
+"Show the processors with this CPUID" = "Prozessoren mit dieser CPUID anzeigen";
+"Stepping %1$@" = "Stepping %1$@";
 "Range" = "Bereich";
 "RBE/PM Metadata" = "RBE/PM-Metadaten";
 "Read" = "Lesen";
@@ -1515,7 +1517,6 @@
 "The browser would not put the summary on the clipboard." = "Der Browser hat die Übersicht nicht in die Zwischenablage gelassen.";
 "The browser would not take a picture, so it was saved as a file." = "Der Browser hat das Bild nicht angenommen, deshalb wurde es als Datei gesichert.";
 "There was nothing to put back." = "Es gab nichts zurückzuschreiben.";
-"This browser would not let the clipboard be written." = "Dieser Browser hat das Schreiben in die Zwischenablage nicht erlaubt.";
 "Two writes cover 0x%1$@." = "Zwei Schreibvorgänge überdecken 0x%1$@.";
 "Undo in “%1$@” takes it back." = "„Widerrufen“ in „%1$@“ nimmt es zurück.";
 "Undo takes it back." = "„Widerrufen“ nimmt es zurück.";

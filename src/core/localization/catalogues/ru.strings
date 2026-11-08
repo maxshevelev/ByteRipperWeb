@@ -424,7 +424,6 @@
 "conflicting changes" = "расхождения";
 "Contents" = "Содержание";
 "Copy" = "Скопировать";
-"Copy CPUID" = "Скопировать CPUID";
 "Copy File Name" = "Скопировать имя файла";
 "Copy hex size" = "Скопировать размер в hex";
 "Copy offset" = "Скопировать адрес";
@@ -444,7 +443,6 @@
 "CPUID" = "CPUID";
 "CPUID, model or S-SPEC" = "CPUID, модель или S-SPEC";
 "CPUID %1$@" = "CPUID %1$@";
-"CPUID %1$@ copied." = "CPUID %1$@ скопирован.";
 "CSE Layout Table" = "CSE Layout Table";
 "Cut" = "Разрезать";
 "Cut at" = "Разрезать по";
@@ -776,6 +774,10 @@
 "No processor names known for CPUID %1$@" = "Модели процессоров для CPUID %1$@ неизвестны";
 "platform %1$@" = "платформа %1$@";
 "series, models not listed" = "серия, модели не перечислены";
+"No processor models known for this CPUID" = "Модели процессоров с этим CPUID неизвестны";
+"Processors" = "Процессоры";
+"Show the processors with this CPUID" = "Показать процессоры с этим CPUID";
+"Stepping %1$@" = "Степпинг %1$@";
 "Range" = "Диапазон";
 "RBE/PM Metadata" = "Метаданные RBE/PM";
 "Read" = "Чтение";
@@ -1514,7 +1516,6 @@
 "The browser would not put the summary on the clipboard." = "Браузер не дал положить сводку в буфер обмена.";
 "The browser would not take a picture, so it was saved as a file." = "Браузер не принял изображение, поэтому оно сохранено файлом.";
 "There was nothing to put back." = "Возвращать было нечего.";
-"This browser would not let the clipboard be written." = "Этот браузер не дал записать в буфер обмена.";
 "Two writes cover 0x%1$@." = "Две записи перекрываются на 0x%1$@.";
 "Undo in “%1$@” takes it back." = "«Отменить» в «%1$@» возвращает всё назад.";
 "Undo takes it back." = "«Отменить» возвращает всё назад.";

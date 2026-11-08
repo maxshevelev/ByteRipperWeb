@@ -5,8 +5,9 @@ import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode, type TestRow } from "@/firmware/testing/testFit";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
-import { type FITDisplay, fitDisplay } from "@/tools/fit/fitDisplay";
+import { type FITDisplay, fitDisplay, rowCommands } from "@/tools/fit/fitDisplay";
 import {
+  cpuidLines,
   type FITOutlineItem,
   type FITOutlineRow,
   fitOutlineRows,
@@ -55,36 +56,39 @@ function itemAt(rows: readonly FITOutlineRow[], index: number): FITOutlineItem {
 }
 
 describe("the FIT table as an outline", () => {
-  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAMicrocodeRowOpensIntoItsCPUID
-  it("opens a microcode row a level by itself, into its CPUID", () => {
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testAMicrocodeRowOpensIntoAPlateOfItsCPUIDs
+  it("opens a microcode row a level by itself, into the lines of its CPUIDs", () => {
     const shown = display([microcodeRow]);
     const rows = fitOutlineRows(shown);
-    // The header, the microcode, its CPUID open a level, and Add under it.
-    expect(kinds(rows)).toEqual(["entry", "entry", "cpuid", "addMicrocode"]);
+    // The header, the microcode, its CPUIDs, and Add under it.
+    expect(kinds(rows)).toEqual(["entry", "entry", "cpuids", "addMicrocode"]);
     expect(rows[0]?.expandable, "the header opens into nothing").toBe(false);
     expect(rows[1]?.isOpen, "the microcode is open to begin with").toBe(true);
-    expect(rows[2]?.isOpen, "the CPUID is closed to begin with").toBe(false);
+    expect(rows[2]?.expandable, "the CPUIDs open into nothing").toBe(false);
+    expect(isChoosable(itemAt(rows, 2)), "the CPUIDs cannot be chosen").toBe(false);
+    // They stand for their microcode: its menu and its double-click.
+    expect(outlineItemKey(itemAt(rows, 2))).toBe(1);
 
-    const lines = shown.rows[1]?.processorGroups[0]?.lines ?? [];
-    expect(lines.length, "806EA is in the shipped table").toBeGreaterThan(0);
-    const opened = withOpening(NO_OPENINGS, itemAt(rows, 2), true);
-    const open = fitOutlineRows(shown, opened);
-    expect(open).toHaveLength(4 + lines.length);
-    expect(open[3]?.item).toEqual({ kind: "line", key: 1, group: 0, line: 0 });
-    expect(open[3]?.depth).toBe(2);
-    // Add sits under the last microcode, after what the microcode opened.
-    expect(open.at(-1)?.item.kind).toBe("addMicrocode");
-
-    // A line stands for its microcode.
-    expect(outlineItemKey(itemAt(open, 4))).toBe(1);
+    const row = shown.rows[1];
+    if (row === undefined) throw new Error("the fixture has a microcode");
+    expect(cpuidLines(row)).toEqual([
+      {
+        cpuid: "CPUID 806EA",
+        names: "Coffee Lake U43e, Kaby Lake Refresh U",
+        hasInfo: true,
+      },
+    ]);
 
     // Closed by the reader, it stays closed.
-    const closed = withOpening(opened, itemAt(rows, 1), false);
+    const closed = withOpening(NO_OPENINGS, itemAt(rows, 1), false);
     expect(kinds(fitOutlineRows(shown, closed))).toEqual(["entry", "entry", "addMicrocode"]);
+    expect(kinds(fitOutlineRows(shown, withOpening(closed, itemAt(rows, 1), true)))).toEqual(
+      kinds(rows)
+    );
   });
 
-  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testEachCPUIDOfAnUpdateIsALevelOfItsOwn
-  it("makes each CPUID of an update a level of its own", () => {
+  // @upstream ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testEachCPUIDOfAnUpdateIsALineOfThePlate
+  it("says each CPUID of an update on a line of its own, and no ⓘ where nothing is known", () => {
     const shown = display(
       [microcodeRow],
       [
@@ -94,16 +98,25 @@ describe("the FIT table as an outline", () => {
       ]
     );
     const rows = fitOutlineRows(shown);
-    expect(rows.slice(2, 5).map((row) => [row.item, row.depth])).toEqual([
-      [{ kind: "cpuid", key: 1, group: 0 }, 1],
-      [{ kind: "cpuid", key: 1, group: 1 }, 1],
-      [{ kind: "cpuid", key: 1, group: 2 }, 1],
+    expect(kinds(rows), "one block, not a row a CPUID").toEqual([
+      "entry",
+      "entry",
+      "cpuids",
+      "addMicrocode",
     ]);
-    const open = fitOutlineRows(shown, withOpening(NO_OPENINGS, itemAt(rows, 4), true));
-    expect(open[5]).toMatchObject({ item: { kind: "line", key: 1, group: 2, line: 0 }, depth: 2 });
-    expect(shown.rows[1]?.processorGroups[2]?.lines[0]?.text).toBe(
-      "No processor names known for CPUID B06A8"
-    );
+    expect(rows[2]?.depth).toBe(1);
+    const row = shown.rows[1];
+    if (row === undefined) throw new Error("the fixture has a microcode");
+    const lines = cpuidLines(row);
+    expect(lines.map((line) => line.cpuid)).toEqual(["CPUID B06A2", "CPUID B06A3", "CPUID B06A8"]);
+    expect(lines[0]?.hasInfo).toBe(true);
+    expect(lines[2], "the CPUID alone: the table knows no names for it").toEqual({
+      cpuid: "CPUID B06A8",
+      names: "",
+      hasInfo: false,
+    });
+    // No Copy CPUID in the row's menu: the lines are text to select and copy.
+    expect(rowCommands(row).map((command) => command.kind)).not.toContain("copyCPUID");
   });
 
   it("puts Add under the table's last microcode and never in the backup's copy", () => {
@@ -117,14 +130,13 @@ describe("the FIT table as an outline", () => {
     const two = fitOutlineRows(
       display([microcodeRow, { type: FIT.microcodeType, target: 0x3000 }])
     );
-    expect(kinds(two)).toEqual(["entry", "entry", "cpuid", "entry", "addMicrocode"]);
+    expect(kinds(two)).toEqual(["entry", "entry", "cpuids", "entry", "addMicrocode"]);
     // Neither Add nor the heading can be chosen.
     expect(isChoosable({ kind: "addMicrocode" })).toBe(false);
     expect(isChoosable({ kind: "heading" })).toBe(false);
-    expect(isChoosable({ kind: "line", key: 1, group: 0, line: 0 })).toBe(true);
 
     // A Top Swap backup: its heading in front of its copy, and Add in the table.
-    const backup: FITDisplay = { ...display([microcodeRow]) };
+    const backup = display([microcodeRow]);
     const withCopy: FITDisplay = {
       ...backup,
       rows: [...backup.rows, ...backup.rows.map((row) => ({ ...row, isBackup: true }))],
@@ -133,12 +145,12 @@ describe("the FIT table as an outline", () => {
     expect(kinds(fitOutlineRows(withCopy))).toEqual([
       "entry",
       "entry",
-      "cpuid",
+      "cpuids",
       "addMicrocode",
       "heading",
       "entry",
       "entry",
-      "cpuid",
+      "cpuids",
     ]);
   });
 });

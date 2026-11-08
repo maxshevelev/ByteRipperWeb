@@ -74,8 +74,19 @@ export function HelpPopover({
     const element = popover.current;
     if (element === null) return;
     const opened = !element.open;
+    // Showing a dialog runs the browser's focusing steps before it is placed,
+    // and a box that scrolls — the microcode form, which a popover opens inside
+    // because the form is modal — is scrolled to wherever the unplaced dialog
+    // fell, taking the form's title out of sight. What every box around it
+    // was scrolled to is put back once the popover is where it belongs.
+    // @web-only a browser's dialog focuses itself on show; an NSPopover moves nothing
+    const held = opened ? scrollsAround(element) : [];
     if (opened) element.show();
     if (anchor !== null) place(element, anchor);
+    for (const [box, top, left] of held) {
+      box.scrollTop = top;
+      box.scrollLeft = left;
+    }
     // A dialog that appears takes the focus of its first link on the way in,
     // and the browser scrolls the words to that link — their opening goes out.
     // The reader asked for the word they were on and wants to read it from the
@@ -123,6 +134,19 @@ export function HelpPopover({
  * `top` is measured from the box's content, not from the part of the box that
  * is visible, so what has been scrolled out is added back in.
  */
+/**
+ * Every box around `element` and how far each is scrolled, to put back.
+ *
+ * @web-only see the effect above
+ */
+function scrollsAround(element: HTMLElement): [HTMLElement, number, number][] {
+  const held: [HTMLElement, number, number][] = [];
+  for (let box = element.parentElement; box !== null; box = box.parentElement) {
+    held.push([box, box.scrollTop, box.scrollLeft]);
+  }
+  return held;
+}
+
 function place(element: HTMLDialogElement, anchor: HTMLElement): void {
   const at = anchor.getBoundingClientRect();
   const parent = element.offsetParent?.getBoundingClientRect();

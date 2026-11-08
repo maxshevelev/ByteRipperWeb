@@ -4253,8 +4253,7 @@ button.uefi-title {
   text-overflow: ellipsis;
 }
 
-.fit-target-text,
-.fit-line-text {
+.fit-target-text {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -4267,8 +4266,29 @@ button.uefi-title {
   margin-left: 4px;
 }
 
-/* A CPUID under a microcode, in the weight of a heading; a model in the body's;
-   and what follows each — the code names, the S-SPECs — quieter after it. */
+/* The CPUIDs a microcode serves, under its row on the table's own background:
+   a line a CPUID, as tall as its lines, and text to select and copy rather than
+   a row to choose. The CPUID in the weight of a heading, the ⓘ right after it,
+   and the code names quieter after that, cut short first. */
+/* biome-ignore lint/style/noDescendingSpecificity: a row of its own class, which no `.fit-row` rule reaches */
+.fit-cpuids-row > td {
+  padding: 2px 6px 3px;
+}
+
+.fit-cpuids {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.fit-cpuid-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 20px;
+  white-space: nowrap;
+}
+
 .fit-cpuid-text {
   flex: none;
   font-weight: 500;
@@ -4277,21 +4297,79 @@ button.uefi-title {
 .fit-line-detail {
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: 8px;
   overflow: hidden;
   color: var(--text-muted);
   text-overflow: ellipsis;
-}
-
-/* A CPUID the table of brand names does not know says so, quietly. */
-.fit-line-text[data-unknown] {
-  color: var(--text-muted);
+  white-space: pre;
 }
 
 /* Under a row of the Top Swap backup's copy everything reads as quietly as the
-   row does: what it points at and what follows a line, quieter still. */
-.fit-row[data-backup] :is(.fit-target-text, .fit-line-detail) {
+   row does: what it points at and the code names quieter still. */
+.fit-row[data-backup] .fit-target-text,
+.fit-cpuids-row[data-backup] .fit-line-detail {
   color: var(--text-faint);
+}
+
+.fit-cpuids-row[data-backup] .fit-cpuid-text {
+  color: var(--text-muted);
+}
+
+/* The ⓘ after a CPUID: a link to its processors, in a link's colour and the
+   CPUID's weight. A button with no text, so a copy of the words leaves it out;
+   on a selected row the selection's rule gives it the selection's text colour. */
+.fit-info-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin: 0 0 0 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fit-info-mark svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+/* The processors' popover's list: a model with its S-SPECs quieter after it, a
+   group's names as a heading with its note quieter under them. */
+.fit-processors-line[data-unknown],
+.fit-processors-detail,
+.fit-processors-family-note {
+  color: var(--text-muted);
+}
+
+.fit-processors-detail {
+  white-space: pre-wrap;
+}
+
+.fit-processors-family-note {
+  white-space: pre-line;
+}
+
+.fit-processors-family-name {
+  font-weight: 600;
+}
+
+.fit-processors-family:not([data-first]) {
+  margin-top: 0.5em;
+}
+
+.microcode-cpuid {
+  display: inline-flex;
+  align-items: center;
 }
 
 /* A square the row's full height takes the click, as the trees' triangles do. */
@@ -6305,6 +6383,9 @@ button.uefi-title {
   margin: 2px 0 0;
   color: var(--text-muted);
   overflow-wrap: anywhere;
+  /* A note of several lines — the processors' group: names, families, facts —
+     keeps them. */
+  white-space: pre-line;
 }
 
 /* Words that fit do not scroll: the box is as tall as they are up to its cap,

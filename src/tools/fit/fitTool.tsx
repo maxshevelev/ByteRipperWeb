@@ -5,7 +5,6 @@ import type { FITProblem } from "@/firmware/fit/fitProblem";
 import { fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { ProtectedRangeKind, ProtectedRanges } from "@/firmware/uefi/protectedRanges";
-import { writePlainText } from "@/platform/clipboard/richClipboard";
 import {
   askFirmwareProtectedRanges,
   editPaneFit,
@@ -28,6 +27,7 @@ import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
 import { fitAgentEdits, fitAgentQueries } from "@/tools/fit/agent/fitAgentModule";
+import { FitProcessorsPopover, ProcessorsInfoMark } from "@/tools/fit/FitProcessorsPopover";
 import { changeMicrocode } from "@/tools/fit/fitChange";
 import { FIT_COLUMNS, FIT_MIN_WIDTH, fittedColumnWidths } from "@/tools/fit/fitColumns";
 import {
@@ -48,6 +48,7 @@ import {
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
 import {
+  cpuidLines,
   type FITOutlineItem,
   type FITOutlineOpenings,
   type FITOutlineRow,
@@ -64,6 +65,7 @@ import { MicrocodeForm, type MicrocodeFormStatus } from "@/tools/fit/MicrocodeFo
 import { entryFileName, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
 import { cpuidsOf, type MicrocodeFormMode } from "@/tools/fit/microcodeFormModel";
 import { pickMicrocode } from "@/tools/fit/pickMicrocode";
+import type { FITProcessorGroup } from "@/tools/fit/processorNames";
 import { field, type NodeDetail } from "@/tools/toolDetail";
 import type { ToolContext, ToolModule } from "@/tools/toolModule";
 import { useToolNavigation } from "@/tools/toolNavigation";
@@ -268,13 +270,15 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
    */
   const [openings, setOpenings] = useState<FITOutlineOpenings>(NO_OPENINGS);
   /**
-   * The line under a microcode the reader chose, when it is a CPUID or a model
-   * rather than the entry: it stands for the microcode, which is what is in
-   * focus, and stays the line chosen while that microcode is.
+   * The processors' popover a CPUID's `ⓘ` opened, and the `ⓘ` it hangs from —
+   * one at a time: the next one closes it.
    *
-   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.show
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.processorsPopover
    */
-  const [chosenLine, setChosenLine] = useState<FITOutlineItem | undefined>(undefined);
+  const [processors, setProcessors] = useState<
+    { readonly group: FITProcessorGroup; readonly anchor: HTMLElement } | undefined
+  >(undefined);
+  const closeProcessors = useCallback(() => setProcessors(undefined), []);
   /**
    * Whether the table paints its rows — the legend's Show Markings switch,
    * which is remembered beside the legend's own state.
@@ -402,7 +406,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     // Nothing of the last file's opening is kept: its rows open afresh.
     // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.rebuildItems
     setOpenings(NO_OPENINGS);
-    setChosenLine(undefined);
+    setProcessors(undefined);
     clearZones(pane);
   }, [reloads, pane]);
   useEffect(() => {
@@ -565,11 +569,9 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
   /**
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.goToOffset
-   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.copyCPUID
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.removeMicrocode
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.fixChecksum
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onGoToTarget
-   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onCopyCPUID
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onRemoveMicrocode
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onGoToProblem
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onFixChecksum
@@ -595,13 +597,6 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
           }
           return;
         }
-        case "copyCPUID":
-          void writePlainText(command.cpuid).then((copied) =>
-            copied
-              ? say(L("CPUID %1$@ copied.", command.cpuid))
-              : say(L("This browser would not let the clipboard be written."), true)
-          );
-          return;
         case "fixChecksum": {
           const fix = display.checksumFix;
           if (fix === undefined) return;
@@ -681,19 +676,12 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const outline = useMemo(() => fitOutlineRows(display, openings), [display, openings]);
 
   /**
-   * The outline row that reads as chosen: the line the reader chose under the
-   * microcode in focus while it is on screen, or else the entry in focus.
+   * The outline row that reads as chosen: the entry in focus.
    *
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.show
    */
-  const selectedId = useMemo(() => {
-    if (focus === undefined || tableFocused) return undefined;
-    if (chosenLine !== undefined && outlineItemKey(chosenLine) === focus) {
-      const id = outlineItemId(chosenLine);
-      if (outline.some((row) => row.id === id)) return id;
-    }
-    return outlineItemId({ kind: "entry", key: focus });
-  }, [focus, tableFocused, chosenLine, outline]);
+  const selectedId =
+    focus === undefined || tableFocused ? undefined : outlineItemId({ kind: "entry", key: focus });
 
   /** The entry a row of the outline stands for: its own, or its microcode's. */
   const entryOf = useCallback(
@@ -705,11 +693,8 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   );
 
   /**
-   * A row of the outline chosen. An entry is chosen as it always was; a CPUID or
-   * a model stands for its microcode, and puts that in focus. With that
-   * microcode in focus already, another of its lines changes no zone and no
-   * detail, so nothing else is told — the microcode's own row still is: it
-   * brings the focus back to the row from what the row points at.
+   * An entry of the outline chosen. The CPUIDs under a microcode, the heading
+   * and Add's row are not chosen.
    *
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.selectionDidChange
    * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewSelectionDidChange
@@ -719,19 +704,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
       if (!isChoosable(item)) return;
       const entry = entryOf(item);
       if (entry === undefined) return;
-      if (item.kind === "entry") {
-        setChosenLine(undefined);
-      } else {
-        setChosenLine(item);
-        if (rowKey(entry) === focus && !tableFocused) return;
-      }
       // A click is the reader's choice, and a step for the history; the arrow
       // keys walking the rows are not (`onWillChoose`).
       // @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.onWillChoose
       if (byClick) context.noteNavigationStep();
       choose(entry);
     },
-    [entryOf, focus, tableFocused, context, choose]
+    [entryOf, context, choose]
   );
 
   /**
@@ -746,6 +725,20 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     setOpenings((now) => withOpening(now, row.item, !row.isOpen));
   }, []);
 
+  /**
+   * A CPUID's `ⓘ`: the processors behind it, in a popover off the `ⓘ`.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.showProcessors
+   */
+  // help: fit.processors
+  const showProcessors = useCallback(
+    (key: number, group: number, anchor: HTMLElement) => {
+      const found = display.rows.find((row) => rowKey(row) === key)?.processorGroups[group];
+      setProcessors(found === undefined ? undefined : { group: found, anchor });
+    },
+    [display.rows]
+  );
+
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const choosable = outline.filter((row) => isChoosable(row.item));
@@ -756,21 +749,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         const next = choosable[at < 0 ? 0 : Math.min(choosable.length - 1, Math.max(0, at + step))];
         if (next !== undefined) chooseItem(next.item, false);
       } else if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-        // As in an outline: right opens the row, left closes it, or goes to the
-        // row it is under.
-        if (here === undefined) return;
-        const opening = event.key === "ArrowRight";
-        if (here.expandable && here.isOpen !== opening) {
-          toggle(here);
-        } else if (!opening && here.depth > 0) {
-          const parent = choosable
-            .slice(0, at)
-            .reverse()
-            .find((row) => row.depth < here.depth);
-          if (parent !== undefined) chooseItem(parent.item, false);
-        } else {
-          return;
-        }
+        // As in an outline: right opens the row, left closes it.
+        if (here === undefined || !here.expandable) return;
+        if (here.isOpen === (event.key === "ArrowRight")) return;
+        toggle(here);
       } else if (event.key === " ") {
         // Space on the row in focus opens the details in the large view, and closes it
         // again.
@@ -926,6 +908,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                     addDisabled={busy || display.rows.length === 0}
                     onAdd={openAdd}
                     onChoose={() => chooseItem(line.item, true)}
+                    onInfo={showProcessors}
                     onToggle={() => toggle(line)}
                     onDoubleClick={(row) => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
                     onContextMenu={(event, row) => {
@@ -1042,6 +1025,14 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
         ) : null}
       </footer>
 
+      {processors === undefined ? null : (
+        <FitProcessorsPopover
+          group={processors.group}
+          anchor={processors.anchor}
+          onClose={closeProcessors}
+        />
+      )}
+
       {form === undefined ? null : (
         <MicrocodeForm
           mode={form}
@@ -1058,15 +1049,13 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
 /**
  * One row of the outline: an entry — its marks ahead of its type, the verdict
- * right after the word "Microcode", what it points at after that — a CPUID or a
- * model under a microcode, the heading in front of the backup's copy, or the
- * row Add Microcode… sits in.
+ * right after the word "Microcode", what it points at after that — the CPUIDs
+ * under a microcode, the heading in front of the backup's copy, or the row Add
+ * Microcode… sits in.
  *
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineView
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.entryCell
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.makeEntryCell
- * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.lineCell
- * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.twoPart
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.addMicrocodeCell
  * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.headingView
  */
@@ -1080,6 +1069,7 @@ function FitOutlineLine({
   addDisabled,
   onAdd,
   onChoose,
+  onInfo,
   onToggle,
   onDoubleClick,
   onContextMenu,
@@ -1093,6 +1083,7 @@ function FitOutlineLine({
   readonly addDisabled: boolean;
   readonly onAdd: () => void;
   readonly onChoose: () => void;
+  readonly onInfo: (key: number, group: number, anchor: HTMLElement) => void;
   readonly onToggle: () => void;
   readonly onDoubleClick: (row: FITDisplayRow) => void;
   readonly onContextMenu: (event: React.MouseEvent, row: FITDisplayRow) => void;
@@ -1128,86 +1119,37 @@ function FitOutlineLine({
     );
   }
   if (entry === undefined) return null;
-  const isEntry = item.kind === "entry";
-  const marks = isEntry ? marksOf(entry) : undefined;
-  let body: React.ReactNode;
-  let title: string | undefined;
-  if (item.kind === "entry") {
-    const shown = verdict(entry.latestState);
-    // The version is a real field and it decides how a policy row's address is
-    // read, but it is the same 1.00 on almost every row — so it lives where a
-    // curious pointer finds it rather than on the line.
-    const said =
-      entry.targetText.length === 0 ? entry.typeText : `${entry.typeText}   ${entry.targetText}`;
-    title = [said, L("Version %1$@", entry.versionText), rowMarkTitle(marks)]
-      .filter((one) => one !== undefined)
-      .join("\n");
-    body = (
-      <>
-        {/* The row wears its problem ahead of its name, and a microcode's
-            verdict against the catalogue after the word "Microcode", the thing
-            the verdict is about; what it points at follows. */}
-        <RowMarksIcons marks={marks} size={12} />
-        <span className="fit-type-text">{entry.typeText}</span>
-        {shown === undefined ? null : (
-          <RowMarkIcon mark={shown.mark} size={12} label={shown.toolTip} title={shown.toolTip} />
-        )}
-        {entry.targetText.length === 0 ? null : (
-          <span className="fit-target-text">{entry.targetText}</span>
-        )}
-      </>
-    );
-  } else {
-    const group = entry.processorGroups[item.group];
-    if (group === undefined) return null;
-    if (item.kind === "cpuid") {
-      // The cores, the stepping and the segments are under the pointer: the row
-      // says the CPUID and its code names, and nothing more.
-      const names = group.codeNames.join(", ");
-      title = group.notes.length === 0 ? undefined : group.notes.join("\n");
-      body = (
-        <>
-          <span className="fit-cpuid-text">{L("CPUID %1$@", group.cpuid)}</span>
-          {names.length === 0 ? null : <span className="fit-line-detail">{names}</span>}
-        </>
-      );
-    } else {
-      const one = group.lines[item.line];
-      if (one === undefined) return null;
-      title = one.detail.length === 0 ? one.text : `${one.text}   ${one.detail}`;
-      body = (
-        <>
-          <span className="fit-line-text" data-unknown={one.kind === "unknown" ? "" : undefined}>
-            {one.text}
-          </span>
-          {one.detail.length === 0 ? null : <span className="fit-line-detail">{one.detail}</span>}
-        </>
-      );
-    }
+  if (item.kind === "cpuids") {
+    return <FitCpuidLines entry={entry} depth={line.depth} onInfo={onInfo} />;
   }
+  const marks = marksOf(entry);
+  const shown = verdict(entry.latestState);
+  // The version is a real field and it decides how a policy row's address is
+  // read, but it is the same 1.00 on almost every row — so it lives where a
+  // curious pointer finds it rather than on the line.
+  const said =
+    entry.targetText.length === 0 ? entry.typeText : `${entry.typeText}   ${entry.targetText}`;
+  const title = [said, L("Version %1$@", entry.versionText), rowMarkTitle(marks)]
+    .filter((one) => one !== undefined)
+    .join("\n");
   return (
     <tr
-      className={isEntry ? "fit-row tool-marked-row" : "fit-row fit-processor-row"}
+      className="fit-row tool-marked-row"
       aria-level={line.depth + 1}
       aria-expanded={line.expandable ? line.isOpen : undefined}
-      // The backup's rows read quieter all the way down: they are there to be
-      // compared, and nothing on them is changed on its own.
+      // The backup's rows read quieter: they are there to be compared, and
+      // nothing on them is changed on its own.
       data-backup={entry.isBackup ? "" : undefined}
       data-selected={selected ? "" : undefined}
       title={title}
-      // The lines under a microcode are about the processor, not about bytes of
-      // the image, and keep the plain row.
-      {...(isEntry ? rowPaintAttrs(marks, showsMarkings) : {})}
+      {...rowPaintAttrs(marks, showsMarkings)}
       onClick={onChoose}
       onDoubleClick={() => onDoubleClick(entry)}
       onContextMenu={(event) => onContextMenu(event, entry)}
     >
       <td>
-        {/* The arrow leads the row, as in the UEFI tree, and the levels under it
-            are indented under their microcode — inside the column, not added to
-            it. */}
-        {/* help: fit.processors */}
-        <span className="fit-type" style={{ paddingLeft: `${line.depth * 16}px` }}>
+        {/* The arrow leads the row, as in the UEFI tree. */}
+        <span className="fit-type">
           <button
             type="button"
             className="fit-twist"
@@ -1222,8 +1164,67 @@ function FitOutlineLine({
           >
             {line.expandable ? <DisclosureChevron open={line.isOpen} /> : null}
           </button>
-          {body}
+          {/* The row wears its problem ahead of its name, and a microcode's
+              verdict against the catalogue after the word "Microcode", the
+              thing the verdict is about; what it points at follows. */}
+          <RowMarksIcons marks={marks} size={12} />
+          <span className="fit-type-text">{entry.typeText}</span>
+          {shown === undefined ? null : (
+            <RowMarkIcon mark={shown.mark} size={12} label={shown.toolTip} title={shown.toolTip} />
+          )}
+          {entry.targetText.length === 0 ? null : (
+            <span className="fit-target-text">{entry.targetText}</span>
+          )}
         </span>
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * The CPUIDs a microcode serves, under its row on the table's own background: a
+ * line a CPUID — the CPUID, the `ⓘ` right after it, which belongs to that CPUID,
+ * and its code names, cut short where the column is narrow. The lines are not
+ * rows of the table: they cannot be chosen, and they are text, so a reader
+ * selects and copies from them as from any text, across lines too — a copy
+ * leaves the `ⓘ` out, which is no text. Under a row of the Top Swap backup's
+ * copy everything reads as quietly as that row does.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.cpuidPlate
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITCPUIDPlate
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITCPUIDPlate.show
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITCPUIDTextView
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITCPUIDTextView.plain
+ * @upstream-differs lines of the page's own text with the `ⓘ` a button between them, so the
+ * browser's selection and copy are the text view's, and the row's height is its lines'
+ */
+function FitCpuidLines({
+  entry,
+  depth,
+  onInfo,
+}: {
+  readonly entry: FITDisplayRow;
+  readonly depth: number;
+  readonly onInfo: (key: number, group: number, anchor: HTMLElement) => void;
+}) {
+  return (
+    <tr className="fit-cpuids-row" data-backup={entry.isBackup ? "" : undefined}>
+      {/* A click in the text is the text's: it does not choose the row above. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: the click is only kept from the row */}
+      <td onClick={(event) => event.stopPropagation()}>
+        <div className="fit-cpuids" style={{ paddingLeft: `${depth * 16 + 16}px` }}>
+          {cpuidLines(entry).map((line, group) => (
+            <div key={line.cpuid} className="fit-cpuid-line">
+              <span className="fit-cpuid-text">{line.cpuid}</span>
+              {line.hasInfo ? (
+                <ProcessorsInfoMark onOpen={(anchor) => onInfo(rowKey(entry), group, anchor)} />
+              ) : null}
+              {line.names.length === 0 ? null : (
+                <span className="fit-line-detail">{`  ${line.names}`}</span>
+              )}
+            </div>
+          ))}
+        </div>
       </td>
     </tr>
   );

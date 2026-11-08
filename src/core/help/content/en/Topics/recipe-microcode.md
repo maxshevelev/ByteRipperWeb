@@ -23,7 +23,7 @@ The catalogue name makes two properties of the image legible:
 
 ## Adding a microcode
 
-**Add Microcode…**, the button in the table under its last microcode, opens a list of Intel microcodes fetched from the `platomav/CPUMicrocodes` collection on github.com, with the columns CPUID, platform, revision, date, release and size. **Only CPUIDs in this image** restricts the list to the signatures the open image already carries. The search field finds a microcode by its CPUID, by part of a processor's model name (`12800H`) or by a whole S-SPEC (`SRLD1`). A model or an S-SPEC is turned into its CPUID through the table of processor models the FIT panel shows, and the platform field is not taken into account. **Choose File…** takes a microcode from a local file instead, and requires no network access.
+**Add Microcode…**, the button in the table under its last microcode, opens a list of Intel microcodes fetched from the `platomav/CPUMicrocodes` collection on github.com, with the columns CPUID, platform, revision, date, release and size. The ⓘ after a CPUID opens the same list of processors as in the FIT panel; a CPUID the table of processor models does not contain has none. **Only CPUIDs in this image** restricts the list to the signatures the open image already carries. The search field finds a microcode by its CPUID, by part of a processor's model name (`12800H`) or by a whole S-SPEC (`SRLD1`). A model or an S-SPEC is turned into its CPUID through the table of processor models the FIT panel shows, and the platform field is not taken into account. **Choose File…** takes a microcode from a local file instead, and requires no network access.
 
 A file offered from either source is validated before anything is written: it must begin with an Intel microcode header, and its checksum must agree.
 
@@ -41,7 +41,7 @@ What the command then does:
 
 ## Replacing and removing
 
-The context menu of a microcode row holds **Replace Microcode**, **Remove Microcode**, **Copy CPUID** and **Show Target**; the header row holds **Fix Checksum**.
+The context menu of a microcode row holds **Replace Microcode**, **Remove Microcode** and **Show Target**; the header row holds **Fix Checksum**.
 
 - **Replace Microcode** exchanges the component the row names for another of any signature. The row remains; components behind it move if the new component is of a different size, and the entries naming them are corrected. A replacement that serves a processor another row already serves on the same platforms is refused: the row to update is that one.
 - **Remove Microcode** takes the entry out of the table, moves the components behind it up into the freed space and erases the bytes at the end of the run. A table must retain at least one microcode entry.

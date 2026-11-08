@@ -92,6 +92,9 @@ export function HelpPopoverLayout({
 }: {
   /**
    * What the popover is about: one line, cut at its end where it is longer.
+   * Selectable, as the note and the words under it are (the layout's
+   * `user-select: text`): a title is often the very thing a reader wants to
+   * copy — a CPUID, a setting's name.
    *
    * @upstream Packages/HelpUI/Sources/HelpUI/HelpPopoverLayout.swift#HelpPopoverLayout.title
    */

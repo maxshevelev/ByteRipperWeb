@@ -535,10 +535,7 @@ describe("a Top Swap image", () => {
     expect(copy.zoneId).toBe("fit.backup.row.1");
     expect(copy.targetRange?.start).toBe(0x4060);
     // Nothing that changes the table.
-    expect(rowCommands(copy)).toEqual([
-      { kind: "goToOffset", offset: 0x4060 },
-      { kind: "copyCPUID", cpuid: "806EA" },
-    ]);
+    expect(rowCommands(copy)).toEqual([{ kind: "goToOffset", offset: 0x4060 }]);
     const top = display.rows[1];
     expect(top === undefined ? [] : rowCommands(top).map((one) => one.kind)).toContain(
       "replaceMicrocode"

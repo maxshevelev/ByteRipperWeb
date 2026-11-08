@@ -59,7 +59,8 @@ export interface ProcessorModel {
   /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.sSpec */
   readonly sSpec: readonly string[];
   /**
-   * Where a code that is not the article's came from: `ark` or `wikipedia`.
+   * Where a code that is not the article's came from: `ark`, `wikipedia`, or
+   * what upstream's `Skills/find-sspec` found — `intel`, `database`, `marking`.
    *
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.sSpecSource
    */
@@ -123,19 +124,22 @@ export function processorFamilies(
 }
 
 /**
- * A line under a CPUID: a model the table of brand names lists for it.
+ * A line of the popover's list: a model the table of brand names lists for the
+ * CPUID, or the name of its group.
  *
  * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorLine
  */
 export interface FITProcessorLine {
   /**
-   * `model` — one model, with its S-SPECs as the detail; `unknown` — nothing is
-   * known for this CPUID.
+   * `family` — the code names of the group the models after it belong to, and
+   * the rest of its note as the detail, only where the CPUID has more than one
+   * group; `model` — one model, with its S-SPECs as the detail; `unknown` —
+   * nothing is known for this CPUID.
    *
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorLine.kind
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorLine.Kind
    */
-  readonly kind: "model" | "unknown";
+  readonly kind: "family" | "model" | "unknown";
   /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorLine.text */
   readonly text: string;
   /**
@@ -155,8 +159,10 @@ export const processorShortName = (name: string): string =>
   name.startsWith("Intel ") ? name.slice(6) : name;
 
 /**
- * The processors behind one CPUID of a microcode: what its node in the panel's
- * tree says, and the lines it opens into.
+ * The processors behind one CPUID of a microcode: what its line under the
+ * microcode says, and what the popover off the line's `ⓘ` lists. The processors
+ * are not rows of the tree: they are not part of the update, only what is known
+ * about who runs it.
  *
  * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup
  */
@@ -168,24 +174,30 @@ export interface FITProcessorGroup {
    */
   readonly cpuid: string;
   /**
-   * The code names of the groups the table has for this CPUID, said beside it —
-   * the one thing that tells two CPUIDs of one update apart at a glance. Empty
-   * when nothing is known.
+   * The code names of the groups the table has for this CPUID, said beside it on
+   * its line — the one thing that tells two CPUIDs of one update apart at a
+   * glance. Empty when nothing is known.
    *
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.codeNames
    */
   readonly codeNames: readonly string[];
   /**
-   * What the table says of the groups besides their names — the cores'
-   * architectures, the stepping, the segments — one line a group. The panel
-   * puts it under the pointer on the CPUID's row rather than on a row of its
-   * own. A line leads with its group's code names only where the CPUID has more
-   * than one group, since the row already says them.
+   * What the table says of each group, one note a group: its code names, its
+   * product families, then the cores' architectures, the stepping and the
+   * segments — a line each. The popover says a CPUID's one group at its head;
+   * where there are several, each is said over its own models, by the line that
+   * names it. Empty when nothing is known.
    *
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.notes
    */
   readonly notes: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.lines */
+  /**
+   * The popover's list: the models, each with its S-SPECs — under a line naming
+   * its group, and saying the rest of its note, where the CPUID has more than
+   * one.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.lines
+   */
   readonly lines: readonly FITProcessorLine[];
 }
 
@@ -220,17 +232,22 @@ export function processorGroups(
     const lines: FITProcessorLine[] = [];
     const notes: string[] = [];
     for (const family of families) {
-      // A hybrid's two kinds of core read as one part: P + E.
-      const cores = family.cores ?? [];
-      const note = [
-        ...(cores.length === 0 ? [] : [cores.join(" + ")]),
-        ...family.steppings,
-        ...family.segments,
-      ].join(" · ");
+      notes.push(processorNote(family));
       if (families.length > 1) {
-        notes.push(family.codeNames.join(", ") + (note.length === 0 ? "" : `: ${note}`));
-      } else if (note.length > 0) {
-        notes.push(note);
+        lines.push({
+          kind: "family",
+          text: family.codeNames.join(", "),
+          detail: processorFacts(family),
+        });
+      }
+      if (family.processors.length === 0) {
+        // A die whose code name is known and no model sold on it (Grand
+        // Ridge's B0660: Intel lists only B0664's).
+        lines.push({
+          kind: "unknown",
+          text: L("No processor models known for this CPUID"),
+          detail: "",
+        });
       }
       for (const model of family.processors) {
         lines.push({
@@ -242,4 +259,36 @@ export function processorGroups(
     }
     return { cpuid, codeNames: families.flatMap((one) => one.codeNames), notes, lines };
   });
+}
+
+/**
+ * A group's note: its code names; its product families; and its cores — a
+ * hybrid's two kinds as one part, P + E — stepping and segments on one line. A
+ * line with nothing to say is left out.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.note
+ */
+export function processorNote(family: ProcessorFamily): string {
+  return [family.codeNames.join(", "), processorFacts(family)]
+    .filter((one) => one.length > 0)
+    .join("\n");
+}
+
+/**
+ * A group's note without its names: what the line naming it says under them.
+ *
+ * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.facts
+ */
+export function processorFacts(family: ProcessorFamily): string {
+  const cores = family.cores ?? [];
+  const stepping =
+    family.steppings.length === 0 ? [] : [L("Stepping %1$@", family.steppings.join(", "))];
+  return [
+    family.productFamilies.join(", "),
+    [...(cores.length === 0 ? [] : [cores.join(" + ")]), ...stepping, ...family.segments].join(
+      " · "
+    ),
+  ]
+    .filter((one) => one.length > 0)
+    .join("\n");
 }
