@@ -126,6 +126,28 @@ describe("holdHelpPopover", () => {
     expect(onClose, "the closed popover answers nothing").toHaveBeenCalledTimes(1);
   });
 
+  // Modal: outside it nothing scrolls and nothing is pressed; a press there only closes it, and
+  // the click that ends that press reaches nothing behind it.
+  it("holds the window outside it, and answers a press there only by closing", () => {
+    vi.useFakeTimers();
+    const events = new EventTarget();
+    const onClose = vi.fn();
+    const release = holdHelpPopover(events, () => false, onClose);
+    vi.runAllTimers();
+    const wheel = new Event("wheel", { cancelable: true });
+    events.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented, "the table behind does not scroll").toBe(true);
+    events.dispatchEvent(new Event("pointerdown", { cancelable: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    release();
+    const click = new Event("click", { cancelable: true });
+    events.dispatchEvent(click);
+    expect(click.defaultPrevented, "the press's click is the popover's").toBe(true);
+    const next = new Event("click", { cancelable: true });
+    events.dispatchEvent(next);
+    expect(next.defaultPrevented, "the next click is the window's again").toBe(false);
+  });
+
   it("stays open for a press inside it", () => {
     vi.useFakeTimers();
     const events = new EventTarget();

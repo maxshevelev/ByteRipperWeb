@@ -14,30 +14,86 @@
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
 
+/** What the window outside a popover is kept from while it is open: every press, every scroll. */
+const HELD_OUTSIDE = [
+  "pointerdown",
+  "pointerup",
+  "mousedown",
+  "mouseup",
+  "click",
+  "auxclick",
+  "dblclick",
+  "contextmenu",
+  "wheel",
+  "touchstart",
+  "touchmove",
+] as const;
+
+/** What follows a press that closed a popover, and is the press's still: kept from the window. */
+const AFTER_THE_PRESS = ["click", "auxclick", "contextmenu"] as const;
+
 /**
- * Closes the popover on a press anywhere outside it, from the next turn of the
- * event loop on — the press that opened it is still on its way up, and would
- * otherwise close it again at once. Returns what lets go of the listener, which
- * the popover calls when it closes: left listening, every popover a reader had
- * opened would still be answering presses after it had gone.
+ * Holds the window while the popover is open, as a modal popover does: outside it nothing
+ * scrolls and nothing is pressed — the table it was opened from stays where the reader was
+ * reading — and the one thing a press outside does is close it. That press is the popover's
+ * whole: what would follow it — the click, the menu — reaches nothing behind it either.
+ *
+ * Listening starts on the next turn of the event loop: the press that opened it is still on its
+ * way up, and would otherwise close it again at once. Returns what lets go of the listeners,
+ * which the popover calls when it closes: left listening, every popover a reader had opened
+ * would still be holding the window after it had gone.
  *
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpPopoverController.swift#HelpPopoverController.popoverDidClose
- * @upstream-differs what is let go of is the light dismiss's listener rather than
- * a Zoom observer and the controller: React drops the component itself
+ * @upstream-differs upstream's popover is transient, and a press outside it goes on to what it
+ * was on; here the popover is modal by the owner's decision (2026-11-08): outside it, only the
+ * press that closes it is answered
  */
 export function holdHelpPopover(
   events: Pick<EventTarget, "addEventListener" | "removeEventListener">,
   isInside: (target: EventTarget | null) => boolean,
   onClose: () => void
 ): () => void {
-  const dismiss = (event: Event) => {
-    if (!isInside(event.target)) onClose();
+  const options = { capture: true, passive: false } as const;
+  const hold = (event: Event) => {
+    if (isInside(event.target)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.type === "pointerdown") {
+      swallowWhatFollows(events);
+      onClose();
+    }
   };
-  const timer = setTimeout(() => events.addEventListener("pointerdown", dismiss), 0);
+  const timer = setTimeout(() => {
+    for (const type of HELD_OUTSIDE) events.addEventListener(type, hold, options);
+  }, 0);
   return () => {
     clearTimeout(timer);
-    events.removeEventListener("pointerdown", dismiss);
+    for (const type of HELD_OUTSIDE) events.removeEventListener(type, hold, options);
   };
+}
+
+/**
+ * Keeps the click, or the menu, that ends a press which closed a popover from what is behind
+ * it: the popover has gone by the time it comes, and nothing is left holding the window.
+ */
+function swallowWhatFollows(
+  events: Pick<EventTarget, "addEventListener" | "removeEventListener">
+): void {
+  const options = { capture: true } as const;
+  const done = () => {
+    clearTimeout(timer);
+    for (const type of AFTER_THE_PRESS) events.removeEventListener(type, swallow, options);
+    events.removeEventListener("pointerdown", done, options);
+  };
+  const swallow = (event: Event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    done();
+  };
+  for (const type of AFTER_THE_PRESS) events.addEventListener(type, swallow, options);
+  // The next press is a press of its own; a press that never ends in a click lets go too.
+  events.addEventListener("pointerdown", done, options);
+  const timer = setTimeout(done, 1000);
 }
 
 export function HelpPopover({
@@ -90,8 +146,8 @@ export function HelpPopover({
     window.addEventListener("resize", follow);
     const release = holdHelpPopover(
       document,
-      (target) =>
-        target instanceof Node && (element.contains(target) || anchor?.contains(target) === true),
+      // The button it hangs from is outside it: a press on it closes it, as any other does.
+      (target) => target instanceof Node && element.contains(target),
       onClose
     );
     return () => {
@@ -107,11 +163,12 @@ export function HelpPopover({
       role="dialog"
       popover="manual"
       className="help-popover"
-      // Escape is taken here, and kept from the panel behind, whose own Escape would fold it.
+      // A modal popover's keys are its own: none reaches the table behind it, and Escape —
+      // which the panel behind would fold itself on — closes it.
       onKeyDown={(event) => {
+        event.stopPropagation();
         if (event.key !== "Escape") return;
         event.preventDefault();
-        event.stopPropagation();
         onClose();
       }}
       tabIndex={-1}
