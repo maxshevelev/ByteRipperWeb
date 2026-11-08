@@ -6,10 +6,10 @@
   "main": "main.cjs",
   "scripts": {
     "web": "npm --prefix .. run build && node copy-web.mjs",
-    "start": "npm run web && electron .",
-    "open": "electron .",
+    "start": "npm run web && node devDockTypes.cjs && electron .",
+    "open": "node devDockTypes.cjs && electron .",
     "dist:win": "npm run web && electron-builder --win --x64 --config electron-builder.config.cjs",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.cjs"
   },
   "devDependencies": {
     "electron": "^44.5.0",

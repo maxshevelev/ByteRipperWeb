@@ -33,6 +33,14 @@ How it works:
   shows a file picker (Open…, Save As…) only to code handling one, and a
   message over IPC is not. The shortcuts are shown but not registered: the page answers
   its own keys, and a menu answering them too would run each command twice.
+- **A file dropped on the Dock icon of a development run** (`npm start`,
+  `npm run open`, on a Mac) opens as it does in upstream's app. Such a run is
+  node_modules' own Electron.app, whose Info.plist declares no document type,
+  so the Dock refused every drop; `devDockTypes.cjs` runs first and gives it
+  upstream's "Any File" (`public.data`, a Viewer ranked Alternate — offered,
+  the default of nothing), signs it again ad hoc where it was signed, and has
+  Launch Services read it again. An `npm install` puts the bundle back as it
+  came, and the next start declares the type again.
 - Electron's default menu is never shown: its Reload would throw the open
   files away. Links out of the help open in the system browser.
 
