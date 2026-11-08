@@ -7,9 +7,14 @@ import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useSta
  * out while the rows below slide up over them.
  *
  * Measured, not modelled: after each change of the rows, every row on screen that was in the
- * tree before and has moved is played from where it was to where it is — the rows are all one
- * height, so where it was is its old index — and every new one fades in. The rows that went are
+ * tree before and has moved is played from where it was to where it is, and every new one fades
+ * in. Where a row was is where it was seen — so a table whose rows are not all one height, the
+ * FIT table's CPUID lines under a microcode, moves as truly as a tree's — and, for a row that
+ * was not on screen to be seen, its old index times the row height. The rows that went are
  * handed back as `exiting`, to be drawn where they were until they have faded.
+ *
+ * Every table of the app whose rows open and shut does it through this hook: the UEFI tree,
+ * the ME tree and the FIT table.
  *
  * Any change of the rows moves, whatever made it: a click, a key, a search opening the way to a
  * match. One too large to follow — more rows than a screen holds many times over — and one the
@@ -52,6 +57,11 @@ export interface Snapshot<R> {
    * a row's place is this and its index — or nothing when no row was on screen to tell.
    */
   readonly origin: number | undefined;
+  /**
+   * Where each row on screen stood, in the container's coordinates, as it was measured: what a
+   * row of a height of its own is placed by. A row missing here is placed by `origin`.
+   */
+  readonly tops?: ReadonlyMap<string, number>;
 }
 
 /** A change of the rows, as it is to be played. */
@@ -117,10 +127,16 @@ export function useTreeMotion<R>(
       sample === undefined || sampleIndex === undefined
         ? undefined
         : sample.offsetTop - sampleIndex * rowHeight;
+    // `offsetTop` is the row's place in the layout, whatever a motion still in flight is
+    // drawing it at.
+    const tops = new Map(
+      rendered.map((row) => [row.getAttribute(ROW_KEY_ATTRIBUTE) ?? "", row.offsetTop])
+    );
     previous.current = {
       index,
       rows: new Map(change.rows.map((row) => [keyOf(row), row])),
       origin,
+      tops,
     };
     skip.current = false;
     const was = change.from;
@@ -139,11 +155,12 @@ export function useTreeMotion<R>(
           () => row.removeAttribute("data-motion"),
           () => row.removeAttribute("data-motion")
         );
-      } else if (before !== now) {
-        row.animate(
-          [{ transform: `translateY(${(before - now) * rowHeight}px)` }, { transform: "none" }],
-          timing
-        );
+      } else {
+        const stood = was.tops?.get(key);
+        const by = stood === undefined ? (before - now) * rowHeight : stood - row.offsetTop;
+        if (by !== 0) {
+          row.animate([{ transform: `translateY(${by}px)` }, { transform: "none" }], timing);
+        }
       }
     }
     for (const row of element.querySelectorAll<HTMLElement>("[data-motion-exit]")) {
@@ -152,9 +169,24 @@ export function useTreeMotion<R>(
     // A branch shut near the end of the list leaves less to scroll: the table is brought to its
     // new end along with the rows rather than snapped there when the last of them has faded.
     const view = scroller.current;
-    if (view !== null && origin !== undefined && change.exiting.length > 0) {
-      const base = view === element ? 0 : element.offsetTop;
-      const end = base + origin + change.rows.length * rowHeight;
+    const last = rendered[rendered.length - 1];
+    const lastKey = change.rows.length === 0 ? undefined : keyOf(change.rows.at(-1) as R);
+    const bottom =
+      last !== undefined && last.getAttribute(ROW_KEY_ATTRIBUTE) === lastKey
+        ? last.offsetTop + last.offsetHeight
+        : origin === undefined
+          ? undefined
+          : origin + change.rows.length * rowHeight;
+    if (view !== null && bottom !== undefined && change.exiting.length > 0) {
+      // Where the rows' coordinates start in what the scroller scrolls.
+      const base =
+        view === element
+          ? 0
+          : element.getBoundingClientRect().top -
+            view.getBoundingClientRect().top -
+            view.clientTop +
+            view.scrollTop;
+      const end = base + bottom;
       const target = Math.max(0, end - view.clientHeight);
       if (view.scrollTop > target) glide(view, target);
     }
@@ -190,16 +222,13 @@ export function planTreeMotion<R>(
   if (added + gone.length > MOST_ROWS_IN_MOTION) return still;
   // What went and was on screen is drawn where it was a moment longer, fading.
   const origin = was.origin;
-  const exiting =
-    origin === undefined
-      ? []
-      : gone.flatMap((key): ExitingRow<R>[] => {
-          const row = was.rows.get(key);
-          const at = was.index.get(key);
-          return row === undefined || at === undefined
-            ? []
-            : [{ row, key, index: at, top: origin + at * rowHeight }];
-        });
+  const exiting = gone.flatMap((key): ExitingRow<R>[] => {
+    const row = was.rows.get(key);
+    const at = was.index.get(key);
+    if (row === undefined || at === undefined) return [];
+    const top = was.tops?.get(key) ?? (origin === undefined ? undefined : origin + at * rowHeight);
+    return top === undefined ? [] : [{ row, key, index: at, top }];
+  });
   return { rows, from: was, exiting };
 }
 

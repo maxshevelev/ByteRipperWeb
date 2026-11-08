@@ -76,6 +76,11 @@ Important rules:
   a byte that is both shows both. State is carried by colour *and* form, so it
   survives a theme switch and colour blindness.
 - Very large files are read in chunks and never loaded whole.
+- A table whose rows open and shut does it in motion, as an outline view does:
+  the rows below slide, the rows of the branch fade in or out under them. Every
+  such table goes through the one hook, `useTreeMotion`
+  (`src/ui/toolPanel/treeMotion.ts`) — the UEFI tree, the ME tree, the FIT
+  table — and a new one does too, never a motion of its own and never none.
 - The hex grid draws through a glyph atlas and repaints dirty regions only. When
   drawing lags, fix what is repainted; do not cache what was painted.
 - One workspace per browser tab. No in-app tabs and no window management —

@@ -3428,11 +3428,13 @@ button.uefi-title {
 /* A row coming into a branch that opens, or leaving one that shuts: under the
    rows that slide past it, and out of the pointer's way while it fades. */
 .uefi-row[data-motion="under"],
-.me-row[data-motion="under"] {
+.me-row[data-motion="under"],
+.fit-table > tbody > tr[data-motion="under"] {
   z-index: -1;
 }
 
-.me-row[data-motion="under"] {
+.me-row[data-motion="under"],
+.fit-table > tbody > tr[data-motion="under"]:not([data-motion-exit]) {
   position: relative;
 }
 
@@ -4172,6 +4174,20 @@ button.uefi-title {
   border-collapse: collapse;
 }
 
+/* The rows' motion (`useTreeMotion`) has the table for its frame: a line that
+   went is placed in it, and the lines fading under the others stay in its
+   layer, under its sticky head and over the list's own background. */
+.fit-table {
+  position: relative;
+  z-index: 0;
+}
+
+/* Opaque, so a row sliding to its place while a microcode opens or shuts passes
+   over the CPUID lines coming and going rather than through them. */
+.fit-table > tbody > tr {
+  background: var(--surface);
+}
+
 .fit-head {
   position: sticky;
   top: 0;
@@ -4198,8 +4214,15 @@ button.uefi-title {
   white-space: nowrap;
 }
 
-.fit-row:nth-child(even) {
+.fit-row:nth-child(even),
+.fit-row[data-motion-exit][data-alt] {
   background: var(--surface-raised);
+}
+
+/* A line that went is drawn after every row on screen, so its own place in the
+   body says nothing of the colour it had: `data-alt` does. */
+.fit-row[data-motion-exit]:not([data-alt]) {
+  background: var(--surface);
 }
 
 /* The row Add Microcode… sits in, under the table's last microcode: as tall as

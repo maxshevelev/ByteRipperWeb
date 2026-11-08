@@ -79,6 +79,7 @@ import { RowMarkIcon } from "@/ui/toolPanel/RowMarkIcon";
 import { RowMarksIcons, rowMarkTitle, rowPaintAttrs } from "@/ui/toolPanel/RowMarks";
 import { ToolDetail } from "@/ui/toolPanel/ToolDetail";
 import { ToolRowMarksLegend, useShowsMarkings } from "@/ui/toolPanel/ToolRowMarksLegend";
+import { ROW_KEY_ATTRIBUTE, useTreeMotion } from "@/ui/toolPanel/treeMotion";
 import type { FitEditRequest, WireNode, WireProtectedRange } from "@/workers/protocol";
 
 type FitEdit = FitEditRequest["edit"];
@@ -674,6 +675,11 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
 
   /** The outline's visible rows: the entries, what a microcode opens into, Add, the heading. */
   const outline = useMemo(() => fitOutlineRows(display, openings), [display, openings]);
+  // A microcode opens and shuts in motion, as a branch of the UEFI tree does: the rows below
+  // slide, its CPUID lines fade in or out under them. Those lines are as tall as there are
+  // CPUIDs, so the motion places every row where it was measured, not by its index.
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const motion = useTreeMotion(outline, outlineRowKey, tableRef, ROW_HEIGHT, listElement);
 
   /**
    * The outline row that reads as chosen: the entry in focus.
@@ -880,7 +886,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
             data-key-table=""
             onKeyDown={onKeyDown}
           >
-            <table className="fit-table" style={{ minWidth: FIT_MIN_WIDTH }}>
+            <table className="fit-table" ref={tableRef} style={{ minWidth: FIT_MIN_WIDTH }}>
               <colgroup>
                 {FIT_COLUMNS().map((column) => (
                   <col key={column.id} style={{ width: drawnWidths[column.id] ?? column.width }} />
@@ -910,6 +916,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                     onChoose={() => chooseItem(line.item, true)}
                     onInfo={showProcessors}
                     onToggle={() => toggle(line)}
+                    motion={{ [ROW_KEY_ATTRIBUTE]: line.id }}
                     onDoubleClick={(row) => run({ kind: "goToOffset", offset: offsetToGoTo(row) })}
                     onContextMenu={(event, row) => {
                       chooseItem(line.item, false);
@@ -928,6 +935,28 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
                         }))
                       );
                     }}
+                  />
+                ))}
+                {/* The lines of a microcode that shut, where they stood, fading under the
+                    rows that slide up over them — after every row on screen, so the
+                    rows' alternating colour is not counted through them. */}
+                {motion.exiting.map((gone) => (
+                  <FitOutlineLine
+                    key={`exit:${gone.key}`}
+                    line={gone.row}
+                    display={display}
+                    entry={entryOf(gone.row.item)}
+                    selected={false}
+                    marksOf={marksOf}
+                    showsMarkings={showsMarkings}
+                    addDisabled
+                    onAdd={() => {}}
+                    onChoose={() => {}}
+                    onInfo={() => {}}
+                    onToggle={() => {}}
+                    motion={exitingMotion(gone.index, gone.top)}
+                    onDoubleClick={() => {}}
+                    onContextMenu={() => {}}
                   />
                 ))}
               </tbody>
@@ -1071,6 +1100,7 @@ function FitOutlineLine({
   onChoose,
   onInfo,
   onToggle,
+  motion,
   onDoubleClick,
   onContextMenu,
 }: {
@@ -1085,6 +1115,8 @@ function FitOutlineLine({
   readonly onChoose: () => void;
   readonly onInfo: (key: number, group: number, anchor: HTMLElement) => void;
   readonly onToggle: () => void;
+  /** Where the rows' motion finds the row, or where a row that went is drawn while it fades. */
+  readonly motion: LineMotion;
   readonly onDoubleClick: (row: FITDisplayRow) => void;
   readonly onContextMenu: (event: React.MouseEvent, row: FITDisplayRow) => void;
 }) {
@@ -1093,7 +1125,7 @@ function FitOutlineLine({
     // The Top Swap backup's copy of the table follows under a heading of its
     // own, which cannot be chosen.
     return (
-      <tr className="fit-backup-heading">
+      <tr className="fit-backup-heading" {...motion}>
         <th scope="colgroup">{display.backupHeading}</th>
       </tr>
     );
@@ -1103,7 +1135,7 @@ function FitOutlineLine({
     // not chosen and has no menu; the button stands down while an edit is
     // being planned.
     return (
-      <tr className="fit-add-row">
+      <tr className="fit-add-row" {...motion}>
         <td>
           <button
             type="button"
@@ -1120,7 +1152,7 @@ function FitOutlineLine({
   }
   if (entry === undefined) return null;
   if (item.kind === "cpuids") {
-    return <FitCpuidLines entry={entry} depth={line.depth} onInfo={onInfo} />;
+    return <FitCpuidLines entry={entry} depth={line.depth} onInfo={onInfo} motion={motion} />;
   }
   const marks = marksOf(entry);
   const shown = verdict(entry.latestState);
@@ -1143,6 +1175,7 @@ function FitOutlineLine({
       data-selected={selected ? "" : undefined}
       title={title}
       {...rowPaintAttrs(marks, showsMarkings)}
+      {...motion}
       onClick={onChoose}
       onDoubleClick={() => onDoubleClick(entry)}
       onContextMenu={(event) => onContextMenu(event, entry)}
@@ -1202,13 +1235,15 @@ function FitCpuidLines({
   entry,
   depth,
   onInfo,
+  motion,
 }: {
   readonly entry: FITDisplayRow;
   readonly depth: number;
   readonly onInfo: (key: number, group: number, anchor: HTMLElement) => void;
+  readonly motion: LineMotion;
 }) {
   return (
-    <tr className="fit-cpuids-row" data-backup={entry.isBackup ? "" : undefined}>
+    <tr className="fit-cpuids-row" data-backup={entry.isBackup ? "" : undefined} {...motion}>
       {/* A click in the text is the text's: it does not choose the row above. */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: the click is only kept from the row */}
       <td onClick={(event) => event.stopPropagation()}>
@@ -1228,6 +1263,37 @@ function FitCpuidLines({
       </td>
     </tr>
   );
+}
+
+/** One row's height, which a row not measured is placed by. */
+const ROW_HEIGHT = 22;
+
+/** An outline row's key, which the rows' motion follows it by. */
+const outlineRowKey = (row: FITOutlineRow): string => row.id;
+
+/** The attributes a line of the outline carries for the rows' motion. */
+type LineMotion = React.HTMLAttributes<HTMLTableRowElement> &
+  Readonly<Record<`data-${string}`, string | undefined>>;
+
+/**
+ * A line that went, drawn where it stood — under every other, out of the pointer's way and of
+ * the reader's — in the alternating colour its place gave it, as wide as the table.
+ */
+function exitingMotion(index: number, top: number): LineMotion {
+  return {
+    "data-motion": "under",
+    "data-motion-exit": "",
+    "data-alt": index % 2 === 1 ? "" : undefined,
+    "aria-hidden": true,
+    style: {
+      position: "absolute",
+      top,
+      left: 0,
+      width: "100%",
+      display: "table",
+      tableLayout: "fixed",
+    } as const,
+  };
 }
 
 /** What a microcode chosen in the form does: goes into the row, or into the table. */

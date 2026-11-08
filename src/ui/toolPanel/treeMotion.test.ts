@@ -54,4 +54,23 @@ describe("a tree's rows in motion", () => {
     );
     expect(change.exiting).toEqual([]);
   });
+
+  it("keeps a row of a height of its own where it was seen, not where its index puts it", () => {
+    const change = planTreeMotion(
+      { ...stood(["a", "a.cpuids", "b"]), tops: new Map([["a.cpuids", 44]]) },
+      ["a", "b"],
+      key,
+      ROW,
+      false
+    );
+    expect(change.exiting).toEqual([{ row: "a.cpuids", key: "a.cpuids", index: 1, top: 44 }]);
+    const unseen = planTreeMotion(
+      { ...stood(["a", "a.cpuids", "b"]), origin: undefined, tops: new Map([["a", 22]]) },
+      ["a", "b"],
+      key,
+      ROW,
+      false
+    );
+    expect(unseen.exiting).toEqual([]);
+  });
 });
