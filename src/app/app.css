@@ -1288,6 +1288,12 @@ textarea,
   background: var(--surface);
   color: var(--text);
   font: inherit;
+  /* A dialog is the app's as much as the window is: nothing in it selects as
+     text but what is typed into and what is there to copy (the rule over
+     `input` and `.dialog-preview`). A modal one stands in the top layer, which
+     the body's own `user-select: none` does not reach, so it is said again. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* A dialog that holds the focus itself is not a control, so it is not ringed.
