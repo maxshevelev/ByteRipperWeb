@@ -4357,14 +4357,21 @@ button.uefi-title {
   border: 0;
   background: none;
   color: var(--accent);
-  /* Its middle on the middle of the CPUID's capitals and digits, which is what
-     the eye reads as the line: `middle` is half the x-height, a pixel and more
-     too low beside text with no lower case in it. The box has no baseline of
-     its own, so its bottom stands on the text's, raised by this. */
-  vertical-align: calc(0.5cap - 7px);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* In the panel's CPUID line it is centred on the line, as a Microcode row's
+   marks are centred on their row (`align-items: center`): its top at the
+   line's top and half of what the line has over it below that. The line is
+   text, not a flex row (a copy of it must read as one line), so the centring
+   is said here; in the form's cell a flex row centres it. */
+.fit-cpuid-line .fit-info-mark {
+  vertical-align: top;
+  /* The line's height, not a button's own: `lh` reads it off the mark. */
+  line-height: inherit;
+  margin-top: calc((1lh - 14px) / 2);
 }
 
 .fit-info-mark svg {
