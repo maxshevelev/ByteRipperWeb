@@ -4357,7 +4357,11 @@ button.uefi-title {
   border: 0;
   background: none;
   color: var(--accent);
-  vertical-align: middle;
+  /* Its middle on the middle of the CPUID's capitals and digits, which is what
+     the eye reads as the line: `middle` is half the x-height, a pixel and more
+     too low beside text with no lower case in it. The box has no baseline of
+     its own, so its bottom stands on the text's, raised by this. */
+  vertical-align: calc(0.5cap - 7px);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
