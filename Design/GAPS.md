@@ -68,7 +68,9 @@ Nothing open: the last row, G7, is in [Closed](#3-closed).
 
 ### 1.4 Tool panels
 
-Nothing open: the last row, G46, is in [Closed](#3-closed).
+| ID | Gap | Size | Depends on | Priority | Status |
+|---|---|---|---|---|---|
+| G127 | **The date a catalogue was fetched is not shown.** CLAUDE.md ("Third-party data") and help `databases` promise that what is held is shown with the date it was fetched, so yesterday's data is never mistaken for today's; every source keeps it (`fetchedAt` in the GUID, ME, microcode and CPUID stores) and no panel draws it. Found while porting the CPUID table (G125). Also: at `raw.githubusercontent.com` the script sees `200` on the browser's own revalidation, so the kept "changed" date moves at every daily check. | S | — | P2 | open |
 
 ### 1.5 Dump and minimap
 
