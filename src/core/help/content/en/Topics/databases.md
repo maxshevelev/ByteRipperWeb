@@ -1,12 +1,13 @@
 # The Online Catalogues
 
-> Three public catalogues that give names to identifiers found in a dump. Without access to them the program is fully functional, but does not display the additional information they provide.
+> Four public catalogues that give names to identifiers found in a dump. Without access to them the program is fully functional, but does not display the additional information they provide.
 
-Part of what the tool panels display is not held in the file: it is a name the community has given to an identifier that the file carries. ByteRipper fetches three public catalogues over HTTPS from GitHub for this purpose and retains each for one day:
+Part of what the tool panels display is not held in the file: it is a name the community has given to an identifier that the file carries. ByteRipper fetches four public catalogues over HTTPS from GitHub for this purpose and checks each for a newer version at most once a day:
 
 - **UEFI GUID names** — from the UEFITool project. They are what allows the [[topic:tool-uefi|UEFI panel]] to display "AmiBoardInfo" or "DxeCore" in place of a bare [[term:guid|GUID]].
 - **CPU microcode** — from the CPUMicrocodes collection. It names the microcode updates the [[topic:tool-fit|FIT panel]] lists, by processor signature, revision and date, and it is the source **Add Microcode…** offers.
 - **ME firmware database** — from the ME Analyzer project. It is what lets the [[topic:tool-me|ME panel]] say which known firmware release an image corresponds to.
+- **Intel processors by CPUID** — from the IntelCPUID repository. It names the processors behind each CPUID of a microcode in the [[topic:tool-fit|FIT panel]]. The last copy read in full is kept and used without a network; before one has been read, no processors are known.
 
 ## What is a measurement and what is a name
 

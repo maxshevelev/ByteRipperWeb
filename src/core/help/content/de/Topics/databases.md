@@ -1,13 +1,14 @@
-@source-sha 089d79f699244b5c39b161173c7f7838e9dca3bb60855d2f2c26a11887e64a91
+@source-sha 8c309e0d17eac36b524ec64b5336eb44a59b88886db2c79b065d962077ae75de
 # Die Online-Kataloge
 
-> Drei öffentliche Kataloge, die Kennungen aus einem Dump mit Namen versehen. Ohne Zugriff auf sie ist das Programm voll funktionsfähig, zeigt die zusätzlichen Angaben aber nicht an.
+> Vier öffentliche Kataloge, die Kennungen aus einem Dump mit Namen versehen. Ohne Zugriff auf sie ist das Programm voll funktionsfähig, zeigt die zusätzlichen Angaben aber nicht an.
 
-Ein Teil dessen, was die Werkzeugbereiche zeigen, steht gar nicht in der Datei — es ist ein Name, den die Gemeinschaft einer Kennung gegeben hat, die die Datei trägt. Dafür lädt ByteRipper über HTTPS von GitHub drei öffentliche Kataloge und behält jeden einen Tag:
+Ein Teil dessen, was die Werkzeugbereiche zeigen, steht gar nicht in der Datei — es ist ein Name, den die Gemeinschaft einer Kennung gegeben hat, die die Datei trägt. Dafür lädt ByteRipper über HTTPS von GitHub vier öffentliche Kataloge und prüft jeden höchstens einmal täglich auf eine neuere Fassung:
 
 - **UEFI-GUID-Namen** — aus dem UEFITool-Projekt. Sie sind es, die das [[topic:tool-uefi|UEFI-Werkzeug]] statt einer nackten [[term:guid|GUID]] „AmiBoardInfo“ oder „DxeCore“ anzeigen lassen.
 - **CPU-Microcode** — aus der Sammlung CPUMicrocodes. Danach werden die Microcode-Updates benannt, die das [[topic:tool-fit|FIT-Werkzeug]] auflistet: nach CPU-Signatur, Revision und Datum. Aus ihr stammt auch die Liste, die **Microcode hinzufügen…** anbietet.
 - **ME-Firmware-Datenbank** — aus dem Projekt ME Analyzer. Mit ihr kann das [[topic:tool-me|ME-Werkzeug]] angeben, welchem bekannten Firmware-Release ein Image entspricht.
+- **Intel-Prozessoren nach CPUID** — aus dem Repository IntelCPUID. Danach benennt das [[topic:tool-fit|FIT-Werkzeug]] die Prozessoren hinter jeder CPUID eines Microcodes. Die letzte vollständig gelesene Kopie wird aufbewahrt und ohne Netzwerk verwendet; solange noch keine gelesen wurde, sind keine Prozessoren bekannt.
 
 ## Was Tatsache ist und was ein Name
 

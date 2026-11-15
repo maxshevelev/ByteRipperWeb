@@ -156,7 +156,16 @@ export interface RemoteSource {
    */
   check(
     validator: string | undefined,
-    options?: { readonly signal?: AbortSignal }
+    options?: {
+      readonly signal?: AbortSignal;
+      /**
+       * Reads a new body before it is kept, and throws to refuse it: a body
+       * that cannot be read is not kept, so the copy in hand stays the one a
+       * reload starts from — a file this build cannot read must not replace
+       * the last good copy.
+       */
+      readonly accept?: (text: string) => void;
+    }
   ): Promise<RemoteAnswer>;
 }
 
@@ -195,6 +204,7 @@ export function remoteSource(url: string): RemoteSource {
         return { kind: "unchanged" };
       }
       const text = await response.text();
+      options.accept?.(text);
       const etag = response.headers.get("ETag") ?? undefined;
       await remember(url, text, etag, at);
       return { kind: "fresh", text, validator: etag };

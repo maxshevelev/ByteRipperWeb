@@ -6,6 +6,7 @@ import { FIT } from "@/firmware/fit/fitEntry";
 import { type FITReport, readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode } from "@/firmware/testing/testFit";
+import { installTestTables } from "@/firmware/testing/testTables";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { catalogueAnswer, chosenEntries, fitTableAnswer } from "@/tools/fit/agent/fitAgentAnswers";
 import { entryAt, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
@@ -126,6 +127,18 @@ describe("microcode_catalogue", () => {
     const first = (member(answer, "files") as Json[])[0];
     expect(member(first, "serves_rows")).toEqual([1]);
     expect(member(first, "newer_than_installed")).toBe(true);
+  });
+
+  // The repository's tables, as upstream's fixtures hold them: the update 0x3E serves six CPUIDs.
+  it("lists the other CPUIDs a file's update serves, and narrows by them", () => {
+    installTestTables();
+    const shared = catalogue("Intel/cpuB06F2_plat07_ver0000003E_2025-10-12_PRD_5582AF20.bin");
+    const answer = catalogueAnswer(shared, undefined, 1, new AgentArguments({ cpuid: "B06F6" }));
+    expect(member(answer, "total"), "found by an extended CPUID").toBe(1);
+    const [file] = member(answer, "files") as Json[];
+    expect(member(file, "extended_cpuids")).toEqual(["90672", "90675", "B06F5", "B06F6", "B06F7"]);
+    const alone = catalogueAnswer(files, undefined, 1, new AgentArguments({}));
+    expect(member((member(alone, "files") as Json[])[0], "extended_cpuids")).toBe(undefined);
   });
 
   it("needs a table for `in_image`", () => {

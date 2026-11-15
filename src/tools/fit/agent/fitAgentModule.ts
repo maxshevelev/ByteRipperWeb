@@ -12,6 +12,7 @@ import {
   microcodeDownloadMessage,
 } from "@/state/microcodeCatalogueStore";
 import type { PaneId } from "@/state/paneId";
+import { refreshProcessorTables } from "@/state/processorTablesStore";
 import {
   catalogueAnswer,
   FIT_TABLE,
@@ -60,8 +61,14 @@ async function tableOf(host: ToolReadHost): Promise<FITReport> {
   return report;
 }
 
-/** The catalogue's listing: held, or waited for. */
+/**
+ * The catalogue's listing: held, or waited for.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITAgentCatalogueTools.swift#FITAgentCatalogueTools.listing
+ */
 async function listing(): Promise<readonly MicrocodeCatalogueEntry[]> {
+  // A file's extended CPUIDs are the processor tables'.
+  await refreshProcessorTables();
   loadMicrocodeCatalogue();
   await new Promise<void>((resolve) => {
     const settled = () => {

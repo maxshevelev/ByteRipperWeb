@@ -1,107 +1,39 @@
 import { L } from "@/core/localization/localization";
+import type { MicrocodeSignatures } from "@/firmware/intelCpuid/microcodeSignatures";
+import {
+  familyMatches,
+  modelShortName,
+  type ProcessorFamily,
+} from "@/firmware/intelCpuid/processorFamily";
+import { currentProcessorTables } from "@/firmware/intelCpuid/processorTables";
 import { microcodeCpuid } from "@/firmware/uefi/microcodeParser";
-import brandNames from "@/tools/fit/IntelCPUIDBrandNames.json";
+import { currentMicrocodeSignatures, sharingSignature } from "@/tools/fit/microcodeSignatures";
 
 /**
  * Which processors a microcode is for, by its CPUIDs: the table of brand names
  * the FIT panel opens a microcode's rows into, and the microcode form searches
  * by model and S-SPEC.
  *
- * `IntelCPUIDBrandNames.json` is upstream's resource, copied as it ships: the
- * data is refreshed there (`Skills/update-cpuid-brand-names`) and arrives here
- * with a port, as the compiled ME maps and the JEDEC table do.
+ * The table is not the app's: it is read from `github.com/maxshevelev/IntelCPUID`
+ * at run time (`src/firmware/intelCpuid/processorTables.ts`), and what this
+ * module adds is what the panel says of a CPUID with it.
  *
  * Ported from `Modules/FITTool/Sources/FITTool/ProcessorNames.swift`.
  */
 
 /**
- * One group of processors that share a CPUID, as the table of brand names lists
- * it.
- *
- * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily
- */
-export interface ProcessorFamily {
-  /**
-   * As written: five hex digits, or a pattern with an `X` for any one digit
-   * (`606AX`).
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.cpuids
-   */
-  readonly cpuids: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.codeNames */
-  readonly codeNames: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.productFamilies */
-  readonly productFamilies: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.steppings */
-  readonly steppings: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.segments */
-  readonly segments: readonly string[];
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.processors */
-  readonly processors: readonly ProcessorModel[];
-  /**
-   * The architectures of its cores — `Golden Cove`, `Gracemont` — which the
-   * article writes in brackets after a code name and the generator moves here.
-   * Empty where the article names none.
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.cores
-   */
-  readonly cores?: readonly string[] | undefined;
-}
-
-/**
- * One model: its name, and the S-SPECs it is sold under with this CPUID.
- *
- * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel
- */
-export interface ProcessorModel {
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.name */
-  readonly name: string;
-  /** @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.sSpec */
-  readonly sSpec: readonly string[];
-  /**
-   * Where a code that is not the article's came from: `ark`, `wikipedia`, or
-   * what upstream's `Skills/find-sspec` found — `intel`, `database`, `marking`.
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.sSpecSource
-   */
-  readonly sSpecSource?: Readonly<Record<string, string>> | null | undefined;
-  /**
-   * A line that names a series rather than its models.
-   *
-   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorModel.series
-   */
-  readonly series?: boolean | null | undefined;
-}
-
-/**
- * Whether `cpuid` — as a microcode header's CPUID is written — is one of this
- * group's.
- *
- * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorFamily.matches
- */
-export function familyMatches(family: ProcessorFamily, cpuid: string): boolean {
-  return family.cpuids.some(
-    (pattern) =>
-      pattern.length === cpuid.length &&
-      [...pattern].every((digit, at) => digit === "X" || digit === cpuid[at])
-  );
-}
-
-/**
- * The table shipped with the app, read once.
+ * The table as last read from `github.com/maxshevelev/IntelCPUID`: empty until
+ * a copy has been read.
  *
  * The list is the one table Intel's own documents do not give in one place; it
  * is incomplete and its source says so. A CPUID it does not know is said to be
  * unknown, never guessed from a neighbour.
  *
  * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorNames
- * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorNames.shipped
- * @upstream-differs bundled into the page as a module rather than read from a bundle's file at
- * first use; the same one read
+ * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#ProcessorNames.current
  */
-export const SHIPPED_PROCESSORS: readonly ProcessorFamily[] = (
-  brandNames as unknown as { readonly entries: readonly ProcessorFamily[] }
-).entries;
+export const currentProcessors = (): readonly ProcessorFamily[] =>
+  currentProcessorTables().families;
 
 /**
  * The groups for these processor signatures, in the order the signatures come —
@@ -111,7 +43,7 @@ export const SHIPPED_PROCESSORS: readonly ProcessorFamily[] = (
  */
 export function processorFamilies(
   signatures: readonly number[],
-  catalogue: readonly ProcessorFamily[] = SHIPPED_PROCESSORS
+  catalogue: readonly ProcessorFamily[] = currentProcessors()
 ): ProcessorFamily[] {
   const found: ProcessorFamily[] = [];
   for (const signature of signatures) {
@@ -155,8 +87,7 @@ export interface FITProcessorLine {
  *
  * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorLine.shortName
  */
-export const processorShortName = (name: string): string =>
-  name.startsWith("Intel ") ? name.slice(6) : name;
+export const processorShortName = (name: string): string => modelShortName(name);
 
 /**
  * The processors behind one CPUID of a microcode: what its line under the
@@ -199,6 +130,14 @@ export interface FITProcessorGroup {
    * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.lines
    */
   readonly lines: readonly FITProcessorLine[];
+  /**
+   * The other CPUIDs the newest microcode update for this one also serves, from
+   * its extended signature table (`MicrocodeSignatures`). Empty when the update
+   * serves this CPUID alone, or none is known.
+   *
+   * @upstream Modules/FITTool/Sources/FITTool/ProcessorNames.swift#FITProcessorGroup.sharesMicrocodeWith
+   */
+  readonly sharesMicrocodeWith: readonly string[];
 }
 
 /**
@@ -210,7 +149,8 @@ export interface FITProcessorGroup {
  */
 export function processorGroups(
   signatures: readonly number[],
-  catalogue: readonly ProcessorFamily[] = SHIPPED_PROCESSORS
+  catalogue: readonly ProcessorFamily[] = currentProcessors(),
+  microcode: MicrocodeSignatures = currentMicrocodeSignatures()
 ): FITProcessorGroup[] {
   return signatures.map((signature) => {
     const cpuid = microcodeCpuid(signature);
@@ -220,6 +160,7 @@ export function processorGroups(
         cpuid,
         codeNames: [],
         notes: [],
+        sharesMicrocodeWith: [],
         lines: [
           {
             kind: "unknown",
@@ -257,7 +198,13 @@ export function processorGroups(
         });
       }
     }
-    return { cpuid, codeNames: families.flatMap((one) => one.codeNames), notes, lines };
+    return {
+      cpuid,
+      codeNames: families.flatMap((one) => one.codeNames),
+      notes,
+      lines,
+      sharesMicrocodeWith: sharingSignature(signature, microcode),
+    };
   });
 }
 

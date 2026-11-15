@@ -39,7 +39,16 @@ export function FitProcessorsPopover({
   readonly onClose: () => void;
 }) {
   const title = L("CPUID %1$@", group.cpuid);
-  const note = group.notes.length === 1 ? group.notes[0] : undefined;
+  // The CPUIDs its microcode also serves (the update's extended signature
+  // table) are said under what the table says of the group.
+  // help: fit.processors
+  const shared =
+    group.sharesMicrocodeWith.length === 0
+      ? ""
+      : L("Same microcode as %1$@", group.sharesMicrocodeWith.join(", "));
+  const note = [group.notes.length === 1 ? group.notes[0] : "", shared]
+    .filter((one) => one !== undefined && one.length > 0)
+    .join("\n");
   return (
     <HelpPopover anchor={anchor} label={title} onClose={onClose}>
       <HelpPopoverLayout title={title} note={note}>
