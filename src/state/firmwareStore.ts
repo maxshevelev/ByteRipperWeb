@@ -1132,6 +1132,13 @@ export async function fixFirmwareChecksum(
   const slot = paneState(pane);
   if (slot === undefined) return 0;
 
+  // The worker sums the bytes it was last handed, and a change still waiting
+  // out its delay has not been handed over: a checksum worked out now would be
+  // of the body as it was. Upstream reads the pane's bytes where they are; here
+  // the change goes through first, as it does before a change to the FIT.
+  await settleFirmwareChanges(pane);
+  const generation = contentGenerationOf(pane);
+
   const writes = await new Promise<readonly { offset: number; bytes: Uint8Array }[]>((resolve) => {
     repairWaiters.set(pathKey(path), resolve);
     send(pane, {
@@ -1142,6 +1149,8 @@ export async function fixFirmwareChecksum(
     });
   });
   if (writes.length === 0) return 0;
+  // An edit made while the sum was worked out leaves it a sum of other bytes.
+  if (generation !== contentGenerationOf(pane) || paneState(pane) !== slot) return 0;
 
   slot.document.beginEditGroup(L("Fix Checksum"));
   for (const write of writes) await slot.document.overwrite(write.offset, write.bytes);

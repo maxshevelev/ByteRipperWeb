@@ -41,8 +41,14 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a pane's tree is read and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { closeFirmware, ensurePaneFirmware, noteFirmwareOperations, openFirmware, planPaneFit } =
-  await import("@/state/firmwareStore");
+const {
+  closeFirmware,
+  ensurePaneFirmware,
+  fixFirmwareChecksum,
+  noteFirmwareOperations,
+  openFirmware,
+  planPaneFit,
+} = await import("@/state/firmwareStore");
 const { editingHooks, openEmptyInPane, openInPane, revertPane, workspaceStore } = await import(
   "@/state/workspaceStore"
 );
@@ -180,6 +186,17 @@ test("hands a held edit over before a change to the FIT is planned", async () =>
   // With no timer advanced: the plan did not wait the delay out, it ended it.
   expect(posted.map((one) => one.kind)).toEqual(["firmwareInvalidate", "fitEdit"]);
   expect(invalidations()[0]?.range).toEqual([0x40, 0x42]);
+});
+
+// The same of a node's checksum: the worker sums the bytes it holds, and a body
+// edited a moment ago is not among them until the change is handed over.
+test("hands a held edit over before a checksum is worked out", async () => {
+  noteFirmwareOperations("a", [overwrite(0x40)]);
+
+  void fixFirmwareChecksum("a", [0], 2);
+  await vi.waitFor(() => expect(posted.some((one) => one.kind === "firmwareRepair")).toBe(true));
+
+  expect(posted.map((one) => one.kind)).toEqual(["firmwareInvalidate", "firmwareRepair"]);
 });
 
 test("tells nobody about a pane nothing is reading", async () => {
