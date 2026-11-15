@@ -6,7 +6,7 @@ import { installCatalogue, L, withEnglish } from "@/core/localization/localizati
 import { maskedFromWire } from "@/core/search/maskedSearch";
 import { SearchCancelled } from "@/core/search/searchEngine";
 import { sourceOver } from "@/firmware/byteSource";
-import { readFitTable } from "@/firmware/fit/fitTable";
+import { type FITReport, readFitTable, targetOffset } from "@/firmware/fit/fitTable";
 import type { ImageRange } from "@/firmware/imageReader";
 import { ImageReader } from "@/firmware/imageReader";
 import { APPLE_IDENTITY_NAMES, appleEntryText } from "@/firmware/uefi/appleDmiArea";
@@ -719,6 +719,77 @@ function open(node: UEFINode, into: UEFIDiagnostic[]): void {
 }
 
 /**
+ * Opens the chain of nodes covering a file offset, each branch on the way, and
+ * answers the path to the innermost of them — nothing when no root covers it.
+ *
+ * @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.materialize
+ * @upstream-differs synchronous, inside the request that asked, as `open` is
+ */
+function materializeContaining(offset: number, into: UEFIDiagnostic[]): number[] | undefined {
+  let nodes = roots;
+  let path: number[] | undefined;
+  for (;;) {
+    // A file offset: never a reason to go inside a compressed section, whose
+    // children's ranges are in a space of their own.
+    const index = nodes.findIndex((one) => {
+      const range = nodeFileRange(one);
+      return range !== undefined && offset >= range.start && offset < range.end;
+    });
+    const node = nodes[index];
+    if (node === undefined) break;
+    path = [...(path ?? []), index];
+    // A byte of the file inside a compressed stream is no one byte of what it
+    // decompresses to, so the chain ends at the section — and a reveal never
+    // pays for decoding it.
+    // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.step
+    if (node.kind === "section" && node.isExpandable) break;
+    open(node, into);
+    nodes = node.children;
+  }
+  return path;
+}
+
+/**
+ * The offsets an edit of the table wants opened: the editor reasons about what
+ * holds each component and what sits behind it, so it wants the table's own
+ * surroundings and every row's target, microcode included.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.offsetsWorthOpening
+ */
+function offsetsWorthOpening(report: FITReport): number[] {
+  const table = report.table;
+  if (table === undefined) return [];
+  const offsets = new Set([table.range.start]);
+  for (const row of table.rows) {
+    const offset = targetOffset(row.target);
+    if (offset !== undefined) offsets.add(offset);
+  }
+  return [...offsets].sort((left, right) => left - right);
+}
+
+/**
+ * Reads the table from the file as it is now, and opens the branches the editor
+ * is going to reason about: what element each component lives in, and what free
+ * space sits behind it. Without them the lazily built tree ends at a volume
+ * nobody has opened, the file holding the run is not there to be grown, and a
+ * component added behind it lands loose in the volume's free space with the
+ * file's size and checksum left as they were.
+ *
+ * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.placementTable
+ * @upstream-differs answers the report and the image with it, which upstream's callers read from the tree again
+ */
+function placementTable(here: ImageReader): { report: FITReport; image: UEFIImage } {
+  const imageNow = () =>
+    new UEFIImage({ size: here.count, roots, addressDiff: addressing().addressDiff });
+  const first = readFitTable(here, imageNow());
+  if (first.table === undefined) return { report: first, image: imageNow() };
+  const discarded: UEFIDiagnostic[] = [];
+  for (const offset of offsetsWorthOpening(first)) materializeContaining(offset, discarded);
+  const image = imageNow();
+  return { report: readFitTable(here, image), image };
+}
+
+/**
  * What the panel says about a node: the mapping is worked out here rather than asked for
  * separately, since the Address row wants it and `addressing` keeps it once it is found.
  */
@@ -895,34 +966,12 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
         return;
       }
 
-      // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.materialize
       case "firmwareNodeAtOffset": {
         // Down through whatever covers the offset, opening each branch on the
         // way: the node under the caret may sit in a volume nobody has read,
         // and a tree that has not read it has nothing to show.
         const diagnostics: UEFIDiagnostic[] = [];
-        let nodes = roots;
-        let path: number[] | undefined;
-        for (;;) {
-          // A file offset: never a reason to go inside a compressed section,
-          // whose children's ranges are in a space of their own.
-          const index = nodes.findIndex((one) => {
-            const range = nodeFileRange(one);
-            return (
-              range !== undefined && request.offset >= range.start && request.offset < range.end
-            );
-          });
-          const node = nodes[index];
-          if (node === undefined) break;
-          path = [...(path ?? []), index];
-          // A byte of the file inside a compressed stream is no one byte of
-          // what it decompresses to, so the chain ends at the section — and a
-          // reveal never pays for decoding it.
-          // @upstream Packages/UEFIImage/Sources/UEFIImage/LazyUEFITree.swift#LazyUEFITree.step
-          if (node.kind === "section" && node.isExpandable) break;
-          open(node, diagnostics);
-          nodes = node.children;
-        }
+        const path = materializeContaining(request.offset, diagnostics);
         post({
           kind: "firmwareNodeAtOffset",
           id: request.id,
@@ -1321,9 +1370,9 @@ scope.onmessage = (event: MessageEvent<FirmwareWorkerRequest>) => {
           post({ ...NO_EDIT, id: request.id, problem: said(() => L("No image is open.")) });
           return;
         }
-        const diff = addressing().addressDiff;
-        const image = new UEFIImage({ size: reader.count, roots, addressDiff: diff });
-        const report = readFitTable(reader, image);
+        // With the branches the editor reasons about opened first: the tree as
+        // it stands may end at a volume nobody has read.
+        const { report, image } = placementTable(reader);
         if (report.table === undefined) {
           post({
             ...NO_EDIT,

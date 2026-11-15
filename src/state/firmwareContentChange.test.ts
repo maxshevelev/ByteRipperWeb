@@ -41,9 +41,8 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 // the first time a pane's tree is read and keeps it for the life of the module.
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
-const { closeFirmware, ensurePaneFirmware, noteFirmwareOperations, openFirmware } = await import(
-  "@/state/firmwareStore"
-);
+const { closeFirmware, ensurePaneFirmware, noteFirmwareOperations, openFirmware, planPaneFit } =
+  await import("@/state/firmwareStore");
 const { editingHooks, openEmptyInPane, openInPane, revertPane, workspaceStore } = await import(
   "@/state/workspaceStore"
 );
@@ -167,6 +166,20 @@ test("carries the content as it now stands, not what the file was opened with", 
   if (sent?.content === undefined) throw new Error("nothing was sent");
   const bytes = new Uint8Array(await sent.content.arrayBuffer());
   expect(bytes.slice(0x10, 0x14)).toEqual(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]));
+});
+
+// A change to the FIT is planned by the worker, from the bytes it was last
+// handed. An edit still waiting out its delay has not been handed over, so the
+// plan would be of the file as it was — and written over the file as it is.
+test("hands a held edit over before a change to the FIT is planned", async () => {
+  noteFirmwareOperations("a", [overwrite(0x40)]);
+
+  void planPaneFit("a", { kind: "remove", index: 1 });
+  await vi.waitFor(() => expect(posted.some((one) => one.kind === "fitEdit")).toBe(true));
+
+  // With no timer advanced: the plan did not wait the delay out, it ended it.
+  expect(posted.map((one) => one.kind)).toEqual(["firmwareInvalidate", "fitEdit"]);
+  expect(invalidations()[0]?.range).toEqual([0x40, 0x42]);
 });
 
 test("tells nobody about a pane nothing is reading", async () => {

@@ -1175,11 +1175,15 @@ export function readPaneFit(pane: PaneId): Promise<FITReport | undefined> {
   const current = firmwareFor(pane);
   if (current === undefined || current.status !== "ready") return Promise.resolve(undefined);
   const generation = contentGenerationOf(pane);
+  // A change still waiting out its delay has bumped the generation and has not
+  // reached the worker: what it answers now is of the bytes before it, and is
+  // not kept as a reading of these.
+  const behind = pendingChanges.has(pane);
   return new Promise((resolve) => {
     // A second ask supersedes the first, which is then told no table was read.
     fitWaiters.get(pane)?.(undefined);
     fitWaiters.set(pane, (report) => {
-      if (report !== undefined && generation === contentGenerationOf(pane)) {
+      if (report !== undefined && !behind && generation === contentGenerationOf(pane)) {
         fitTableCache.set(pane, { report, generation });
       }
       resolve(report);
@@ -1282,18 +1286,47 @@ export async function editPaneFit(
  * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.add
  * @web-only upstream's module computes the change itself, on the actor that holds the tree
  */
-export function planPaneFit(
+export async function planPaneFit(
   pane: PaneId,
   edit: FitEditRequest["edit"],
   english = false
 ): Promise<FitEditResponse | undefined> {
-  return new Promise<FitEditResponse | undefined>((resolve) => {
+  // The worker plans against the bytes it was last handed, and a change still
+  // waiting out its delay has not been handed over: a plan made now would be of
+  // the file as it was — its writes cut to what differs from bytes that are no
+  // longer there, its checksums of a table that has moved on. Upstream reads the
+  // pane's bytes where they are; here the change goes through first.
+  //
+  // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.prepareAdd
+  // @upstream-differs the tree's reader is a worker's copy of the content, so what is waiting is delivered before the plan is asked for
+  await settleFirmwareChanges(pane);
+  const generation = contentGenerationOf(pane);
+  const planned = await new Promise<FitEditResponse | undefined>((resolve) => {
     // A second edit supersedes the first, which is then told it did not happen:
     // the newer one is the one that counts, and its plan is the one applied.
     fitEditWaiters.get(pane)?.(undefined);
     fitEditWaiters.set(pane, resolve);
     send(pane, { kind: "fitEdit", id: nextAskJob(pane, "fitEdit"), edit, english });
   });
+  // And an edit made while the plan was being worked out leaves it a plan of
+  // other bytes: it is refused whole rather than written over them.
+  if (planned !== undefined && planned.problem === undefined) {
+    if (generation !== contentGenerationOf(pane)) {
+      return {
+        kind: "fitEdit",
+        id: planned.id,
+        name: undefined,
+        writes: [],
+        problem: english
+          ? "The file changed while the change was being worked out. Nothing was written."
+          : L("It changed while the update was being worked out. Nothing was written."),
+        summary: undefined,
+        outcomeKind: undefined,
+        landed: undefined,
+      };
+    }
+  }
+  return planned;
 }
 
 /**

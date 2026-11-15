@@ -1,15 +1,19 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
+import { FIT } from "@/firmware/fit/fitEntry";
+import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import { LenovoDMIFormat, smbiosKey } from "@/firmware/lenovoDmi/lenovoDmiFormat";
 import { APPLE_SERIAL, appleImage } from "@/firmware/testing/testAppleDMI";
 import { BootGuardImage, bootPolicyV1 } from "@/firmware/testing/testBootGuard";
+import { fitImage, fitMicrocode } from "@/firmware/testing/testFit";
 import { HP_SERIAL, hpImage, hpVariables } from "@/firmware/testing/testHPDMI";
 import * as Test from "@/firmware/testing/testImage";
 import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
 import type { FlashRegionType } from "@/firmware/uefi/descriptorParser";
 import { allDMIStores } from "@/firmware/uefi/dmiStore";
 import { guidText } from "@/firmware/uefi/efiGuid";
+import { FFS } from "@/firmware/uefi/fileParser";
 import { VOLUME_TOP_FILE } from "@/firmware/uefi/knownGuids";
 import { LenovoDMIFirmwareReaders } from "@/firmware/uefi/lenovoDmiFirmwareReaders";
 import { NAME_LZMA, nameBody, streamBytes } from "@/firmware/uefi/testing/compressedFixtures";
@@ -571,5 +575,61 @@ describe("HP's DMI area", () => {
     const fields = rows.filter((one) => one.kind === "dmiField");
     expect(fields).toHaveLength(6);
     expect(fields[0]?.valueRow).toBe(`Serial number = ${HP_SERIAL}`);
+  });
+});
+
+describe("an edit of the FIT over a tree nobody has opened", () => {
+  const FIRST = 0x4060;
+
+  /**
+   * A volume at 0x4000 whose one raw file is a microcode with no room behind it
+   * in the file, the volume's free space after it, and a FIT that names it.
+   */
+  function runInAFile(): Uint8Array {
+    const run = Test.file({
+      type: FFS.rawType,
+      attributes: FFS.checksumBit,
+      body: fitMicrocode({ signature: 0x0008_06ec, totalSize: 0x100 }),
+    });
+    return fitImage({
+      rows: [{ type: FIT.microcodeType, target: FIRST }],
+      addressDiff: 0xffff_0000,
+      contents: new Map([[0x4000, Test.volume({ length: 0x1000, files: [run] })]]),
+    });
+  }
+
+  // @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.placementTable
+  it("grows the file holding the run, though its volume was never opened", () => {
+    const bytes = runInAFile();
+    const roots = open(bytes);
+    // The precondition: the volume holding the run is still shut, as it is for
+    // a reader who opened the FIT panel and nothing of the tree.
+    const shut = all(roots).find((node) => node.kind === "volume");
+    expect(shut?.isExpandable).toBe(true);
+
+    const edit = ask(
+      {
+        kind: "fitEdit",
+        id: ++job,
+        edit: {
+          kind: "addOrReplace",
+          component: fitMicrocode({ signature: 0x0008_06eb, totalSize: 0x100 }),
+        },
+      },
+      "fitEdit"
+    );
+
+    expect(edit.problem).toBeUndefined();
+    expect(edit.landed).toEqual([FIRST + 0x100, FIRST + 0x200]);
+    const edited = Uint8Array.from(bytes);
+    for (const write of edit.writes) edited.set(write.bytes, write.offset);
+    const tree = parseUefiImage(sourceOver(edited));
+    // The file covers both components, its size and its checksums put right —
+    // not the new one left loose in the volume's free space behind it.
+    const file = tree.allNodes.find((node) => node.kind === "file");
+    expect(file === undefined ? -1 : file.body.end).toBe(FIRST + 0x200);
+    expect(tree.allNodes.some((node) => node.kind === "nonUEFIData")).toBe(false);
+    expect(tree.diagnostics.filter((one) => one.detail.kind === "checksumMismatch")).toEqual([]);
+    expect(readFitTable(new ImageReader(sourceOver(edited)), tree).problems).toEqual([]);
   });
 });

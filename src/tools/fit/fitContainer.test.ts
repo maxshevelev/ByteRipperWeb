@@ -464,6 +464,44 @@ describe("a Top Swap image", () => {
     expect(report.problems).toEqual([]);
   });
 
+  // @upstream Modules/FITTool/Sources/FITTool/FITTopSwap.swift#FITEditor.addOrReplaceMicrocode
+  it("checks the top block's change against the ranges, not its copy in the backup", () => {
+    // Upstream's order: the change is checked as it is made in the top block,
+    // and carried into the backup after. The ranges are the top block's, so one
+    // that happens to lie over the backup's copy refuses nothing.
+    const bytes = join(block(), block());
+    const parsed = parse(bytes);
+    const component = fitMicrocode({ signature: 0x000a_0671, totalSize: 0x300 });
+    const over = (span: { start: number; end: number }) => ({
+      ranges: [
+        {
+          kind: "ibb" as const,
+          range: span,
+          digests: [],
+          source: { start: 0, end: 0 },
+          verdict: { kind: "unchecked" as const },
+        },
+      ],
+      obbDigests: [],
+      diagnostics: [],
+    });
+    const adding = (span: { start: number; end: number }) =>
+      addOrReplaceMicrocode(
+        component,
+        tableIn(bytes, parsed),
+        parsed,
+        readerOver(bytes),
+        SWAP_DIFF,
+        over(span)
+      );
+
+    const overTheBackup = adding({ start: 0, end: 0x1_0000 });
+    expect(outcomeOf(overTheBackup).topSwapBackup).toEqual({ start: 0, end: 0x1_0000 });
+    expect(outcomeOf(overTheBackup).protectionWarnings).toEqual([]);
+    // Over the top block it is the refusal it always was.
+    expect(problemOf(adding({ start: 0x1_0000, end: 0x2_0000 })).kind).toBe("insideProtectedRange");
+  });
+
   // @upstream Modules/FITTool/Tests/FITToolTests/FITContainerTests.swift#FITTopSwapTests.testARemovalLandsInTheBackupToo
   it("makes a removal in the backup too", () => {
     const bytes = join(block(), block());
