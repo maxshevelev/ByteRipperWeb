@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "71576fc43fe9befc6969a2bbc4b80eae699fd531",
-  "baselineNote": "The CPUID table knows B06F5: Raptor Lake H0, its ten models and their codes (2026-11-07)"
+  "baseCommit": "b0906a11c3a5f8474b067592e60f3e59a72960a7",
+  "baselineNote": "Intel CPUID Lookup's search field and its menu are the Find bar's, as they are (2026-11-14)"
 }
