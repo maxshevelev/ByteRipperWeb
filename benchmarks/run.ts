@@ -11,7 +11,7 @@ import { readSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { applyEdit, scanDiff } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
-import { MatchSetBuilder } from "@/core/search/matchSet";
+import { byteMatchSetBuilder } from "@/core/search/byteFindContent";
 import { findOne, foldedPattern, scanAll } from "@/core/search/searchEngine";
 import { foldingFor, parsePattern } from "@/core/search/searchPattern";
 import { NO_BASELINE } from "@/core/segments/baseline";
@@ -294,7 +294,7 @@ async function main(): Promise<void> {
         "once they pass extent/64, so the count stays exact however common the pattern is.",
       measurement: await measure(
         async () => {
-          const builder = new MatchSetBuilder(pattern, exact, blob.size);
+          const builder = byteMatchSetBuilder(pattern, exact, blob.size);
           await scanAll(foldedPattern(pattern.bytes, exact), left, {
             folding: exact,
             onMatches: (starts) => builder.add(starts),

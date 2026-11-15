@@ -1,4 +1,4 @@
-import type { MatchSet } from "@/core/search/matchSet";
+import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import { OverviewBinning } from "@/render/minimap/overviewBinning";
 
 /**
@@ -25,7 +25,7 @@ const FULL_ROW = 0xffff;
  * @upstream-differs a row no match reaches is not visited: the walk jumps to the row the next match starts in
  */
 export function matchOverlayMarks(
-  set: MatchSet | undefined,
+  set: ByteMatchSet | undefined,
   extent: number,
   rowCount: number
 ): Uint16Array | undefined {

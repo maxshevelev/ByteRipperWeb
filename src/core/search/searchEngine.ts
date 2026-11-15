@@ -1,3 +1,5 @@
+import type { SearchDirection } from "@/core/find/findContent";
+import { FindLimits } from "@/core/find/matchSet";
 import type { CaseFolding } from "@/core/search/searchPattern";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 
@@ -21,7 +23,7 @@ export const DEFAULT_SEARCH_CHUNK_SIZE = 1024 * 1024;
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.defaultMaxResults
  */
-export const DEFAULT_MAX_RESULTS = 1000;
+export const DEFAULT_MAX_RESULTS = FindLimits.listedMatches;
 
 /**
  * A search asked for no bytes at all: nothing to look for is a mistake in the
@@ -263,8 +265,8 @@ export async function findOne(
   storage: ByteStorage,
   options: {
     readonly from?: number;
-    /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchDirection */
-    readonly direction?: "forward" | "backward";
+    /** @upstream Packages/Find/Sources/Find/FindContent.swift#SearchDirection */
+    readonly direction?: SearchDirection;
     readonly folding: CaseFolding;
   } & ScanOptions
 ): Promise<ByteRange | undefined> {

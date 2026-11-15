@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { SearchEncoding } from "@/core/search/searchPattern";
 import {
+  barFor,
   clearRecents,
   closeSearch,
   editQuery,
@@ -27,6 +28,8 @@ afterEach(() => {
 });
 
 const snapshot = () => searchStore.getSnapshot();
+/** The tab's own bar: no panel is up, so it is the bar in front. */
+const bar = () => barFor(snapshot());
 
 const entry = (
   pattern: string,
@@ -39,7 +42,10 @@ describe("editing the pattern", () => {
   it("ends the search that was running, and starts none", () => {
     searchStore.update((state) => ({
       ...state,
-      problem: "That is not a hexadecimal byte sequence.",
+      bars: {
+        ...state.bars,
+        panes: { ...bar(), problem: "That is not a hexadecimal byte sequence." },
+      },
       results: {
         ...state.results,
         a: { ...state.results.a, status: "notFound", current: { start: 0, end: 1 } },
@@ -48,10 +54,10 @@ describe("editing the pattern", () => {
 
     editQuery("DE A");
 
-    expect(snapshot().query).toBe("DE A");
+    expect(bar().query).toBe("DE A");
     expect(snapshot().results.a.status).toBe("idle");
     expect(snapshot().results.a.current).toBeUndefined();
-    expect(snapshot().problem).toBeUndefined();
+    expect(bar().problem).toBeUndefined();
   });
 
   it("puts nothing in the history, character by character", () => {
@@ -71,15 +77,15 @@ describe("the search's options", () => {
     setSearchEncoding("utf16LE");
     setCaseSensitive(true);
 
-    expect(snapshot().encoding).toBe("utf16LE");
-    expect(snapshot().caseSensitive).toBe(true);
+    expect(bar().encoding).toBe("utf16LE");
+    expect(bar().caseSensitive).toBe(true);
     expect(snapshot().results.a.status).toBe("idle");
   });
 
   it("outlive the bar: closing it keeps the case rule", () => {
     setCaseSensitive(true);
     closeSearch();
-    expect(snapshot().caseSensitive).toBe(true);
+    expect(bar().caseSensitive).toBe(true);
   });
 });
 
@@ -148,13 +154,13 @@ describe("opening the find bar", () => {
 
     openSearch();
 
-    expect(snapshot().query).toBe("boot");
-    expect(snapshot().encoding).toBe("utf16LE");
+    expect(bar().query).toBe("boot");
+    expect(bar().encoding).toBe("utf16LE");
   });
 
   it("starts empty when nothing is remembered", () => {
     openSearch();
-    expect(snapshot().query).toBe("");
+    expect(bar().query).toBe("");
   });
 
   it("leaves a bar that is already up as it is", () => {
@@ -164,6 +170,6 @@ describe("opening the find bar", () => {
 
     openSearch();
 
-    expect(snapshot().query).toBe("typed");
+    expect(bar().query).toBe("typed");
   });
 });

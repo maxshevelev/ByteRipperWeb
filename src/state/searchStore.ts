@@ -1,8 +1,14 @@
 import type { DiffEdit } from "@/core/diff/diffEngine";
+import { type FindRange, type SearchDirection, sameRange } from "@/core/find/findContent";
+import { FindIndexer } from "@/core/find/findIndexer";
 import { L } from "@/core/localization/localization";
+import {
+  ByteFindContent,
+  type ByteFindIndexer,
+  type ByteMatchSet,
+  type ByteQuery,
+} from "@/core/search/byteFindContent";
 import { type MaskedPattern, maskedPattern, parseHexPattern } from "@/core/search/maskedSearch";
-import { MatchBitmap, MatchSet, MatchSetBuilder } from "@/core/search/matchSet";
-import { findOne, foldedPattern, SearchCancelled, scanAll } from "@/core/search/searchEngine";
 import {
   encodingTitle,
   foldingFor,
@@ -13,23 +19,47 @@ import {
   type SearchFailure,
 } from "@/core/search/searchPattern";
 import { forBytes, forText, type SelectionFindPattern } from "@/core/search/selectionFindPattern";
-import { type Attempt, attemptEncoding, attemptsFor } from "@/core/search/smartSearch";
-import type { ByteStorage } from "@/core/storage/byteStorage";
+import {
+  type Attempt,
+  attemptEncoding,
+  attemptQuery,
+  attemptsFor,
+} from "@/core/search/smartSearch";
 import { recordJump } from "@/state/navigationStore";
 import { dismissNotice, showNotice, showWrapNotice } from "@/state/noticeStore";
 import { BackgroundOperation, beginOperation } from "@/state/operationStore";
+import { WorkerByteFindContent } from "@/state/searchWorkerContent";
 import { createStore } from "@/state/store";
 import { createTimeSlicer } from "@/state/timeSlice";
-import { type PaneId, paneIn, paneState, workspaceStore } from "@/state/workspaceStore";
-import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers/protocol";
+import {
+  frontSurface,
+  isSlot,
+  PANE_IDS,
+  type PaneId,
+  type PaneState,
+  type PartId,
+  paneIn,
+  paneInFront,
+  paneState,
+  type SurfaceId,
+  surfaceOf,
+  WORKSPACE_SURFACE,
+  workspaceStore,
+} from "@/state/workspaceStore";
 
 /**
- * The find bar's state, and the worker behind it.
+ * The find bars' state, and the searches behind them.
  *
- * The shape follows the engine's: a match arrives first and the index streams
- * in behind it, so the bar can say "found it" long before it can say "3 of
- * 128". Both are shown as they arrive rather than the first waiting for the
- * second.
+ * Every surface has a find bar of its own — the tab's, over its panes, and each fragment
+ * panel's, over its dump — with its own pattern, encoding and case rule, and each searches only
+ * its own panes: the tab's active pane, or the panel's part (`SurfaceFindController` upstream).
+ * The search itself — the pass, the index as it fills, the steps and the wrap — is the searched
+ * pane's own `FindIndexer`, so a search in one panel neither stops nor touches the search in
+ * another.
+ *
+ * The shape follows the engine's: a match arrives first and the index streams in behind it, so
+ * the bar can say "found it" long before it can say "3 of 128". Both are shown as they arrive
+ * rather than the first waiting for the second.
  */
 
 export type SearchStatus = "idle" | "searching" | "found" | "notFound" | "failed";
@@ -37,26 +67,30 @@ export type SearchStatus = "idle" | "searching" | "found" | "notFound" | "failed
 /**
  * What one pane's file was found to contain.
  *
- * Kept per pane, not per search. Each dump has its own results list under it,
- * and a list is a claim about *that* file — clicking into the other pane does
- * not make it untrue, so it does not clear. Searching a pane replaces only that
- * pane's.
+ * Kept per pane, not per search. Each dump has its own results list under it, and a list is a
+ * claim about *that* file — clicking into the other pane does not make it untrue, so it does not
+ * clear. Searching a pane replaces only that pane's.
+ *
+ * `matches` and `current` are the pane's indexer's, as it shows them; the rest is what the bar
+ * says about them.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.finder
  */
 export interface PaneResults {
   readonly status: SearchStatus;
   /** The encoding that actually found it, which Smart Search discovers. */
   readonly foundEncoding: SearchEncoding | undefined;
-  readonly current: { readonly start: number; readonly end: number } | undefined;
+  readonly current: FindRange | undefined;
   /** True when the last step came round the end of the file. */
   readonly wrapped: boolean;
-  readonly matches: MatchSet | undefined;
+  readonly matches: ByteMatchSet | undefined;
   /**
    * Whether the pane's results panel is up.
    *
-   * Only the find bar's results button opens it; the × or the button closes it.
-   * It goes with the set — typing a new pattern, an edit, closing the bar — since
-   * a list of offsets the file no longer has is worse than no list. A new search
-   * leaves it where it is, and it lists that search from then on.
+   * Only the find bar's results button opens it; the × or the button closes it. It goes with
+   * the set — typing a new pattern, an edit, closing the bar — since a list of offsets the file
+   * no longer has is worse than no list. A new search leaves it where it is, and it lists that
+   * search from then on.
    *
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResultsPanelVisible
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.syncSearchResults
@@ -74,66 +108,98 @@ const NO_RESULTS: PaneResults = {
 };
 
 /**
+ * One surface's find bar: whether it is up, what its field says, how it reads it, and the
+ * complaint it is making, if any.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.bar
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
  */
-export interface SearchState {
+export interface FindBarState {
   /**
-   * Whether the find bar is on screen.
+   * Whether the bar is on screen — over its surface's content, which for a folded panel is in
+   * the dock's pill with it: it comes back up with the panel.
    *
-   * Deliberately not derived from the query or the status. An empty query is a
-   * search with nothing to look for, not a closed find bar — deleting the last
-   * character used to make the bar vanish out from under the cursor that was
-   * still deleting. Only {@link closeSearch} closes it.
+   * Deliberately not derived from the query or the status. An empty query is a search with
+   * nothing to look for, not a closed find bar. Only {@link closeSearch} closes it.
+   *
+   * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.isShown
    */
   readonly open: boolean;
   readonly query: string;
   /**
    * The encoding the field is read in.
    *
-   * With Smart Search on this is a *result* rather than an instruction: the
-   * pass tries it first and then its own order, and whatever worked is written
-   * back here. With Smart Search off it is the only encoding tried.
+   * With Smart Search on this is a *result* rather than an instruction: the pass tries it first
+   * and then its own order, and whatever worked is written back here. With Smart Search off it
+   * is the only encoding tried.
    */
   readonly encoding: SearchEncoding;
   /**
-   * Whether the encoding is discovered rather than dictated. On unless turned
-   * off, and remembered — upstream keeps it in `UserDefaults`.
+   * The bar's own case rule, open or closed: kept in the workspace, and inherited by a panel
+   * taken out of the surface (§11). A toggle also stores it as the choice a new bar starts with.
    *
-   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isSmartSearchEnabled
-   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.isSmartSearchEnabled
-   */
-  readonly smart: boolean;
-  /**
+   * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.caseSensitive
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseRule
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.keepsOwnCaseRule
    * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isCaseSensitive
    * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.isCaseSensitive
    */
   readonly caseSensitive: boolean;
-  /** Which pane the bar acts on — the active one. */
-  readonly pane: PaneId;
   /**
    * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onError
    * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onError
    */
   readonly problem: string | undefined;
   /**
-   * The searches that found something, most recent first, kept between visits
-   * in `localStorage`.
+   * The pattern a selection was put into, kept so the *next* open offers it (§11, Use
+   * Selection for Find). Dropped by the next keystroke in the field and by a search.
+   *
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.stagedPattern
+   */
+  readonly stagedPattern: SelectionFindPattern | undefined;
+}
+
+/** What the find bars, the tools' pattern fields and the results lists read. */
+export interface SearchState {
+  /**
+   * Whether the encoding is discovered rather than dictated. On unless turned off, and
+   * remembered — upstream keeps it in `UserDefaults`. The app's, not a bar's.
+   *
+   * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.isSmartSearchEnabled
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.isSmartSearchEnabled
+   */
+  readonly smart: boolean;
+  /**
+   * The case rule last chosen anywhere: what a new bar starts with, and what a tool's pattern
+   * field reads.
+   *
+   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.storedCaseSensitive
+   */
+  readonly caseSensitive: boolean;
+  /**
+   * The encoding a tool's pattern field reads in. A find bar has its own.
+   *
+   * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls
+   * @upstream-differs one encoding for every tool's field, where each upstream has its own popup
+   */
+  readonly encoding: SearchEncoding;
+  /**
+   * The searches that found something, most recent first, kept between visits in
+   * `localStorage`.
    *
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.recent
    */
   readonly history: readonly FindHistoryEntry[];
-  readonly results: Readonly<Record<PaneId, PaneResults>>;
   /**
-   * The pattern a selection was put into, kept so the *next* open offers it
-   * (§11, Use Selection for Find). Dropped by the next keystroke in the field
-   * and by a search — from then on the field's own text, or the history, is the
-   * newer statement of what to look for.
+   * Every surface's find bar.
    *
-   * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.stagedPattern
+   * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.find
    */
-  readonly stagedPattern: SelectionFindPattern | undefined;
+  readonly bars: Readonly<Partial<Record<SurfaceId, FindBarState>>>;
+  readonly results: Readonly<Record<PaneId, PaneResults>>;
 }
 
 /**
@@ -157,8 +223,8 @@ function storedSmart(): boolean {
 }
 
 /**
- * One remembered search: the text, the encoding it was found in, and its case
- * rule — all three, or picking it back would search for something else.
+ * One remembered search: the text, the encoding it was found in, and its case rule — all
+ * three, or picking it back would search for something else.
  *
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.Entry
  */
@@ -185,11 +251,10 @@ const HISTORY_STORAGE_KEY = "byteripper.findHistory";
 const CASE_STORAGE_KEY = "byteripper.findCaseSensitive";
 
 /**
- * Records a search that found something: most recent first, and bounded. The
- * same text under another encoding is another search and both stay; the same
- * pair again replaces the older entry, its case rule with it. Hands back the
- * history it was given when the search is already at the front, so nothing
- * that reads it has to redraw for a press of ‹ ›.
+ * Records a search that found something: most recent first, and bounded. The same text under
+ * another encoding is another search and both stay; the same pair again replaces the older
+ * entry, its case rule with it. Hands back the history it was given when the search is already
+ * at the front, so nothing that reads it has to redraw for a press of ‹ ›.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.recordFoundSearch
@@ -219,9 +284,8 @@ export function recordFindHistory(
 }
 
 /**
- * The remembered searches as they were stored, with anything unreadable left
- * out: a row from another build, or one edited by hand, costs that row and not
- * the history.
+ * The remembered searches as they were stored, with anything unreadable left out: a row from
+ * another build, or one edited by hand, costs that row and not the history.
  *
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.recent
  */
@@ -267,7 +331,11 @@ function storeHistory(history: readonly FindHistoryEntry[]): void {
   }
 }
 
-/** Off unless the user turned it on. */
+/**
+ * Off unless the user turned it on.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.storedCaseSensitive
+ */
 function storedCaseSensitive(): boolean {
   try {
     return localStorage.getItem(CASE_STORAGE_KEY) === "on";
@@ -276,28 +344,52 @@ function storedCaseSensitive(): boolean {
   }
 }
 
-const IDLE: SearchState = {
+/** A bar nobody has opened: closed, empty, on the case rule it starts with. */
+const closedBar = (caseSensitive: boolean): FindBarState => ({
   open: false,
   query: "",
   encoding: "hex",
-  smart: storedSmart(),
-  caseSensitive: storedCaseSensitive(),
-  pane: "a",
+  caseSensitive,
   problem: undefined,
-  history: storedHistory(),
-  results: { a: NO_RESULTS, b: NO_RESULTS },
   stagedPattern: undefined,
-};
+});
+
+const startingCaseRule = storedCaseSensitive();
+
+export const searchStore = createStore<SearchState>({
+  smart: storedSmart(),
+  caseSensitive: startingCaseRule,
+  encoding: "hex",
+  history: storedHistory(),
+  bars: { [WORKSPACE_SURFACE]: closedBar(startingCaseRule) },
+  results: { a: NO_RESULTS, b: NO_RESULTS },
+});
+
+/**
+ * One surface's find bar. A surface whose bar nobody has asked about yet reads as a closed one
+ * on the standing case rule — which is what it is.
+ *
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.find
+ */
+export function barFor(state: SearchState, surface: SurfaceId = WORKSPACE_SURFACE): FindBarState {
+  return state.bars[surface] ?? closedBar(state.caseSensitive);
+}
+
+/** Replaces part of one surface's bar, leaving every other bar alone. */
+function updateBar(surface: SurfaceId, patch: Partial<FindBarState>): void {
+  searchStore.update((state) => ({
+    ...state,
+    bars: { ...state.bars, [surface]: { ...barFor(state, surface), ...patch } },
+  }));
+}
 
 /**
  * One pane's results, which is what its list and the bar's counters read.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.matchSet
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setMatches
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatch
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatchRange
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.currentMatchIndex
- * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.clearMatches
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexMatchRanges
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.hexCurrentMatch
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.highlightedMatchSet
@@ -305,207 +397,128 @@ const IDLE: SearchState = {
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMatchSetChanged
  */
 export function resultsFor(state: SearchState, pane: PaneId): PaneResults {
-  // A pane nothing has searched yet has no row of its own — a part opened over
-  // a file starts that way — and reads as a search that found nothing, which is
-  // what it is.
+  // A pane nothing has searched yet has no row of its own — a part opened over a file starts
+  // that way — and reads as a search that found nothing, which is what it is.
   return state.results[pane] ?? NO_RESULTS;
 }
 
-/** Replaces part of one pane's results, leaving the other pane's alone. */
+/** Replaces part of one pane's results, leaving every other pane's alone. */
 function updateResults(pane: PaneId, patch: Partial<PaneResults>): void {
   searchStore.update((state) => ({
     ...state,
     results: { ...state.results, [pane]: { ...resultsFor(state, pane), ...patch } },
   }));
-  followSearchOperation(pane);
 }
 
-/** The strip of the search running now, on the pane it searches. */
-let searchOperation: BackgroundOperation | undefined;
-let searchOperationPane: PaneId = "a";
+/**
+ * The pane a surface's bar searches: the tab's active pane, or the panel's part.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.searchedPane
+ */
+export function searchedPane(surface: SurfaceId): PaneId {
+  return surface === WORKSPACE_SURFACE ? workspaceStore.getSnapshot().activePane : surface;
+}
 
 /**
- * Ends the strip along with the results: the search is over once it has
- * answered for the whole file — found with every match counted, found nothing,
- * failed, or been cleared.
+ * The panes a surface shows: the tab's two, or the panel's part.
+ *
+ * @upstream ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.panesInMapOrder
  */
-function followSearchOperation(pane: PaneId): void {
-  const operation = searchOperation;
-  if (operation === undefined || pane !== searchOperationPane) return;
+function panesOf(surface: SurfaceId): readonly PaneId[] {
+  return surface === WORKSPACE_SURFACE ? PANE_IDS : [surface];
+}
+
+// MARK: - Each pane's own search
+
+/** Every pane's search: the pane's `FindIndexer`, made the first time the pane is searched. */
+const finders = new Map<PaneId, ByteFindIndexer>();
+
+/**
+ * The pane's search, its every change mirrored into the pane's results.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.finder
+ */
+function finderFor(pane: PaneId): ByteFindIndexer {
+  const held = finders.get(pane);
+  if (held !== undefined) return held;
+  const finder: ByteFindIndexer = new FindIndexer<ByteQuery>();
+  const follow = () => mirror(pane, finder);
+  finder.onSetChanged = follow;
+  finder.onAppearanceChanged = follow;
+  finder.onFilled = follow;
+  finders.set(pane, finder);
+  return finder;
+}
+
+/**
+ * Takes what the pane's indexer shows into the pane's results: the set as everything that draws
+ * it sees it, and the match the reader stands on.
+ *
+ * A reader put on a match has jumped: the place left is a way back (§10.6), recorded before the
+ * caret goes there — the bar reveals the match the moment the results say so.
+ *
+ * A search with no pass in flight whose index has covered the whole file has answered: found,
+ * or nothing anywhere — which is how the results button's search, which runs no pass, says so.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.appearanceChanged
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.sync
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.show
+ */
+function mirror(pane: PaneId, finder: ByteFindIndexer): void {
   const results = resultsFor(searchStore.getSnapshot(), pane);
-  const over =
-    results.status === "notFound" ||
-    results.status === "failed" ||
-    results.status === "idle" ||
-    (results.status === "found" && results.matches?.isComplete === true);
-  if (over) finishSearchOperation();
-}
-
-function finishSearchOperation(): void {
-  searchOperation?.finish();
-  searchOperation = undefined;
-}
-
-/**
- * Fills the strip's bar as the index is built.
- *
- * Straight to the strip rather than through the store: the strip is the only
- * thing that shows the fraction, and a store update per chunk re-rendered the
- * whole window once per megabyte scanned.
- */
-function reportSearchProgress(pane: PaneId, fraction: number): void {
-  if (searchOperation !== undefined && pane === searchOperationPane) {
-    searchOperation.report(fraction);
-  }
-}
-
-/**
- * The strip's (×): the running search stops, and whatever it had found so far
- * stays.
- */
-function cancelSearch(pane: PaneId): void {
-  cancelRunning();
-  finishSearchOperation();
-  if (resultsFor(searchStore.getSnapshot(), pane).status === "searching") {
-    updateResults(pane, { status: "idle" });
-  }
-}
-
-export const searchStore = createStore<SearchState>(IDLE);
-
-/**
- * The recent searches and the two switches as another window — or another tab of this edition —
- * leaves them: the history is the app's, not a window's, so a search made in one window is the
- * first recent search in every other, and Ignore Case or Smart Search turned in one is turned in
- * all. What is typed in a field stays that field's.
- *
- * @web-only upstream's windows share one `UserDefaults` and one find pasteboard; here each window
- * is a page, and the browser's `storage` event says what another page wrote
- */
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (event) => {
-    if (event.storageArea !== localStorage) return;
-    if (event.key === HISTORY_STORAGE_KEY || event.key === null) {
-      const history = parseFindHistory(event.key === null ? null : event.newValue);
-      searchStore.update((state) =>
-        JSON.stringify(state.history) === JSON.stringify(history) ? state : { ...state, history }
-      );
-    }
-    if (event.key === CASE_STORAGE_KEY || event.key === null) {
-      const caseSensitive = storedCaseSensitive();
-      searchStore.update((state) =>
-        state.caseSensitive === caseSensitive ? state : { ...state, caseSensitive }
-      );
-    }
-    if (event.key === SMART_STORAGE_KEY || event.key === null) {
-      const smart = storedSmart();
-      searchStore.update((state) => (state.smart === smart ? state : { ...state, smart }));
-    }
+  const matches = finder.highlightedMatches;
+  const current = finder.current;
+  if (current !== undefined && !sameRange(current, results.current)) recordJump(pane);
+  const answered =
+    results.status === "searching" &&
+    finder.passInFlight === undefined &&
+    matches?.isComplete === true;
+  updateResults(pane, {
+    matches,
+    current,
+    ...(answered ? { status: matches?.isEmpty === false ? "found" : "notFound" } : {}),
   });
 }
 
-let worker: Worker | undefined;
-let nextJobId: JobId = 1;
-let currentJobId: JobId | undefined;
-/** The attempt the running job is for, so its reply can name the encoding. */
-let currentAttempt: Attempt | undefined;
-/** Which pane the running job is searching, so its replies land there. */
-let currentPane: PaneId = "a";
-/** Whether the running job goes to its match or only lists the matches. */
-let currentGoal: SearchGoal = "show";
-
 /**
- * The patch a found first match makes. Listing leaves the current match unset,
- * so nothing moves: the caret stays where it is and the panel does the showing.
+ * Readies `pane`'s search: its bytes, and the operation strip its scans show in.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
+ * The worker is handed the *file*. A document with unsaved edits is not its file, so searching
+ * it there would answer about the bytes on disk while the screen shows something else. An
+ * edited document is searched here instead, against the document, in chunks with a turn for the
+ * event loop between them, so the interface keeps drawing and taking keys while it runs.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.prepare
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#BackgroundOperation
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.prepareFinder
  */
-function foundPatch(
-  match: { readonly start: number; readonly end: number },
-  wrapped: boolean,
-  foundEncoding: SearchEncoding | undefined
-): Partial<PaneResults> {
-  if (currentGoal === "list") {
-    return { status: "found", current: undefined, wrapped: false, foundEncoding };
-  }
-  // A find that goes to its match is a jump: the place it leaves is a way back (§10.6), as in MainViewController.show.
-  recordJump(currentPane);
-  return { status: "found", current: match, wrapped, foundEncoding };
-}
-
-function ensureWorker(): Worker {
-  if (worker !== undefined) return worker;
-  worker = new Worker(new URL("../workers/search.worker.ts", import.meta.url), { type: "module" });
-  worker.addEventListener("message", (event: MessageEvent<SearchWorkerResponse>) => {
-    const response = event.data;
-    if (response.id !== currentJobId) return;
-
-    switch (response.kind) {
-      case "first":
-        // Only a *found* first match is news here. An attempt that found
-        // nothing is the pass's business — it moves on to the next encoding —
-        // and reporting "not found" from here would end a Smart Search at its
-        // first miss, which for a UTF-16 string is always the ASCII attempt.
-        if (response.match === undefined) break;
-        {
-          const found = currentAttempt === undefined ? undefined : attemptEncoding(currentAttempt);
-          updateResults(currentPane, foundPatch(response.match, response.wrapped, found));
-          adopt(found);
-          recordFoundSearch();
-        }
-        break;
-
-      case "indexed": {
-        const attempt = currentAttempt;
-        if (attempt === undefined) break;
-        const storage =
-          response.countedOnly === true
-            ? ({ kind: "counted" } as const)
-            : response.bitmapWords !== undefined
-              ? ({
-                  kind: "bitmap",
-                  bitmap: MatchBitmap.fromWords(response.extent, response.bitmapWords),
-                } as const)
-              : ({ kind: "sparse", starts: response.starts ?? new Float64Array(0) } as const);
-
-        updateResults(currentPane, {
-          matches: new MatchSet(
-            attempt.pattern,
-            attempt.folding,
-            response.extent,
-            response.total,
-            storage,
-            response.indexedUpTo
-          ),
-        });
-        break;
+function prepare(pane: PaneId, surface: SurfaceId, slot: PaneState): ByteFindIndexer {
+  const finder = finderFor(pane);
+  const file = slot.file.source;
+  finder.content =
+    !slot.document.isDirty && file instanceof Blob
+      ? new WorkerByteFindContent(file, slot.document.size)
+      : new ByteFindContent(slot.document, { pause: createTimeSlicer });
+  finder.beginActivity = (cancel) => {
+    const operation = new BackgroundOperation(L("Searching…"), () => {
+      cancel();
+      // The (×): the running search stops, and whatever it had found so far stays.
+      if (resultsFor(searchStore.getSnapshot(), pane).status === "searching") {
+        updateResults(pane, { status: "idle" });
       }
-
-      case "searchProgress":
-        reportSearchProgress(currentPane, response.fraction);
-        break;
-
-      case "cancelled":
-        currentJobId = undefined;
-        finishSearchOperation();
-        break;
-
-      case "error":
-        updateResults(currentPane, { status: "failed" });
-        searchStore.update((state) => ({ ...state, problem: response.message }));
-        currentJobId = undefined;
-        break;
+    });
+    beginOperation(pane, operation);
+    return { report: (fraction) => operation.report(fraction), finish: () => operation.finish() };
+  };
+  // An index that turned up matches is a search that found something, so it is remembered —
+  // the results button's own case, where no pass ran to say so (§11).
+  finder.onFoundSomething = () => {
+    if (resultsFor(searchStore.getSnapshot(), pane).status === "searching") {
+      updateResults(pane, { status: "found" });
     }
-  });
-  return worker;
-}
-
-const send = (request: SearchWorkerRequest) => ensureWorker().postMessage(request);
-
-function cancelRunning(): void {
-  if (currentJobId === undefined) return;
-  send({ kind: "cancel", id: currentJobId });
-  currentJobId = undefined;
+    recordFoundSearch(surface);
+  };
+  return finder;
 }
 
 /**
@@ -520,196 +533,283 @@ const failureMessage = (failure: SearchFailure): string =>
   })[failure];
 
 /**
- * Starts a search.
+ * What the field is asking for, as things to look for: one attempt for a chosen encoding, Smart
+ * Search's list otherwise (§11). A complaint when there is nothing to look for.
  *
- * Smart Search resolves the encoding here, on the main thread: choosing which
- * questions to ask is arithmetic over the query string, and only the asking is
- * worth a worker. The attempts are tried in order, so the worker is asked about
- * one at a time and the first that finds something is the answer.
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.attempts
+ */
+function attemptsForField(
+  query: string,
+  encoding: SearchEncoding,
+  smart: boolean,
+  caseSensitive: boolean
+): readonly Attempt[] | string {
+  const attempts = smart
+    ? attemptsFor(query, caseSensitive, encoding)
+    : resolveOne(query, encoding, caseSensitive);
+  if (typeof attempts === "string") return failureMessage(attempts);
+  if (attempts.length === 0) return L("There is no way to write that as bytes.");
+  return attempts;
+}
+
+/**
+ * A press of Return or ‹ › (§11): a step through the search already in hand, or a new search.
  *
+ * A search already running in the pane is stepped rather than started again — including the one
+ * a Smart Search settled on, whose attempt is usually not the first (the popup names it).
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.runSearch
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.steppable
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onSearch
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.runSearch
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginPass
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.searchAnchor
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal
+ * @upstream-differs every attempt may be stepped: the web has no encoding a picked row brings of
+ * its own (`pickedEncoding`), so there is none to narrow the steppable ones to
+ */
+export function runSearch(
+  query: string,
+  direction: SearchDirection = "forward",
+  surface: SurfaceId = frontSurface()
+): void {
+  const state = searchStore.getSnapshot();
+  const bar = barFor(state, surface);
+  const pane = searchedPane(surface);
+  const finder = finders.get(pane);
+  const attempts = attemptsForField(query, bar.encoding, state.smart, bar.caseSensitive);
+  if (
+    finder !== undefined &&
+    typeof attempts !== "string" &&
+    finder.passInFlight === undefined &&
+    attempts.some((attempt) => finder.hasMatches(attemptQuery(attempt)))
+  ) {
+    stepSearch(direction, surface);
+    return;
+  }
+  startSearch({ query, direction, surface });
+}
+
+/**
+ * Starts a search: the pass — the candidates in turn until one finds something; then the search
+ * is that one's (§11).
+ *
+ * Smart Search resolves the encodings here, on the main thread: choosing which questions to ask
+ * is arithmetic over the query string, and only the asking is worth a worker.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.pass
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.searchAnchor
+ * @upstream-differs the anchor is the caret, or where the caller says
  */
 export function startSearch(options: {
   readonly query: string;
   readonly encoding?: SearchEncoding;
   readonly smart?: boolean;
   readonly caseSensitive?: boolean;
+  /** Whose bar asks; the surface in front, unless said. */
+  readonly surface?: SurfaceId;
+  /** The pane searched; the bar's own, unless said. */
   readonly pane?: PaneId;
-  readonly direction?: "forward" | "backward";
+  readonly direction?: SearchDirection;
   readonly from?: number;
   /** What the search is for: going to a match, or listing them all. */
   readonly goal?: SearchGoal;
   /**
-   * False for a search picked from the menu: the history is what was typed, and
-   * spending it on what is already kept elsewhere is the problem the favourites
-   * solve.
+   * False for a search picked from the menu: the history is what was typed, and spending it on
+   * what is already kept elsewhere is the problem the favourites solve.
    */
   readonly recordHistory?: boolean;
 }): void {
   // A plate reports a search, so it goes the moment another one starts.
   dismissNotice();
-  // A search supersedes a staged pattern: what it finds goes into the history,
-  // which is what the next open offers (§11). Cleared here rather than at the
-  // end because a picked row is a search too, and every arm below is one.
-  searchStore.update((current) =>
-    current.stagedPattern === undefined ? current : { ...current, stagedPattern: undefined }
-  );
-
+  const surface =
+    options.surface ?? (options.pane === undefined ? frontSurface() : surfaceOf(options.pane));
+  const pane = options.pane ?? searchedPane(surface);
   const state = searchStore.getSnapshot();
+  const bar = barFor(state, surface);
   const query = options.query;
-  const encoding = options.encoding ?? state.encoding;
+  const encoding = options.encoding ?? bar.encoding;
   const smart = options.smart ?? state.smart;
-  const caseSensitive = options.caseSensitive ?? state.caseSensitive;
-  const pane = options.pane ?? state.pane;
+  const caseSensitive = options.caseSensitive ?? bar.caseSensitive;
+  // A search supersedes a staged pattern: what it finds goes into the history, which is what
+  // the next open offers (§11).
+  updateBar(surface, { stagedPattern: undefined });
 
   const slot = paneState(pane);
   if (slot === undefined || query.length === 0) {
-    cancelRunning();
+    finders.get(pane)?.invalidate();
     updateResults(pane, {
       status: "idle",
       matches: undefined,
       current: undefined,
       resultsShown: false,
     });
-    searchStore.update((current) => ({
-      ...current,
-      query,
-      encoding,
-      smart,
-      caseSensitive,
-      problem: undefined,
-    }));
+    updateBar(surface, { query, encoding, caseSensitive, problem: undefined });
     return;
   }
 
-  // Smart Search asks several questions in order, starting with the encoding
-  // the popup is showing — which is either what the user chose or what the last
-  // pass settled on, and either way the likeliest answer. Off, it asks one.
-  const attempts = smart
-    ? attemptsFor(query, caseSensitive, encoding)
-    : resolveOne(query, encoding, caseSensitive);
-
+  // Smart Search asks several questions in order, starting with the encoding the popup is
+  // showing — which is either what the user chose or what the last pass settled on, and either
+  // way the likeliest answer. Off, it asks one.
+  const attempts = attemptsForField(query, encoding, smart, caseSensitive);
   if (typeof attempts === "string") {
+    finders.get(pane)?.invalidate();
     updateResults(pane, {
       status: "failed",
       matches: undefined,
       current: undefined,
       resultsShown: false,
     });
-    searchStore.update((current) => ({
-      ...current,
-      query,
-      encoding,
-      smart,
-      caseSensitive,
-      problem: failureMessage(attempts),
-    }));
-    return;
-  }
-  if (attempts.length === 0) {
-    updateResults(pane, { status: "failed", resultsShown: false });
-    searchStore.update((current) => ({
-      ...current,
-      query,
-      encoding,
-      smart,
-      caseSensitive,
-      problem: L("There is no way to write that as bytes."),
-    }));
+    updateBar(surface, { query, encoding, caseSensitive, problem: attempts });
     return;
   }
 
-  cancelRunning();
   const goal = options.goal ?? "show";
   updateResults(pane, {
     status: "searching",
-    matches: undefined,
-    current: undefined,
-    // The results button opens the panel whatever the search has to say: on
-    // the rows as they arrive, or on "No matches." where they would have been.
+    foundEncoding: undefined,
+    wrapped: false,
+    // The results button opens the panel whatever the search has to say: on the rows as they
+    // arrive, or on "No matches." where they would have been.
     resultsShown: goal === "list" || resultsFor(state, pane).resultsShown,
   });
-  // A search told to read hex shows its bytes back as the dump prints them, and
-  // that is the text remembered. A Smart Search has not decided yet what the
-  // text is: its pass says so when it lands (`adopt`).
+  // A search told to read hex shows its bytes back as the dump prints them, and that is the
+  // text remembered. A Smart Search has not decided yet what the text is: its pass says so when
+  // it lands (`adopt`).
   const shown = smart ? query : hexFieldText(query, encoding);
-  searchStore.update((current) => ({
-    ...current,
-    query: shown,
-    encoding,
-    smart,
-    caseSensitive,
-    pane,
-    problem: undefined,
-  }));
-  // Remembered only once it finds something: a pattern that occurs nowhere is
-  // not one worth offering again. A pick from the menu is not remembered at all.
-  // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.noteSearchStarted
-  searchToRecord = options.recordHistory === false ? undefined : shown;
+  updateBar(surface, { query: shown, encoding, caseSensitive, problem: undefined });
+  // Remembered only once it finds something: a pattern that occurs nowhere is not one worth
+  // offering again. A pick from the menu is not remembered at all.
+  noteSearchStarted(surface, options.recordHistory === false ? undefined : shown);
 
-  void runAttempts(
-    attempts,
-    pane,
+  const direction = options.direction ?? "forward";
+  const finder = prepare(pane, surface, slot);
+  const search = finder.start(
+    attempts.map(attemptQuery),
     options.from ?? slot.document.caret,
-    options.direction ?? "forward",
-    goal
+    direction,
+    goal === "show"
   );
+  void search.then((outcome) => {
+    if (paneState(pane) === undefined) return;
+    switch (outcome.kind) {
+      case "found":
+        adoptAttempt(surface, pane, attempts[outcome.index], outcome.wrapped, direction, goal);
+        break;
+      case "nothing":
+        reportNothingFound(attempts, pane);
+        break;
+      case "cancelled":
+      case "alreadyRunning":
+        break;
+    }
+  });
+}
+
+/**
+ * The attempt that found something is *the* search: the bar's popup says which encoding it was,
+ * and the search goes into the history (§11).
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.adopt
+ */
+function adoptAttempt(
+  surface: SurfaceId,
+  pane: PaneId,
+  attempt: Attempt | undefined,
+  wrapped: boolean,
+  direction: SearchDirection,
+  goal: SearchGoal
+): void {
+  const found = attempt === undefined ? undefined : attemptEncoding(attempt);
+  adopt(surface, found);
+  recordFoundSearch(surface);
+  // The results button is not a Find Next: the caret stays where it is, and the panel opens on
+  // the index as it fills (§11).
+  const lands = goal === "show";
+  updateResults(pane, { status: "found", foundEncoding: found, wrapped: lands && wrapped });
+  if (lands && wrapped) showWrapNotice(direction);
+}
+
+/**
+ * A pass where every attempt came back empty (§11). Where there was a choice of encodings, a
+ * plate says which ones were tried: the answer is about the pass, not about any one of its
+ * scans.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.reportNothingFound
+ */
+function reportNothingFound(attempts: readonly Attempt[], pane: PaneId): void {
+  updateResults(pane, { status: "notFound", current: undefined });
+  if (attempts.length > 1) showNotice("smartSearch", nothingFoundLines(attempts));
 }
 
 /**
  * What a search is for.
  *
- * `show` goes to the match, as ‹ › and Return do. `list` is the results button:
- * pressing it is not a Find Next, so the caret stays where it is and the panel
- * opens on the matches as the index fills.
+ * `show` goes to the match, as ‹ › and Return do. `list` is the results button: pressing it is
+ * not a Find Next, so the caret stays where it is and the panel opens on the matches as the
+ * index fills.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal.showTheMatch
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.SearchPassGoal.listTheMatches
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.Goal
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.Goal.showTheMatch
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.Goal.listTheMatches
  */
 export type SearchGoal = "show" | "list";
 
 /**
- * The find bar's results button: shows or hides the active pane's results
- * panel.
+ * The find bar's results button: shows or hides the searched pane's results panel.
  *
- * It is not a search of its own. A search that is already in hand for the
- * pattern in the field is simply presented; a pattern typed but not yet
- * searched is searched here, so the panel is never a list of the previous
- * pattern's matches.
+ * It is not a search of its own. A search already in hand for what the field asks is simply
+ * presented; a pattern typed but not yet searched is searched here, so the panel is never a list
+ * of the previous pattern's matches. One thing to look for needs no scan to pick it: the index
+ * itself finds every occurrence, and the panel fills as it does. Which of several encodings to
+ * list is the question Smart Search answers for a jump, so it is answered the same way.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleSearchResults
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.presentSearchResults
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.toggleSearchResults
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.presentSearchResults
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.showSearchResults
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onSearchAll
- * @upstream-differs the pass that lists is the same pass that finds, run with the caret left alone, rather than an index started without a first-match scan
  */
-export function toggleSearchResults(query: string): void {
+export function toggleSearchResults(query: string, surface: SurfaceId = frontSurface()): void {
   const state = searchStore.getSnapshot();
-  const pane = state.pane;
+  const pane = searchedPane(surface);
+  const slot = paneState(pane);
+  if (slot === undefined) return;
   const results = resultsFor(state, pane);
   if (results.resultsShown) {
     hideSearchResults(pane);
     return;
   }
-  // The search in hand wrote a hex pattern back in the dump's form, so the text
-  // the button is given counts as the same pattern once it is written that way.
-  const samePattern = query === state.query || hexFieldText(query, state.encoding) === state.query;
-  const inHand = samePattern && results.status !== "idle" && results.status !== "failed";
-  if (inHand) {
+  const bar = barFor(state, surface);
+  const attempts = attemptsForField(query, bar.encoding, state.smart, bar.caseSensitive);
+  if (typeof attempts === "string") {
+    startSearch({ query, surface, pane, goal: "list" });
+    return;
+  }
+  const finder = finders.get(pane);
+  if (attempts.some((attempt) => finder?.hasMatches(attemptQuery(attempt)) === true)) {
     updateResults(pane, { resultsShown: true });
     return;
   }
-  startSearch({ query, pane, goal: "list" });
+  const only = attempts.length === 1 ? attempts[0] : undefined;
+  if (only === undefined) {
+    startSearch({ query, surface, pane, goal: "list" });
+    return;
+  }
+  dismissNotice();
+  const encoding = attemptEncoding(only);
+  updateResults(pane, {
+    status: "searching",
+    foundEncoding: encoding,
+    wrapped: false,
+    current: undefined,
+    resultsShown: true,
+  });
+  const shown = state.smart ? query : hexFieldText(query, bar.encoding);
+  updateBar(surface, { query: shown, problem: undefined, stagedPattern: undefined });
+  noteSearchStarted(surface, shown);
+  prepare(pane, surface, slot).index(attemptQuery(only));
+  adopt(surface, encoding);
 }
 
 /**
- * Takes a pane's results panel down: the ×, or the button pressed again. The
- * search is not touched — hiding a list is not the end of the search it listed.
+ * Takes a pane's results panel down: the ×, or the button pressed again. The search is not
+ * touched — hiding a list is not the end of the search it listed.
  *
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.hideSearchResults
  * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onSearchResultsClose
@@ -738,66 +838,8 @@ function resolveOne(
 }
 
 /**
- * Asks the worker about each attempt until one finds something.
- *
- * Sequential, because that is what "the first encoding that finds anything"
- * means — running them together would not tell you which one a reader should
- * adopt, and would scan the file four times to answer a question one scan
- * usually settles.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.attempts
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.steppable
- */
-async function runAttempts(
-  attempts: readonly Attempt[],
-  pane: PaneId,
-  from: number,
-  direction: "forward" | "backward",
-  goal: SearchGoal
-): Promise<void> {
-  const slot = paneState(pane);
-  if (slot === undefined) return;
-
-  // The worker is handed the *file*. A document with unsaved edits is not its
-  // file, so searching it there would answer about the bytes on disk while the
-  // screen shows something else — the comparison learned this the hard way in
-  // M4. An edited document is searched here instead, against the document, in
-  // chunks with a turn for the event loop between them, so the interface keeps
-  // drawing and taking keys while it runs.
-  finishSearchOperation();
-  const operation = new BackgroundOperation(L("Searching…"), () => cancelSearch(pane));
-  searchOperation = operation;
-  searchOperationPane = pane;
-  beginOperation(pane, operation);
-
-  const file = slot.file.source;
-  const inWorker = !slot.document.isDirty && file instanceof Blob;
-
-  for (const attempt of attempts) {
-    const id = nextJobId++;
-    currentJobId = id;
-    currentAttempt = attempt;
-    currentPane = pane;
-    currentGoal = goal;
-
-    const found = inWorker
-      ? await askWorker(id, attempt, file as Blob, from, direction)
-      : await askHere(id, attempt, slot.document, from, direction);
-    // A newer search started while this one was in flight.
-    if (currentJobId !== id) return;
-    if (found) return;
-  }
-
-  updateResults(pane, { status: "notFound", current: undefined, matches: undefined });
-  currentJobId = undefined;
-  // Where there was a choice of encodings, a plate says which were tried: the
-  // answer is about the pass, not about any one of its scans.
-  if (attempts.length > 1) showNotice("smartSearch", nothingFoundLines(attempts));
-}
-
-/**
- * How an attempt is named when it has to be reported — every encoding it
- * answered for, so "no results" is honest about what was tried.
+ * How an attempt is named when it has to be reported — every encoding it answered for, so "no
+ * results" is honest about what was tried.
  *
  * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt.label
  */
@@ -806,10 +848,10 @@ export function attemptLabel(attempt: Attempt): string {
 }
 
 /**
- * The plate a Smart Search that found nothing shows: the pass, then one line
- * per question it asked.
+ * The plate a Smart Search that found nothing shows: the pass, then one line per question it
+ * asked.
  *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reportNothingFound
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.reportNothingFound
  */
 export function nothingFoundLines(attempts: readonly Attempt[]): string[] {
   return [
@@ -818,170 +860,20 @@ export function nothingFoundLines(attempts: readonly Attempt[]): string[] {
   ];
 }
 
-/** One attempt, resolving to whether it found anything. */
-function askWorker(
-  id: JobId,
-  attempt: Attempt,
-  file: Blob,
-  from: number,
-  direction: "forward" | "backward"
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    const listener = (event: MessageEvent<SearchWorkerResponse>) => {
-      const response = event.data;
-      if (response.id !== id) return;
-      if (response.kind === "first") {
-        ensureWorker().removeEventListener("message", listener);
-        if (response.match !== undefined && response.wrapped && currentGoal === "show") {
-          showWrapNotice(direction);
-        }
-        resolve(response.match !== undefined);
-      } else if (response.kind === "cancelled" || response.kind === "error") {
-        ensureWorker().removeEventListener("message", listener);
-        resolve(true); // stop the pass; the store already carries the reason
-      }
-    };
-    ensureWorker().addEventListener("message", listener);
-
-    send({
-      kind: "search",
-      id,
-      file,
-      pattern: foldedPattern(attempt.pattern.bytes, attempt.folding),
-      patternBytes: attempt.pattern.bytes,
-      encoding: attemptEncoding(attempt),
-      folding: attempt.folding,
-      from,
-      direction,
-      index: true,
-    });
-  });
-}
-
 /**
- * One attempt, run on this thread against the live document.
- *
- * The same two answers in the same order as the worker gives — the match
- * first, the index behind it — because the interface cannot tell the two paths
- * apart and should not have to. The index is not awaited: a person is waiting
- * for the match, not for the greys.
- */
-async function askHere(
-  id: JobId,
-  attempt: Attempt,
-  document: ByteStorage,
-  from: number,
-  direction: "forward" | "backward"
-): Promise<boolean> {
-  const pattern = foldedPattern(attempt.pattern.bytes, attempt.folding);
-  const folding = attempt.folding;
-  const cancelled = () => currentJobId !== id;
-  const pause = createTimeSlicer();
-
-  try {
-    const here = await findOne(pattern, document, {
-      from,
-      direction,
-      folding,
-      shouldCancel: cancelled,
-      pause,
-    });
-    const match =
-      here ??
-      (await findOne(pattern, document, {
-        from: direction === "forward" ? 0 : document.size,
-        direction,
-        folding,
-        shouldCancel: cancelled,
-        pause,
-      }));
-    if (cancelled()) return true;
-    if (match === undefined) return false;
-
-    updateResults(currentPane, foundPatch(match, here === undefined, attemptEncoding(attempt)));
-    adopt(attemptEncoding(attempt));
-    recordFoundSearch();
-    if (here === undefined && currentGoal === "show") showWrapNotice(direction);
-
-    void indexHere(id, attempt, document, currentPane);
-    return true;
-  } catch (error) {
-    if (error instanceof SearchCancelled) return true;
-    updateResults(currentPane, { status: "failed" });
-    searchStore.update((state) => ({
-      ...state,
-      problem: error instanceof Error ? error.message : L("The search failed."),
-    }));
-    return true;
-  }
-}
-
-/**
- * The full index for a local attempt, published as it is built.
- *
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.beginIndexing
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.startIndexing
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.endIndexing
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.noteIndexFound
- */
-async function indexHere(
-  id: JobId,
-  attempt: Attempt,
-  document: ByteStorage,
-  pane: PaneId
-): Promise<void> {
-  const builder = new MatchSetBuilder(attempt.pattern, attempt.folding, document.size);
-  let lastPublished = 0;
-
-  // The builder already hands back a `MatchSet`; nothing has to cross a worker
-  // boundary here, so it is published as it is.
-  const publish = (set: MatchSet) => {
-    if (currentJobId !== id) return;
-    updateResults(pane, { matches: set });
-  };
-
-  try {
-    await scanAll(foldedPattern(attempt.pattern.bytes, attempt.folding), document, {
-      folding: attempt.folding,
-      shouldCancel: () => currentJobId !== id,
-      pause: createTimeSlicer(),
-      onMatches: (starts) => builder.add(starts),
-      onWindow: (upTo) => {
-        const now = Date.now();
-        if (now - lastPublished < PUBLISH_EVERY_MS) return;
-        lastPublished = now;
-        publish(builder.snapshot(upTo));
-      },
-      onProgress: (fraction) => {
-        if (currentJobId === id) reportSearchProgress(pane, fraction);
-      },
-    });
-    publish(builder.finish());
-  } catch (error) {
-    if (!(error instanceof SearchCancelled)) throw error;
-  }
-}
-
-/** How often a partial index is published while a local scan runs. */
-const PUBLISH_EVERY_MS = 120;
-
-/**
- * Drops a pane's matches when the bytes under them change: every offset in the
- * set is a guess now. The greys go rather than shift — a grey in the wrong
- * place is worse than none — and nothing is searched again, so the caret stays
- * where the typing is. The next Return or step scans afresh.
+ * Drops a pane's matches when the bytes under them change: every offset in the set is a guess
+ * now. The greys go rather than shift — a grey in the wrong place is worse than none — and
+ * nothing is searched again, so the caret stays where the typing is. The next Return or step
+ * scans afresh. An index still being built over bytes that just moved stops with the set.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.invalidateMatches
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.clearMatches
  */
 export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
   const results = resultsFor(searchStore.getSnapshot(), pane);
+  finders.get(pane)?.invalidate();
   if (results.status === "idle" && results.matches === undefined && results.current === undefined) {
     return;
-  }
-  // An index still being built is being built over bytes that just moved.
-  if (pane === currentPane) {
-    cancelRunning();
-    finishSearchOperation();
   }
   updateResults(pane, {
     status: "idle",
@@ -993,72 +885,69 @@ export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
 }
 
 /**
- * Steps to the next or previous match.
+ * The next or previous match of the search in hand (§11): from the index where it can answer —
+ * at once, so the press lands before it returns — and by one scan where it cannot.
  *
- * An index step, not a fresh scan — which is the point of having the set: once
- * the file has been scanned, moving through the matches costs a lookup.
- *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.step
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.land
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.stepMatch
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.land
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.scanForStep
+ * @upstream-differs the anchor is the match the reader stands on, else the caret
  */
-export function stepSearch(direction: "forward" | "backward"): void {
-  const state = searchStore.getSnapshot();
-  const pane = state.pane;
-  const results = resultsFor(state, pane);
-  const matches = results.matches;
-  if (matches === undefined || !matches.isHighlightable) return;
-
-  const caret = results.current?.start ?? paneState(pane)?.document.caret ?? 0;
+export function stepSearch(direction: SearchDirection, surface: SurfaceId = frontSurface()): void {
+  const pane = searchedPane(surface);
+  const finder = finders.get(pane);
+  const slot = paneState(pane);
+  if (finder?.matches === undefined || slot === undefined) return;
+  const results = resultsFor(searchStore.getSnapshot(), pane);
+  const caret = results.current?.start ?? slot.document.caret;
   const from = direction === "forward" ? caret + 1 : caret;
-  const step = matches.step(direction, from);
-  if (step === undefined) return;
-
-  // A step of the find is a jump: the place it leaves is a way back (§10.6).
-  recordJump(pane);
-  updateResults(pane, { status: "found", current: step.range, wrapped: step.wrapped });
-  if (step.wrapped) showWrapNotice(direction);
+  const land = (wrapped: boolean) => {
+    updateResults(pane, { status: "found", wrapped });
+    // Said after the move, not instead of it: the plate is the answer and this is the footnote.
+    if (wrapped) showWrapNotice(direction);
+  };
+  const step = finder.indexedStep(direction, from);
+  if (step !== undefined) {
+    land(step.wrapped);
+    return;
+  }
+  void finder.step(direction, from).then((outcome) => {
+    if (paneState(pane) === undefined) return;
+    if (outcome.kind === "indexed") land(outcome.step.wrapped);
+    else if (outcome.kind === "scanned") land(outcome.wrapped);
+    else if (outcome.kind === "notFound") updateResults(pane, { status: "notFound" });
+  });
 }
 
 /**
  * Takes the encoding a Smart Search settled on into the bar.
  *
- * What worked replaces what was asked for. Upstream is explicit about why:
- * leaving the asked-for one standing meant the next press started another pass
- * from it — trying UTF-16 BE and ASCII again before landing on the LE the
- * search had *already* settled on — instead of stepping the index it now has.
- *
- * Only Smart Search adopts. With it off the encoding is the user's instruction,
- * and an instruction is not something the application rewrites.
+ * What worked replaces what was asked for: leaving the asked-for one standing meant the next
+ * press started another pass from it instead of stepping the index it now has. Only Smart Search
+ * adopts. With it off the encoding is the user's instruction, and an instruction is not
+ * something the application rewrites.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.adopt
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adopt
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.adopt
  */
-function adopt(encoding: SearchEncoding | undefined): void {
+function adopt(surface: SurfaceId, encoding: SearchEncoding | undefined): void {
   const state = searchStore.getSnapshot();
   if (encoding === undefined || !state.smart) {
-    searchStore.update((current) => ({ ...current, problem: undefined }));
+    updateBar(surface, { problem: undefined });
     return;
   }
-  // A pass that landed on hex found *bytes*, so the field says so the way a dump
-  // does — and what is remembered says it too.
-  const query = hexFieldText(state.query, encoding);
-  if (searchToRecord !== undefined) searchToRecord = hexFieldText(searchToRecord, encoding);
-  searchStore.update((current) => ({ ...current, encoding, query, problem: undefined }));
+  // A pass that landed on hex found *bytes*, so the field says so the way a dump does — and
+  // what is remembered says it too.
+  const query = hexFieldText(barFor(state, surface).query, encoding);
+  const toRecord = searchToRecord.get(surface);
+  if (toRecord !== undefined) searchToRecord.set(surface, hexFieldText(toRecord, encoding));
+  updateBar(surface, { encoding, query, problem: undefined });
 }
 
 /**
- * The field's text after a search: a hex pattern written back in the form a
- * dump prints it — `deadbeef` becomes `DE AD BE EF` (§11).
- *
- * Only on a search, never while typing: it is the answer to "this is what I
- * looked for", and a field that regrouped bytes under the caret would be
- * unusable. The text is derived from the bytes, so it says exactly what was
- * searched for. Text encodings are left alone: there the field holds the string
- * itself, not a transcription of bytes.
+ * The field's text after a search: a hex pattern written back in the form a dump prints it —
+ * `deadbeef` becomes `DE AD BE EF` (§11).
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.normalizeHexText
  */
@@ -1068,27 +957,38 @@ export function hexFieldText(query: string, encoding: SearchEncoding): string {
   return parsed.ok ? patternHexText(parsed.pattern) : query;
 }
 
-/** The query a search was started with, until that search finds something. */
-let searchToRecord: string | undefined;
+/**
+ * The query each bar's search was started with, until that search finds something.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchToRecord
+ */
+const searchToRecord = new Map<SurfaceId, string>();
+
+/** @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.noteSearchStarted */
+function noteSearchStarted(surface: SurfaceId, query: string | undefined): void {
+  if (query === undefined) searchToRecord.delete(surface);
+  else searchToRecord.set(surface, query);
+}
 
 /**
- * The search that was started found something, so it is worth offering again.
+ * The search a bar started found something, so it is worth offering again — in every bar, the
+ * history being the app's.
  *
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.recordFoundSearch
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.recordFoundSearch
- * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchToRecord
  */
-function recordFoundSearch(): void {
-  const query = searchToRecord;
+function recordFoundSearch(surface: SurfaceId): void {
+  const query = searchToRecord.get(surface);
   if (query === undefined) return;
-  searchToRecord = undefined;
-  // The encoding is the one the search settled on — adopt runs before this —
-  // so picking it back later asks the question that was answered.
+  searchToRecord.delete(surface);
+  // The encoding is the one the search settled on — adopt runs before this — so picking it back
+  // later asks the question that was answered.
   const state = searchStore.getSnapshot();
+  const bar = barFor(state, surface);
   const history = recordFindHistory(state.history, {
     pattern: query,
-    encoding: state.encoding,
-    caseSensitive: state.caseSensitive,
+    encoding: bar.encoding,
+    caseSensitive: bar.caseSensitive,
   });
   if (history === state.history) return;
   storeHistory(history);
@@ -1096,25 +996,21 @@ function recordFoundSearch(): void {
 }
 
 /**
- * The field's text has changed without being searched for — a keystroke, or a
- * selection staged into it. Either way what was on screen a moment ago was a
- * count or a complaint about the text that was there, and the search it
- * described is no longer the one the field names (§11).
- *
- * The staged pattern goes with it, which is why both callers pass one: after
- * this the text in front of the user, or the history, is the newer statement of
- * what to look for. It starts nothing — a search starts on Return.
+ * The field's text has changed without being searched for — a keystroke, or a selection staged
+ * into it. Either way what was on screen a moment ago was a count or a complaint about the text
+ * that was there, and the search it described is no longer the one the field names (§11).
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onPatternEdited
+ * @upstream-differs the set goes with the showing, and the results panel with it, where upstream
+ * keeps the set for the panel to go on listing
  */
-function patternReplaced(query: string, patch: Partial<SearchState>): void {
+function patternReplaced(surface: SurfaceId, query: string, patch: Partial<FindBarState>): void {
   dismissNotice();
-  cancelRunning();
-  finishSearchOperation();
-  searchToRecord = undefined;
-  const pane = searchStore.getSnapshot().pane;
+  searchToRecord.delete(surface);
+  const pane = searchedPane(surface);
+  finders.get(pane)?.invalidate();
   updateResults(pane, {
     status: "idle",
     matches: undefined,
@@ -1122,46 +1018,38 @@ function patternReplaced(query: string, patch: Partial<SearchState>): void {
     wrapped: false,
     resultsShown: false,
   });
-  searchStore.update((state) => ({ ...state, query, problem: undefined, ...patch }));
+  updateBar(surface, { query, problem: undefined, ...patch });
 }
 
 /**
- * Typing in the pattern field ends the search that was running — the count
- * clears and the matches go, so nothing on screen describes a pattern that is
- * no longer in the field. It starts nothing: a search starts on Return.
+ * Typing in a bar's pattern field ends the search that was running — the count clears and the
+ * matches go, so nothing on screen describes a pattern that is no longer in the field. It starts
+ * nothing: a search starts on Return.
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  */
-export function editQuery(query: string): void {
-  // Typed over: a pattern a selection staged is not about this text — the text
-  // in front of the user is theirs now, and the next open offers what they left
-  // in the field (§11). The encoding is left as it is: upstream clears the
-  // preferred encoding a picked row brought, but the popup keeps showing the
-  // one it was set to, and that is still what the field is read in.
-  patternReplaced(query, { stagedPattern: undefined });
+export function editQuery(query: string, surface: SurfaceId = frontSurface()): void {
+  // Typed over: a pattern a selection staged is not about this text.
+  patternReplaced(surface, query, { stagedPattern: undefined });
 }
 
 /**
- * A selection becomes the pattern to search for, and nothing else happens — the
- * bar is not opened, no search is run, and the focus stays where the user is
- * (§11, Use Selection for Find).
+ * A selection becomes the pattern a bar will search for, and nothing else happens — the bar is
+ * not opened, no search is run, and the focus stays where the user is (§11, Use Selection for
+ * Find).
  *
- * The write lands in the field whether the bar is showing or not: a bar on
- * screen must say what it will search for, and a closed one is offered it when
- * it opens (`openSearch`).
- *
- * The case toggle is left alone. It is the user's own preference, persisted
- * across searches, and taking a pattern out of the dump says nothing about how
- * they want it matched.
- *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.stage
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.stage
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.stage
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.applyStaged
- * @upstream-differs `applyStaged` is folded in: the web field reads the store,
- * so writing the text and the encoding is the same one update
+ * @upstream-differs `applyStaged` is folded in: the web field reads the store, so writing the
+ * text and the encoding is the same one update
  */
-export function stageFindPattern(pattern: SelectionFindPattern): void {
-  patternReplaced(pattern.text, { encoding: pattern.encoding, stagedPattern: pattern });
+export function stageFindPattern(
+  pattern: SelectionFindPattern,
+  surface: SurfaceId = frontSurface()
+): void {
+  patternReplaced(surface, pattern.text, { encoding: pattern.encoding, stagedPattern: pattern });
 }
 
 /**
@@ -1172,26 +1060,23 @@ export function stageFindPattern(pattern: SelectionFindPattern): void {
 export const MAX_SELECTION_FIND_BYTES = 1024;
 
 /**
- * The selection in the active pane becomes the pattern the find bar will
- * search for (§11, Use Selection for Find).
+ * The selection in the pane in front becomes the pattern its surface's find bar will search for
+ * (§11, Use Selection for Find).
  *
- * Everything that can say no says it here rather than at the bar: nothing
- * selected is nothing to take, and a selection past the limit is refused with
- * the two lines upstream refuses it with — the plate is the same one, and the
- * number in it is the same number, so a user who has read one edition has read
- * the other.
- *
- * Where the caret was typing is where the selection was made (§7): the hex
- * column asks about bytes, the decoded-text column about text.
+ * Everything that can say no says it here rather than at the bar: nothing selected is nothing to
+ * take, and a selection past the limit is refused with the two lines upstream refuses it with.
+ * Where the caret was typing is where the selection was made (§7): the hex column asks about
+ * bytes, the decoded-text column about text.
  *
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.useSelectionForFind
- * @upstream-differs the web has no action of its own for this: the command is
- * folded into ⌘F (`AppShell`), which takes the selection before it opens the
- * bar. The refusal plate and the region rule are upstream's.
+ * @upstream-differs the web has no action of its own for this: the command is folded into ⌘F
+ * (`AppShell`), which takes the selection before it opens the bar. The refusal plate and the
+ * region rule are upstream's.
  */
 export async function useSelectionForFind(): Promise<void> {
   const workspace = workspaceStore.getSnapshot();
-  const slot = paneIn(workspace, workspace.activePane);
+  const pane = paneInFront();
+  const slot = paneIn(workspace, pane);
   if (slot === undefined) return;
   const { start, end } = slot.document.selection;
   if (end <= start) return;
@@ -1209,28 +1094,72 @@ export async function useSelectionForFind(): Promise<void> {
     // Nothing to take; the bar still opens on what it last searched for.
     return;
   }
-  stageFindPattern(slot.typing.inputRegion === "text" ? forText(bytes) : forBytes(bytes));
+  stageFindPattern(
+    slot.typing.inputRegion === "text" ? forText(bytes) : forBytes(bytes),
+    surfaceOf(pane)
+  );
 }
 
 /**
- * Picks the encoding the next search is told to use. Nothing is searched until
- * Return; a complaint about the text no longer stands, since the same text
- * means something else now.
+ * Picks the encoding a bar's next search is told to use. Nothing is searched until Return; a
+ * complaint about the text no longer stands, since the same text means something else now.
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.encodingChanged
  */
-export function setSearchEncoding(encoding: SearchEncoding): void {
-  searchStore.update((state) => ({ ...state, encoding, problem: undefined }));
+export function setSearchEncoding(
+  encoding: SearchEncoding,
+  surface: SurfaceId = frontSurface()
+): void {
+  updateBar(surface, { encoding, problem: undefined });
 }
 
-/** @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseToggled */
-export function setCaseSensitive(caseSensitive: boolean): void {
-  searchStore.update((state) => ({ ...state, caseSensitive }));
+/**
+ * A bar's case toggle: the bar's own rule, and the choice a new bar starts with.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseToggled
+ */
+export function setCaseSensitive(
+  caseSensitive: boolean,
+  surface: SurfaceId = frontSurface()
+): void {
+  setFindCaseRule(caseSensitive, surface);
+  setStandingCaseSensitive(caseSensitive);
+}
+
+/**
+ * Sets a bar's own case rule and nothing else — a restored workspace's, which says nothing about
+ * what a new bar starts with.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.caseSensitive
+ */
+export function setFindCaseRule(caseSensitive: boolean, surface: SurfaceId): void {
+  updateBar(surface, { caseSensitive });
+}
+
+/**
+ * A tool's pattern field's case toggle — the app's standing choice, which is also what the next
+ * new bar starts with.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.caseToggled
+ */
+export function setStandingCaseSensitive(caseSensitive: boolean): void {
+  searchStore.update((state) =>
+    state.caseSensitive === caseSensitive ? state : { ...state, caseSensitive }
+  );
   try {
     localStorage.setItem(CASE_STORAGE_KEY, caseSensitive ? "on" : "off");
   } catch {
     // Not storable here; the choice still holds for this tab.
   }
+}
+
+/**
+ * Picks the encoding a tool's pattern field reads in.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.encodingChanged
+ */
+export function setToolEncoding(encoding: SearchEncoding): void {
+  searchStore.update((state) => (state.encoding === encoding ? state : { ...state, encoding }));
 }
 
 /**
@@ -1256,96 +1185,178 @@ export function setSmartSearch(smart: boolean): void {
 }
 
 /**
- * Shows the find bar, and says whether it was already up.
+ * Shows a surface's find bar, and says whether it was already up.
  *
- * A bar that opens starts from the last search — its text and the encoding it
- * was found in — so repeating yesterday's search is ⌘F, Return. The field
- * arrives with that text selected, so typing replaces it.
+ * A bar that opens starts from the last search — its text and the encoding it was found in —
+ * so repeating yesterday's search is ⌘F, Return. A pattern a selection was staged into outranks
+ * it: it is the newer statement of what to look for. On a bar that is already open nothing is
+ * prefilled: the field is focused and selected, and keeps the pattern the user came back to fix.
  *
- * A pattern a selection was staged into outranks it: it is the newer statement
- * of what to look for, and what it was searched for is not yet in the history
- * to be offered back.
- *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.show
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.prepareForShow
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.prepareForShow
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#FindHistoryStore.mostRecent
  */
-export function openSearch(): boolean {
+export function openSearch(surface: SurfaceId = frontSurface()): boolean {
   const state = searchStore.getSnapshot();
-  const wasOpen = state.open;
-  if (!wasOpen) {
-    searchStore.update((current) => {
-      const staged = current.stagedPattern;
-      if (staged !== undefined) {
-        return { ...current, open: true, query: staged.text, encoding: staged.encoding };
-      }
-      const last = current.history[0];
-      return last === undefined
-        ? { ...current, open: true }
-        : { ...current, open: true, query: last.pattern, encoding: last.encoding };
-    });
-  }
-  return wasOpen;
+  const bar = barFor(state, surface);
+  if (bar.open) return true;
+  const staged = bar.stagedPattern;
+  const last = state.history[0];
+  updateBar(
+    surface,
+    staged !== undefined
+      ? { open: true, query: staged.text, encoding: staged.encoding }
+      : last === undefined
+        ? { open: true }
+        : { open: true, query: last.pattern, encoding: last.encoding }
+  );
+  return false;
 }
 
 /**
- * Makes the match starting at `offset` the current one.
+ * Opens a surface's bar on `text`, read as `encoding` — a restored workspace's bar. Runs no
+ * search: the highlights come back when the person searches again.
  *
- * What a click in the results list means. Without it the list moved the panes
- * but left the find bar and the grid still pointing at whichever match was
- * current — so the ordinal said "1 of 12" over the sixth one, and ▶ carried on
- * from somewhere the user had left.
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.reopen
+ */
+export function reopenSearch(surface: SurfaceId, text: string, encoding: SearchEncoding): void {
+  openSearch(surface);
+  editQuery(text, surface);
+  setSearchEncoding(encoding, surface);
+}
+
+/**
+ * The pattern of a surface's bar while it is open, for the workspace.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.openPattern
+ */
+export function openPattern(
+  surface: SurfaceId
+): { readonly text: string; readonly encoding: SearchEncoding } | undefined {
+  const bar = barFor(searchStore.getSnapshot(), surface);
+  return bar.open ? { text: bar.query, encoding: bar.encoding } : undefined;
+}
+
+/**
+ * Makes the match starting at `offset` the current one: what a click in the results list
+ * means. Without it the list moved the panes but left the find bar and the grid pointing at
+ * whichever match was current.
+ *
+ * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onWillJump
  */
 export function selectMatch(pane: PaneId, offset: number): void {
-  const state = searchStore.getSnapshot();
-  const matches = resultsFor(state, pane).matches;
-  if (matches === undefined) return;
-  const index = matches.indexStartingAt(offset);
-  if (index === undefined) return;
-  const range = matches.rangeAt(index);
-  if (range === undefined) return;
-  // A row picked in the results is the user pointing at one occurrence among many: the place
-  // it leaves is a way back (§10.6).
-  // @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.onWillJump
-  recordJump(pane);
-  updateResults(pane, { status: "found", current: range, wrapped: false });
+  const finder = finders.get(pane);
+  const index = finder?.matches?.indexStartingAt(offset);
+  if (finder === undefined || index === undefined) return;
+  finder.highlight(index);
+  updateResults(pane, { status: "found", wrapped: false });
 }
 
 /**
+ * Done, Esc: a surface's bar goes, and so does every search on that surface's panes — the bar's
+ * pattern with it. What is remembered between visits outlives the bar: the history, the bar's
+ * encoding and case rule, and a pattern a selection was staged into.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.hide
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onClose
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.cancelOperation
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.hideFindBar
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cancelOperation
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.cancelFind
+ * @upstream-differs the sets go with the showing, as an edit's do, where upstream keeps them
+ * for a results panel to go on listing
  */
-export function closeSearch(): void {
+export function closeSearch(surface: SurfaceId = frontSurface()): void {
   // The plate is about a search, and closing the bar means that search is over.
   dismissNotice();
-  cancelRunning();
-  finishSearchOperation();
-  // What is remembered between visits outlives the bar: the history, the
-  // choices the user made about how to search, and a pattern a selection was
-  // staged into, which the next open offers (§11).
-  searchStore.update((state) => ({
-    ...IDLE,
-    history: state.history,
-    encoding: state.encoding,
-    smart: state.smart,
-    caseSensitive: state.caseSensitive,
-    stagedPattern: state.stagedPattern,
-  }));
+  searchToRecord.delete(surface);
+  for (const pane of panesOf(surface)) {
+    finders.get(pane)?.invalidate();
+    updateResults(pane, NO_RESULTS);
+  }
+  updateBar(surface, { open: false, query: "", problem: undefined });
 }
 
 /**
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.count
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.resultsShown
- * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
- * @upstream-differs the bar reads the active pane's results from the store
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.syncFindBarToActivePane
+ * Stops every search on a surface: its panes are being rebuilt.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.cancelAll
  */
-export function setSearchPane(pane: PaneId): void {
-  searchStore.update((state) => (state.pane === pane ? state : { ...state, pane }));
+export function cancelSurfaceSearches(surface: SurfaceId): void {
+  for (const pane of panesOf(surface)) finders.get(pane)?.cancel();
+}
+
+/**
+ * A part's surface gets its bar as the part arrives — closed, on the case rule of the bar it was
+ * taken out under: its parent panel's, or the tab's for a part of File A or B. A part that goes
+ * takes its bar, its search and its results with it.
+ *
+ * @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open
+ */
+function followParts(): void {
+  const parts = workspaceStore.getSnapshot().parts;
+  const state = searchStore.getSnapshot();
+  let bars: Partial<Record<SurfaceId, FindBarState>> | undefined;
+  for (const [pane, part] of Object.entries(parts) as [PartId, PaneState | undefined][]) {
+    if (part === undefined || state.bars[pane] !== undefined || bars?.[pane] !== undefined) {
+      continue;
+    }
+    const parent = part.origin?.parent;
+    const caseRule =
+      parent === undefined ? state.caseSensitive : barFor(state, surfaceOf(parent)).caseSensitive;
+    bars ??= { ...state.bars };
+    bars[pane] = closedBar(caseRule);
+  }
+  const gone = (pane: string): boolean => !isSlot(pane as PaneId) && !(pane in parts);
+  const goneBars = Object.keys(state.bars).filter(
+    (surface) => surface !== WORKSPACE_SURFACE && gone(surface)
+  );
+  const goneResults = Object.keys(state.results).filter(gone);
+  for (const pane of [...finders.keys()]) {
+    if (!gone(pane)) continue;
+    finders.get(pane)?.cancel();
+    finders.delete(pane);
+    searchToRecord.delete(pane as SurfaceId);
+  }
+  if (bars === undefined && goneBars.length === 0 && goneResults.length === 0) return;
+  searchStore.update((current) => {
+    const nextBars: Partial<Record<SurfaceId, FindBarState>> = { ...(bars ?? current.bars) };
+    for (const surface of goneBars) delete nextBars[surface as SurfaceId];
+    const nextResults: Record<PaneId, PaneResults> = { ...current.results };
+    for (const pane of goneResults) delete nextResults[pane as PaneId];
+    return { ...current, bars: nextBars, results: nextResults };
+  });
+}
+workspaceStore.subscribe(followParts);
+
+/**
+ * The recent searches and the two switches as another window — or another tab of this edition —
+ * leaves them: the history is the app's, not a window's, so a search made in one window is the
+ * first recent search in every other, and Smart Search turned in one is turned in all. A bar's
+ * own case rule is the bar's; what another window turns is the choice the next new bar starts
+ * with. What is typed in a field stays that field's.
+ *
+ * @web-only upstream's windows share one `UserDefaults` and one find pasteboard; here each window
+ * is a page, and the browser's `storage` event says what another page wrote
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.storageArea !== localStorage) return;
+    if (event.key === HISTORY_STORAGE_KEY || event.key === null) {
+      const history = parseFindHistory(event.key === null ? null : event.newValue);
+      searchStore.update((state) =>
+        JSON.stringify(state.history) === JSON.stringify(history) ? state : { ...state, history }
+      );
+    }
+    if (event.key === CASE_STORAGE_KEY || event.key === null) {
+      const caseSensitive = storedCaseSensitive();
+      searchStore.update((state) =>
+        state.caseSensitive === caseSensitive ? state : { ...state, caseSensitive }
+      );
+    }
+    if (event.key === SMART_STORAGE_KEY || event.key === null) {
+      const smart = storedSmart();
+      searchStore.update((state) => (state.smart === smart ? state : { ...state, smart }));
+    }
+  });
 }
 
 /**
@@ -1367,11 +1378,11 @@ export interface ToolPatternAttempt {
 }
 
 /**
- * What a tool's pattern field asks for, read by the Find bar's own standing choices — its
- * encoding, Smart Search and case toggle: one attempt for the encoding chosen, or Smart Search's,
- * one encoding after another. Bytes with holes — `24 ?? 4D 49` — which the Find bar's own parse
- * does not take, are hex as the scan reads it, holes kept. A problem with the text, in the Find
- * bar's words, where it asks for nothing.
+ * What a tool's pattern field asks for, read by the standing choices — the tools' encoding,
+ * Smart Search and the case rule last chosen: one attempt for the encoding chosen, or Smart
+ * Search's, one encoding after another. Bytes with holes — `24 ?? 4D 49` — which the Find bar's
+ * own parse does not take, are hex as the scan reads it, holes kept. A problem with the text, in
+ * the Find bar's words, where it asks for nothing.
  *
  * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.attempts
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchRequest
@@ -1388,11 +1399,8 @@ export function toolPatternAttempts(
       // Not bytes after all: asked as the field's text below.
     }
   }
-  const attempts = state.smart
-    ? attemptsFor(text, state.caseSensitive, state.encoding)
-    : resolveOne(text, state.encoding, state.caseSensitive);
-  if (typeof attempts === "string") return { problem: failureMessage(attempts) };
-  if (attempts.length === 0) return { problem: L("There is no way to write that as bytes.") };
+  const attempts = attemptsForField(text, state.encoding, state.smart, state.caseSensitive);
+  if (typeof attempts === "string") return { problem: attempts };
   return {
     attempts: attempts.map((attempt) => ({
       pattern: maskedPattern(attempt.pattern.bytes, { folding: attempt.folding }),
@@ -1410,7 +1418,7 @@ export function toolPatternAttempts(
  */
 export function noteToolPatternFound(text: string, encoding: SearchEncoding): void {
   const state = searchStore.getSnapshot();
-  if (state.smart) setSearchEncoding(encoding);
+  if (state.smart) setToolEncoding(encoding);
   const history = recordFindHistory(state.history, {
     pattern: text,
     encoding,

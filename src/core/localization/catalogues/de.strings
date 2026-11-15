@@ -1388,7 +1388,6 @@
 "That search could not be run." = "Diese Suche ließ sich nicht ausführen.";
 "That text cannot be written in this encoding." = "Dieser Text lässt sich in dieser Codierung nicht schreiben.";
 "The encoding the search settled on. Picking one starts the next pass from it." = "Die Codierung, bei der die Suche geblieben ist. Eine Auswahl beginnt den nächsten Durchgang mit ihr.";
-"The search failed." = "Die Suche ist fehlgeschlagen.";
 "There is no way to write that as bytes." = "Das lässt sich auf keine Weise als Bytes schreiben.";
 "This Browser" = "Dieser Browser";
 "This browser and the imported file hold the same patterns and say different things about them. Choose which to keep." = "Dieser Browser und die importierte Datei enthalten dieselben Muster und sagen Verschiedenes über sie. Wählen Sie, was bleiben soll.";

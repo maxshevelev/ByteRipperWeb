@@ -81,12 +81,12 @@ import {
   restoreRecentFiles,
 } from "@/state/recentFilesStore";
 import {
+  barFor,
   closeSearch,
   noteSearchEdit,
   openSearch,
   resultsFor,
   searchStore,
-  setSearchPane,
   useSelectionForFind,
 } from "@/state/searchStore";
 import { segmentsFor } from "@/state/segmentsStore";
@@ -133,6 +133,7 @@ import {
   editingHooks,
   foldParts,
   frontPane,
+  frontSurface,
   isSlot,
   joinIntoPane,
   openEmptyInPane,
@@ -1066,7 +1067,8 @@ export function AppShell() {
   >(undefined);
   const lengthAnswer = useRef<((yes: boolean) => void) | undefined>(undefined);
   const search = useStore(searchStore);
-  const searchOpen = search.open;
+  // The tab's own bar, over its panes and the minimap; a panel's is drawn inside the panel.
+  const searchOpen = barFor(search, WORKSPACE_SURFACE).open;
 
   useEffect(() => watchForMinimap(), []);
 
@@ -1151,17 +1153,13 @@ export function AppShell() {
     // `takeUpHanded` is stable: it is made once.
   }, [takeUpHanded]);
 
-  // The find bar always searches the pane the commands act on — the part in
-  // front of the dump, where one is up.
-  useEffect(() => {
-    setSearchPane(front);
-  }, [front]);
-
-  // Closing the last file closes the find bar with it. Refusing to open it
+  // Closing the last file closes the tab's find bar with it. Refusing to open it
   // over an empty workspace while leaving one open there would be two answers
   // to the same question.
   useEffect(() => {
-    if (state.panes.a === undefined && state.panes.b === undefined) closeSearch();
+    if (state.panes.a === undefined && state.panes.b === undefined) {
+      closeSearch(WORKSPACE_SURFACE);
+    }
   }, [state.panes.a, state.panes.b]);
 
   /**
@@ -1256,8 +1254,10 @@ export function AppShell() {
             openTreeSearch();
             return;
           }
-          openSearch();
-          focusFindInput();
+          // The bar of the surface in front: the panel's that is up, or the tab's.
+          // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontFind
+          openSearch(frontSurface());
+          focusFindInput(frontSurface());
           return;
         case "l":
           event.preventDefault();
@@ -1485,12 +1485,17 @@ export function AppShell() {
    * `toggleFindBar` is a switch that opens the bar and takes nothing from the
    * dump.
    *
+   * The bar is the surface in front's: the fragment panel's that is up, over its dump, or the
+   * tab's over its panes — each its own (§11).
+   *
    * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.toggleFindBar
-   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFindBar
+   * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontFind
+   * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.show
    */
   const showFindBar = useCallback(() => {
-    openSearch();
-    focusFindInput();
+    const surface = frontSurface();
+    openSearch(surface);
+    focusFindInput(surface);
   }, []);
 
   /**
@@ -2834,6 +2839,12 @@ export function AppShell() {
           }}
         />
       )}
+      {/* The panel's own find bar, over its dump and its map: it searches the part
+          alone, keeps its own pattern, and folds into the pill with the panel (§11).
+          @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open */}
+      {barFor(search, pane).open ? (
+        <FindBar surface={pane} onReveal={(offset) => revealIn(pane, offset)} />
+      ) : null}
       <PartDump
         key={`${pane}:${documentKey(part.document)}`}
         paneId={pane}
@@ -3005,10 +3016,11 @@ export function AppShell() {
         }}
         navigation={navigation}
       />
-      {searchOpen ? (
+      {searchOpen && panes.length > 0 ? (
         <FindBar
-          // The bar searches the pane in front, so a match is shown there.
-          onReveal={(offset) => revealIn(front, offset)}
+          surface={WORKSPACE_SURFACE}
+          // The tab's bar searches the active pane, so a match is shown there.
+          onReveal={(offset) => revealIn(state.activePane, offset)}
           // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
         />
       ) : null}

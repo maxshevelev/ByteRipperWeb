@@ -63,6 +63,8 @@ textarea,
   grid-template-columns: auto minmax(0, 1fr) auto;
   /* Toolbar, find bar, workspace, and the fragment dock — the one band under
      the panes, because a part taken out of a dump has to wait somewhere (G48).
+     The find bar stands over the content it searches, the panes and the
+     minimap, and not over the tool panel, which takes both rows (§11).
      Every one is placed by hand below: auto-placement fills the first free
      track, so a find bar that is not up let the next element slide into its row
      and sit under the toolbar. An empty row collapses to nothing, so the
@@ -2245,8 +2247,12 @@ textarea,
 /* ── The find bar and its results ─────────────────────────────────────── */
 
 .find-bar {
-  /* Under the toolbar, above the dumps: the border goes on the bottom now. */
+  /* Over the content it searches: the tab's across the panes and the minimap,
+     a panel's across its dump and its map — never over a tool panel, which
+     keeps its whole height beside it (§11). The border goes on the bottom. */
   grid-row: 2;
+  grid-column: 2 / 4;
+  min-width: 0;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -2874,7 +2880,8 @@ textarea,
   /* A panel's text is the dump's size, so it follows the dump's size — upstream's
      ToolPanelFont. */
   font-size: var(--hex-font-size, inherit);
-  grid-row: 3;
+  /* The find bar's row and the panes': the bar stands beside it, not over it. */
+  grid-row: 2 / 4;
   grid-column: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -5657,7 +5664,8 @@ button.uefi-title {
  * is.
  */
 .fragment-panel-host {
-  grid-row: 3;
+  /* The content area, the tab's find bar with it: a panel up covers the surface behind. */
+  grid-row: 2 / 4;
   grid-column: 1 / -1;
   /* Positioned, which is what makes the host a wall: a pane is positioned too,
      so an ordinary block laid over one would be painted and hit-tested *under*
@@ -5692,10 +5700,11 @@ button.uefi-title {
   display: grid;
   /* The same three columns the window has — the tool panel, the dump, the
      minimap — because a panel is a surface of its own and holds all three
-     (G50). One row: a panel has no toolbar and no find bar of its own. */
+     (G50), and its own find bar over the dump and the map (§11). */
   grid-template-columns: auto minmax(0, 1fr) auto;
-  /* The header across the top, then the one row of the three. */
-  grid-template-rows: auto minmax(0, 1fr);
+  /* The header across the top, the find bar when it is up, then the row of the
+     three. An empty row collapses to nothing. */
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   height: var(--fragment-panel-height, 0);
   overflow: hidden;
@@ -5728,17 +5737,22 @@ button.uefi-title {
    panel's one row. Specificity does the overriding, so neither rule needs a
    flag and neither has to know about the other's grid. */
 .fragment-panel > .tool-panel {
-  grid-row: 2;
+  grid-row: 2 / 4;
   grid-column: 1;
 }
 
-.fragment-panel > .hex-pane {
+.fragment-panel > .find-bar {
   grid-row: 2;
+  grid-column: 2 / 4;
+}
+
+.fragment-panel > .hex-pane {
+  grid-row: 3;
   grid-column: 2;
 }
 
 .fragment-panel > .minimap {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 3;
 }
 

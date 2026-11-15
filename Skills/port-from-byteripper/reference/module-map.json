@@ -215,6 +215,10 @@
     {
       "prefix": "Skills/find-sspec",
       "why": "The search for the S-SPECs IntelCPUIDBrandNames.json lacks, per CPUID, and their merge into the table. Like Skills/update-cpuid-brand-names, the data is upstream's to refresh; the web takes the JSON as upstream ships it, and it arrives here with a port (the owner's decision, 2026-11-07)."
+    },
+    {
+      "prefix": "Packages/Find/Package.swift",
+      "why": "SwiftPM manifest."
     }
   ],
   "modules": [
@@ -224,7 +228,7 @@
         "src/core"
       ],
       "status": "in-progress",
-      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M5: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, ClipboardCodec (as text/hexText.ts), and SearchEngine with SmartSearch and MatchSet — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. SearchEngine diverges in one place worth knowing: Data.range(of:) has no JS counterpart, so the Boyer-Moore-Horspool skip loop is accelerated by native Uint8Array.indexOf on the pattern's last byte instead. Ported as of M7: SegmentWriter and SegmentReplacer, with their sizes helper (FilePaneView.friendlySize as text/byteSize.ts). SegmentWriter splits at the line D1 draws: the byte half (which range becomes which file, the chunked read, the all-or-nothing protocol) stays in core, and the filesystem half becomes a PartSink the platform layer supplies — a picked directory in Chromium, a ZIP download elsewhere. Upstream's temp-and-rename dance and its sandbox fallback have no counterpart: a browser has no rename, and createWritable() already publishes a file whole or not at all. Ported for M11: the synced collection — VersionVector, SyncedCollection, SyncMerge, SyncDocument, SearchPatternEntry and PatternLibrary, each with its upstream tests — as readonly records with functions over them; the item's Equatable and Codable are handed to the merge as SyncItemRules. The file format is upstream's field for field, because the web edition joins the Mac app's synced folder (Design/FAVORITES_SYNC_WEB.md). ContentSnapshot and TemporaryFileStore are across as contentSnapshot() over an origin-private scratch store: a browser has neither a value-typed array nor clonefile(2), so the copy is written out once rather than shared.",
+      "note": "Storage, piece table, diff, search, segments, undo, decoding. The heart of the port. Ported as of M5: the storage and document files, the text and selection files, UndoHistory, DiffEngine with DiffBlock and DiffHunkIndex, ClipboardCodec (as text/hexText.ts), and SearchEngine with SmartSearch and MatchSet — each with its upstream tests. StorageSaver does not port as a file: its POSIX strategies become src/platform/files/fileSink.ts, where the browser supplies the atomicity. SearchEngine diverges in one place worth knowing: Data.range(of:) has no JS counterpart, so the Boyer-Moore-Horspool skip loop is accelerated by native Uint8Array.indexOf on the pattern's last byte instead. Ported as of M7: SegmentWriter and SegmentReplacer, with their sizes helper (FilePaneView.friendlySize as text/byteSize.ts). SegmentWriter splits at the line D1 draws: the byte half (which range becomes which file, the chunked read, the all-or-nothing protocol) stays in core, and the filesystem half becomes a PartSink the platform layer supplies — a picked directory in Chromium, a ZIP download elsewhere. Upstream's temp-and-rename dance and its sandbox fallback have no counterpart: a browser has no rename, and createWritable() already publishes a file whole or not at all. Ported for M11: the synced collection — VersionVector, SyncedCollection, SyncMerge, SyncDocument, SearchPatternEntry and PatternLibrary, each with its upstream tests — as readonly records with functions over them; the item's Equatable and Codable are handed to the merge as SyncItemRules. The file format is upstream's field for field, because the web edition joins the Mac app's synced folder (Design/FAVORITES_SYNC_WEB.md). ContentSnapshot and TemporaryFileStore are across as contentSnapshot() over an origin-private scratch store: a browser has neither a value-typed array nor clonefile(2), so the copy is written out once rather than shared. MatchSet moved to Packages/Find upstream (c5b93d30), generic over the query, and the web's moved with it (src/core/find/matchSet.ts); a dump's search is ByteFindContent's (src/core/search/byteFindContent.ts), Smart Search's pass FindPass's.",
       "files": {
         "ChunkCache.swift": "src/core/storage/chunkCache.ts",
         "FileBackedStorage.swift": "src/core/storage/fileBackedStorage.ts",
@@ -253,7 +257,6 @@
         "StorageSaver.swift": "src/platform/files/fileSink.ts",
         "ContentSnapshot.swift": "src/core/storage/editOverlayStorage.ts",
         "TemporaryFileStore.swift": "src/platform/files/opfsScratchStore.ts",
-        "MatchSet.swift": "src/core/search/matchSet.ts",
         "SelectionFindPattern.swift": "src/core/search/selectionFindPattern.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ChunkCacheTests.swift": "src/core/storage/chunkCache.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/FileBackedStorageTests.swift": "src/core/storage/fileBackedStorage.test.ts",
@@ -296,7 +299,8 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/StorageSaverTests.swift": "src/platform/files/fileSink.test.ts",
         "MaskedSearch.swift": "src/core/search/maskedSearch.ts",
         "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift": "src/core/edit/keptFormatVersion.test.ts"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift": "src/core/edit/keptFormatVersion.test.ts",
+        "ByteFindContent.swift": "src/core/search/byteFindContent.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -311,7 +315,6 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/DiffBlock.swift#DiffBlockIndex.sameBlocks": "n/a — as differenceBlocks",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SelectionFindPattern.swift#SelectionFindPattern.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.MatchBatch.*": "n/a — the batch is scanAll's onMatches(starts) and onWindow(indexedUpTo)",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.defaultBatchSize": "n/a — scanAll hands over each window's matches as one batch, so there is no batch size to choose",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.caretBefore": "n/a — selectionBefore.start where it is read",
@@ -320,7 +323,6 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/TextDecoder.swift#TextDecoderDescriptor.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ClipboardCodec.swift#ClipboardCodec.data": "n/a — raw bytes on NSPasteboard; the web clipboard carries text",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/SegmentWriter.swift#SegmentWriter.Part.init": "n/a — an object literal; there is nothing to construct",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.identity": "n/a — FileIdentity is inode-based; a browser cannot tell two handles to one file apart",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.readOnly": "n/a — a browser save gets permission or asks for it; there is no read-only original to redirect to Save As",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/BinaryDocument.swift#BinaryDocument.url": "n/a — a document has no URL; the pane keeps its File and handle (workspaceStore)",
@@ -381,7 +383,38 @@
         "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoHistory.journalDirectory": "n/a — a page names no directory; a history is handed its journal (`moveJournal`), made over a store",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/UndoHistory.swift#UndoTransaction.setSelectionAfter": "n/a — a transaction is a value here: a refined selection replaces the transaction with one carrying it",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveCatchesUpWithEditsMadeMeanwhile": "n/a — no rounds to catch up in; see UndoHistory.JournalMove",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveTheHistoryOutranIsAbandoned": "n/a — no rounds to abandon; see UndoHistory.JournalMove"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveTheHistoryOutranIsAbandoned": "n/a — no rounds to abandon; see UndoHistory.JournalMove",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#ByteQuery.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#MatchSet.pattern": "n/a — TypeScript extends no generic class for one of its arguments: a byte set's pattern is read as `set.query.pattern`",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#MatchSet.folding": "n/a — TypeScript extends no generic class for one of its arguments: a byte set's case rule is read as `set.query.folding`"
+      }
+    },
+    {
+      "swift": "Packages/Find",
+      "web": [
+        "src/core/find"
+      ],
+      "status": "ported",
+      "note": "What a search is, apart from what it searches (c5b93d30, 94b84aec): FindContent says how a content scans itself, FindPass runs the candidates in turn round the end, MatchSet is the index of every occurrence generic over the query, and FindIndexer is one pane's search — the pass, the index published as it fills, the steps, what is shown and stopping. Pure TypeScript with promises and async iterables where upstream detaches tasks; a dump's content is ByteFindContent over a document on the page, or WorkerByteFindContent (src/state/searchWorkerContent.ts) whose scans run in the search worker, several at once, each stopped by its own id. Each pane holds its own indexer (src/state/searchStore.ts), so a search in one panel never stops another's (G124).",
+      "files": {
+        "Sources/Find/FindContent.swift": "src/core/find/findContent.ts",
+        "Sources/Find/FindIndexer.swift": "src/core/find/findIndexer.ts",
+        "Sources/Find/MatchSet.swift": "src/core/find/matchSet.ts",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift": "src/core/find/findIndexer.test.ts"
+      },
+      "unported": {
+        "Packages/Find/Sources/Find/FindContent.swift#MatchBatch.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/Find/Sources/Find/FindContent.swift#FindPass.Found.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/Find/Sources/Find/FindIndexer.swift#MatchStep.init": "n/a — an object literal; there is nothing to construct",
+        "Packages/Find/Sources/Find/FindIndexer.swift#FindCancelFlag.lock": "n/a — a page's scans read the flag on its one thread, or in a worker asked by message; there is nothing to lock",
+        "Packages/Find/Sources/Find/FindIndexer.swift#FindIndexer.indexTask": "n/a — the index's loop is a promise nobody awaits; its flag is what stops it",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift#FindIndexerTests.settle": "n/a — a test's helper, written out in the web test as `settle`",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift#FindIndexerTests.waitFor": "n/a — a test's helper, written out in the web test as `waitFor`",
+        "Packages/Find/Sources/Find/FindIndexer.swift#FindIndexer.Matches": "n/a — a Swift typealias inside the class; the web's indexer is generic over Query and names MatchSet<Query> where it means it",
+        "Packages/Find/Sources/Find/FindIndexer.swift#FindIndexer.Query": "n/a — a Swift typealias inside the class; the web's indexer is generic over Query and names MatchSet<Query> where it means it",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift#TextContent.*": "n/a — the test's fixture, written out member for member in findIndexer.test.ts",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift#Gate.*": "n/a — the test's fixture, written out member for member in findIndexer.test.ts",
+        "Packages/Find/Tests/FindTests/FindIndexerTests.swift#Activity.*": "n/a — the test's fixture, written out member for member in findIndexer.test.ts"
       }
     },
     {
@@ -1759,7 +1792,7 @@
         "src/workers/search.worker.ts"
       ],
       "status": "in-progress",
-      "note": "The find bar, the results panel, and the store and worker behind them. Ported as of M5: FindBarView, FindCount, SearchEncodingNaming, SearchResultCellView and SearchResultsViewController, as React over a hand-written store — the results keep upstream's three columns (Offset, Excerpt Hex, Excerpt Text) and its row pitch of the font's line box plus a little, but the panel belongs to the pane whose file was searched rather than spanning the window, which is the one place two open dumps make the desktop's single panel ambiguous. The pattern library half — FavoritePatternStore, FavoritesFile, the sync folder and its sheets — waits for M11, and its folder sync is Chromium's, over a kept directory handle and the Mac app's own file format, with a read-only fetch from a folder in Firefox and Safari and export everywhere (Design/FAVORITES_SYNC_WEB.md). Two things the desktop does not have to decide: a search runs in a worker against the *file*, but an edited document is scanned on the main thread against the document, and every edit re-runs the search.",
+      "note": "The find bar, the results panel, and the store and worker behind them. Ported as of M5: FindBarView, FindCount, SearchEncodingNaming, SearchResultCellView and SearchResultsViewController, as React over a hand-written store — the results keep upstream's three columns (Offset, Excerpt Hex, Excerpt Text) and its row pitch of the font's line box plus a little, but the panel belongs to the pane whose file was searched rather than spanning the window, which is the one place two open dumps make the desktop's single panel ambiguous. The pattern library half — FavoritePatternStore, FavoritesFile, the sync folder and its sheets — waits for M11, and its folder sync is Chromium's, over a kept directory handle and the Mac app's own file format, with a read-only fetch from a folder in Firefox and Safari and export everywhere (Design/FAVORITES_SYNC_WEB.md). Two things the desktop does not have to decide: a search runs in a worker against the *file*, but an edited document is scanned on the main thread against the document, and every edit re-runs the search. Every surface has a find bar of its own (G124, upstream's SurfaceFindController): the tab's over its panes and the minimap, each fragment panel's over its dump, each with its own pattern, encoding and case rule and searching only its own pane through that pane's FindIndexer; the store keeps a bar per surface and an indexer per pane.",
       "files": {
         "FindBarView.swift": "src/ui/search/FindBar.tsx",
         "PatternQueryControls.swift": "src/ui/search/PatternQueryControls.tsx",
@@ -1774,7 +1807,8 @@
         "ByteRipperApp/Search/NamePatternSheetController.swift": "src/ui/search/AddFavoriteDialog.tsx",
         "ByteRipperApp/Search/SyncFolder.swift": "",
         "ByteRipperApp/Search/SyncPresentation.swift": "src/ui/search/libraryConflicts.ts",
-        "ByteRipperApp/Search/FavoritePatternStore.swift": "src/state/favoritesStore.ts"
+        "ByteRipperApp/Search/FavoritePatternStore.swift": "src/state/favoritesStore.ts",
+        "SurfaceFindController.swift": "src/state/searchStore.ts"
       },
       "unported": {
         "ByteRipperApp/Search/PatternLibraryKind.swift#*": "n/a — the Swift loop is generic over a collection kind; the web hands FolderSync the rules and the naming directly",
@@ -1850,7 +1884,13 @@
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.reloadStandingChoices": "n/a — React: the controls read the search store every set of them shares, and say what happens through their props",
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.pickedEncoding": "n/a — the encoding a picked row or a staged selection brought is the store's `encoding`, which Smart Search tries first (`attemptsFor`)",
         "ByteRipperApp/Search/FindBarView.swift#FindBarView.requestForFindAgain": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
-        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
+        "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.surface": "n/a — a bar is kept under its surface's id; there is no surface object to point back at",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.host": "n/a — the store calls the stores; there is no window controller to point back at",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.init": "n/a — a bar is a record in the store, made as its surface arrives (`followParts`)",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.park": "n/a — React renders a surface's bar where the surface is, while it is open; there is no view to keep in the hierarchy between shows",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.findAgain": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
+        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.returnsFocusTo": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
       }
     },
     {
@@ -2065,7 +2105,6 @@
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onCaretAppearanceChanged": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.highlightsMatches": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.onMatchesFilled": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
-        "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.fillMatches": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.highlightMatches": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.endMatchHighlighting": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
         "ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.setCurrentMatch": "n/a — PaneViewModel plumbing; the port splits it into BinaryDocument, TypingController and the stores",
@@ -2787,7 +2826,8 @@
           "src/core/navigation/navigationHistory.test.ts",
           "src/state/navigationStore.test.ts"
         ],
-        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e"
+        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e",
+        "ByteRipperTests/FindBarPlacementTests.swift": "src/state/surfaceFind.test.ts"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -4940,7 +4980,17 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testACPUIDsInfoMarkListsItsProcessorsInAPopover": "later — an app flow test; the port has no component or end-to-end test for it yet. What the popover says — the head's note, the models and S-SPECs — is `processorGroups`, unit-tested in processorNames.test.ts",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheCPUIDsAreTextToSelectAndCopy": "later — an app flow test; the port has no component or end-to-end test for it yet. The lines are the page's own text and the ⓘ a button with no text, so the browser's selection and copy leave it out; the menu without Copy CPUID is checked in fitOutline.test.ts",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheBackupsCPUIDsAreGreyLikeItsRows": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.plate": "n/a — test scaffolding"
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.plate": "n/a — test scaffolding",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.testTheBarStandsOverThePanesAndTheMinimapNotTheToolPanel": "later — reads the laid-out frames of the bar, the panes, the minimap and the tool panel, which the stylesheet places: an app flow test (G24)",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.testClosingTheBarGivesTheHeightBack": "later — reads the laid-out frames of the bar, the panes, the minimap and the tool panel, which the stylesheet places: an app flow test (G24)",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.setUp": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.tearDown": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.makeController": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.cleanup": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.inWindow": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.shownBar": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.defaults": "n/a — XCTest fixture plumbing",
+        "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.defaultsName": "n/a — XCTest fixture plumbing"
       }
     },
     {
@@ -5151,13 +5201,6 @@
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.minimapPanel": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.panelSplit": "n/a — AppKit layout; CSS lays the window out",
         "ByteRipperApp/Window/DocumentSurface.swift#DocumentSurface.minimapDefaults": "n/a — AppKit layout; CSS lays the window out",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.contentTopToView": "n/a — AppKit layout; CSS lays the window out",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.contentTopToFindBar": "n/a — AppKit layout; CSS lays the window out",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findTask": "n/a — the stores own their workers, their cancellation and their progress",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.findOperation": "n/a — the stores own their workers, their cancellation and their progress",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.indexTask": "n/a — the stores own their workers, their cancellation and their progress",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.indexOperation": "n/a — the stores own their workers, their cancellation and their progress",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.smartPassInFlight": "n/a — the stores own their workers, their cancellation and their progress",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentWriteTask": "n/a — the stores own their workers, their cancellation and their progress",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentWriteOperation": "n/a — the stores own their workers, their cancellation and their progress",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.segmentDirectoryPanel": "n/a — AppKit panels and alerts; the browser's file pickers and the port's dialogs",
@@ -5282,8 +5325,6 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.prefillOffset": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.anchoredToOffset": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.CutEditRequest.commit": "n/a — a mark is renamed in place in the Go To list; a cut is added in its dialog",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.indexPublishInterval": "n/a — the stores own their workers, their cancellation and their progress",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.show": "n/a — window controller plumbing; the shell's components read the stores",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.searchAppearanceChanged": "n/a — the find bar and the minimap subscribe to the search store and redraw from it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.isRunningTests": "n/a — a test seam",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.openRecentFileToCompare": "n/a — the ⌥ twin of an Open Recent row; the desktop shell's menu has no alternate items, and Compare with… is one command away",
@@ -5353,7 +5394,10 @@
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.quitsInsteadOfClosing": "n/a — a tab has no quit: leaving it is recorded as it goes, whatever closes it",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.findNextMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
         "ByteRipperApp/Window/MainViewController.swift#MainViewController.findPreviousMatch": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
-        "ByteRipperApp/Window/MainViewController.swift#MainViewController.grantedByScreen": "n/a — AppKit layout: no window grows for a panel here; CSS takes the panel's room from the dump"
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.grantedByScreen": "n/a — AppKit layout: no window grows for a panel here; CSS takes the panel's room from the dump",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.contentSplit": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.paneHost": "n/a — AppKit split furniture: the web lays the surface out in CSS",
+        "ByteRipperApp/Window/MainViewController.swift#MainViewController.panesPaneIndex": "n/a — AppKit split furniture: the web lays the surface out in CSS"
       },
       "files": {
         "ByteRipperApp/Window/MainViewController.swift": "src/ui/shell/AppShell.tsx",

@@ -18,6 +18,8 @@ interface Posted {
   readonly kind: string;
   readonly id: number;
   readonly encoding?: string;
+  readonly from?: number;
+  readonly direction?: "forward" | "backward";
 }
 
 /** Every request the store has sent, in order. */
@@ -26,7 +28,9 @@ let posted: Posted[] = [];
 let answerFor: string | undefined;
 
 /**
- * A worker that answers "first" and nothing else.
+ * A worker over a file that holds the pattern once, at 16, in `answerFor`'s
+ * encoding: a scan from before it finds it, as does the wrap from the start, and
+ * the index of it is that one match.
  *
  * It replies asynchronously, as a real one does — the pass awaits each reply,
  * and a synchronous answer would hide a bug that only appears when the store's
@@ -45,13 +49,28 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 
   postMessage(request: Posted): void {
     posted.push(request);
-    if (request.kind !== "search") return;
-    const match = request.encoding === answerFor ? { start: 16, end: 20 } : undefined;
+    const here = request.encoding === answerFor;
+    let replies: unknown[] = [];
+    if (request.kind === "firstMatch") {
+      const ahead =
+        request.direction === "backward" ? (request.from ?? 0) >= 20 : (request.from ?? 0) <= 16;
+      const match = here && ahead ? { start: 16, end: 20 } : undefined;
+      replies = [{ kind: "first", id: request.id, ...(match ? { match } : {}) }];
+    } else if (request.kind === "matchStarts") {
+      replies = [
+        {
+          kind: "batch",
+          id: request.id,
+          starts: here ? Float64Array.of(16) : new Float64Array(0),
+          scannedUpTo: 64,
+        },
+        { kind: "scanned", id: request.id },
+      ];
+    }
     queueMicrotask(() => {
-      const event = {
-        data: { kind: "first", id: request.id, wrapped: false, ...(match ? { match } : {}) },
-      } as MessageEvent;
-      for (const listener of [...this.listeners]) listener(event);
+      for (const data of replies) {
+        for (const listener of [...this.listeners]) listener({ data } as MessageEvent);
+      }
     });
   }
 }
@@ -61,6 +80,7 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
 const {
+  barFor,
   closeSearch,
   editQuery,
   hideSearchResults,
@@ -70,7 +90,6 @@ const {
   searchStore,
   selectMatch,
   setSearchEncoding,
-  setSearchPane,
   setSmartSearch,
   startSearch,
   toggleSearchResults,
@@ -78,6 +97,17 @@ const {
 
 /** The pane under test; every assertion here is about pane A's results. */
 const paneResults = () => resultsFor(searchStore.getSnapshot(), "a");
+/** The tab's own bar: no panel is up, so it is the bar in front. */
+const bar = () => barFor(searchStore.getSnapshot());
+/**
+ * The encodings the pass asked about, in turn: a candidate is a scan from the
+ * caret and, failing that, one round the end, so each counts once.
+ */
+const asked = () =>
+  posted
+    .filter((request) => request.kind === "firstMatch")
+    .map((request) => request.encoding)
+    .filter((encoding, i, all) => i === 0 || all[i - 1] !== encoding);
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 beforeEach(() => {
@@ -112,8 +142,7 @@ test("a miss on an early encoding does not end the pass", async () => {
   // Two scans, not three: "FirmwareVolume" is ASCII, so its UTF-8 encoding is
   // the same bytes and `attemptsFor` folds the two into one attempt. The pass
   // reaching UTF-16 at all is what this test is about.
-  const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
-  expect(asked).toEqual(["ascii", "utf16LE"]);
+  expect(asked()).toEqual(["ascii", "utf16LE"]);
 
   const results = paneResults();
   expect(results.status).toBe("found");
@@ -126,9 +155,7 @@ test("the pass stops at the first encoding that finds anything", async () => {
   startSearch({ query: "FirmwareVolume", smart: true, encoding: "ascii" });
   await settle();
 
-  expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
-    "ascii",
-  ]);
+  expect(asked()).toEqual(["ascii"]);
   expect(paneResults().foundEncoding).toBe("ascii");
 });
 
@@ -138,7 +165,7 @@ test("not found is reported once every encoding has missed", async () => {
   await settle();
 
   // ASCII (standing in for UTF-8 too), then UTF-16 LE, then UTF-16 BE.
-  expect(posted.filter((request) => request.kind === "search").length).toBe(3);
+  expect(asked().length).toBe(3);
   const results = paneResults();
   expect(results.status).toBe("notFound");
   expect(results.current).toBeUndefined();
@@ -149,9 +176,7 @@ test("a chosen encoding asks once and does not fall back", async () => {
   startSearch({ query: "FirmwareVolume", smart: false, encoding: "ascii" });
   await settle();
 
-  expect(posted.filter((request) => request.kind === "search").map((r) => r.encoding)).toEqual([
-    "ascii",
-  ]);
+  expect(asked()).toEqual(["ascii"]);
   expect(paneResults().status).toBe("notFound");
 });
 
@@ -168,7 +193,7 @@ test("an edited document is searched as it reads, not as the file does", async (
   startSearch({ query: "DEADBEEF", encoding: "hex", from: 0 });
   await settle();
 
-  expect(posted.filter((request) => request.kind === "search")).toEqual([]);
+  expect(posted.filter((request) => request.kind === "firstMatch")).toEqual([]);
   const results = paneResults();
   expect(results.status).toBe("found");
   expect(results.current).toEqual({ start: 8, end: 12 });
@@ -206,19 +231,19 @@ test("emptying the query leaves the find bar up", () => {
   // cursor that was still deleting.
   openSearch();
   startSearch({ query: "DEADBEEF", encoding: "hex" });
-  expect(searchStore.getSnapshot().open).toBe(true);
+  expect(bar().open).toBe(true);
 
   startSearch({ query: "", encoding: "hex" });
-  expect(searchStore.getSnapshot().open).toBe(true);
+  expect(bar().open).toBe(true);
   expect(paneResults().status).toBe("idle");
   expect(paneResults().matches).toBeUndefined();
 });
 
 test("only closing closes it", () => {
   openSearch();
-  expect(searchStore.getSnapshot().open).toBe(true);
+  expect(bar().open).toBe(true);
   closeSearch();
-  expect(searchStore.getSnapshot().open).toBe(false);
+  expect(bar().open).toBe(false);
 });
 
 test("opening an already-open bar says so, so the shortcut can start over", () => {
@@ -274,7 +299,6 @@ test("each pane keeps its own results when the other becomes active", async () =
   expect(resultsFor(searchStore.getSnapshot(), "a").status).toBe("found");
 
   // The user clicks the other pane, and searches it for something else.
-  setSearchPane("b");
   startSearch({ query: "BEEF", encoding: "hex", pane: "b", from: 0 });
   await settle();
 
@@ -305,7 +329,7 @@ test("what worked replaces what was asked for", async () => {
   await settle();
 
   expect(paneResults().foundEncoding).toBe("utf16LE");
-  expect(searchStore.getSnapshot().encoding).toBe("utf16LE");
+  expect(bar().encoding).toBe("utf16LE");
 });
 
 test("the first attempt is the encoding the bar is showing", async () => {
@@ -316,9 +340,8 @@ test("the first attempt is the encoding the bar is showing", async () => {
   startSearch({ query: "FirmwareVolume", smart: true, encoding: "utf16LE" });
   await settle();
 
-  const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
-  expect(asked[0]).toBe("utf16LE");
-  expect(asked).toHaveLength(1);
+  expect(asked()[0]).toBe("utf16LE");
+  expect(asked()).toHaveLength(1);
 });
 
 test("with Smart Search off the encoding is an instruction, not a guess", async () => {
@@ -327,10 +350,9 @@ test("with Smart Search off the encoding is an instruction, not a guess", async 
   startSearch({ query: "FirmwareVolume", smart: false, encoding: "ascii" });
   await settle();
 
-  const asked = posted.filter((request) => request.kind === "search").map((r) => r.encoding);
-  expect(asked).toEqual(["ascii"]);
+  expect(asked()).toEqual(["ascii"]);
   // And nothing rewrites what the user chose.
-  expect(searchStore.getSnapshot().encoding).toBe("ascii");
+  expect(bar().encoding).toBe("ascii");
   expect(paneResults().status).toBe("notFound");
   setSmartSearch(true);
 });
@@ -338,7 +360,6 @@ test("with Smart Search off the encoding is an instruction, not a guess", async 
 /** Pane A holding DEADBEEF at 8, unsaved, so the scan runs here against it. */
 async function deadBeefAtEight(): Promise<void> {
   closeSearch();
-  setSearchPane("a");
   const slot = workspaceStore.getSnapshot().panes.a;
   if (slot === undefined) throw new Error("the pane did not open");
   await slot.document.overwrite(8, new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
@@ -422,7 +443,7 @@ test("a search that finds nothing still opens the panel the button asked for", a
 // `DE AD BE EF` stands in the field and in the recents (upstream's
 // HexPatternFormattingTests).
 
-const query = () => searchStore.getSnapshot().query;
+const query = () => bar().query;
 const mostRecent = () => searchStore.getSnapshot().history[0];
 
 test("a hex search leaves the field in the dump's form", () => {

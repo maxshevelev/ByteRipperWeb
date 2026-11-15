@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MatchSet } from "@/core/search/matchSet";
+import { byteMatchSet, byteMatchSetOf } from "@/core/search/byteFindContent";
 import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
 import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
 
 const twoBytes: SearchPattern = { bytes: new Uint8Array([0xde, 0xad]), encoding: "hex" };
-const set = (extent: number, starts: number[]) => MatchSet.of(twoBytes, EXACT, extent, starts);
+const set = (extent: number, starts: number[]) => byteMatchSetOf(twoBytes, EXACT, extent, starts);
 const columns = (...list: number[]) => list.reduce((bits, column) => bits | (1 << column), 0);
 
 describe("the overview's match marks", () => {
@@ -31,7 +31,7 @@ describe("the overview's match marks", () => {
     const starts = Array.from({ length: 3000 }, (_, i) => i * 37);
     const dense = set(111_000, starts);
     expect(dense.storage.kind).toBe("bitmap");
-    const thin = new MatchSet(
+    const thin = byteMatchSet(
       twoBytes,
       EXACT,
       111_000,

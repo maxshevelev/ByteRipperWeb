@@ -44,7 +44,7 @@ import {
   WORKSPACE_SURFACE,
 } from "@/state/paneId";
 import { parkToolState } from "@/state/parkedToolState";
-import { editQuery, openSearch, setSearchEncoding } from "@/state/searchStore";
+import { reopenSearch, setFindCaseRule } from "@/state/searchStore";
 import { sourceIDForFile } from "@/state/segmentSources";
 import type { KeptContentClient } from "@/state/sessions/keptContent";
 import { settingsStore } from "@/state/settingsStore";
@@ -740,6 +740,10 @@ async function restoreFragments(
     if (index === tab.expandedFragment) expanded = part;
     await applyPane(part, fragment.pane, true, new Map());
     if (fragment.surface.minimapVisible) applyMinimap(surfaceOf(part), fragment.surface);
+    // The panel's own bar, as it was: no search runs, the greys come back when the person
+    // searches again (§11).
+    // @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.finishWorkspaceFragment
+    applyFind(surfaceOf(part), fragment.surface);
     if (fragment.surface.tool !== undefined) restoreTool(fragment.surface.tool, part, unchanged);
   }
   if (expanded !== undefined) raisePart(expanded);
@@ -933,8 +937,10 @@ function applyMinimap(surface: SurfaceId, state: SurfaceState): void {
   }
 }
 
-/** What names a file of the workspace, to reach it once however many pieces link to it. */
+/** The encodings a find bar reads in, as a workspace writes them. */
 const SEARCH_ENCODINGS: readonly string[] = ["hex", "ascii", "utf8", "utf16LE", "utf16BE"];
+
+/** What names a file of the workspace, to reach it once however many pieces link to it. */
 
 const stampKey = (stamp: FileStamp): string =>
   stamp.handle ?? stamp.path ?? `${stamp.name}|${stamp.size}|${stamp.modified}`;
@@ -981,21 +987,34 @@ function partitionOf(
 }
 
 /**
- * The minimap as it was, and the find bar with its pattern.
+ * The minimap as it was, and the find bar with its pattern and case rule.
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.apply
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.reopenFindBar
  */
 function applySurface(state: SurfaceState): void {
   applyMinimap(WORKSPACE_SURFACE, state);
-  const find = state.findPattern;
-  if (find !== undefined) {
-    openSearch();
-    editQuery(find.text);
-    if (SEARCH_ENCODINGS.includes(find.encoding as SearchEncoding)) {
-      setSearchEncoding(find.encoding as SearchEncoding);
-    }
+  applyFind(WORKSPACE_SURFACE, state);
+}
+
+/**
+ * A surface's find bar as it was — the tab's or a panel's: its own case rule, where the record
+ * has one (a record from before each bar had its own leaves the standing choice), and the bar
+ * open on its pattern while it was open. No search runs.
+ *
+ * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.apply
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.reopen
+ */
+function applyFind(surface: SurfaceId, state: SurfaceState): void {
+  if (state.findCaseSensitive !== undefined) {
+    setFindCaseRule(state.findCaseSensitive, surface);
   }
+  const find = state.findPattern;
+  if (find === undefined) return;
+  const encoding = SEARCH_ENCODINGS.includes(find.encoding)
+    ? (find.encoding as SearchEncoding)
+    : "hex";
+  reopenSearch(surface, find.text, encoding);
 }
 
 /**

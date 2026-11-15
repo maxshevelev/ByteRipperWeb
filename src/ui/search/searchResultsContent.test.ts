@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MatchSet } from "@/core/search/matchSet";
+import { byteMatchSet, byteMatchSetOf } from "@/core/search/byteFindContent";
 import { DEFAULT_MAX_RESULTS } from "@/core/search/searchEngine";
 import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
 import {
@@ -10,9 +10,9 @@ import {
 
 const twoBytes: SearchPattern = { bytes: new Uint8Array([0xde, 0xad]), encoding: "hex" };
 const complete = (starts: number[], extent = 1_000_000) =>
-  MatchSet.of(twoBytes, EXACT, extent, starts);
+  byteMatchSetOf(twoBytes, EXACT, extent, starts);
 const partial = (starts: number[]) =>
-  new MatchSet(
+  byteMatchSet(
     twoBytes,
     EXACT,
     1600,

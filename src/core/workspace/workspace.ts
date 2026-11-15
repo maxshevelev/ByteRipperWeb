@@ -479,7 +479,8 @@ export interface PieceLinkState {
 }
 
 /**
- * What sits around the panes: the minimap, the find bar and the tool panel.
+ * What sits around a surface's panes — the tab's, or a panel's: the minimap, the find bar and the
+ * tool panel. Each surface has a find bar of its own (§11).
  *
  * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState
  */
@@ -488,8 +489,21 @@ export interface SurfaceState {
   readonly minimapVisible: boolean;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState.minimapMode */
   readonly minimapMode?: string | undefined;
-  /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState.findPattern */
+  /**
+   * The find bar's pattern while the bar is open; absent while it is closed. Written for a
+   * panel's bar as well as the tab's; earlier builds wrote the tab's only.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState.findPattern
+   */
   readonly findPattern?: FindPatternState | undefined;
+  /**
+   * Whether the surface's find bar matches case, open or closed. Absent in a record written
+   * before each bar had its own, where the app's standing choice applies. An added optional
+   * field: it needs no new version.
+   *
+   * @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState.findCaseSensitive
+   */
+  readonly findCaseSensitive?: boolean | undefined;
   /** @upstream Packages/Workspace/Sources/Workspace/Workspace.swift#SurfaceState.tool */
   readonly tool?: ToolState | undefined;
 }

@@ -1,9 +1,6 @@
-import {
-  type ByteRange,
-  findOne,
-  foldedPattern,
-  type ScanOptions,
-} from "@/core/search/searchEngine";
+import { findPassFirstMatch, type SearchDirection } from "@/core/find/findContent";
+import { ByteFindContent, type ByteQuery } from "@/core/search/byteFindContent";
+import type { ByteRange, ScanOptions } from "@/core/search/searchEngine";
 import {
   type CaseFolding,
   foldingFor,
@@ -52,6 +49,16 @@ export interface Attempt {
    */
   readonly encodings: readonly SearchEncoding[];
 }
+
+/**
+ * What the attempt looks for, as a search's query.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.query
+ */
+export const attemptQuery = (attempt: Attempt): ByteQuery => ({
+  pattern: attempt.pattern,
+  folding: attempt.folding,
+});
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.Attempt.encoding */
 export const attemptEncoding = (attempt: Attempt): SearchEncoding =>
@@ -170,38 +177,29 @@ const sameBytes = (a: Uint8Array, b: Uint8Array): boolean =>
  * scan of the file, and several of them are a wait worth being able to stop.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.firstMatch
+ * @upstream-differs a range of `{start, end}`, the pass being the Find package's (`findPassFirstMatch`)
  */
 export async function firstMatchAmong(
   attempts: readonly Attempt[],
   storage: ByteStorage,
   options: {
     readonly from: number;
-    readonly direction?: "forward" | "backward";
+    readonly direction?: SearchDirection;
   } & ScanOptions
 ): Promise<SmartOutcome> {
-  if (attempts.length === 0) return { kind: "nothing" };
-  const direction = options.direction ?? "forward";
-  const total = attempts.length;
-
-  for (const [position, attempt] of attempts.entries()) {
-    const scan = async (from: number, half: number) =>
-      await findOne(foldedPattern(attempt.pattern.bytes, attempt.folding), storage, {
-        from,
-        direction,
-        folding: attempt.folding,
-        ...(options.chunkSize === undefined ? {} : { chunkSize: options.chunkSize }),
-        ...(options.shouldCancel === undefined ? {} : { shouldCancel: options.shouldCancel }),
-        onProgress: (fraction) => options.onProgress?.((position + half + fraction / 2) / total),
-      });
-
-    const here = await scan(options.from, 0);
-    if (here !== undefined) return { kind: "found", attempt, range: here, wrapped: false };
-
-    const edge = direction === "forward" ? 0 : storage.size;
-    const wrapped = await scan(edge, 0.5);
-    if (wrapped !== undefined) return { kind: "found", attempt, range: wrapped, wrapped: true };
-
-    options.onProgress?.((position + 1) / total);
-  }
-  return { kind: "nothing" };
+  const content = new ByteFindContent(
+    storage,
+    options.chunkSize === undefined ? {} : { chunkSize: options.chunkSize }
+  );
+  const found = await findPassFirstMatch(
+    attempts.map(attemptQuery),
+    content,
+    options.from,
+    options.direction ?? "forward",
+    options.shouldCancel,
+    options.onProgress
+  );
+  const attempt = found === undefined ? undefined : attempts[found.index];
+  if (found === undefined || attempt === undefined) return { kind: "nothing" };
+  return { kind: "found", attempt, range: found.range, wrapped: found.wrapped };
 }

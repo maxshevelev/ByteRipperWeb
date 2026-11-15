@@ -51,12 +51,20 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 
   postMessage(request: Posted): void {
     posted.push(request);
-    if (request.kind !== "search") return;
+    // A hit at the start of the file for every scan, and an index of that one hit.
+    const replies =
+      request.kind === "firstMatch"
+        ? [{ kind: "first", id: request.id, match: { start: 0, end: 1 } }]
+        : request.kind === "matchStarts"
+          ? [
+              { kind: "batch", id: request.id, starts: Float64Array.of(0), scannedUpTo: 1 << 30 },
+              { kind: "scanned", id: request.id },
+            ]
+          : [];
     queueMicrotask(() => {
-      const event = {
-        data: { kind: "first", id: request.id, wrapped: false, match: { start: 0, end: 1 } },
-      } as MessageEvent;
-      for (const listener of [...this.listeners]) listener(event);
+      for (const data of replies) {
+        for (const listener of [...this.listeners]) listener({ data } as MessageEvent);
+      }
     });
   }
 }
@@ -66,6 +74,7 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 (globalThis as { Worker?: unknown }).Worker = FakeWorker;
 
 const {
+  barFor,
   clearRecents,
   closeSearch,
   editQuery,
@@ -80,8 +89,10 @@ const {
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
 const search = () => searchStore.getSnapshot();
-const query = () => search().query;
-const staged = () => search().stagedPattern;
+/** The tab's own bar: no panel is up, so it is the bar in front. */
+const bar = () => barFor(search());
+const query = () => bar().query;
+const staged = () => bar().stagedPattern;
 const results = () => resultsFor(search(), "a");
 
 /** The pane under test; every assertion here is about pane A. */
@@ -155,14 +166,14 @@ test("the pattern is loaded and the bar stays closed", async () => {
   await select(2, 5, "hex");
   await useSelectionForFind();
 
-  expect(search().open).toBe(false);
+  expect(bar().open).toBe(false);
   expect(staged()).toEqual({ text: "DE AD BE", encoding: "hex" });
   expect(noticeStore.getSnapshot().current).toBeUndefined();
 
   openSearch();
-  expect(search().open).toBe(true);
+  expect(bar().open).toBe(true);
   expect(query()).toBe("DE AD BE");
-  expect(search().encoding).toBe("hex");
+  expect(bar().encoding).toBe("hex");
 });
 
 // @upstream ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testItRunsNoSearch
@@ -175,7 +186,7 @@ test("no search is run, and the selection stays where the user put it", async ()
   expect(results().status).toBe("idle");
   expect(results().current).toBeUndefined();
   expect(pane().document.selection).toMatchObject({ start: 0, end: 2 });
-  expect(search().open).toBe(false);
+  expect(bar().open).toBe(false);
 });
 
 // @upstream ByteRipperTests/UseSelectionForFindTests.swift#UseSelectionForFindTests.testTheHexColumnGivesBytes
@@ -221,7 +232,7 @@ test("a pattern loaded into an open bar replaces the field and drops the count",
   await select(4, 6, "hex");
   await useSelectionForFind();
 
-  expect(search().open).toBe(true); // an open bar stays open
+  expect(bar().open).toBe(true); // an open bar stays open
   expect(query()).toBe("DE AD"); // and says what it will search for now
   expect(results().status).toBe("idle"); // the count described the other pattern
   expect(results().matches).toBeUndefined(); // and so did the greys
@@ -276,7 +287,7 @@ test("closing the bar keeps the loaded pattern", async () => {
 
   openSearch();
   expect(query()).toBe("DE AD");
-  expect(search().encoding).toBe("hex");
+  expect(bar().encoding).toBe("hex");
 });
 
 // A selection too long to be a pattern is refused in words rather than quietly

@@ -1,10 +1,13 @@
-import { DEFAULT_MAX_RESULTS } from "@/core/search/searchEngine";
-import type { CaseFolding, SearchPattern } from "@/core/search/searchPattern";
+import type { FindRange } from "@/core/find/findContent";
 
 /**
- * Where every occurrence of one pattern is, in one file.
+ * Where every occurrence of one search is, in one piece of content — a file's
+ * bytes, or a text.
  *
- * Ported from `MatchSet.swift`. Activating a search scans the whole file, and
+ * Ported from `MatchSet.swift`, generic over the query since upstream moved it
+ * into the Find package: what was searched for is the content's business (the
+ * bytes and the case rule, for a dump — `ByteMatchSet`), and the set only keeps
+ * it to tell "the same search" from a new one. Activating a search scans the whole file, and
  * that one scan is the single source for everything downstream: the dump's
  * greys, the find indicator, Find Next (an index step, not a fresh scan), the
  * count in the find bar, the results panel. They cannot disagree, because they
@@ -26,53 +29,90 @@ import type { CaseFolding, SearchPattern } from "@/core/search/searchPattern";
  * question about the caret, and the caret belongs to the pane.
  */
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Storage */
+/** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.Storage */
 export type MatchStorage =
   | { readonly kind: "sparse"; readonly starts: Float64Array }
   | { readonly kind: "bitmap"; readonly bitmap: MatchBitmap }
   | { readonly kind: "counted" };
 
 /**
+ * The limits every search shares, whatever it searches.
+ *
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#FindLimits
+ */
+export const FindLimits = {
+  /**
+   * The ceiling on an index itself, not on the number of matches: 32 MB, which a bitmap reaches
+   * at an extent of 256 MB.
+   *
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#FindLimits.maxIndexBytes
+   */
+  maxIndexBytes: 32 << 20,
+  /**
+   * The most matches a results list shows. Past it a list of four thousand rows impersonates a
+   * tool, so the list states the count instead (§11).
+   *
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#FindLimits.listedMatches
+   */
+  listedMatches: 1000,
+} as const;
+
+/**
  * The ceiling on the index itself: 32 MB, which a bitmap reaches at 256 MB.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.maxIndexBytes
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.maxIndexBytes
  */
-export const MAX_INDEX_BYTES = 32 << 20;
+export const MAX_INDEX_BYTES = FindLimits.maxIndexBytes;
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step */
+/**
+ * One step through a set: the match at `index`, its range, and whether the step came round the
+ * end of the content — a single match steps onto itself, which is a wrap too.
+ *
+ * @upstream Packages/Find/Sources/Find/FindIndexer.swift#MatchStep
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.Step
+ */
 export interface MatchStep {
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.index */
+  /** @upstream Packages/Find/Sources/Find/FindIndexer.swift#MatchStep.index */
   readonly index: number;
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.range */
-  readonly range: { readonly start: number; readonly end: number };
+  /** @upstream Packages/Find/Sources/Find/FindIndexer.swift#MatchStep.range */
+  readonly range: FindRange;
   /**
-   * True when the step came round the end of the file.
+   * True when the step came round the end of the content.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.Step.wrapped
+   * @upstream Packages/Find/Sources/Find/FindIndexer.swift#MatchStep.wrapped
    */
   readonly wrapped: boolean;
 }
 
-/** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet */
-export class MatchSet {
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.pattern */
-  readonly pattern: SearchPattern;
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.folding */
-  readonly folding: CaseFolding;
+/** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet */
+export class MatchSet<Query> {
+  /**
+   * What was searched — kept so the owner can tell "the same search" from a new one without
+   * holding the query beside the set.
+   *
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.query
+   */
+  readonly query: Query;
+  /**
+   * How long every match is, in the content's units; at least 1.
+   *
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.matchLength
+   */
+  readonly matchLength: number;
   /**
    * The size of the file the scan covered — also the bitmap's bit count.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.extent
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.extent
    */
   readonly extent: number;
   /**
    * Exact at any count, and the only number the find bar shows. `> 1000` is not
    * a diagnosis: 1001 and 3,000,000 call for different actions.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.total
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.total
    */
   readonly total: number;
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.storage */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.storage */
   readonly storage: MatchStorage;
   /**
    * How much of the file the scan has covered, half-open: every match below it
@@ -84,21 +124,21 @@ export class MatchSet {
    * the things that need the *whole* file — the total, the wrap, an ordinal —
    * wait for {@link isComplete}.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.indexedUpTo
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.indexedUpTo
    */
   readonly indexedUpTo: number;
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.init */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.init */
   constructor(
-    pattern: SearchPattern,
-    folding: CaseFolding,
+    query: Query,
+    matchLength: number,
     extent: number,
     total: number,
     storage: MatchStorage,
     indexedUpTo: number
   ) {
-    this.pattern = pattern;
-    this.folding = folding;
+    this.query = query;
+    this.matchLength = Math.max(matchLength, 1);
     this.extent = extent;
     this.total = total;
     this.storage = storage;
@@ -108,16 +148,16 @@ export class MatchSet {
   /**
    * From starts already in hand — tests, and a worker's reply.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.init
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.init
    */
-  static of(
-    pattern: SearchPattern,
-    folding: CaseFolding,
+  static of<Query>(
+    query: Query,
+    matchLength: number,
     extent: number,
-    starts: readonly number[],
+    starts: ArrayLike<number>,
     indexedUpTo?: number
-  ): MatchSet {
-    const builder = new MatchSetBuilder(pattern, folding, extent);
+  ): MatchSet<Query> {
+    const builder = new MatchSetBuilder(query, matchLength, extent);
     builder.add(starts);
     return builder.snapshot(indexedUpTo ?? extent);
   }
@@ -125,18 +165,18 @@ export class MatchSet {
   /**
    * Whether the scan reached the end. Only then is `total` the whole answer.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isComplete
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.isComplete
    */
   get isComplete(): boolean {
     return this.indexedUpTo >= this.extent;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.patternLength */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.patternLength */
   get patternLength(): number {
-    return Math.max(this.pattern.bytes.length, 1);
+    return this.matchLength;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isEmpty */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.isEmpty */
   get isEmpty(): boolean {
     return this.total === 0;
   }
@@ -144,7 +184,7 @@ export class MatchSet {
   /**
    * Whether the matches can be pointed at — false only for a counted set.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isHighlightable
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.isHighlightable
    */
   get isHighlightable(): boolean {
     return this.storage.kind !== "counted" && this.total > 0;
@@ -154,10 +194,10 @@ export class MatchSet {
    * Whether the results panel should list them. Past the limit a list of four
    * thousand rows impersonates a tool, so the panel states the count instead.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.isListable
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.isListable
    */
   get isListable(): boolean {
-    return this.total > 0 && this.total <= DEFAULT_MAX_RESULTS;
+    return this.total > 0 && this.total <= FindLimits.listedMatches;
   }
 
   /**
@@ -167,13 +207,13 @@ export class MatchSet {
    * begins `patternLength - 1` earlier — which is what makes a match straddling
    * the top of a drawn row range highlighted rather than half-drawn.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.matches
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.matches
    */
-  matchesIntersecting(start: number, end: number): { start: number; end: number }[] {
+  matchesIntersecting(start: number, end: number): FindRange[] {
     if (end <= start || this.total === 0) return [];
     const length = this.patternLength;
     const from = Math.max(0, start - (length - 1));
-    const result: { start: number; end: number }[] = [];
+    const result: FindRange[] = [];
 
     if (this.storage.kind === "counted") return [];
     if (this.storage.kind === "sparse") {
@@ -203,7 +243,7 @@ export class MatchSet {
    * is what happened, and a view working it out from a nothing would work it
    * out twice, once per direction.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.step
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.step
    */
   step(direction: "forward" | "backward", offset: number): MatchStep | undefined {
     if (!this.isHighlightable) return undefined;
@@ -226,9 +266,9 @@ export class MatchSet {
    * Returns `undefined` when the set cannot be updated in place, which is the
    * caller's signal to rescan the file instead.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.splice
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.splice
    */
-  splice(starts: readonly number[], start: number, end: number): MatchSet | undefined {
+  splice(starts: readonly number[], start: number, end: number): MatchSet<Query> | undefined {
     if (this.storage.kind === "counted") return undefined;
 
     if (this.storage.kind === "sparse") {
@@ -241,8 +281,8 @@ export class MatchSet {
         ...Array.from(existing.subarray(last, this.total)),
       ];
       return new MatchSet(
-        this.pattern,
-        this.folding,
+        this.query,
+        this.matchLength,
         this.extent,
         kept.length,
         { kind: "sparse", starts: Float64Array.from(kept) },
@@ -255,8 +295,8 @@ export class MatchSet {
     for (const at of starts) bitmap.set(at);
     bitmap.sealRanks();
     return new MatchSet(
-      this.pattern,
-      this.folding,
+      this.query,
+      this.matchLength,
       this.extent,
       bitmap.total,
       { kind: "bitmap", bitmap },
@@ -267,7 +307,7 @@ export class MatchSet {
   /**
    * The `index`-th match's start.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.start
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.start
    */
   startAt(index: number): number | undefined {
     if (index < 0 || index >= this.total) return undefined;
@@ -276,8 +316,8 @@ export class MatchSet {
     return this.storage.bitmap.select(index);
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.range */
-  rangeAt(index: number): { start: number; end: number } | undefined {
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.range */
+  rangeAt(index: number): FindRange | undefined {
     const start = this.startAt(index);
     return start === undefined ? undefined : { start, end: start + this.patternLength };
   }
@@ -285,7 +325,7 @@ export class MatchSet {
   /**
    * The ordinal of the match starting exactly at `offset` — the "3" in "3 of 128".
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.index
    */
   indexStartingAt(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
@@ -300,7 +340,7 @@ export class MatchSet {
   /**
    * The first match at or after `offset` — where Find Next lands.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.index
    */
   indexAtOrAfter(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
@@ -329,7 +369,7 @@ export class MatchSet {
   /**
    * The last match strictly before `offset` — where Find Previous lands.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.index
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.index
    */
   indexBefore(offset: number): number | undefined {
     if (this.storage.kind === "counted") return undefined;
@@ -345,7 +385,7 @@ export class MatchSet {
 /**
  * The first index whose value is at least `value`, in a sorted prefix.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSet.firstIndex
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSet.firstIndex
  */
 function firstIndexAtOrAfter(starts: Float64Array, count: number, value: number): number {
   let low = 0;
@@ -366,15 +406,15 @@ function firstIndexAtOrAfter(starts: Float64Array, count: number, value: number)
  * third of a file's offsets costs the same as one occurring once. The rank
  * table adds four bytes per 4096 bits — a tenth of a per cent.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap
  */
 export class MatchBitmap {
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.bitsPerBlock */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.bitsPerBlock */
   static readonly bitsPerBlock = 4096;
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.wordsPerBlock */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.wordsPerBlock */
   static readonly wordsPerBlock = MatchBitmap.bitsPerBlock / 32;
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.bitCount */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.bitCount */
   readonly bitCount: number;
   /**
    * 32-bit words, not 64. JavaScript's bitwise operators are defined on 32-bit
@@ -386,7 +426,7 @@ export class MatchBitmap {
   private ranks: Int32Array = new Int32Array(0);
   private count = 0;
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.init */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.init */
   constructor(bitCount: number) {
     this.bitCount = bitCount;
     this.words = new Uint32Array(Math.ceil(bitCount / 32));
@@ -413,7 +453,7 @@ export class MatchBitmap {
   /**
    * What a bitmap over `bitCount` offsets costs, rank table included.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.byteCost
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.byteCost
    */
   static byteCost(bitCount: number): number {
     const words = Math.ceil(bitCount / 32);
@@ -421,12 +461,12 @@ export class MatchBitmap {
     return words * 4 + blocks * 4;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.total */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.total */
   get total(): number {
     return this.count;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.set */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.set */
   set(offset: number): void {
     if (offset < 0 || offset >= this.bitCount) return;
     const word = offset >>> 5;
@@ -436,7 +476,7 @@ export class MatchBitmap {
     this.count++;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.contains */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.contains */
   contains(offset: number): boolean {
     if (offset < 0 || offset >= this.bitCount) return false;
     return (((this.words[offset >>> 5] ?? 0) >>> (offset & 31)) & 1) === 1;
@@ -445,7 +485,7 @@ export class MatchBitmap {
   /**
    * Clears every bit in `[start, end)` — the first half of splicing.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.clear
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.clear
    */
   clearIn(start: number, end: number): void {
     for (let offset = Math.max(0, start); offset < Math.min(end, this.bitCount); offset++) {
@@ -461,7 +501,7 @@ export class MatchBitmap {
   /**
    * Builds the rank table: one pass over the words.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.sealRanks
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.sealRanks
    */
   sealRanks(): void {
     const blocks = Math.max(1, Math.ceil(this.words.length / MatchBitmap.wordsPerBlock));
@@ -480,7 +520,7 @@ export class MatchBitmap {
   /**
    * How many matches start before `offset` — the ordinal lookup.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.count
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.count
    */
   countBefore(offset: number): number {
     const limit = Math.min(offset, this.bitCount);
@@ -500,7 +540,7 @@ export class MatchBitmap {
     return count;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.firstSet */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.firstSet */
   firstSetAtOrAfter(offset: number): number | undefined {
     if (offset >= this.bitCount) return undefined;
     let word = Math.max(0, offset) >>> 5;
@@ -516,7 +556,7 @@ export class MatchBitmap {
     }
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.lastSet */
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.lastSet */
   lastSetBefore(offset: number): number | undefined {
     const limit = Math.min(offset, this.bitCount);
     if (limit <= 0) return undefined;
@@ -536,7 +576,7 @@ export class MatchBitmap {
   /**
    * The `index`-th set bit: the rank table narrows it to one block.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchBitmap.select
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchBitmap.select
    */
   select(index: number): number | undefined {
     if (index < 0 || index >= this.count) return undefined;
@@ -582,11 +622,11 @@ const leadingZeros = (value: number): number => Math.clz32(value);
  * Fed in batches: a scan delivers a window's matches at once, because a million
  * separate hand-overs cost more than finding them did.
  *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder
+ * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSetBuilder
  */
-export class MatchSetBuilder {
-  private readonly pattern: SearchPattern;
-  private readonly folding: CaseFolding;
+export class MatchSetBuilder<Query> {
+  private readonly query: Query;
+  private readonly matchLength: number;
   private readonly extent: number;
   private readonly maxIndexBytes: number;
   /** The count at which a sparse list costs more than the bitmap would. */
@@ -597,32 +637,27 @@ export class MatchSetBuilder {
   private counted = false;
   private count = 0;
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.init */
-  constructor(
-    pattern: SearchPattern,
-    folding: CaseFolding,
-    extent: number,
-    maxIndexBytes = MAX_INDEX_BYTES
-  ) {
-    this.pattern = pattern;
-    this.folding = folding;
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSetBuilder.init */
+  constructor(query: Query, matchLength: number, extent: number, maxIndexBytes = MAX_INDEX_BYTES) {
+    this.query = query;
+    this.matchLength = matchLength;
     this.extent = extent;
     this.maxIndexBytes = maxIndexBytes;
     this.sparseLimit = Math.max(Math.floor(extent / 64), 1);
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.add */
-  add(starts: readonly number[]): void {
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSetBuilder.add */
+  add(starts: ArrayLike<number>): void {
     if (starts.length === 0) return;
     this.count += starts.length;
 
     if (this.counted) return;
     if (this.bitmap !== undefined) {
-      for (const start of starts) this.bitmap.set(start);
+      for (let i = 0; i < starts.length; i++) this.bitmap.set(starts[i] as number);
       return;
     }
     if (this.sparse.length + starts.length <= this.sparseLimit) {
-      this.sparse.push(...starts);
+      for (let i = 0; i < starts.length; i++) this.sparse.push(starts[i] as number);
       return;
     }
 
@@ -635,13 +670,13 @@ export class MatchSetBuilder {
     }
     const bitmap = new MatchBitmap(this.extent);
     for (const start of this.sparse) bitmap.set(start);
-    for (const start of starts) bitmap.set(start);
+    for (let i = 0; i < starts.length; i++) bitmap.set(starts[i] as number);
     this.sparse = [];
     this.bitmap = bitmap;
   }
 
-  /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.finish */
-  finish(): MatchSet {
+  /** @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSetBuilder.finish */
+  finish(): MatchSet<Query> {
     return this.snapshot(this.extent);
   }
 
@@ -649,9 +684,9 @@ export class MatchSetBuilder {
    * The set as it stands, covering the file up to `indexedUpTo` — what a
    * still-running scan publishes so the dump can grey what is known.
    *
-   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MatchSet.swift#MatchSetBuilder.snapshot
+   * @upstream Packages/Find/Sources/Find/MatchSet.swift#MatchSetBuilder.snapshot
    */
-  snapshot(indexedUpTo: number): MatchSet {
+  snapshot(indexedUpTo: number): MatchSet<Query> {
     let storage: MatchStorage;
     if (this.counted) {
       storage = { kind: "counted" };
@@ -662,8 +697,8 @@ export class MatchSetBuilder {
       storage = { kind: "sparse", starts: Float64Array.from(this.sparse) };
     }
     return new MatchSet(
-      this.pattern,
-      this.folding,
+      this.query,
+      this.matchLength,
       this.extent,
       this.count,
       storage,

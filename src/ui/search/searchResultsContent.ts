@@ -1,5 +1,5 @@
 import { L } from "@/core/localization/localization";
-import type { MatchSet } from "@/core/search/matchSet";
+import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import type { SearchStatus } from "@/state/searchStore";
 
 /**
@@ -33,7 +33,7 @@ export type SearchResultsContent =
  * @upstream-differs a search that has found its first match but whose index has not arrived yet has no set here, and reads as still searching
  */
 export function searchResultsContent(
-  matches: MatchSet | undefined,
+  matches: ByteMatchSet | undefined,
   status: SearchStatus
 ): SearchResultsContent {
   if (matches === undefined) {
@@ -62,7 +62,7 @@ const grouped = (value: number) => value.toLocaleString();
  */
 export function searchResultsTitle(
   content: SearchResultsContent,
-  matches: MatchSet | undefined
+  matches: ByteMatchSet | undefined
 ): string {
   switch (content.kind) {
     case "matches":

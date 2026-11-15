@@ -36,7 +36,7 @@ import {
   WORKSPACE_SURFACE,
 } from "@/state/paneId";
 import { sessionParkedStateOn } from "@/state/parkedToolState";
-import { searchStore } from "@/state/searchStore";
+import { barFor, openPattern, searchStore } from "@/state/searchStore";
 import { sourceInfo } from "@/state/segmentSources";
 import { segmentsFor } from "@/state/segmentsStore";
 import { KeptContentClient } from "@/state/sessions/keptContent";
@@ -118,16 +118,11 @@ export async function snapshotWorkspace(keeper?: KeptContentClient): Promise<{
     new Set(PANE_IDS.filter((_, index) => panes[index] !== undefined)),
     keeper
   );
-  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFindPattern
-  const search = searchStore.getSnapshot();
   const tab: TabState = {
     panes,
     activePane: state.activePane === "b" ? 1 : 0,
     ...(panes.every((one) => one !== undefined) ? { dividerFraction: state.splitFraction } : {}),
-    surface: {
-      ...surfaceSnapshot(WORKSPACE_SURFACE),
-      ...(search.open ? { findPattern: { text: search.query, encoding: search.encoding } } : {}),
-    },
+    surface: surfaceSnapshot(WORKSPACE_SURFACE),
     fragments,
     ...(expandedFragment === undefined ? {} : { expandedFragment }),
   };
@@ -274,15 +269,21 @@ function positionOf(
 }
 
 /**
- * The minimap of a surface: whether it is shown, and in which mode.
+ * What sits around a surface's panes — the tab's or a panel's: the minimap, whether it is shown
+ * and in which mode; the surface's own find bar, its pattern and encoding while it is open and
+ * its case rule open or closed (§11); and the tool panel.
  *
  * @upstream ByteRipperApp/Workspace/MainViewController+Workspace.swift#MainViewController.workspaceSurface
+ * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.openFindPattern
  */
 function surfaceSnapshot(surface: SurfaceId): SurfaceState {
   const map = mapOn(minimapStore.getSnapshot(), surface);
   const tool = toolSnapshot(surface);
+  const find = openPattern(surface);
   return {
     ...(map.visible ? { minimapVisible: true, minimapMode: map.mode } : { minimapVisible: false }),
+    ...(find === undefined ? {} : { findPattern: find }),
+    findCaseSensitive: barFor(searchStore.getSnapshot(), surface).caseSensitive,
     ...(tool === undefined ? {} : { tool }),
   };
 }

@@ -28,7 +28,7 @@ import {
 } from "@/state/navigationStore";
 import type { OpenPanePlacement } from "@/state/openPlacement";
 import { recentFilesStore } from "@/state/recentFilesStore";
-import { closeSearch, searchStore } from "@/state/searchStore";
+import { barFor, closeSearch, searchStore } from "@/state/searchStore";
 import { segmentsStore } from "@/state/segmentsStore";
 import { wordSizeFrom } from "@/state/settingsStore";
 import { selectAllInTextField, textFocusStore, undoInTextField } from "@/state/textFocusStore";
@@ -59,6 +59,7 @@ import {
   type SlotId,
   setLayout,
   setWordSize,
+  surfaceOf,
   swapPanes,
   windowPanesAreReachable,
   workspaceStore,
@@ -673,6 +674,10 @@ export function Toolbar({
   const identical = useRef(false);
   identical.current = identicalBadgeAfter(identical.current, diff);
   const search = useStore(searchStore);
+  // The toolbar's Find is the surface in front's bar: the panel's that is up, or the tab's.
+  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.frontFind
+  // @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.toggle
+  const findShown = barFor(search, surfaceOf(front)).open;
   const context: ToolbarContext = {
     activeOpen: active !== undefined,
     comparison: bothOpen,
@@ -890,9 +895,9 @@ export function Toolbar({
             key={key}
             label={L("Find")}
             title={L("Find bytes or text")}
-            pressed={search.open}
+            pressed={findShown}
             disabled={disabled}
-            onClick={() => (search.open ? closeSearch() : onToggleFind())}
+            onClick={() => (findShown ? closeSearch(surfaceOf(front)) : onToggleFind())}
           >
             <FindGlyph />
           </IconButton>

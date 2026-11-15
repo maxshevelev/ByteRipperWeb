@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { L } from "@/core/localization/localization";
-import type { MatchSet } from "@/core/search/matchSet";
+import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import type { SessionView } from "@/core/session/sessionView";
 import { formatHex } from "@/core/text/hexText";
 import { hideSearchResults, type SearchStatus, selectMatch } from "@/state/searchStore";
@@ -64,7 +64,7 @@ export interface SearchResultsProps {
   /** Whose results these are: the list belongs to one pane's file. */
   readonly pane: PaneId;
   /** The pane's set, when its search has one yet. */
-  readonly matches: MatchSet | undefined;
+  readonly matches: ByteMatchSet | undefined;
   /** How far the pane's search has got. */
   readonly status: SearchStatus;
   readonly document: SessionView;
@@ -114,7 +114,7 @@ export function SearchResults({
    */
   const built = useRef<{
     readonly doc: SessionView;
-    readonly pattern: MatchSet["pattern"];
+    readonly pattern: ByteMatchSet["query"]["pattern"];
     readonly decoder: ReturnType<typeof activeDecoder>;
     readonly rows: Map<number, Row>;
   }>(undefined);
@@ -132,10 +132,10 @@ export function SearchResults({
     if (
       known === undefined ||
       known.doc !== doc ||
-      known.pattern !== listing.pattern ||
+      known.pattern !== listing.query.pattern ||
       known.decoder !== decoder
     ) {
-      known = { doc, pattern: listing.pattern, decoder, rows: new Map() };
+      known = { doc, pattern: listing.query.pattern, decoder, rows: new Map() };
       built.current = known;
     }
     const cache = known.rows;

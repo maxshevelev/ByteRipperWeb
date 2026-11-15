@@ -14,7 +14,7 @@ import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
 import { L } from "@/core/localization/localization";
-import type { MatchSet } from "@/core/search/matchSet";
+import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import { segmentReadout } from "@/core/segments/segmentation";
 import type { SessionView } from "@/core/session/sessionView";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -51,7 +51,7 @@ import { toggleMinimap } from "@/state/minimapStore";
 // Both aliased: this pane already has a `beginDrag`/`endDrag` pair of its own
 // for a selection, and the two must not be confused for each other.
 import { beginPartDrag, beginPaneDrag as startPaneDrag } from "@/state/paneDragStore";
-import { panelOf } from "@/state/paneId";
+import { panelOf, surfaceOf } from "@/state/paneId";
 import { type SearchStatus, stepSearch } from "@/state/searchStore";
 import { baselineFor } from "@/state/segmentSources";
 import { segmentsStore } from "@/state/segmentsStore";
@@ -343,7 +343,7 @@ export interface HexPaneProps {
    * results list under the dump needs to enumerate them, and the renderer takes
    * the set through that interface anyway.
    */
-  readonly matches?: MatchSet | undefined;
+  readonly matches?: ByteMatchSet | undefined;
   /**
    * Whether the results panel is up under the dump. The find bar's results
    * button is what raises it; the panel's × takes it down.
@@ -1350,10 +1350,10 @@ export function HexPane({
           onFind?.();
           break;
         case "findNext":
-          stepSearch("forward");
+          stepSearch("forward", surfaceOf(paneId));
           break;
         case "findPrevious":
-          stepSearch("backward");
+          stepSearch("backward", surfaceOf(paneId));
           break;
 
         case "hexDigit":

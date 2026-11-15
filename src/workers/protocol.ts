@@ -18,6 +18,7 @@
  */
 
 import type { Json } from "@/core/agent/json";
+import type { SearchDirection } from "@/core/find/findContent";
 import type { Catalogue, LocalizedTextData } from "@/core/localization/localization";
 import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
 import type { FITReport } from "@/firmware/fit/fitTable";
@@ -112,57 +113,68 @@ export function transferablesOf(done: DiffDone): Transferable[] {
 // MARK: - The search worker
 
 /**
- * A search of one file.
+ * One scan of one file for the first match of a pattern from a place, not wrapping — the
+ * content's `firstMatch` (`Packages/Find`): the pass that goes round the end, and tries one
+ * encoding after another, is the page's (`FindIndexer`).
  *
- * The worker answers twice: a `first` as soon as it has found one match, and
- * `indexed` as the full set streams in behind it. That split is the whole
- * design — a scan from the caret finds a match in about a millisecond, while
- * indexing every occurrence of a common byte takes a hundred times that, and
- * nobody should wait for the second to see the first.
+ * The worker answers each request on its own, and runs several at once: every pane has a search
+ * of its own, and a search in one never stops the search in another.
  */
-export interface SearchRequest {
-  readonly kind: "search";
+export interface SearchFirstMatchRequest {
+  readonly kind: "firstMatch";
   readonly id: JobId;
   readonly file: Blob;
   /** The bytes to find, already folded the way the data will be. */
   readonly pattern: Uint8Array;
-  /** The pattern as typed, for the reply to echo back. */
-  readonly patternBytes: Uint8Array;
+  /** The encoding the pattern was written in: which question of a pass this is. */
   readonly encoding: SearchEncoding;
   readonly folding: CaseFolding;
-  /** Where the caret is, which is where the first scan starts. */
+  /** Where the scan starts. */
   readonly from: number;
-  readonly direction: "forward" | "backward";
-  /** False to answer with the first match alone and build no index. */
-  readonly index: boolean;
+  readonly direction: SearchDirection;
 }
 
-export type SearchWorkerRequest = SearchRequest | CancelRequest;
+/**
+ * Every match of a pattern in one file, in batches as the scan goes — the content's
+ * `matchStarts`, which the page's indexer builds its set from.
+ */
+export interface SearchMatchStartsRequest {
+  readonly kind: "matchStarts";
+  readonly id: JobId;
+  readonly file: Blob;
+  readonly pattern: Uint8Array;
+  readonly encoding: SearchEncoding;
+  readonly folding: CaseFolding;
+}
+
+export type SearchWorkerRequest =
+  | SearchFirstMatchRequest
+  | SearchMatchStartsRequest
+  | CancelRequest;
 
 export interface SearchFirst {
   readonly kind: "first";
   readonly id: JobId;
-  /** Absent when the pattern is nowhere in the file. */
+  /** Absent when the pattern is nowhere that way. */
   readonly match?: { readonly start: number; readonly end: number };
-  readonly wrapped: boolean;
 }
 
 /**
- * The index, as it stands. Sent more than once: a partial set lets the dump
- * grey what is known while the rest is still being found.
+ * The starts a scan found since the last batch, and how far it has covered. Sent on a cadence,
+ * not per window: a common byte yields a window's worth of starts a millisecond.
  */
-export interface SearchIndexed {
-  readonly kind: "indexed";
+export interface SearchBatch {
+  readonly kind: "batch";
   readonly id: JobId;
-  readonly extent: number;
-  readonly total: number;
-  readonly indexedUpTo: number;
-  /** The starts, when the set is sparse enough to name them. */
-  readonly starts?: Float64Array;
-  /** The bitmap's words, when it is not. */
-  readonly bitmapWords?: Uint32Array;
-  /** True when the set kept only its count. */
-  readonly countedOnly: boolean;
+  readonly starts: Float64Array;
+  /** Half-open: matches at or above this offset are not known yet. */
+  readonly scannedUpTo: number;
+}
+
+/** The scan reached the end of the file; every batch has been sent. */
+export interface SearchScanned {
+  readonly kind: "scanned";
+  readonly id: JobId;
 }
 
 export interface SearchProgress {
@@ -173,7 +185,8 @@ export interface SearchProgress {
 
 export type SearchWorkerResponse =
   | SearchFirst
-  | SearchIndexed
+  | SearchBatch
+  | SearchScanned
   | SearchProgress
   | DiffCancelledResponse
   | DiffFailed;
