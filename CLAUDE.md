@@ -101,9 +101,10 @@ Important rules:
   of panel beside them (`workspaceStore.helpPanel`, `agentPanel`), never a
   floating window, a modal or a corner of its own. At most one per kind, raised
   when asked for again; Esc folds it, ✕ on the pill closes it. In the desktop
-  shell the annotations, the agent and the help — the app's, not a
-  workspace's — are each a window of its own instead, one per kind, as
-  upstream's are (`Design/DESKTOP_WINDOWS.md`, D7); a part stays a panel.
+  shell the annotations, the agent, the help and Intel CPUID Lookup — the
+  app's, not a workspace's — are each a window of its own instead, one per
+  kind, as upstream's are (`Design/DESKTOP_WINDOWS.md`, D7; the CPUID Lookup by
+  the owner's decision, 2026-11-15); a part stays a panel.
 - **A name the help puts in bold is a promise.** After renaming anything
   user-visible, or editing a help page that quotes the interface, also run:
   `python3 Skills/help-names/scripts/help_names.py`
@@ -164,8 +165,9 @@ Relationship to ByteRipper:
   it; run it after porting.
 
 Third-party data:
-- The GUID catalogue, the ME databases and the microcode catalogue are fetched
-  live from GitHub, as ByteRipper does: lazy and single-flight. Freshness is the
+- The GUID catalogue, the ME databases, the microcode catalogue and the CPUID
+  table (github.com/maxshevelev/IntelCPUID) are fetched live from GitHub, as
+  ByteRipper does: lazy and single-flight. Freshness is the
   desktop's own rule (`Freshened`): a body is held for a day, a body younger
   than that is not asked for at all, an older one is answered at once with the
   check running behind it, and a check that cannot be made keeps what is held.
