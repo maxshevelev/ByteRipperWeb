@@ -113,6 +113,10 @@
       "why": "SwiftPM manifest."
     },
     {
+      "prefix": "Packages/IntelCPUID/Package.swift",
+      "why": "SwiftPM manifest."
+    },
+    {
       "prefix": "Modules/MEATool/Package.swift",
       "why": "SwiftPM manifest."
     },
@@ -210,11 +214,19 @@
     },
     {
       "prefix": "Skills/update-cpuid-brand-names",
-      "why": "The generator of IntelCPUIDBrandNames.json: the article's import, the Wikipedia and Intel release-note enrichment, and the ARK agents' S-SPECs. The data is upstream's to refresh; the web takes the JSON as upstream ships it, and it arrives here with a port (src/tools/fit/IntelCPUIDBrandNames.json), as the compiled ME maps and the JEDEC table do (the owner's decision, 2026-11-07)."
+      "why": "The generator of the CPUID table: the article's import, the Wikipedia and Intel release-note enrichment, the ARK agents' S-SPECs and microcode_signatures.py. Since a26c06ef it lives in github.com/maxshevelev/IntelCPUID beside the data it makes, and both editions read that repository's files at run time (src/state/intelCpuidRepository.ts); the data is that repository's to refresh (the owner's decision, 2026-11-07)."
     },
     {
       "prefix": "Skills/find-sspec",
-      "why": "The search for the S-SPECs IntelCPUIDBrandNames.json lacks, per CPUID, and their merge into the table. Like Skills/update-cpuid-brand-names, the data is upstream's to refresh; the web takes the JSON as upstream ships it, and it arrives here with a port (the owner's decision, 2026-11-07)."
+      "why": "The search for the S-SPECs the CPUID table lacks, per CPUID, and their merge into the table. Since a26c06ef it lives in github.com/maxshevelev/IntelCPUID with the data, which both editions read at run time; the data is that repository's to refresh (the owner's decision, 2026-11-07)."
+    },
+    {
+      "prefix": "Modules/FITTool/Sources/FITTool/Resources/",
+      "why": "The JSON resources the FIT module shipped until a26c06ef (IntelCPUIDBrandNames.json, and IntelMicrocodeSignatures.json from bb07ce17): the tables are read from github.com/maxshevelev/IntelCPUID at run time now, in both editions — Packages/IntelCPUID, src/firmware/intelCpuid and src/state/intelCpuidRepository.ts."
+    },
+    {
+      "prefix": "Modules/FITTool/Tests/Fixtures/",
+      "why": "Where a26c06ef put the copy of IntelCPUID's two files the tests read, until 2d135739 moved it to Packages/IntelCPUID/Tests/Fixtures — mapped there."
     }
   ],
   "modules": [
@@ -1385,7 +1397,7 @@
         "src/tools/toolParkedState.ts"
       ],
       "status": "ported",
-      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch: a value held in `Freshened`, one conditional request when the day's check is due, and the Cache API as the seat of the last body rather than a lifetime (G16). The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the entries as an outline in one column, Type — a row says its type and, after it, what it points at; the number, the address and the size are the detail's — over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, and the notice line. A microcode row opens a level by itself into the lines of the CPUIDs it serves — text to select and copy, not rows to choose — and a CPUID's ⓘ opens a popover of the models and S-SPECs of IntelCPUIDBrandNames.json (ProcessorNames.swift, processorNames.ts; FITProcessorsPopover.swift, FitProcessorsPopover.tsx over the shared HelpPopover; fitOutline.ts decides the rows, their levels and where Add Microcode… sits: under the table's last microcode, never in the Top Swap backup's copy). The microcode form's CPUIDs have the same ⓘ. Copy CPUID is gone from the row's menu, as upstream's. The JSON is upstream's resource as it ships, refreshed upstream by Skills/update-cpuid-brand-names and brought across with each port, as the compiled ME maps and the JEDEC table are. The dump outlines the tables and the one zone in focus (`publishedZones`); every zone the panel can focus is `allZones` with the catalogue's wait, cancel and named failure. The version is the row's tooltip; the problem mark and up to two role badges sit ahead of the type, and the catalogue verdict right after the word \"Microcode\" (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID, part of a model's name or a whole S-SPEC (through the same table of brand names) and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Plat / Revision / Date / Release / Size with pre-releases in orange, a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
+      "note": "The whole of it: FITEntry, FITTable, FITValidator, FITProblem, FITDetail, FITDisplay, FITEditor and MicrocodeCatalogue, with MicrocodeSource as the web's own fetch: a value held in `Freshened`, one conditional request when the day's check is due, and the Cache API as the seat of the last body rather than a lifetime (G16). The panel, src/tools/fit/fitTool.tsx, follows FITToolViewController's layout: the table's name (a click focuses the whole table), the entries as an outline in one column, Type — a row says its type and, after it, what it points at; the number, the address and the size are the detail's — over the shared ToolDetail behind a divider (the detail starts at a third), the findings as plain lines capped at eight, and the notice line. A microcode row opens a level by itself into the lines of the CPUIDs it serves — text to select and copy, not rows to choose — and a CPUID's ⓘ opens a popover of the models and S-SPECs of the CPUID table — with \"Same microcode as …\" under the group's facts where the newest update for it serves others (MicrocodeSignatures.swift, src/tools/fit/microcodeSignatures.ts) (ProcessorNames.swift, processorNames.ts; FITProcessorsPopover.swift, FitProcessorsPopover.tsx over the shared HelpPopover; fitOutline.ts decides the rows, their levels and where Add Microcode… sits: under the table's last microcode, never in the Top Swap backup's copy). The microcode form's CPUIDs have the same ⓘ. Copy CPUID is gone from the row's menu, as upstream's. The CPUID table is no resource of either edition any more: it is read from github.com/maxshevelev/IntelCPUID at run time through the one store of Packages/IntelCPUID (src/firmware/intelCpuid, src/state/processorTablesStore.ts); the panel refreshes it when it opens and builds its display again when newer tables land. The tests install upstream's fixtures (src/firmware/testing/testTables.ts). The dump outlines the tables and the one zone in focus (`publishedZones`); every zone the panel can focus is `allZones` with the catalogue's wait, cancel and named failure. The version is the row's tooltip; the problem mark and up to two role badges sit ahead of the type, and the catalogue verdict right after the word \"Microcode\" (ROW_MARKS.md; FITRowMarks.swift, fitRowMarks.ts), the panel carries the legend, and a double-click goes where the row points. No row is placed inside a protected range, so none is tinted and none wears `partlyProtected` (G3); the legend lists neither. Which zone the outline is on is remembered beside the row in fitTool.tsx and put back on every re-read by keepingTheOutline in fitDisplay.ts (FITToolSession.focusZone and .outline): a display built from the row key alone would slide it from the component the user was sent to back to the row, and the dump with it, on any edit. FITAddMicrocodeViewController is src/tools/fit/MicrocodeForm.tsx over the pure microcodeFormModel.ts: the catalogue's Intel list, searched by CPUID, part of a model's name or a whole S-SPEC (through the same table of brand names) and narrowed to the image's CPUIDs (or, replacing, the row's one), CPUID / Extended CPUIDs / Plat / Revision / Date / Release / Size with pre-releases in orange (the search finds a file by any CPUID its update serves), a button that says Add, Replace or Update for the pick, Choose File… for a microcode already on the bench, and the one file downloaded only once picked. It was missed at M9 and restored after. The row in focus and the zone the outline is on travel in the panel's parked session state, so changing to another tool and back is coming back (G12).",
       "files": {
         "FITToolViewController.swift": [
           "src/tools/fit/fitTool.tsx",
@@ -1437,8 +1449,11 @@
         ],
         "Modules/FITTool/Sources/FITTool/ProcessorNames.swift": "src/tools/fit/processorNames.ts",
         "Modules/FITTool/Tests/FITToolTests/ProcessorNamesTests.swift": "src/tools/fit/processorNames.test.ts",
-        "Modules/FITTool/Sources/FITTool/Resources/IntelCPUIDBrandNames.json": "src/tools/fit/IntelCPUIDBrandNames.json",
-        "Modules/FITTool/Sources/FITToolUI/FITProcessorsPopover.swift": "src/tools/fit/FitProcessorsPopover.tsx"
+        "Modules/FITTool/Sources/FITToolUI/FITProcessorsPopover.swift": "src/tools/fit/FitProcessorsPopover.tsx",
+        "Modules/FITTool/Sources/FITTool/MicrocodeSignatures.swift": "src/tools/fit/microcodeSignatures.ts",
+        "Modules/FITTool/Tests/FITToolTests/MicrocodeSignaturesTests.swift": "src/tools/fit/microcodeSignatures.test.ts",
+        "Modules/FITTool/Tests/FITToolTests/ProcessorTablesTests.swift": "src/tools/fit/processorTables.test.ts",
+        "Modules/FITTool/Tests/FITToolTests/TestTables.swift": "src/firmware/testing/testTables.ts"
       },
       "unported": {
         "Modules/FITTool/Sources/FITTool/FITTableProviding.swift#CachedFITTable.ranges": "n/a — the protected ranges are the pane's already (`protectedRanges` in `firmwareStore.ts`), read once and kept until an edit, so the kept table need not carry them",
@@ -2787,7 +2802,8 @@
           "src/core/navigation/navigationHistory.test.ts",
           "src/state/navigationStore.test.ts"
         ],
-        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e"
+        "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e",
+        "ByteRipperTests/FixtureProcessorTables.swift": "src/state/intelCpuidRepository.ts"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -4936,11 +4952,15 @@
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testPickingTheTablesZoneInTheDumpFocusesTheTable": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testChoosingARowDoesNotScrollTheTable": "n/a — NSOutlineView knows a row by its item's identity, so a show with new items closed and opened the tree and pulled the scroll up; the web's rows are keyed by their id (`fitOutline.ts`), and a re-render neither closes the outline nor moves its scroll",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.text": "n/a — test scaffolding",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheFormsCPUIDsHaveTheProcessorsInfo": "later — an app flow test; the port has no component or end-to-end test for it yet. Which entries have an ⓘ is `catalogueProcessorGroup` in FitProcessorsPopover.tsx",
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheFormsCPUIDsHaveTheProcessorsInfo": "later — an app flow test; the port has no component or end-to-end test for it yet. Which entries have an ⓘ is `catalogueProcessorGroup` in FitProcessorsPopover.tsx; the Extended CPUIDs column's cell is `ExtendedCpuids` in MicrocodeForm.tsx",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testACPUIDsInfoMarkListsItsProcessorsInAPopover": "later — an app flow test; the port has no component or end-to-end test for it yet. What the popover says — the head's note, the models and S-SPECs — is `processorGroups`, unit-tested in processorNames.test.ts",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheCPUIDsAreTextToSelectAndCopy": "later — an app flow test; the port has no component or end-to-end test for it yet. The lines are the page's own text and the ⓘ a button with no text, so the browser's selection and copy leave it out; the menu without Copy CPUID is checked in fitOutline.test.ts",
         "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.testTheBackupsCPUIDsAreGreyLikeItsRows": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.plate": "n/a — test scaffolding"
+        "ByteRipperTests/FITToolFlowTests.swift#FITToolFlowTests.plate": "n/a — test scaffolding",
+        "ByteRipperTests/FixtureProcessorTables.swift#FixtureProcessorTables.folder": "n/a — the fixtures are imported as text (src/firmware/testing/testTables.ts), not read off the source tree",
+        "ByteRipperTests/FixtureProcessorTables.swift#FixtureProcessorTables.tables": "n/a — `TEST_TABLES` in src/firmware/testing/testTables.ts",
+        "ByteRipperTests/FixtureProcessorTables.swift#FixtureProcessorTables.use": "later — an app flow test's swap of the source; the unit tests install the fixtures with `installTestTables`, and `setProcessorTablesSource(fixedProcessorTablesSource(…))` is the swap",
+        "ByteRipperTests/FixtureProcessorTables.swift#FixtureProcessorTables.restore": "later — an app flow test's swap of the source; see `FixtureProcessorTables.use`"
       }
     },
     {
@@ -6394,6 +6414,49 @@
       ],
       "status": "ported",
       "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
+    },
+    {
+      "swift": "Packages/IntelCPUID",
+      "web": [
+        "src/firmware/intelCpuid",
+        "src/firmware/testing/IntelCPUID",
+        "src/firmware/testing/testTables.ts",
+        "src/state/intelCpuidRepository.ts",
+        "src/state/processorTablesStore.ts"
+      ],
+      "status": "in-progress",
+      "note": "The processor tables — which processors stand behind a CPUID — read from github.com/maxshevelev/IntelCPUID at run time, and the one store every reader reads (a26c06ef, moved into this package by 2d135739). ProcessorFamily/ProcessorModel/EntryNotes are src/firmware/intelCpuid/processorFamily.ts; MicrocodeSignatures is microcodeSignatures.ts; ProcessorTables — the decode of the pair, refusing a newer formatVersion or a file it cannot read, the lenient notes of extra-entries.json, and the page's one copy with install and its change listener — is processorTables.ts. The store React reads, the swappable source and refresh are src/state/processorTablesStore.ts; ProcessorTablesSource and IntelCPUIDRepository are src/state/intelCpuidRepository.ts. The repository is the web's third-party rule (CLAUDE.md, \"Third-party data\") rather than upstream's folder of files and etags.json: each of the three files is a freshRemote — the Cache API holds the body, its validator and Freshened's two dates; a copy younger than a day is not asked about; at raw.githubusercontent.com the check is the browser's revalidation (cache: \"no-cache\"), the ETag being unreadable there — and a file that does not decode is refused before it is kept (remoteSource's `accept`), so a newer format leaves the bench and the next reload with the tables they had. The tables never wait on the notes. The FIT panel refreshes on open, silently, as upstream's does. CPUIDLookup.swift (the lookup's search) and its tests are left unclaimed for the next step, the CPUID Lookup panel, which reads processorTablesStore.",
+      "files": {
+        "Packages/IntelCPUID/Sources/IntelCPUID/ProcessorFamily.swift": "src/firmware/intelCpuid/processorFamily.ts",
+        "Packages/IntelCPUID/Sources/IntelCPUID/MicrocodeSignatures.swift": "src/firmware/intelCpuid/microcodeSignatures.ts",
+        "Packages/IntelCPUID/Sources/IntelCPUID/ProcessorTables.swift": [
+          "src/firmware/intelCpuid/processorTables.ts",
+          "src/state/processorTablesStore.ts"
+        ],
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift": "src/state/intelCpuidRepository.ts",
+        "Packages/IntelCPUID/Tests/IntelCPUIDTests/ProcessorTablesTests.swift": "src/firmware/intelCpuid/processorTables.test.ts",
+        "Packages/IntelCPUID/Tests/IntelCPUIDTests/IntelCPUIDRepositoryTests.swift": "src/state/intelCpuidRepository.test.ts",
+        "Packages/IntelCPUID/Tests/Fixtures/IntelCPUIDBrandNames.json": "src/firmware/testing/IntelCPUID/IntelCPUIDBrandNames.json",
+        "Packages/IntelCPUID/Tests/Fixtures/IntelMicrocodeSignatures.json": "src/firmware/testing/IntelCPUID/IntelMicrocodeSignatures.json"
+      },
+      "unported": {
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.session": "n/a — the web's request is `fetch`, through freshRemote",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.folder": "n/a — the kept copy is the Cache API's (freshRemote), not a folder",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.ttl": "n/a — Freshened's day, which every third-party source shares",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.now": "n/a — Freshened's clock; the tests fake `Date`",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.keptRead": "n/a — freshRemote takes up the kept copy once, before its first ask",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.checked": "n/a — Freshened's `checkedAt`, per file, kept in the Cache API",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.cacheFolder": "n/a — the kept copy is the Cache API's",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.Answer": "n/a — remoteSource's `RemoteAnswer`",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.Answer.data": "n/a — remoteSource's `RemoteAnswer`",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.Answer.etag": "n/a — remoteSource's `RemoteAnswer`",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.fetch": "n/a — remoteSource's `check`, with the browser's revalidation at raw.githubusercontent.com",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.Kept": "n/a — each file's kept copy is its own Cache API entry (freshRemote)",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.Kept.*": "n/a — each file's kept copy is its own Cache API entry (freshRemote)",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.notesFile": "n/a — the Cache API keys the kept notes by their URL",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.readKept": "n/a — freshRemote's seed reads the kept copy",
+        "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.keep": "n/a — remoteSource keeps a body once `accept` has read it"
+      }
     }
   ]
 }

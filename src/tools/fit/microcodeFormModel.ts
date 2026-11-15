@@ -1,4 +1,5 @@
 import { L } from "@/core/localization/localization";
+import type { ProcessorTables } from "@/firmware/intelCpuid/processorTables";
 import {
   catalogueCounts,
   filterCatalogue,
@@ -85,9 +86,13 @@ export function shownEntries(
   entries: readonly MicrocodeCatalogueEntry[],
   mode: MicrocodeFormMode,
   search: string,
-  narrowed: boolean
+  narrowed: boolean,
+  tables?: ProcessorTables
 ): MicrocodeCatalogueEntry[] {
   return filterCatalogue(entries, {
+    // The processor tables the search reads — a model, an S-SPEC, an extended
+    // CPUID — the ones in hand when not given.
+    ...(tables === undefined ? {} : { processors: tables.families, signatures: tables.microcode }),
     vendor: "Intel",
     // A hidden field does not keep filtering from behind the scenes.
     search: searchIsHidden(mode, narrowed) ? "" : search,

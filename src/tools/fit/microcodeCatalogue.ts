@@ -1,13 +1,12 @@
+import type { MicrocodeSignatures } from "@/firmware/intelCpuid/microcodeSignatures";
+import { familyMatches, type ProcessorFamily } from "@/firmware/intelCpuid/processorFamily";
+import { currentProcessorTables } from "@/firmware/intelCpuid/processorTables";
 import {
   type MicrocodeHeader,
   microcodeCpuid,
   microcodeProcessorPlatforms,
 } from "@/firmware/uefi/microcodeParser";
-import {
-  familyMatches,
-  type ProcessorFamily,
-  SHIPPED_PROCESSORS,
-} from "@/tools/fit/processorNames";
+import { extendedCpuids } from "@/tools/fit/microcodeSignatures";
 
 /**
  * The list of what can be added, read from the repository's file names.
@@ -269,10 +268,13 @@ export function filterCatalogue(
     readonly search?: string;
     readonly cpuidsInTheImage?: ReadonlySet<number> | undefined;
     readonly processors?: readonly ProcessorFamily[];
+    readonly signatures?: MicrocodeSignatures;
   } = {}
 ): MicrocodeCatalogueEntry[] {
   const needle = (options.search ?? "").trim().toUpperCase();
-  const named = familiesNamed(needle, options.processors ?? SHIPPED_PROCESSORS);
+  const tables = currentProcessorTables();
+  const signatures = options.signatures ?? tables.microcode;
+  const named = familiesNamed(needle, options.processors ?? tables.families);
   return entries.filter((entry) => {
     if (options.vendor !== undefined && entry.vendor !== options.vendor) return false;
     if (options.cpuidsInTheImage !== undefined) {
@@ -284,10 +286,17 @@ export function filterCatalogue(
     // through the table of brand names and turned into the CPUIDs it is sold
     // with. Not the revision or the file name: they are the catalogue's, and
     // matching them is a guess about which the user meant.
-    if (entry.cpuidText.startsWith(needle)) return true;
+    //
+    // An update with an extended signature table serves each CPUID it lists,
+    // so a search finds it by any of them, not only by the one its file is
+    // named after.
+    const extended = extendedCpuids(entry, signatures);
+    if (entry.cpuidText.startsWith(needle) || extended.some((one) => one.startsWith(needle))) {
+      return true;
+    }
     if (entry.vendor !== "Intel" || named.length === 0 || entry.cpuid === undefined) return false;
-    const text = microcodeCpuid(entry.cpuid);
-    return named.some((family) => familyMatches(family, text));
+    const served = [microcodeCpuid(entry.cpuid), ...extended];
+    return named.some((family) => served.some((one) => familyMatches(family, one)));
   });
 }
 

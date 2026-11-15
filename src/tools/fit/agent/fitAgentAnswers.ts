@@ -18,6 +18,7 @@ import {
   type MicrocodeCatalogueEntry,
   platformText,
 } from "@/tools/fit/microcodeCatalogue";
+import { extendedCpuids } from "@/tools/fit/microcodeSignatures";
 
 /**
  * What the FIT panel answers an agent from the bytes alone, with the panel open or not
@@ -146,17 +147,20 @@ export const MICROCODE_CATALOGUE = {
     "catalogue the FIT panel's Add Microcode lists — read from the file names, so nothing is " +
     "downloaded. Each file: `path` (pass it to `fit_add_microcode` or `fit_replace_microcode`), " +
     "CPUID, platform mask, revision, date, `production` (false for a pre-release), size. One update " +
-    "with an extended signature table is filed once under each processor it serves. With " +
+    "with an extended signature table is filed once under each processor it serves, and a file lists " +
+    "the other CPUIDs its update serves as `extended_cpuids`. With " +
     "`in_image`, only files for processors the image's FIT microcodes serve — their extended " +
     "tables' included — and `installed` says each microcode row's processors and platforms, its " +
     "revision and how it stands against the catalogue (`latest`, `outdated` with the newest " +
     "revision, `undecided` where a newer file's platform mask only partly meets the installed " +
     "one's, so the board's own platform decides, `not_rated`); a file then says which rows it " +
-    "`serves_rows` and whether it is `newer_than_installed`. `cpuid` narrows by the CPUID's " +
-    "first digits. Pages: `limit` is a ceiling — a page also stops before the answer passes the " +
+    "`serves_rows` and whether it is `newer_than_installed`. `cpuid` narrows by the first " +
+    "digits of the file's CPUID or of one of its `extended_cpuids`. Pages: `limit` is a ceiling — a page also stops before the answer passes the " +
     'size bound and says `truncated: "size"`; pass `next` back as `after` until it is null.',
   properties: {
-    cpuid: AgentSchema.string('Only files whose CPUID starts with this, e.g. "906E".'),
+    cpuid: AgentSchema.string(
+      'Only files whose CPUID, or one of whose extended CPUIDs, starts with this, e.g. "906E".'
+    ),
     in_image: AgentSchema.boolean(
       "Only files for processors the image's microcodes serve, and how each row stands. Default false."
     ),
@@ -285,6 +289,10 @@ function entryJson(entry: MicrocodeCatalogueEntry, installed: readonly FITRow[])
     production: entry.isProduction,
     size: hex(entry.size),
   };
+  // The other CPUIDs the file's update serves (its extended signature table),
+  // as the form's Extended CPUIDs column shows them.
+  const extended = extendedCpuids(entry);
+  if (extended.length > 0) members.extended_cpuids = extended;
   const rows = installed.filter((row) => {
     if (row.target.kind !== "microcode" || entry.cpuid === undefined) return false;
     const mask = entry.platformID ?? 0;

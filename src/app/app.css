@@ -4890,9 +4890,10 @@ button.uefi-title {
 
 /* MARK: - The microcode form (`tools/fit/MicrocodeForm`) */
 
+/* Wider by the Extended CPUIDs column, as upstream's sheet is (560 to 700 points). */
 .microcode-dialog {
-  width: min(40rem, 94vw);
-  max-width: min(40rem, 94vw);
+  width: min(50rem, 94vw);
+  max-width: min(50rem, 94vw);
 }
 
 .microcode-filters {

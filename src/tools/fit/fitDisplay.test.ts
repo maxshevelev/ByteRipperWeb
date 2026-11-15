@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT } from "@/firmware/fit/fitEntry";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode, type TestRow } from "@/firmware/testing/testFit";
+import { installTestTables } from "@/firmware/testing/testTables";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { makeNode } from "@/firmware/uefi/uefiNode";
 import {
@@ -23,6 +24,10 @@ import {
   zoneToFocus,
 } from "@/tools/fit/fitDisplay";
 import { entryAt, type MicrocodeCatalogueEntry } from "@/tools/fit/microcodeCatalogue";
+
+// The repository's processor tables, as upstream's fixtures hold them: the app has none
+// of its own (`FITDisplayTests.setUp`).
+beforeEach(installTestTables);
 
 /**
  * What the panel draws, decided here so the component has no decisions left in

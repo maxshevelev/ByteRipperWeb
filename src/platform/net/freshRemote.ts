@@ -34,7 +34,8 @@ export interface FreshRemote<Value> {
 /**
  * The file at `url`, held fresh, as what `parse` reads off its text. A copy that
  * does not parse is no copy: the next ask fetches the file again. A fetched file
- * that does not parse is the ask's error.
+ * that does not parse is the ask's error, and is not kept: the copy the Cache
+ * API holds stays the last one that parsed.
  *
  * @upstream Packages/MEFirmware/Sources/MEFirmware/Data/MEAGitHubDataRepository.swift#MEAGitHubDataRepository.check
  * @upstream-differs one source per file, each seeded from the copy the Cache API kept, where upstream's repository holds its three files' `Freshened` itself and keeps nothing between runs; and the request is `remoteSource`'s, which asks the browser to revalidate where a script cannot read the validator
@@ -67,10 +68,21 @@ export function freshRemote<Value>(
     async value(signal) {
       await seed();
       return held.value(async (validator) => {
-        const answer = await remote.check(validator, signal === undefined ? {} : { signal });
-        return answer.kind === "unchanged"
-          ? { kind: "unchanged" }
-          : { kind: "fresh", value: parse(answer.text), validator: answer.validator };
+        // Read before it is kept: a file that does not parse is the ask's
+        // error and leaves the kept copy as it was.
+        let read: { readonly value: Value } | undefined;
+        const answer = await remote.check(validator, {
+          ...(signal === undefined ? {} : { signal }),
+          accept: (text) => {
+            read = { value: parse(text) };
+          },
+        });
+        if (answer.kind === "unchanged") return { kind: "unchanged" };
+        return {
+          kind: "fresh",
+          value: read === undefined ? parse(answer.text) : read.value,
+          validator: answer.validator,
+        };
       });
     },
     changes: (listener) => held.changes(listener),

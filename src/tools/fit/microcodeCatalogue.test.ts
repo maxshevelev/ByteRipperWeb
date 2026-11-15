@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
+import { familyMatches, type ProcessorFamily } from "@/firmware/intelCpuid/processorFamily";
 import { fitMicrocode } from "@/firmware/testing/testFit";
+import { installTestTables } from "@/firmware/testing/testTables";
 import { type MicrocodeHeader, readMicrocodeHeader } from "@/firmware/uefi/microcodeParser";
 import {
   catalogueCounts,
@@ -14,11 +16,7 @@ import {
   type MicrocodeCatalogueEntry,
   platformText,
 } from "@/tools/fit/microcodeCatalogue";
-import {
-  familyMatches,
-  type ProcessorFamily,
-  SHIPPED_PROCESSORS,
-} from "@/tools/fit/processorNames";
+import { currentProcessors } from "@/tools/fit/processorNames";
 
 /**
  * The list of microcode that can be browsed and added, read from the file names
@@ -168,6 +166,10 @@ describe("reading a file name", () => {
 });
 
 describe("narrowing it down", () => {
+  // The repository's table, as upstream's fixtures hold it: the app has none of
+  // its own.
+  beforeEach(installTestTables);
+
   // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheVendorDecidesWhatIsListed
   it("lists by vendor", () => {
     // Only Intel is ever offered — a FIT names no other kind — but all four are
@@ -231,13 +233,13 @@ describe("narrowing it down", () => {
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/MicrocodeCatalogueTests.swift#MicrocodeCatalogueTests.testTheShippedTableFindsAlderLakeByModelAndSSpec
-  it("finds Alder Lake in the shipped table by model and by S-SPEC", () => {
-    const named = familiesNamed("12800H", SHIPPED_PROCESSORS);
+  it("finds Alder Lake in the repository's table by model and by S-SPEC", () => {
+    const named = familiesNamed("12800H", currentProcessors());
     expect(
       named.some((family) => familyMatches(family, "906A3")),
       "i7-12800H is Alder Lake-P/H"
     ).toBe(true);
-    const bySSpec = familiesNamed("SRLFU", SHIPPED_PROCESSORS);
+    const bySSpec = familiesNamed("SRLFU", currentProcessors());
     expect(
       bySSpec.some((family) => familyMatches(family, "906A4")),
       "SRLFU is the i3-1215U"

@@ -778,6 +778,8 @@
 "Processors" = "Процессоры";
 "Show the processors with this CPUID" = "Показать процессоры с этим CPUID";
 "Stepping %1$@" = "Степпинг %1$@";
+"Same microcode as %1$@" = "Тот же микрокод, что у %1$@";
+"Extended CPUIDs" = "Расширенные CPUID";
 "Range" = "Диапазон";
 "RBE/PM Metadata" = "Метаданные RBE/PM";
 "Read" = "Чтение";

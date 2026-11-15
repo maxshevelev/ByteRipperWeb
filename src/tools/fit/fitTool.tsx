@@ -23,6 +23,7 @@ import {
   microcodeDownloadMessage,
 } from "@/state/microcodeCatalogueStore";
 import type { ToolSessionState } from "@/state/parkedToolState";
+import { processorTablesStore, refreshProcessorTables } from "@/state/processorTablesStore";
 import { applyTransaction } from "@/state/toolEdits";
 import { useStore } from "@/state/useStore";
 import { clearZones, publishZones } from "@/state/zoneStore";
@@ -202,6 +203,15 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   const pane = context.pane;
   const firmware = useStore(firmwareStore).panes[pane];
   const catalogue = useStore(microcodeCatalogueStore);
+  /**
+   * The processor tables the CPUID lines and their ⓘ read: the repository's,
+   * and a table already on screen names its processors again when newer ones
+   * land.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.tablesWatch
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.tablesChanged
+   */
+  const processorTables = useStore(processorTablesStore);
   // The split this panel's details fold out of; the card open over another panel leaves it be.
   const detailSplit = useRef<HTMLDivElement>(null);
   const detailLarge = useLargeDetailOf(detailSplit);
@@ -335,6 +345,16 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   }, []);
 
   /**
+   * The processor tables are the repository's, read when the panel opens (at
+   * most once a day) and kept from the last good read.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITToolModule.swift#FITToolSession.loadTheTables
+   */
+  useEffect(() => {
+    void refreshProcessorTables();
+  }, []);
+
+  /**
    * What this session would hand back if it ended now: the row in focus and
    * which zone of it was in front.
    *
@@ -437,7 +457,10 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
   // The verdicts ride on top of the display rather than inside the read: a
   // catalogue landing late must change the marks and nothing else. The outline
   // is put back where the user left it last, since a display built from the row
-  // key alone would slide it back to the row on every re-read.
+  // key alone would slide it back to the row on every re-read. The processor
+  // tables are read by `fitDisplay` itself — the CPUID lines' code names and
+  // their ⓘ — so newer ones are a reason to build the display again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the processor tables, as said above
   const display: FITDisplay = useMemo(() => {
     if (report === undefined) return EMPTY_DISPLAY;
     const rated = ratingLatest(fitDisplay(report, focus), catalogue.entries);
@@ -445,7 +468,7 @@ function FitToolView({ context }: { readonly context: ToolContext }) {
     // changes the marks and leaves the map where it is.
     const built = protecting(rated, domainRanges(firmware?.protectedRanges?.ranges));
     return keepingTheOutline(built, focusZone);
-  }, [report, focus, focusZone, catalogue.entries, firmware?.protectedRanges]);
+  }, [report, focus, focusZone, catalogue.entries, firmware?.protectedRanges, processorTables]);
 
   // Whatever the panel has decided is worth drawing, handed to the shell.
   useEffect(() => {

@@ -1,10 +1,7 @@
-import { describe, expect, it } from "vitest";
-import {
-  type ProcessorFamily,
-  processorFamilies,
-  processorGroups,
-  SHIPPED_PROCESSORS,
-} from "@/tools/fit/processorNames";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { ProcessorFamily } from "@/firmware/intelCpuid/processorFamily";
+import { installTestTables } from "@/firmware/testing/testTables";
+import { currentProcessors, processorFamilies, processorGroups } from "@/tools/fit/processorNames";
 
 /** Which processors a CPUID is — upstream's `ProcessorNamesTests`. */
 
@@ -31,10 +28,14 @@ const catalogue: readonly ProcessorFamily[] = [
 ];
 
 describe("the table of brand names", () => {
+  // The repository's table, as upstream's fixtures hold it: the app has none of
+  // its own.
+  beforeEach(installTestTables);
+
   // @upstream Modules/FITTool/Tests/FITToolTests/ProcessorNamesTests.swift#ProcessorNamesTests.testTheShippedTableIsRead
-  it("ships with the app", () => {
-    expect(SHIPPED_PROCESSORS.length).toBeGreaterThan(50);
-    expect(processorFamilies([0x906ea])).not.toEqual([]);
+  it("is read from the repository", () => {
+    expect(currentProcessors().length).toBeGreaterThan(50);
+    expect(processorFamilies([0x906ea]), "906EA is in the repository's table").not.toEqual([]);
   });
 
   // @upstream Modules/FITTool/Tests/FITToolTests/ProcessorNamesTests.swift#ProcessorNamesTests.testTheShippedTableHasTheExtraEntries
@@ -95,6 +96,7 @@ describe("the table of brand names", () => {
           { kind: "model", text: "Core i7-8750H", detail: "SR3YY" },
           { kind: "model", text: "Core i7-8700", detail: "" },
         ],
+        sharesMicrocodeWith: [],
       },
     ]);
   });

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { L, localized } from "@/core/localization/localization";
+import { processorTablesStore } from "@/state/processorTablesStore";
+import { useStore } from "@/state/useStore";
 import {
   catalogueProcessorGroup,
   FitProcessorsPopover,
@@ -18,6 +20,7 @@ import {
   shownEntries,
   sizeText,
 } from "@/tools/fit/microcodeFormModel";
+import { extendedCpuids } from "@/tools/fit/microcodeSignatures";
 import type { FITProcessorGroup } from "@/tools/fit/processorNames";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
@@ -45,6 +48,10 @@ const COLUMNS = localized(
     [
       // Room for the CPUID and the `ⓘ` after it.
       { title: L("CPUID"), width: 109 },
+      // The other CPUIDs the file's update serves — its extended signature
+      // table — which the search finds it by too.
+      // help: panel.fit
+      { title: L("Extended CPUIDs"), width: 177 },
       { title: L("Plat", { context: "column" }), width: 54 },
       { title: L("Revision"), width: 87 },
       { title: L("Date"), width: 106 },
@@ -98,10 +105,17 @@ export function MicrocodeForm({
   >(undefined);
   const closeProcessors = useCallback(() => setProcessors(undefined), []);
   const observerRef = useRef<ResizeObserver | null>(null);
+  /**
+   * The processor tables: the Extended CPUIDs and the `ⓘ`s are theirs, and the
+   * search reads them too — so newer ones narrow the list again.
+   *
+   * @upstream Modules/FITTool/Sources/FITToolUI/FITAddMicrocodeViewController.swift#FITAddMicrocodeViewController.tablesChanged
+   */
+  const tables = useStore(processorTablesStore);
 
   const shown = useMemo(
-    () => shownEntries(entries, mode, search, narrowed),
-    [entries, mode, search, narrowed]
+    () => shownEntries(entries, mode, search, narrowed, tables),
+    [entries, mode, search, narrowed, tables]
   );
   const selected = shown.find((one) => one.path === selectedPath);
   const busy = status?.busy === true;
@@ -254,6 +268,7 @@ export function MicrocodeForm({
                       onInfo={(group, anchor) => setProcessors({ group, anchor })}
                     />
                   </td>
+                  <ExtendedCpuids entry={one} />
                   <td>{platformText(one)}</td>
                   <td>{one.revisionText}</td>
                   <td>{one.date}</td>
@@ -305,6 +320,16 @@ export function MicrocodeForm({
       )}
     </Dialog>
   );
+}
+
+/**
+ * The Extended CPUIDs column's cell: the other CPUIDs the file's update serves,
+ * cut short where the column is, and whole in its tooltip — what upstream's
+ * `tableView(_:viewFor:row:)` puts in the column's cell.
+ */
+function ExtendedCpuids({ entry }: { readonly entry: MicrocodeCatalogueEntry }) {
+  const extended = extendedCpuids(entry).join(", ");
+  return <td title={extended.length === 0 ? undefined : extended}>{extended}</td>;
 }
 
 /**

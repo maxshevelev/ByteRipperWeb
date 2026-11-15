@@ -69,4 +69,18 @@ describe("a file kept fresh", () => {
 
     await expect(freshRemote(URL, number).value()).rejects.toThrow("not a number");
   });
+
+  // @web-only the copy a reload starts from is the Cache API's, and a file this build cannot read
+  // must not replace it (`IntelCPUIDRepositoryTests.testANewerFormatLeavesTheTablesAsTheyWere`)
+  it("keeps no fetched file that does not parse", async () => {
+    const put = vi.fn(async () => undefined);
+    vi.stubGlobal("caches", { open: async () => ({ match: async () => undefined, put }) });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("garbage"))
+    );
+
+    await expect(freshRemote(URL, number).value()).rejects.toThrow("not a number");
+    expect(put).not.toHaveBeenCalled();
+  });
 });

@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT } from "@/firmware/fit/fitEntry";
 import { readFitTable } from "@/firmware/fit/fitTable";
 import { ImageReader } from "@/firmware/imageReader";
 import { fitImage, fitMicrocode, type TestRow } from "@/firmware/testing/testFit";
+import { installTestTables } from "@/firmware/testing/testTables";
 import { UEFIImage } from "@/firmware/uefi/uefiImage";
 import { type FITDisplay, fitDisplay, rowCommands } from "@/tools/fit/fitDisplay";
 import {
@@ -16,6 +17,10 @@ import {
   outlineItemKey,
   withOpening,
 } from "@/tools/fit/fitOutline";
+
+// The repository's processor tables, as upstream's fixtures hold them: the app has none
+// of its own (`FITDisplayTests.setUp`).
+beforeEach(installTestTables);
 
 /**
  * The FIT table as an outline — the rows upstream's `FITToolFlowTests` counts
@@ -94,7 +99,7 @@ describe("the FIT table as an outline", () => {
       [
         { signature: 0x000b_06a2, platformIDs: 1 },
         { signature: 0x000b_06a3, platformIDs: 1 },
-        { signature: 0x000b_06a8, platformIDs: 1 },
+        { signature: 0x000b_06a9, platformIDs: 1 },
       ]
     );
     const rows = fitOutlineRows(shown);
@@ -108,10 +113,10 @@ describe("the FIT table as an outline", () => {
     const row = shown.rows[1];
     if (row === undefined) throw new Error("the fixture has a microcode");
     const lines = cpuidLines(row);
-    expect(lines.map((line) => line.cpuid)).toEqual(["CPUID B06A2", "CPUID B06A3", "CPUID B06A8"]);
+    expect(lines.map((line) => line.cpuid)).toEqual(["CPUID B06A2", "CPUID B06A3", "CPUID B06A9"]);
     expect(lines[0]?.hasInfo).toBe(true);
     expect(lines[2], "the CPUID alone: the table knows no names for it").toEqual({
-      cpuid: "CPUID B06A8",
+      cpuid: "CPUID B06A9",
       names: "",
       hasInfo: false,
     });

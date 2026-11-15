@@ -1,0 +1,359 @@
+{
+  "formatVersion": 1,
+  "source": {
+    "repository": "https://github.com/platomav/CPUMicrocodes",
+    "commit": "53e47114a0612cba145f9f4bbe882d1a74ab95b1",
+    "retrieved": "2026-11-13"
+  },
+  "about": "Intel microcode updates whose extended signature table names more than one CPUID, read from the files of the collection at the commit given: one update, the same data, for each CPUID and platform set listed. files are the collection's copies of it, one per CPUID it serves.",
+  "updates": [
+    {
+      "revision": "81F",
+      "date": "2014-08-12",
+      "signatures": [
+        {
+          "cpuid": "406A8",
+          "platforms": "01"
+        },
+        {
+          "cpuid": "406A9",
+          "platforms": "01"
+        }
+      ],
+      "files": [
+        "Intel/cpu406A8_plat01_ver0000081F_2014-08-12_PRD_1EC9E61C.bin",
+        "Intel/cpu406A9_plat01_ver0000081F_2014-08-12_PRD_1EC9E61B.bin"
+      ]
+    },
+    {
+      "revision": "42",
+      "date": "2019-04-20",
+      "signatures": [
+        {
+          "cpuid": "706E1",
+          "platforms": "80"
+        },
+        {
+          "cpuid": "706E2",
+          "platforms": "80"
+        }
+      ],
+      "files": [
+        "Intel/cpu706E1_plat80_ver00000042_2019-04-20_PRD_A8218BC2.bin",
+        "Intel/cpu706E2_plat80_ver00000042_2019-04-20_PRD_A8218BC1.bin"
+      ]
+    },
+    {
+      "revision": "4C000025",
+      "date": "2023-09-26",
+      "signatures": [
+        {
+          "cpuid": "80664",
+          "platforms": "01"
+        },
+        {
+          "cpuid": "80665",
+          "platforms": "01"
+        },
+        {
+          "cpuid": "80667",
+          "platforms": "01"
+        }
+      ],
+      "files": [
+        "Intel/cpu80664_plat01_ver4C000025_2023-09-26_PRD_67136461.bin"
+      ]
+    },
+    {
+      "revision": "4C000026",
+      "date": "2024-02-28",
+      "signatures": [
+        {
+          "cpuid": "80665",
+          "platforms": "01"
+        },
+        {
+          "cpuid": "80667",
+          "platforms": "01"
+        }
+      ],
+      "files": [
+        "Intel/cpu80665_plat01_ver4C000026_2024-02-28_PRD_EF7C50E4.bin",
+        "Intel/cpu80667_plat01_ver4C000026_2024-02-28_PRD_EF7C50E2.bin"
+      ]
+    },
+    {
+      "revision": "2B000685",
+      "date": "2026-03-02",
+      "signatures": [
+        {
+          "cpuid": "806F4",
+          "platforms": "87"
+        },
+        {
+          "cpuid": "806F5",
+          "platforms": "87"
+        },
+        {
+          "cpuid": "806F6",
+          "platforms": "87"
+        },
+        {
+          "cpuid": "806F7",
+          "platforms": "87"
+        },
+        {
+          "cpuid": "806F8",
+          "platforms": "87"
+        }
+      ],
+      "files": [
+        "Intel/cpu806F4_plat87_ver2B000685_2026-03-02_PRD_2847E9B2.bin",
+        "Intel/cpu806F5_plat87_ver2B000685_2026-03-02_PRD_2847E9B1.bin",
+        "Intel/cpu806F6_plat87_ver2B000685_2026-03-02_PRD_2847E9B0.bin",
+        "Intel/cpu806F7_plat87_ver2B000685_2026-03-02_PRD_2847E9AF.bin",
+        "Intel/cpu806F8_plat87_ver2B000685_2026-03-02_PRD_2847E9AE.bin"
+      ]
+    },
+    {
+      "revision": "2C000435",
+      "date": "2026-03-02",
+      "signatures": [
+        {
+          "cpuid": "806F4",
+          "platforms": "10"
+        },
+        {
+          "cpuid": "806F5",
+          "platforms": "10"
+        },
+        {
+          "cpuid": "806F6",
+          "platforms": "10"
+        },
+        {
+          "cpuid": "806F8",
+          "platforms": "10"
+        }
+      ],
+      "files": [
+        "Intel/cpu806F4_plat10_ver2C000435_2026-03-02_PRD_9A5A7D49.bin",
+        "Intel/cpu806F5_plat10_ver2C000435_2026-03-02_PRD_9A5A7D48.bin",
+        "Intel/cpu806F6_plat10_ver2C000435_2026-03-02_PRD_9A5A7D47.bin",
+        "Intel/cpu806F8_plat10_ver2C000435_2026-03-02_PRD_9A5A7D45.bin"
+      ]
+    },
+    {
+      "revision": "1C",
+      "date": "2021-06-14",
+      "signatures": [
+        {
+          "cpuid": "90671",
+          "platforms": "82"
+        },
+        {
+          "cpuid": "906A0",
+          "platforms": "82"
+        }
+      ],
+      "files": [
+        "Intel/cpu90671_plat82_ver0000001C_2021-06-14_PRD_41B7E16B.bin",
+        "Intel/cpu906A0_plat82_ver0000001C_2021-06-14_PRD_41B7E13C.bin"
+      ]
+    },
+    {
+      "revision": "3E",
+      "date": "2025-10-12",
+      "signatures": [
+        {
+          "cpuid": "90672",
+          "platforms": "07"
+        },
+        {
+          "cpuid": "90675",
+          "platforms": "07"
+        },
+        {
+          "cpuid": "B06F2",
+          "platforms": "07"
+        },
+        {
+          "cpuid": "B06F5",
+          "platforms": "07"
+        },
+        {
+          "cpuid": "B06F6",
+          "platforms": "07"
+        },
+        {
+          "cpuid": "B06F7",
+          "platforms": "07"
+        }
+      ],
+      "files": [
+        "Intel/cpu90672_plat07_ver0000003E_2025-10-12_PRD_5584AFA0.bin",
+        "Intel/cpu90675_plat07_ver0000003E_2025-10-12_PRD_5584AF9D.bin",
+        "Intel/cpuB06F2_plat07_ver0000003E_2025-10-12_PRD_5582AF20.bin",
+        "Intel/cpuB06F5_plat07_ver0000003E_2025-10-12_PRD_5582AF1D.bin",
+        "Intel/cpuB06F6_plat07_ver0000003E_2025-10-12_PRD_5582AF1C.bin",
+        "Intel/cpuB06F7_plat07_ver0000003E_2025-10-12_PRD_5582AF1B.bin"
+      ]
+    },
+    {
+      "revision": "43B",
+      "date": "2025-10-12",
+      "signatures": [
+        {
+          "cpuid": "906A3",
+          "platforms": "80"
+        },
+        {
+          "cpuid": "906A4",
+          "platforms": "80"
+        }
+      ],
+      "files": [
+        "Intel/cpu906A3_plat80_ver0000043B_2025-10-12_PRD_BAEB19F2.bin",
+        "Intel/cpu906A4_plat80_ver0000043B_2025-10-12_PRD_BAEB19F1.bin"
+      ]
+    },
+    {
+      "revision": "137",
+      "date": "2026-02-18",
+      "signatures": [
+        {
+          "cpuid": "B0671",
+          "platforms": "36"
+        },
+        {
+          "cpuid": "B0674",
+          "platforms": "36"
+        },
+        {
+          "cpuid": "D0670",
+          "platforms": "36"
+        }
+      ],
+      "files": [
+        "Intel/cpuB0671_plat36_ver00000137_2026-02-18_PRD_FF5416EC.bin",
+        "Intel/cpuB0674_plat36_ver00000137_2026-02-18_PRD_FF5416E9.bin",
+        "Intel/cpuD0670_plat36_ver00000137_2026-02-18_PRD_FF5216ED.bin"
+      ]
+    },
+    {
+      "revision": "6134",
+      "date": "2025-10-08",
+      "signatures": [
+        {
+          "cpuid": "B06A2",
+          "platforms": "E0"
+        },
+        {
+          "cpuid": "B06A3",
+          "platforms": "E0"
+        },
+        {
+          "cpuid": "B06A8",
+          "platforms": "E0"
+        }
+      ],
+      "files": [
+        "Intel/cpuB06A2_platE0_ver00006134_2025-10-08_PRD_49EC5AE3.bin",
+        "Intel/cpuB06A3_platE0_ver00006134_2025-10-08_PRD_49EC5AE2.bin",
+        "Intel/cpuB06A8_platE0_ver00006134_2025-10-08_PRD_49EC5ADD.bin"
+      ]
+    },
+    {
+      "revision": "122",
+      "date": "2026-02-18",
+      "signatures": [
+        {
+          "cpuid": "C0652",
+          "platforms": "82"
+        },
+        {
+          "cpuid": "C0662",
+          "platforms": "82"
+        },
+        {
+          "cpuid": "C0664",
+          "platforms": "82"
+        },
+        {
+          "cpuid": "C06A2",
+          "platforms": "82"
+        }
+      ],
+      "files": [
+        "Intel/cpuC0652_plat82_ver00000122_2026-02-18_PRD_2CF66F5C.bin",
+        "Intel/cpuC0662_plat82_ver00000122_2026-02-18_PRD_2CF66F4C.bin",
+        "Intel/cpuC0664_plat82_ver00000122_2026-02-18_PRD_2CF66F4A.bin",
+        "Intel/cpuC06A2_plat82_ver00000122_2026-02-18_PRD_2CF66F0C.bin"
+      ]
+    },
+    {
+      "revision": "11C",
+      "date": "2026-04-20",
+      "signatures": [
+        {
+          "cpuid": "C06C1",
+          "platforms": "94"
+        },
+        {
+          "cpuid": "C06C2",
+          "platforms": "94"
+        },
+        {
+          "cpuid": "C06C3",
+          "platforms": "94"
+        },
+        {
+          "cpuid": "E0652",
+          "platforms": "94"
+        }
+      ],
+      "files": [
+        "Intel/cpuC06C1_plat94_ver0000011C_2026-04-20_PRD_3754C7C7.bin",
+        "Intel/cpuC06C2_plat94_ver0000011C_2026-04-20_PRD_3754C7C6.bin",
+        "Intel/cpuC06C3_plat94_ver0000011C_2026-04-20_PRD_3754C7C5.bin",
+        "Intel/cpuE0652_plat94_ver0000011C_2026-04-20_PRD_3752C836.bin"
+      ]
+    },
+    {
+      "revision": "210002F4",
+      "date": "2026-03-02",
+      "signatures": [
+        {
+          "cpuid": "C06F1",
+          "platforms": "87"
+        },
+        {
+          "cpuid": "C06F2",
+          "platforms": "87"
+        }
+      ],
+      "files": [
+        "Intel/cpuC06F1_plat87_ver210002F4_2026-03-02_PRD_A3CE495E.bin",
+        "Intel/cpuC06F2_plat87_ver210002F4_2026-03-02_PRD_A3CE495D.bin"
+      ]
+    },
+    {
+      "revision": "D",
+      "date": "2026-06-21",
+      "signatures": [
+        {
+          "cpuid": "D0650",
+          "platforms": "C0"
+        },
+        {
+          "cpuid": "D0651",
+          "platforms": "C0"
+        }
+      ],
+      "files": [
+        "Intel/cpuD0650_platC0_ver0000000D_2026-06-21_PRD_5079731F.bin",
+        "Intel/cpuD0651_platC0_ver0000000D_2026-06-21_PRD_5079731E.bin"
+      ]
+    }
+  ]
+}

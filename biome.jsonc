@@ -14,9 +14,10 @@
       "!Design",
       "!desktop/web",
       "!desktop/release",
-      // Upstream's resource, copied as it ships (`processorNames.ts`): a
-      // reformat would make every port of it a diff against upstream's bytes.
-      "!src/tools/fit/IntelCPUIDBrandNames.json"
+      // Upstream's test fixtures — a copy of github.com/maxshevelev/IntelCPUID's
+      // two files (`testTables.ts`): a reformat would make every refresh of
+      // them a diff against upstream's bytes.
+      "!src/firmware/testing/IntelCPUID"
     ]
   },
   "formatter": {
