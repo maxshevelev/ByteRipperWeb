@@ -536,14 +536,16 @@ export function addOrReplaceMicrocode(
   addressDiff: number,
   protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITEditOutcome> {
-  return checkingProtection(
-    mirroredIntoTopSwap(
+  // The top block's change is checked, and then carried into the backup — the
+  // order upstream has it in: the ranges are the top block's.
+  return mirroredIntoTopSwap(
+    checkingProtection(
       addOrReplaceMicrocodeInTheTopBlock(component, table, image, reader, addressDiff),
-      table,
-      reader
+      reader,
+      protectedRanges
     ),
-    reader,
-    protectedRanges
+    table,
+    reader
   );
 }
 
@@ -562,14 +564,16 @@ export function replaceMicrocodeAt(
   addressDiff: number,
   protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITEditOutcome> {
-  return checkingProtection(
-    mirroredIntoTopSwap(
+  // The top block's change is checked, and then carried into the backup — the
+  // order upstream has it in: the ranges are the top block's.
+  return mirroredIntoTopSwap(
+    checkingProtection(
       replaceMicrocodeInTheTopBlock(index, component, table, image, reader, addressDiff),
-      table,
-      reader
+      reader,
+      protectedRanges
     ),
-    reader,
-    protectedRanges
+    table,
+    reader
   );
 }
 
@@ -587,14 +591,16 @@ export function removeMicrocodeAt(
   addressDiff: number,
   protectedRanges?: ProtectedRanges | undefined
 ): FITEdit<FITRemovalOutcome> {
-  return checkingProtection(
-    mirroredIntoTopSwap(
+  // The top block's change is checked, and then carried into the backup — the
+  // order upstream has it in: the ranges are the top block's.
+  return mirroredIntoTopSwap(
+    checkingProtection(
       removeMicrocodeFromTheTopBlock(index, table, image, reader, addressDiff),
-      table,
-      reader
+      reader,
+      protectedRanges
     ),
-    reader,
-    protectedRanges
+    table,
+    reader
   );
 }
 
