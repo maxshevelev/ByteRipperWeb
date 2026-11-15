@@ -1,4 +1,4 @@
-@source-sha 8c309e0d17eac36b524ec64b5336eb44a59b88886db2c79b065d962077ae75de
+@source-sha c07655d1376f626e1430e67ac7e88335bbb54089529210b003fb80f8e095c458
 # Die Online-Kataloge
 
 > Vier öffentliche Kataloge, die Kennungen aus einem Dump mit Namen versehen. Ohne Zugriff auf sie ist das Programm voll funktionsfähig, zeigt die zusätzlichen Angaben aber nicht an.
@@ -8,7 +8,7 @@ Ein Teil dessen, was die Werkzeugbereiche zeigen, steht gar nicht in der Datei �
 - **UEFI-GUID-Namen** — aus dem UEFITool-Projekt. Sie sind es, die das [[topic:tool-uefi|UEFI-Werkzeug]] statt einer nackten [[term:guid|GUID]] „AmiBoardInfo“ oder „DxeCore“ anzeigen lassen.
 - **CPU-Microcode** — aus der Sammlung CPUMicrocodes. Danach werden die Microcode-Updates benannt, die das [[topic:tool-fit|FIT-Werkzeug]] auflistet: nach CPU-Signatur, Revision und Datum. Aus ihr stammt auch die Liste, die **Microcode hinzufügen…** anbietet.
 - **ME-Firmware-Datenbank** — aus dem Projekt ME Analyzer. Mit ihr kann das [[topic:tool-me|ME-Werkzeug]] angeben, welchem bekannten Firmware-Release ein Image entspricht.
-- **Intel-Prozessoren nach CPUID** — aus dem Repository IntelCPUID. Danach benennt das [[topic:tool-fit|FIT-Werkzeug]] die Prozessoren hinter jeder CPUID eines Microcodes. Die letzte vollständig gelesene Kopie wird aufbewahrt und ohne Netzwerk verwendet; solange noch keine gelesen wurde, sind keine Prozessoren bekannt.
+- **Intel-Prozessoren nach CPUID** — aus dem Repository IntelCPUID. Danach benennt das [[topic:tool-fit|FIT-Werkzeug]] die Prozessoren hinter jeder CPUID eines Microcodes, und diese Tabelle durchsucht die [[topic:cpuid-lookup|Intel-CPUID-Suche]]. Die letzte vollständig gelesene Kopie wird aufbewahrt und ohne Netzwerk verwendet; solange noch keine gelesen wurde, sind keine Prozessoren bekannt.
 
 ## Was Tatsache ist und was ein Name
 

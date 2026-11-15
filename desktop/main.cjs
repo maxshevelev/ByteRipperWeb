@@ -200,6 +200,8 @@ const OWN_SIZES = {
   help: { width: 980, height: 760 },
   notes: { width: 760, height: 720 },
   agent: { width: 720, height: 720 },
+  // Upstream's lookup window: 920 by 640 points.
+  cpuid: { width: 920, height: 640 },
 };
 
 /**

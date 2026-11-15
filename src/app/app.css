@@ -7245,3 +7245,307 @@ body[data-pulling-panel] * {
   font-size: 17px;
   line-height: 1;
 }
+
+/* ── Intel CPUID Lookup ───────────────────────────────────────────────── */
+
+/* Under the dock's header, in the panel's strip above (`DockPanelHeader`); its text is the dump's
+   size, as the tool panels' is (upstream's lookup follows View ▸ Zoom). */
+.cpuid-lookup {
+  /* The find bar's row and the content's: the panel has no find bar, and its table has no height
+     of its own to make the row as tall as the panel. */
+  grid-row: 2 / -1;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--hex-font-size, 13px);
+}
+
+/* In a window of its own (`.own-window`) the panel is the first row: there is no dock strip. */
+.own-window > .cpuid-lookup {
+  grid-row: 1;
+}
+
+/* The Find bar's field, as it is, 14 under the top and 16 in from either side. */
+.cpuid-lookup-search {
+  position: relative;
+  display: flex;
+  padding: 14px 16px 0;
+  font-size: 13px;
+}
+
+.cpuid-lookup-status {
+  margin: 6px 18px 4px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The completions: under the field and as wide as it, eight rows at most. */
+.cpuid-suggestions {
+  top: calc(100% + 3px);
+  left: 16px;
+  right: 16px;
+  min-width: 0;
+  font-size: var(--hex-font-size, 13px);
+}
+
+.cpuid-suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.cpuid-suggestion.is-active {
+  background: var(--selection);
+}
+
+.cpuid-suggestion-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.92em;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+/* The entry of a CPUID typed whole: as tall as its text, up to two fifths of the panel — or all of
+   it, with no table under it. */
+.cpuid-lookup-heading {
+  flex: 0 1 auto;
+  max-height: 40%;
+  margin: 0 12px 4px;
+  padding: 6px 4px;
+  overflow: auto;
+  user-select: text;
+}
+
+.cpuid-lookup-heading.is-filling {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+.cpuid-heading + .cpuid-heading {
+  margin-top: 1em;
+}
+
+.cpuid-heading p {
+  margin: 0 0 2px;
+}
+
+.cpuid-heading-title {
+  white-space: pre-wrap;
+}
+
+.cpuid-heading-cpuids {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: calc(1em + 3px);
+  font-weight: 700;
+}
+
+.cpuid-heading-names {
+  font-size: calc(1em + 2px);
+  font-weight: 600;
+}
+
+.cpuid-heading-absent {
+  color: var(--text-muted);
+  font-size: calc(1em + 2px);
+}
+
+/* Label and value on a tab stop 150 in, the value's lines hanging from it. */
+.cpuid-heading-facts {
+  display: grid;
+  grid-template-columns: calc(150em / 13) minmax(0, 1fr);
+  row-gap: 1px;
+  margin: 2px 0;
+}
+
+.cpuid-lookup .cpuid-heading-facts dt {
+  color: var(--text-muted);
+}
+
+.cpuid-lookup .cpuid-heading-facts dd {
+  margin: 0;
+}
+
+.cpuid-heading-link,
+.cpuid-heading-fold {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.cpuid-heading-link {
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.cpuid-heading-fold {
+  display: block;
+  margin: 2px 0;
+  color: var(--accent);
+  text-align: left;
+}
+
+.cpuid-heading-note {
+  white-space: pre-wrap;
+}
+
+.cpuid-heading-sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cpuid-heading-sources li::before {
+  content: "•  ";
+  color: var(--text-muted);
+}
+
+.cpuid-heading-sources a {
+  color: var(--accent);
+}
+
+.cpuid-heading-quote {
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: calc(1em - 1.5px);
+}
+
+/* The models found, edge to edge, the column titles stuck over the top of the list. */
+.cpuid-lookup-table {
+  flex: 1 1 0;
+  min-height: 80px;
+  margin-top: 4px;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.cpuid-lookup-table:focus {
+  outline: none;
+}
+
+.cpuid-lookup-table table {
+  width: 100%;
+  min-width: max-content;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.cpuid-lookup .cpuid-lookup-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 1.8em;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: inset 0 -1px 0 var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cpuid-lookup-sort {
+  width: 100%;
+  height: 100%;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.cpuid-lookup-sort-mark {
+  margin-left: 0.4em;
+  font-size: 0.75em;
+}
+
+.cpuid-lookup .cpuid-lookup-table td {
+  height: 1.7em;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cpuid-lookup-table tr.is-raised:not([aria-selected="true"]) {
+  background: var(--surface-raised);
+}
+
+.cpuid-lookup-table tbody tr {
+  cursor: default;
+  scroll-margin-top: 1.8em;
+}
+
+.cpuid-lookup-table tbody tr[aria-selected="true"] {
+  background: var(--selection);
+}
+
+.cpuid-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cpuid-suggestion > .cpuid-cell {
+  flex: 0 1 auto;
+  min-width: 40%;
+}
+
+/* The monospaced face a point under the body, where its wider letters match it. */
+.cpuid-cell.is-mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: calc(1em - 1px);
+}
+
+.cpuid-cell.is-bold {
+  font-weight: 600;
+}
+
+.cpuid-mark {
+  border-radius: 2px;
+  background: var(--cpuid-mark);
+  color: var(--cpuid-mark-ink);
+}
+
+.cpuid-muted {
+  color: var(--text-muted);
+}
+
+.cpuid-lookup-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 10px 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.cpuid-lookup-source {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cpuid-lookup-source a {
+  color: var(--accent);
+}

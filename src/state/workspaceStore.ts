@@ -309,6 +309,14 @@ export interface WorkspaceState {
    */
   readonly notesPanel: PanelId | undefined;
   /**
+   * The Intel CPUID Lookup's panel, while it is open: a pill in the dock holding no bytes, at most
+   * one, raised when asked for again — the same kind of thing as the help book.
+   *
+   * @web-only upstream opens a window; in a browser the dock is where every additional window
+   * opens, and the desktop shell gives the lookup a window of its own (`showCpuidLookup`)
+   */
+  readonly cpuidLookupPanel: PanelId | undefined;
+  /**
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings
    * @upstream ByteRipperApp/Settings/LayoutSettingsViewController.swift#LayoutSettings.isVertical
    */
@@ -412,6 +420,7 @@ export const workspaceStore = createStore<WorkspaceState>({
   helpPanel: undefined,
   agentPanel: undefined,
   notesPanel: undefined,
+  cpuidLookupPanel: undefined,
   layout: "sideBySide",
   splitFraction: 0.5,
   activePane: "a",
@@ -561,7 +570,8 @@ export const frontPane = (state: WorkspaceState): PaneId =>
   state.dock.expanded === undefined ||
   state.dock.expanded === state.helpPanel ||
   state.dock.expanded === state.agentPanel ||
-  state.dock.expanded === state.notesPanel
+  state.dock.expanded === state.notesPanel ||
+  state.dock.expanded === state.cpuidLookupPanel
     ? state.activePane
     : partPane(state.dock.expanded);
 
@@ -1402,6 +1412,60 @@ export function toggleAgentPanel(): void {
     workspaceStore.update((now) => ({
       ...now,
       dock: now.agentPanel === undefined ? now.dock : expandPanel(now.dock, now.agentPanel).dock,
+    }));
+}
+
+/**
+ * Opens the Intel CPUID Lookup panel, or raises the one that is already in the dock.
+ *
+ * @web-only upstream shows the lookup in a window of its own
+ */
+export function openCpuidLookupPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.cpuidLookupPanel !== undefined) {
+      return { ...state, dock: expandPanel(state.dock, state.cpuidLookupPanel).dock };
+    }
+    const opened = openPanel(state.dock);
+    return { ...state, dock: opened.dock, cpuidLookupPanel: opened.id };
+  });
+}
+
+/** Whether the Intel CPUID Lookup panel is the one up over the panes. */
+export const cpuidLookupPanelIsUp = (state: WorkspaceState): boolean =>
+  state.cpuidLookupPanel !== undefined && state.dock.expanded === state.cpuidLookupPanel;
+
+/**
+ * Takes the Intel CPUID Lookup out of the dock; the pill goes with it.
+ *
+ * @web-only upstream closes a window
+ */
+export function closeCpuidLookupPanel(): void {
+  workspaceStore.update((state) => {
+    if (state.cpuidLookupPanel === undefined) return state;
+    return {
+      ...state,
+      dock: removePanel(state.dock, state.cpuidLookupPanel).dock,
+      cpuidLookupPanel: undefined,
+    };
+  });
+}
+
+/**
+ * The Intel CPUID Lookup pill's own click: the panel that is up folds, a folded one rises.
+ *
+ * @web-only the pill is the web's, upstream's lookup being a window
+ */
+export function toggleCpuidLookupPanel(): void {
+  const state = workspaceStore.getSnapshot();
+  if (state.cpuidLookupPanel === undefined) return;
+  if (state.dock.expanded === state.cpuidLookupPanel) foldParts();
+  else
+    workspaceStore.update((now) => ({
+      ...now,
+      dock:
+        now.cpuidLookupPanel === undefined
+          ? now.dock
+          : expandPanel(now.dock, now.cpuidLookupPanel).dock,
     }));
 }
 

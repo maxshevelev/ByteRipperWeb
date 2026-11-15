@@ -3,22 +3,26 @@ import { useState } from "react";
 import { L } from "@/core/localization/localization";
 import { agentAnnotationStore } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
+import { rememberCpuidQuery } from "@/state/cpuidLookupStore";
 import { closeHelp } from "@/state/helpStore";
 import { beginPartDrag } from "@/state/paneDragStore";
 import { useStore } from "@/state/useStore";
 import { endLocalPaneDrag } from "@/state/workspace/paneTransfer";
 import {
+  closeCpuidLookupPanel,
   foldParts,
   type PaneState,
   type PartId,
   partPane,
   toggleAgentPanel,
+  toggleCpuidLookupPanel,
   toggleHelpPanel,
   toggleNotesPanel,
   togglePart,
   workspaceStore,
 } from "@/state/workspaceStore";
 import { AgentWindow } from "@/ui/agent/AgentWindow";
+import { CpuidLookupPanel } from "@/ui/cpuidLookup/CpuidLookupPanel";
 import { setPaneDragImage } from "@/ui/drag/paneDragImage";
 import { type DockItem, FragmentDockStrip } from "@/ui/fragments/FragmentDockStrip";
 import {
@@ -117,7 +121,10 @@ export function FragmentPanels({
   // @upstream-differs the dock's row comes and goes at once, so a change asked for without animation already has none; upstream grows and shrinks it unless told not to
   const items: DockItem[] = state.dock.panels.map((id) => {
     const transform =
-      id === state.helpPanel || id === state.agentPanel || id === state.notesPanel
+      id === state.helpPanel ||
+      id === state.agentPanel ||
+      id === state.notesPanel ||
+      id === state.cpuidLookupPanel
         ? undefined
         : partTransform(state, partPane(id));
     return {
@@ -129,7 +136,9 @@ export function FragmentPanels({
             ? L("Agent")
             : id === state.notesPanel
               ? L("Annotations")
-              : (state.parts[partPane(id)]?.name ?? ""),
+              : id === state.cpuidLookupPanel
+                ? L("Intel CPUID Lookup")
+                : (state.parts[partPane(id)]?.name ?? ""),
       kind:
         id === state.helpPanel
           ? "help"
@@ -137,7 +146,9 @@ export function FragmentPanels({
             ? "agent"
             : id === state.notesPanel
               ? "notes"
-              : "part",
+              : id === state.cpuidLookupPanel
+                ? "cpuid"
+                : "part",
       unseen: id === state.notesPanel ? annotations.unseen.size : undefined,
       connected: id === state.agentPanel && agent.connections > 0,
       isUp: state.dock.expanded === id,
@@ -149,6 +160,7 @@ export function FragmentPanels({
         id !== state.helpPanel &&
         id !== state.agentPanel &&
         id !== state.notesPanel &&
+        id !== state.cpuidLookupPanel &&
         unreturned.has(partPane(id)),
       transform: transform?.text,
       transformExplanation: transform?.explanation,
@@ -162,6 +174,7 @@ export function FragmentPanels({
   const helpIsUp = up !== undefined && up === state.helpPanel;
   const agentIsUp = up !== undefined && up === state.agentPanel;
   const notesAreUp = up !== undefined && up === state.notesPanel;
+  const lookupIsUp = up !== undefined && up === state.cpuidLookupPanel;
   const motion = {
     pill: up,
     opensOutOfPill: raisedFromNothing && !folding,
@@ -179,7 +192,9 @@ export function FragmentPanels({
     },
   };
   const pane: PartId | undefined =
-    up === undefined || helpIsUp || agentIsUp || notesAreUp ? undefined : partPane(up);
+    up === undefined || helpIsUp || agentIsUp || notesAreUp || lookupIsUp
+      ? undefined
+      : partPane(up);
   const part = pane === undefined ? undefined : state.parts[pane];
 
   return (
@@ -202,6 +217,12 @@ export function FragmentPanels({
             <NotesPanel />
           </FragmentPanel>
         </FragmentPanelHost>
+      ) : lookupIsUp ? (
+        <FragmentPanelHost folding={folding}>
+          <FragmentPanel {...motion}>
+            <CpuidLookupPanel />
+          </FragmentPanel>
+        </FragmentPanelHost>
       ) : pane !== undefined && part !== undefined ? (
         <FragmentPanelHost folding={folding}>
           <FragmentPanel {...motion}>{renderPane(pane, part)}</FragmentPanel>
@@ -216,14 +237,18 @@ export function FragmentPanels({
               ? toggleAgentPanel()
               : id === state.notesPanel
                 ? toggleNotesPanel()
-                : togglePart(partPane(id))
+                : id === state.cpuidLookupPanel
+                  ? toggleCpuidLookupPanel()
+                  : togglePart(partPane(id))
         }
         onClose={(id) =>
           id === state.helpPanel
             ? closeHelp()
             : id === state.agentPanel
               ? agentService.setWindowOpen(false)
-              : onClose(partPane(id))
+              : id === state.cpuidLookupPanel
+                ? closeLookup()
+                : onClose(partPane(id))
         }
         carry={
           onTearOff === undefined
@@ -261,4 +286,15 @@ export function FragmentPanels({
       />
     </>
   );
+}
+
+/**
+ * The lookup's ✕: what was typed is a search worth offering again, as upstream's window keeps it
+ * when it closes.
+ *
+ * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupWindowController.swift#CPUIDLookupWindowController.windowWillClose
+ */
+function closeLookup(): void {
+  rememberCpuidQuery();
+  closeCpuidLookupPanel();
 }

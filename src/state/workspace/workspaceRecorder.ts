@@ -178,7 +178,12 @@ async function fragmentsSnapshot(
   const fragments: FragmentState[] = [];
   let expandedFragment: number | undefined;
   for (const panel of state.dock.panels) {
-    if (panel === state.helpPanel || panel === state.agentPanel || panel === state.notesPanel) {
+    if (
+      panel === state.helpPanel ||
+      panel === state.agentPanel ||
+      panel === state.notesPanel ||
+      panel === state.cpuidLookupPanel
+    ) {
       continue;
     }
     const pane = partPane(panel);

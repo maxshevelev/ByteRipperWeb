@@ -9,17 +9,20 @@ import { restoreAnnotations } from "@/state/agent/agentAnnotationStore";
 import { agentService } from "@/state/agent/agentService";
 import { hostAgentForWindows, openAgentSettingsInFront } from "@/state/agent/agentWindows";
 import { shareAnnotationsAcrossWindows, startNotesWindow } from "@/state/agent/annotationWindows";
+import { startCpuidLookupWindow } from "@/state/cpuidLookupStore";
 import { startHelpWindow } from "@/state/helpStore";
 import { languageStore } from "@/state/settingsStore";
 import { useStore } from "@/state/useStore";
 import { AgentWindow } from "@/ui/agent/AgentWindow";
+import { CpuidLookupPanel } from "@/ui/cpuidLookup/CpuidLookupPanel";
 import { HelpPanel } from "@/ui/help/HelpPanel";
 import { NoteFormDialog } from "@/ui/notes/NoteFormDialog";
 import { NotesPanel } from "@/ui/notes/NotesPanel";
+import { ContextMenuHost } from "@/ui/shell/ContextMenu";
 
 /**
  * One of the app's own windows in the desktop shell — the help book, the annotations, the agent's
- * log — which a browser tab holds as a panel of its dock (`Design/DESKTOP_WINDOWS.md`, D7). The
+ * log, Intel CPUID Lookup — which a browser tab holds as a panel of its dock (`Design/DESKTOP_WINDOWS.md`, D7). The
  * page holds no workspace: only what the kind shows.
  *
  * @upstream Packages/HelpUI/Sources/HelpUI/HelpWindowController.swift#HelpWindowController
@@ -36,6 +39,7 @@ export function OwnWindow({ kind }: { readonly kind: OwnWindowKind }) {
       void restoreAnnotations().then(shareAnnotationsAcrossWindows);
       return startNotesWindow(windowLaunch()?.show);
     }
+    if (kind === "cpuid") return startCpuidLookupWindow();
     if (kind === "agent") {
       // The service itself runs here, for the whole app, whether the window is shown or not.
       hostAgentForWindows();
@@ -47,7 +51,13 @@ export function OwnWindow({ kind }: { readonly kind: OwnWindowKind }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the title is words, which the language changes
   useEffect(() => {
     document.title =
-      kind === "help" ? L("ByteRipper Help") : kind === "notes" ? L("Annotations") : L("Agent");
+      kind === "help"
+        ? L("ByteRipper Help")
+        : kind === "notes"
+          ? L("Annotations")
+          : kind === "cpuid"
+            ? L("Intel CPUID Lookup")
+            : L("Agent");
   }, [kind, language]);
 
   // ⌘W / Ctrl+W closes the window, as File ▸ Close Window does a window of the workspace: the menu
@@ -67,6 +77,13 @@ export function OwnWindow({ kind }: { readonly kind: OwnWindowKind }) {
     <div className="own-window" key={language}>
       {kind === "help" ? <HelpPanel /> : null}
       {kind === "agent" ? <AgentWindow onSettings={openAgentSettingsInFront} /> : null}
+      {kind === "cpuid" ? (
+        <>
+          <CpuidLookupPanel />
+          {/* The table's right-click menu: Look Up CPUID, the three copies. */}
+          <ContextMenuHost />
+        </>
+      ) : null}
       {kind === "notes" ? (
         <>
           <NotesPanel />

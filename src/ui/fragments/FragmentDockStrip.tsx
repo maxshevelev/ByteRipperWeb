@@ -1,6 +1,7 @@
 import { L } from "@/core/localization/localization";
 import { inDesktopShell } from "@/platform/desktop/desktopFiles";
 import type { PanelId } from "@/state/fragmentDock";
+import { CpuidGlyph } from "@/ui/cpuidLookup/CpuidGlyph";
 import { PANE_DRAG_TYPE } from "@/ui/drag/dragDrop";
 import { HelpGlyph } from "@/ui/fragments/DockPanelHeader";
 import { NotesGlyph } from "@/ui/notes/NotesGlyph";
@@ -77,7 +78,7 @@ export interface DockItem {
    *
    * @web-only upstream's book and Agent are windows and never reach a dock
    */
-  readonly kind?: "part" | "help" | "agent" | "notes";
+  readonly kind?: "part" | "help" | "agent" | "notes" | "cpuid";
   /**
    * For the Agent's pill: whether an agent is connected, which its glyph says as the toolbar
    * button's does — the corners filled.
@@ -170,6 +171,8 @@ function FragmentPill({
         ) : item.kind === "notes" ? (
           // The panel's one picture, as its header and its empty view wear it.
           <NotesGlyph className="fragment-pill-glyph" size={11} />
+        ) : item.kind === "cpuid" ? (
+          <CpuidGlyph className="fragment-pill-glyph fragment-pill-icon" />
         ) : item.kind === "agent" ? (
           // The toolbar button's own glyph, so the pill is recognisably what that button opened.
           <span className="fragment-pill-glyph fragment-pill-icon">

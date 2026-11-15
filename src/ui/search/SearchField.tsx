@@ -29,6 +29,8 @@ export function SearchField({
   onEdit,
   onChoose,
   onEscape,
+  onFieldKey,
+  menuTitle,
 }: {
   readonly id: string;
   readonly inputRef: React.RefObject<HTMLInputElement | null>;
@@ -41,6 +43,13 @@ export function SearchField({
   readonly onChoose: (row: PatternMenuRow) => void;
   /** Escape with the menu already away. */
   readonly onEscape: () => void;
+  /**
+   * A key pressed in the field while the menu is away, offered to the owner first: true when the
+   * owner answered it — Intel CPUID Lookup walks its completions with the arrows.
+   */
+  readonly onFieldKey?: ((event: React.KeyboardEvent<HTMLInputElement>) => boolean) | undefined;
+  /** What the magnifier says it drops, where it is not the Find bar's two lists. */
+  readonly menuTitle?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
   /** The row under the highlight, by its position in `rows`. */
@@ -50,7 +59,8 @@ export function SearchField({
   const rowId = (index: number) => `${listId}-${index}`;
 
   const choosable = (row: PatternMenuRow | undefined) =>
-    row !== undefined && (row.kind === "entry" || (row.kind === "command" && !row.disabled));
+    row !== undefined &&
+    (row.kind === "entry" || row.kind === "query" || (row.kind === "command" && !row.disabled));
 
   // A press anywhere else puts the menu away, as a menu does.
   useEffect(() => {
@@ -72,6 +82,8 @@ export function SearchField({
   };
 
   const show = () => {
+    // A menu with nothing in it is no menu: the magnifier is greyed rather than dropping a box.
+    if (rows.length === 0) return;
     setActive(step(-1, 1));
     setOpen(true);
   };
@@ -92,7 +104,8 @@ export function SearchField({
         aria-label={L("Search Menu")}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={L("Recent Queries and Search Patterns")}
+        title={menuTitle ?? L("Recent Queries and Search Patterns")}
+        disabled={rows.length === 0}
         tabIndex={-1}
         onClick={() => {
           if (open) setOpen(false);
@@ -131,6 +144,10 @@ export function SearchField({
           onEdit(event.target.value);
         }}
         onKeyDown={(event) => {
+          if (!open && onFieldKey?.(event) === true) {
+            event.preventDefault();
+            return;
+          }
           switch (event.key) {
             case "ArrowDown":
               event.preventDefault();
@@ -186,7 +203,7 @@ export function SearchField({
                 aria-selected={isActive}
                 aria-disabled={disabled}
                 tabIndex={-1}
-                className={`${row.kind === "entry" ? "search-field-option" : "search-field-command"}${
+                className={`${row.kind === "command" ? "search-field-command" : "search-field-option"}${
                   isActive ? " is-active" : ""
                 }${disabled ? " is-disabled" : ""}`}
                 // Chosen on the press, which also keeps the focus in the field;
@@ -201,6 +218,8 @@ export function SearchField({
               >
                 {row.kind === "entry" ? (
                   <EntryRow row={row} />
+                ) : row.kind === "query" ? (
+                  row.text
                 ) : (
                   <>
                     {row.label}
