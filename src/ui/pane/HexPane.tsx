@@ -344,6 +344,8 @@ export interface HexPaneProps {
    * the set through that interface anyway.
    */
   readonly matches?: ByteMatchSet | undefined;
+  /** The set the results panel lists, which outlives the showing (`PaneResults.listed`). */
+  readonly listedMatches?: ByteMatchSet | undefined;
   /**
    * Whether the results panel is up under the dump. The find bar's results
    * button is what raises it; the panel's × takes it down.
@@ -477,6 +479,7 @@ export function HexPane({
   onGoTo,
   onFind,
   matches,
+  listedMatches,
   currentMatch,
   resultsShown,
   searchStatus,
@@ -2255,7 +2258,7 @@ export function HexPane({
       {resultsShown === true && onGoToMatch !== undefined ? (
         <SearchResults
           pane={paneId}
-          matches={matches}
+          matches={listedMatches}
           status={searchStatus ?? "idle"}
           document={doc}
           current={currentMatch}

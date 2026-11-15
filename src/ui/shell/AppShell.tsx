@@ -2776,6 +2776,7 @@ export function AppShell() {
         onGoTo={() => setGoTo("offset")}
         onFind={openFind}
         matches={resultsFor(search, id).matches}
+        listedMatches={resultsFor(search, id).listed}
         currentMatch={resultsFor(search, id).current}
         resultsShown={resultsFor(search, id).resultsShown}
         searchStatus={resultsFor(search, id).status}
@@ -2871,6 +2872,7 @@ export function AppShell() {
         onGoTo={() => setGoTo("offset")}
         onFind={openFind}
         matches={resultsFor(search, pane).matches}
+        listedMatches={resultsFor(search, pane).listed}
         currentMatch={resultsFor(search, pane).current}
         resultsShown={resultsFor(search, pane).resultsShown}
         searchStatus={resultsFor(search, pane).status}

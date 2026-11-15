@@ -71,8 +71,9 @@ export type SearchStatus = "idle" | "searching" | "found" | "notFound" | "failed
  * claim about *that* file — clicking into the other pane does not make it untrue, so it does not
  * clear. Searching a pane replaces only that pane's.
  *
- * `matches` and `current` are the pane's indexer's, as it shows them; the rest is what the bar
- * says about them.
+ * `matches` and `current` are the pane's indexer's, as it shows them — the dump and the map draw
+ * them; `listed` is the set it holds, which outlives the showing; the rest is what the bar says
+ * about them.
  *
  * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.finder
  */
@@ -85,12 +86,19 @@ export interface PaneResults {
   readonly wrapped: boolean;
   readonly matches: ByteMatchSet | undefined;
   /**
+   * The set the pane's indexer holds, shown or not: what the results panel lists. Done, Esc and
+   * a pattern typed over end the showing and leave the set, so an open panel goes on listing the
+   * search that was run; an edit of the bytes drops it, a list of offsets the file no longer has
+   * being worse than no list.
+   *
+   * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.matchSet
+   */
+  readonly listed: ByteMatchSet | undefined;
+  /**
    * Whether the pane's results panel is up.
    *
-   * Only the find bar's results button opens it; the × or the button closes it. It goes with
-   * the set — typing a new pattern, an edit, closing the bar — since a list of offsets the file
-   * no longer has is worse than no list. A new search leaves it where it is, and it lists that
-   * search from then on.
+   * Only the find bar's results button opens it; the × or the button closes it. A new search
+   * leaves it where it is, and it lists that search from then on.
    *
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.searchResultsPanelVisible
    * @upstream ByteRipperApp/Pane/FilePaneView.swift#FilePaneView.syncSearchResults
@@ -104,6 +112,7 @@ const NO_RESULTS: PaneResults = {
   current: undefined,
   wrapped: false,
   matches: undefined,
+  listed: undefined,
   resultsShown: false,
 };
 
@@ -475,6 +484,7 @@ function mirror(pane: PaneId, finder: ByteFindIndexer): void {
     matches?.isComplete === true;
   updateResults(pane, {
     matches,
+    listed: finder.matches,
     current,
     ...(answered ? { status: matches?.isEmpty === false ? "found" : "notFound" } : {}),
   });
@@ -1003,20 +1013,20 @@ function recordFoundSearch(surface: SurfaceId): void {
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.controlTextDidChange
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onPatternEdited
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.onPatternEdited
- * @upstream-differs the set goes with the showing, and the results panel with it, where upstream
- * keeps the set for the panel to go on listing
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.init
  */
 function patternReplaced(surface: SurfaceId, query: string, patch: Partial<FindBarState>): void {
   dismissNotice();
   searchToRecord.delete(surface);
   const pane = searchedPane(surface);
-  finders.get(pane)?.invalidate();
+  // The showing ends and the set stays: the file has not moved under it, so a results panel
+  // listing it is still telling the truth, until the next search replaces it.
+  finders.get(pane)?.endHighlighting();
   updateResults(pane, {
     status: "idle",
     matches: undefined,
     current: undefined,
     wrapped: false,
-    resultsShown: false,
   });
   updateBar(surface, { query, problem: undefined, ...patch });
 }
@@ -1261,16 +1271,23 @@ export function selectMatch(pane: PaneId, offset: number): void {
  * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.hide
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.onClose
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.cancelOperation
- * @upstream-differs the sets go with the showing, as an edit's do, where upstream keeps them
- * for a results panel to go on listing
  */
 export function closeSearch(surface: SurfaceId = frontSurface()): void {
   // The plate is about a search, and closing the bar means that search is over.
   dismissNotice();
   searchToRecord.delete(surface);
+  // Every search's showing goes; the sets survive, so an open results panel goes on listing the
+  // search that was actually run.
   for (const pane of panesOf(surface)) {
-    finders.get(pane)?.invalidate();
-    updateResults(pane, NO_RESULTS);
+    const finder = finders.get(pane);
+    finder?.cancel();
+    finder?.endHighlighting();
+    updateResults(pane, {
+      status: "idle",
+      matches: undefined,
+      current: undefined,
+      wrapped: false,
+    });
   }
   updateBar(surface, { open: false, query: "", problem: undefined });
 }
@@ -1326,6 +1343,41 @@ function followParts(): void {
   });
 }
 workspaceStore.subscribe(followParts);
+
+/** The document each pane's search was made over, by the pane. */
+const searchedDocuments = new Map<PaneId, unknown>();
+
+/**
+ * A pane given another document — another file opened into it, its file closed — is a pane
+ * whose search was made of other bytes: its set goes, and its results with it, as a new pane's
+ * search starts empty. Done keeps a set for a results panel to go on listing; this does not,
+ * a list of another file's offsets being worse than no list.
+ *
+ * @upstream ByteRipperApp/Pane/PaneViewModel.swift#PaneViewModel.finder
+ * @upstream-differs upstream makes a pane's view model, and its finder with it, afresh for each
+ *   document; here a pane's indexer outlives its documents, and is emptied when one replaces another
+ */
+function followDocuments(): void {
+  const { panes, parts } = workspaceStore.getSnapshot();
+  const now = new Map<PaneId, unknown>();
+  for (const [pane, state] of [...Object.entries(panes), ...Object.entries(parts)] as [
+    PaneId,
+    PaneState | undefined,
+  ][]) {
+    if (state !== undefined) now.set(pane, state.document);
+  }
+  for (const pane of new Set([...searchedDocuments.keys(), ...now.keys()])) {
+    const before = searchedDocuments.get(pane);
+    const after = now.get(pane);
+    if (before === after) continue;
+    if (after === undefined) searchedDocuments.delete(pane);
+    else searchedDocuments.set(pane, after);
+    if (before === undefined) continue;
+    finders.get(pane)?.invalidate();
+    if (resultsFor(searchStore.getSnapshot(), pane) !== NO_RESULTS) updateResults(pane, NO_RESULTS);
+  }
+}
+workspaceStore.subscribe(followDocuments);
 
 /**
  * The recent searches and the two switches as another window — or another tab of this edition —

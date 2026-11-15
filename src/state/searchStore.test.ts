@@ -415,18 +415,43 @@ test("pressing it again, or the ×, puts the panel away and keeps the search", a
   expect(paneResults().status).toBe("found");
 });
 
-test("the panel goes with the set: a new pattern typed, or an edit", async () => {
+// @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.hide
+// @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.init
+test("a new pattern typed, and Done, end the showing and leave the panel its list", async () => {
   await deadBeefAtEight();
   toggleSearchResults("DEADBEEF");
   await settle();
   editQuery("DEADBEE");
-  expect(paneResults().resultsShown).toBe(false);
+  expect(paneResults().resultsShown).toBe(true);
+  expect(paneResults().matches).toBeUndefined();
+  expect(paneResults().listed?.rangeAt(0)).toEqual({ start: 8, end: 12 });
 
+  closeSearch();
+  expect(paneResults().resultsShown).toBe(true);
+  expect(paneResults().matches).toBeUndefined();
+  expect(paneResults().listed?.rangeAt(0)).toEqual({ start: 8, end: 12 });
+});
+
+test("an edit of the bytes takes the set and the panel away", async () => {
+  await deadBeefAtEight();
   toggleSearchResults("DEADBEEF");
   await settle();
   expect(paneResults().resultsShown).toBe(true);
   noteSearchEdit("a", { kind: "overwrite", start: 8, end: 9 });
   expect(paneResults().resultsShown).toBe(false);
+  expect(paneResults().listed).toBeUndefined();
+});
+
+test("another file opened into the pane takes its search away", async () => {
+  await deadBeefAtEight();
+  toggleSearchResults("DEADBEEF");
+  await settle();
+  closeSearch();
+  expect(paneResults().listed).toBeDefined();
+  const bytes = new Uint8Array(16);
+  openInPane("a", { name: "other.bin", size: 16, lastModified: 0, source: new Blob([bytes]) });
+  expect(paneResults().resultsShown).toBe(false);
+  expect(paneResults().listed).toBeUndefined();
 });
 
 test("a search that finds nothing still opens the panel the button asked for", async () => {
