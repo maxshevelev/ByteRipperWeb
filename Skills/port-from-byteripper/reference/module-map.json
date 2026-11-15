@@ -2843,7 +2843,8 @@
         ],
         "ByteRipperTests/HoverCalloutTests.swift": "tests/e2e",
         "ByteRipperTests/FixtureProcessorTables.swift": "src/state/intelCpuidRepository.ts",
-        "ByteRipperTests/FindBarPlacementTests.swift": "src/state/surfaceFind.test.ts"
+        "ByteRipperTests/FindBarPlacementTests.swift": "src/state/surfaceFind.test.ts",
+        "ByteRipperTests/CPUIDLookupWindowTests.swift": "src/ui/cpuidLookup/cpuidLookupPanel.test.tsx"
       },
       "unported": {
         "ByteRipperTests/AboutCreditsTests.swift#AboutCreditsTests": "n/a — test scaffolding",
@@ -6460,6 +6461,45 @@
       "note": "Recording and restoring the tab's workspace (G29), phase by phase as Design/WORKSPACE.md lists them: W2 files, active pane and each pane's position; W3 segments, minimap and find bar; W4 documents never saved and files' unsaved changes; W5 the fragment panels — a part extracted from its file again, with its unsaved bytes laid over, an orphan or an untitled fragment from kept bytes; W6 the tool panel on the pane it read, with what it had chosen (a tool-module's encodedState/restoredState), and the Annotations panel up or folded with its chosen cards; W7 projects — a folder picked with showDirectoryPicker (Chromium and the shell) holding Project.json, Untitled/ and Edits/, recorded into whatever the switch says, switched between by reloading the tab with a hand-off in sessionStorage, the folder's and files' handles kept in IndexedDB, one tab per project (Web Locks); a fresh tab takes up the workspace left most recently that no tab holds (Web Locks). A click may be needed to reach a file through its handle, which the empty window asks for."
     },
     {
+      "swift": "ByteRipperApp/CPUIDLookup",
+      "web": [
+        "src/ui/cpuidLookup",
+        "src/state/cpuidLookupStore.ts"
+      ],
+      "status": "ported",
+      "note": "Window ▸ Intel CPUID Lookup (2d135739, 42109a34, 1a25abbc, b0906a11, the lookup's half of bd6f32dd): the processor tables searched by CPUID, model, S-SPEC, code name or stepping. By the owner's decision (2026-11-15) it is a panel of the fragment dock in a browser (workspaceStore.cpuidLookupPanel, a pill with its own glyph, at most one, raised when asked again) and, in the desktop shell, a window of its own, one for the app — OWN_KINDS' `cpuid` in desktop/windows.cjs, OwnWindowKind, a page of its own kind booted by OwnWindow (Design/DESKTOP_WINDOWS.md, D7). CPUIDLookupViewController is src/ui/cpuidLookup/CpuidLookupPanel.tsx over src/state/cpuidLookupStore.ts: the query, the sort, the last ten searches (kept in localStorage as the Find bar's are, and shared between windows and tabs by the storage event), the remember-after-two-seconds timer, and the refresh. It reads the one processorTablesStore — no fetch of its own — refreshes it when shown, follows a newer table at once, and says what it shows with none installed (\"The table has not been read yet…\", \"Loading…\" while the first read runs). The search field and its menu are the Find bar's own SearchField (b0906a11: the Find bar's field as it is), with a plain `query` row kind for the recents and an onFieldKey hook so ↑ ↓ Return Esc walk the completions first; the completions (CPUIDSuggestions) are a listbox under the field rather than a child window. CPUIDHeadingText is elements with buttons for the CPUID links and the folds rather than an attributed string with private URL schemes; CPUIDLookupCell is the Marked span with the stylesheet's yellow wash (--cpuid-mark). The text follows the dump's size (--hex-font-size), as the tool panels' does, and the columns' widths scale with it and are kept under CPUIDLookupTable as the Agent window's are. AppKit mechanics — the window's frame autosave and min size, the child window and its row heights, NSTableView's autosave, the layout constraints and fitHeading's measurement — are not ported: the stylesheet lays the panel out.",
+      "files": {
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift": [
+          "src/ui/cpuidLookup/CpuidLookupPanel.tsx",
+          "src/state/cpuidLookupStore.ts"
+        ],
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupWindowController.swift": [
+          "src/ui/cpuidLookup/CpuidLookupPanel.tsx",
+          "src/state/cpuidLookupStore.ts"
+        ],
+        "ByteRipperApp/CPUIDLookup/CPUIDHeadingText.swift": "src/ui/cpuidLookup/CpuidLookupPanel.tsx",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupCell.swift": "src/ui/cpuidLookup/CpuidLookupPanel.tsx",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift": "src/ui/cpuidLookup/CpuidLookupPanel.tsx"
+      },
+      "unported": {
+        "ByteRipperApp/CPUIDLookup/CPUIDHeadingText.swift#CPUIDHeadingText.argument": "n/a — the heading's CPUIDs and folds are buttons with their own handlers, not links carrying the action in a private URL scheme",
+        "ByteRipperApp/CPUIDLookup/CPUIDHeadingText.swift#CPUIDHeadingText.lookUpScheme": "n/a — the heading's CPUIDs and folds are buttons with their own handlers, not links carrying the action in a private URL scheme",
+        "ByteRipperApp/CPUIDLookup/CPUIDHeadingText.swift#CPUIDHeadingText.toggleScheme": "n/a — the heading's CPUIDs and folds are buttons with their own handlers, not links carrying the action in a private URL scheme",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupCell.swift#CPUIDLookupCell.init": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupCell.swift#CPUIDLookupCell.backgroundStyle": "n/a — a chosen row's colours are the stylesheet's; the mark keeps its own ink on every row",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.headingScroll": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.headingView": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.tableScroll": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.viewDidLayout": "n/a — fitHeading's measurement: the heading's height (as tall as its text, two fifths at most, all of it with no table) is the stylesheet's max-height and flex",
+        "ByteRipperApp/CPUIDLookup/CPUIDLookupWindowController.swift#CPUIDLookupWindowController.lookupController": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift#CPUIDSuggestionCell.init": "n/a — AppKit plumbing; the panel is React, laid out by the stylesheet",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift#CPUIDSuggestionCell.backgroundStyle": "n/a — a chosen completion's colours are the stylesheet's",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift#CPUIDSuggestions.rowHeight": "n/a — the completions' rows are set in the panel's text size, which the stylesheet scales",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift#CPUIDSuggestions.zoomChanged": "n/a — the completions' rows are set in the panel's text size, which the stylesheet scales",
+        "ByteRipperApp/CPUIDLookup/CPUIDSuggestions.swift#CPUIDSuggestions.shownTexts": "n/a — a test hook of the AppKit list; the web's test reads the rendered panel"
+      }
+    },
+    {
       "swift": "Packages/IntelCPUID",
       "web": [
         "src/firmware/intelCpuid",
@@ -6468,8 +6508,8 @@
         "src/state/intelCpuidRepository.ts",
         "src/state/processorTablesStore.ts"
       ],
-      "status": "in-progress",
-      "note": "The processor tables — which processors stand behind a CPUID — read from github.com/maxshevelev/IntelCPUID at run time, and the one store every reader reads (a26c06ef, moved into this package by 2d135739). ProcessorFamily/ProcessorModel/EntryNotes are src/firmware/intelCpuid/processorFamily.ts; MicrocodeSignatures is microcodeSignatures.ts; ProcessorTables — the decode of the pair, refusing a newer formatVersion or a file it cannot read, the lenient notes of extra-entries.json, and the page's one copy with install and its change listener — is processorTables.ts. The store React reads, the swappable source and refresh are src/state/processorTablesStore.ts; ProcessorTablesSource and IntelCPUIDRepository are src/state/intelCpuidRepository.ts. The repository is the web's third-party rule (CLAUDE.md, \"Third-party data\") rather than upstream's folder of files and etags.json: each of the three files is a freshRemote — the Cache API holds the body, its validator and Freshened's two dates; a copy younger than a day is not asked about; at raw.githubusercontent.com the check is the browser's revalidation (cache: \"no-cache\"), the ETag being unreadable there — and a file that does not decode is refused before it is kept (remoteSource's `accept`), so a newer format leaves the bench and the next reload with the tables they had. The tables never wait on the notes. The FIT panel refreshes on open, silently, as upstream's does. CPUIDLookup.swift (the lookup's search) and its tests are left unclaimed for the next step, the CPUID Lookup panel, which reads processorTablesStore.",
+      "status": "ported",
+      "note": "The processor tables — which processors stand behind a CPUID — read from github.com/maxshevelev/IntelCPUID at run time, and the one store every reader reads (a26c06ef, moved into this package by 2d135739). ProcessorFamily/ProcessorModel/EntryNotes are src/firmware/intelCpuid/processorFamily.ts; MicrocodeSignatures is microcodeSignatures.ts; ProcessorTables — the decode of the pair, refusing a newer formatVersion or a file it cannot read, the lenient notes of extra-entries.json, and the page's one copy with install and its change listener — is processorTables.ts. The store React reads, the swappable source and refresh are src/state/processorTablesStore.ts; ProcessorTablesSource and IntelCPUIDRepository are src/state/intelCpuidRepository.ts. The repository is the web's third-party rule (CLAUDE.md, \"Third-party data\") rather than upstream's folder of files and etags.json: each of the three files is a freshRemote — the Cache API holds the body, its validator and Freshened's two dates; a copy younger than a day is not asked about; at raw.githubusercontent.com the check is the browser's revalidation (cache: \"no-cache\"), the ETag being unreadable there — and a file that does not decode is refused before it is kept (remoteSource's `accept`), so a newer format leaves the bench and the next reload with the tables they had. The tables never wait on the notes. The FIT panel refreshes on open, silently, as upstream's does. CPUIDLookup — the lookup's search, its completions, its headings and its marks — and SearchHistory are src/firmware/intelCpuid/cpuidLookup.ts (CpuidLookup, built once per installed table by cpuidLookupFor; rememberingCpuidSearch), with upstream's CPUIDLookupTests; Window ▸ Intel CPUID Lookup over it is ByteRipperApp/CPUIDLookup.",
       "files": {
         "Packages/IntelCPUID/Sources/IntelCPUID/ProcessorFamily.swift": "src/firmware/intelCpuid/processorFamily.ts",
         "Packages/IntelCPUID/Sources/IntelCPUID/MicrocodeSignatures.swift": "src/firmware/intelCpuid/microcodeSignatures.ts",
@@ -6481,7 +6521,9 @@
         "Packages/IntelCPUID/Tests/IntelCPUIDTests/ProcessorTablesTests.swift": "src/firmware/intelCpuid/processorTables.test.ts",
         "Packages/IntelCPUID/Tests/IntelCPUIDTests/IntelCPUIDRepositoryTests.swift": "src/state/intelCpuidRepository.test.ts",
         "Packages/IntelCPUID/Tests/Fixtures/IntelCPUIDBrandNames.json": "src/firmware/testing/IntelCPUID/IntelCPUIDBrandNames.json",
-        "Packages/IntelCPUID/Tests/Fixtures/IntelMicrocodeSignatures.json": "src/firmware/testing/IntelCPUID/IntelMicrocodeSignatures.json"
+        "Packages/IntelCPUID/Tests/Fixtures/IntelMicrocodeSignatures.json": "src/firmware/testing/IntelCPUID/IntelMicrocodeSignatures.json",
+        "Packages/IntelCPUID/Sources/IntelCPUID/CPUIDLookup.swift": "src/firmware/intelCpuid/cpuidLookup.ts",
+        "Packages/IntelCPUID/Tests/IntelCPUIDTests/CPUIDLookupTests.swift": "src/firmware/intelCpuid/cpuidLookup.test.ts"
       },
       "unported": {
         "Packages/IntelCPUID/Sources/IntelCPUID/IntelCPUIDRepository.swift#IntelCPUIDRepository.session": "n/a — the web's request is `fetch`, through freshRemote",

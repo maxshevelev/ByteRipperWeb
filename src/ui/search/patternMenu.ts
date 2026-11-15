@@ -44,6 +44,19 @@ export type PatternMenuRow =
       /** What is wrong with the library, said on the row that leads to where it is settled. */
       readonly problem?: string | undefined;
     }
+  | {
+      /**
+       * A search kept as it was typed, with nothing to say beside it: Intel CPUID Lookup's recent
+       * queries, which have no encoding and no case rule.
+       *
+       * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.command
+       */
+      readonly kind: "query";
+      readonly key: string;
+      /** Its position in the list. */
+      readonly index: number;
+      readonly text: string;
+    }
   | { readonly kind: "separator"; readonly key: string };
 
 /**

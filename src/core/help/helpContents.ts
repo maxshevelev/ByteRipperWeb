@@ -68,6 +68,7 @@ export const HELP_SECTIONS: readonly HelpSectionShape[] = [
       TOPIC.toolFIT,
       TOPIC.lenovoDMI,
       TOPIC.databases,
+      TOPIC.cpuidLookup,
       TOPIC.provenance,
     ],
   },

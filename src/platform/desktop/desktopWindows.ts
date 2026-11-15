@@ -36,13 +36,15 @@ export interface WindowLaunch {
 
 /**
  * The app's own windows in the desktop shell (`Design/DESKTOP_WINDOWS.md`, D7): the help book, the
- * annotations and the agent's log, one of each, which a browser holds as panels of the dock.
+ * annotations, the agent's log and Intel CPUID Lookup, one of each, which a browser holds as
+ * panels of the dock.
  *
  * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController
  * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
+ * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupWindowController.swift#CPUIDLookupWindowController
  * @upstream-differs the kinds as data; upstream has a controller class per window
  */
-export type OwnWindowKind = "help" | "notes" | "agent";
+export type OwnWindowKind = "help" | "notes" | "agent" | "cpuid";
 
 /** What the shell's preload script exposes for the app's own windows. */
 export interface DesktopOwnWindowsBridge {

@@ -1747,3 +1747,35 @@
 
 /* M10: the drop zones */
 "Open for Comparison" = "Zum Vergleich öffnen";
+
+/* Intel CPUID Lookup (upstream 2d135739, copied word for word) */
+"Intel CPUID Lookup" = "Intel-CPUID-Suche";
+"CPUID, model or S-SPEC — 306A9, i7-2600K, SR00C" = "CPUID, Modell oder S-SPEC – 306A9, i7-2600K, SR00C";
+"Search by CPUID, model, S-SPEC, code name or stepping" = "Suche nach CPUID, Modell, S-SPEC, Codename oder Stepping";
+"%1$@ processors under %2$@ CPUIDs. Type to search." = "%1$@ Prozessoren unter %2$@ CPUIDs. Suchbegriff eingeben.";
+"Found: %1$@" = "Gefunden: %1$@";
+"Nothing found. Check the spelling, or try part of the number." = "Nichts gefunden. Prüfen Sie die Schreibweise oder geben Sie einen Teil der Nummer ein.";
+"No models are listed for this CPUID. What is known about it is above." = "Für diese CPUID sind keine Modelle aufgeführt. Was über sie bekannt ist, steht oben.";
+"The table has no entry for this CPUID." = "Die Tabelle hat keinen Eintrag für diese CPUID.";
+"The table has not been read yet. It is read from the repository when the network is available." = "Die Tabelle wurde noch nicht gelesen. Sie wird aus dem Repository geladen, sobald ein Netzwerk verfügbar ist.";
+"Updated %1$@. Data and sources:" = "Aktualisiert am %1$@. Daten und Quellen:";
+"Data and sources:" = "Daten und Quellen:";
+"Open the repository the table is read from" = "Das Repository öffnen, aus dem die Tabelle gelesen wird";
+"Code name" = "Codename";
+"Stepping" = "Stepping";
+"series" = "Serie";
+"Look Up CPUID %1$@" = "CPUID %1$@ suchen";
+"Copy S-SPEC" = "S-SPEC kopieren";
+"Copy Model" = "Modell kopieren";
+"Copy Row" = "Zeile kopieren";
+"X stands for any digit" = "X steht für eine beliebige Ziffer";
+"not in the table" = "nicht in der Tabelle";
+"Segment" = "Segment";
+"Cores" = "Kerne";
+"Models" = "Modelle";
+"Shared microcode" = "Gemeinsamer Microcode";
+"update %1$@ of %2$@ also serves %3$@" = "Update %1$@ vom %2$@ bedient auch %3$@";
+"Notes (in English)" = "Anmerkungen (auf Englisch)";
+"Sources (%1$@)" = "Quellen (%1$@)";
+"model" = "Modell";
+"code name" = "Codename";

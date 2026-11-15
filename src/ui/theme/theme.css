@@ -83,6 +83,10 @@
      edition's indicator is flat, with no shadow to lift it off the page. */
   --find-indicator-ink: #000;
   --find-indicator-border: rgb(214 190 60);
+  /* Intel CPUID Lookup's mark on what a query found: a yellow wash with dark text, which reads on
+     a plain row, a raised one and a chosen one alike (upstream's `CPUIDLookupCell.markColor`). */
+  --cpuid-mark: rgb(255 230 138);
+  --cpuid-mark-ink: rgb(28 28 26);
 
   --minimap-viewport: rgb(60 90 160 / 0.16);
   --minimap-viewport-border: rgb(60 90 160 / 0.55);
@@ -192,6 +196,7 @@
     --find-indicator: rgb(255 246 150);
     --find-indicator-ink: #000;
     --find-indicator-border: rgb(214 190 60);
+    --cpuid-mark: rgb(240 201 74);
 
     --minimap-viewport: rgb(130 165 235 / 0.16);
     --minimap-viewport-border: rgb(130 165 235 / 0.5);
@@ -281,6 +286,7 @@
   --find-indicator: rgb(255 246 150);
   --find-indicator-ink: #000;
   --find-indicator-border: rgb(214 190 60);
+  --cpuid-mark: rgb(240 201 74);
 
   --minimap-viewport: rgb(130 165 235 / 0.16);
   --minimap-viewport-border: rgb(130 165 235 / 0.5);

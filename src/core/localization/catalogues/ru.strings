@@ -1746,3 +1746,35 @@
 
 /* M10: the drop zones */
 "Open for Comparison" = "Открыть для сравнения";
+
+/* Intel CPUID Lookup (upstream 2d135739, copied word for word) */
+"Intel CPUID Lookup" = "Справочник Intel CPUID";
+"CPUID, model or S-SPEC — 306A9, i7-2600K, SR00C" = "CPUID, модель или S-SPEC — 306A9, i7-2600K, SR00C";
+"Search by CPUID, model, S-SPEC, code name or stepping" = "Поиск по CPUID, модели, S-SPEC, кодовому имени или степпингу";
+"%1$@ processors under %2$@ CPUIDs. Type to search." = "Процессоров: %1$@, CPUID: %2$@. Введите запрос.";
+"Found: %1$@" = "Найдено: %1$@";
+"Nothing found. Check the spelling, or try part of the number." = "Ничего не найдено. Проверьте написание или введите часть номера.";
+"No models are listed for this CPUID. What is known about it is above." = "Для этого CPUID модели не перечислены. Всё, что о нём известно, показано выше.";
+"The table has no entry for this CPUID." = "В таблице нет записи для этого CPUID.";
+"The table has not been read yet. It is read from the repository when the network is available." = "Таблица ещё не загружена. Она загружается из репозитория, когда доступна сеть.";
+"Updated %1$@. Data and sources:" = "Обновлено %1$@. Данные и источники:";
+"Data and sources:" = "Данные и источники:";
+"Open the repository the table is read from" = "Открыть репозиторий, из которого загружается таблица";
+"Code name" = "Кодовое имя";
+"Stepping" = "Степпинг";
+"series" = "серия";
+"Look Up CPUID %1$@" = "Найти CPUID %1$@";
+"Copy S-SPEC" = "Скопировать S-SPEC";
+"Copy Model" = "Скопировать модель";
+"Copy Row" = "Скопировать строку";
+"X stands for any digit" = "X — любая цифра";
+"not in the table" = "нет в таблице";
+"Segment" = "Сегмент";
+"Cores" = "Ядра";
+"Models" = "Моделей";
+"Shared microcode" = "Общий микрокод";
+"update %1$@ of %2$@ also serves %3$@" = "обновление %1$@ от %2$@ подходит также для %3$@";
+"Notes (in English)" = "Примечания (на английском)";
+"Sources (%1$@)" = "Источники (%1$@)";
+"model" = "модель";
+"code name" = "кодовое имя";

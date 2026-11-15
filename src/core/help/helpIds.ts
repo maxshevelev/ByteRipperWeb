@@ -103,6 +103,8 @@ export const TOPIC = {
   /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.agent */
   agent: topicId("agent"),
   databases: topicId("databases"),
+  /** @upstream Packages/HelpBook/Sources/HelpBook/HelpIDs.swift#HelpTopicID.cpuidLookup */
+  cpuidLookup: topicId("cpuid-lookup"),
   provenance: topicId("provenance"),
 
   // On the bench

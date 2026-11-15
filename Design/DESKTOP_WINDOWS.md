@@ -68,7 +68,7 @@ From upstream's `TABS_PLAN.md`, `PANE_DRAG_PLAN.md`, `WORKSPACE_PLAN.md` and
 | Bookmarks: copied with a torn-off pane, a moved pane adopting the receiving window's | Same | D5 |
 | The agent sees every window's documents (`AgentDesk`, front to back), brings a window forward | Same, the main process routing a call to the window that holds the document | D7 |
 | App-wide: the annotations, the find string, the settings | Kept in step across windows (`BroadcastChannel`, `storage` events) | D7 |
-| The Annotations, Agent and Help windows (singletons, the app's and not a window's) | **Windows of their own, one each** (the owner's decision, 2026-10-22): Window ▸ Annotations, Agent, Help open or raise the one window; in the browser they stay panels of the dock | D7b–D7d |
+| The Annotations, Agent, Help and Intel CPUID Lookup windows (singletons, the app's and not a window's) | **Windows of their own, one each** (the owner's decision, 2026-10-22; the CPUID Lookup's, 2026-11-15): Window ▸ Annotations, Agent, Intel CPUID Lookup and Help open or raise the one window; in the browser they stay panels of the dock | D7b–D7d |
 | The Settings window | Stays the dialog of the window it was opened from; the settings themselves are the app's (D7a) | — |
 | Tabs: New Tab, the tab bar, Merge All Windows, Move Tab to New Window | Not here — issue #1 | — |
 
@@ -173,7 +173,8 @@ the module map moved.
     the find pasteboard (the owner's decision, module map), and the history is
     now the app's. The same holds between a browser's tabs.
   - [x] **D7b — the app's own windows; the help.** The main process makes one
-    window per kind (`help`, `notes`, `agent`; `openOwn` in `windows.cjs`),
+    window per kind (`help`, `notes`, `agent`, and since G126 `cpuid` for Intel
+    CPUID Lookup; `openOwn` in `windows.cjs`),
     the kind handed to its page by the launch (`WindowLaunch.own`), keeps
     where each stood (`Workspace/OwnWindows.json`), and leaves them out of the
     workspace's windows, its structure and a project; they do not hold the app

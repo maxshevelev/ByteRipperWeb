@@ -287,13 +287,14 @@ function register({
   }
 
   /**
-   * The app's own windows — the help, the annotations, the agent — one of each kind at most, made
-   * the first time it is asked for. They belong to the app and not to the workspace: no project
-   * holds them, the structure does not list them, and they do not keep the app running once the
-   * last window of the workspace has closed.
+   * The app's own windows — the help, the annotations, the agent, the CPUID lookup — one of each
+   * kind at most, made the first time it is asked for. They belong to the app and not to the
+   * workspace: no project holds them, the structure does not list them, and they do not keep the
+   * app running once the last window of the workspace has closed.
    *
    * @upstream ByteRipperApp/Notes/NotesWindowController.swift#NotesWindowController.instance
    * @upstream ByteRipperApp/Agent/AgentWindowController.swift#AgentWindowController
+   * @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.cpuidLookupWindowController
    * @upstream-differs a window of its own rather than a tab beside the dumps: the shell has no tabs
    *   yet (issue #1)
    */
@@ -736,10 +737,11 @@ function register({
 }
 
 /**
- * The app's own windows, by kind: the help book, the annotations and the agent's log.
+ * The app's own windows, by kind: the help book, the annotations, the agent's log and Intel CPUID
+ * Lookup (`cpuid`).
  *
  * @web-only a browser holds them as panels of the tab's dock
  */
-const OWN_KINDS = ["help", "notes", "agent"];
+const OWN_KINDS = ["help", "notes", "agent", "cpuid"];
 
 module.exports = { register, cascadeFrom, reachableFrame, structureOf, CASCADE, OWN_KINDS };
