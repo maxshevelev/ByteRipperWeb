@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MatchBitmap, MatchSet, MatchSetBuilder } from "@/core/search/matchSet";
+import { MatchBitmap } from "@/core/find/matchSet";
+import { byteMatchSet, byteMatchSetBuilder, byteMatchSetOf } from "@/core/search/byteFindContent";
 import { DEFAULT_MAX_RESULTS } from "@/core/search/searchEngine";
 import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
 
@@ -20,14 +21,14 @@ const single = (byte: number): SearchPattern => ({
 });
 
 const built = (extent: number, starts: number[], maxIndexBytes?: number) => {
-  const builder = new MatchSetBuilder(pattern, EXACT, extent, maxIndexBytes);
+  const builder = byteMatchSetBuilder(pattern, EXACT, extent, maxIndexBytes);
   builder.add(starts);
   return builder.finish();
 };
 
 /** Held sparsely whatever the density, for comparing the two answer for answer. */
 const sparse = (extent: number, starts: number[], p = pattern) =>
-  new MatchSet(
+  byteMatchSet(
     p,
     EXACT,
     extent,
@@ -43,7 +44,7 @@ const bitmapped = (extent: number, starts: number[], p = pattern) => {
   const map = new MatchBitmap(extent);
   for (const start of starts) map.set(start);
   map.sealRanks();
-  return new MatchSet(p, EXACT, extent, starts.length, { kind: "bitmap", bitmap: map }, extent);
+  return byteMatchSet(p, EXACT, extent, starts.length, { kind: "bitmap", bitmap: map }, extent);
 };
 
 const ranges = (matches: { start: number; end: number }[]) =>
@@ -68,7 +69,7 @@ describe("what the dump asks for", () => {
 
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testASingleBytePatternDoesNotReachBackwards
   it("does not reach backwards for a single-byte pattern", () => {
-    const builder = new MatchSetBuilder(single(0xff), EXACT, 0x100);
+    const builder = byteMatchSetBuilder(single(0xff), EXACT, 0x100);
     builder.add([0x0f, 0x10]);
     expect(ranges(builder.finish().matchesIntersecting(0x10, 0x20))).toEqual(["16-17"]);
   });
@@ -155,7 +156,7 @@ describe("choosing the representation", () => {
     // The scan hands over a window's matches at once, and the conversion can
     // fall in the middle of a batch.
     const starts = Array.from({ length: 300 }, (_, i) => i * 4);
-    const batched = new MatchSetBuilder(pattern, EXACT, 6400);
+    const batched = byteMatchSetBuilder(pattern, EXACT, 6400);
     for (let at = 0; at < starts.length; at += 37) batched.add(starts.slice(at, at + 37));
 
     const whole = built(6400, starts);
@@ -232,7 +233,7 @@ describe("following an overwrite", () => {
 
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testACountedSetRefusesToBeSpliced
   it("refuses when the set kept only a count", () => {
-    const counted = new MatchSet(pattern, EXACT, 1 << 20, 500_000, { kind: "counted" }, 1 << 20);
+    const counted = byteMatchSet(pattern, EXACT, 1 << 20, 500_000, { kind: "counted" }, 1 << 20);
     expect(counted.splice([1], 0, 16)).toBeUndefined();
   });
 });
@@ -242,7 +243,7 @@ describe("naming a match", () => {
   it("makes the index and the offset agree", () => {
     // A dense bitmap is where a rank/select mismatch shows, and upstream's
     // showed as a mark one row above the match it named.
-    const dense = MatchSet.of(
+    const dense = byteMatchSetOf(
       single(0xff),
       EXACT,
       4096,
@@ -253,7 +254,7 @@ describe("naming a match", () => {
       expect(index === undefined ? undefined : dense.startAt(index), `at ${offset}`).toBe(offset);
     }
 
-    const gappy = MatchSet.of(single(0xff), EXACT, 4096, [0, 100, 4000]);
+    const gappy = byteMatchSetOf(single(0xff), EXACT, 4096, [0, 100, 4000]);
     const startOf = (offset: number) => {
       const index = gappy.indexAtOrAfter(offset);
       return index === undefined ? undefined : gappy.startAt(index);
@@ -268,7 +269,7 @@ describe("naming a match", () => {
 describe("stepping", () => {
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testAStepSaysWhenItWrapped
   it("says when it came round the end", () => {
-    const set = MatchSet.of(single(0xaa), EXACT, 64, [8, 16, 32]);
+    const set = byteMatchSetOf(single(0xaa), EXACT, 64, [8, 16, 32]);
 
     const first = set.step("forward", 0);
     expect(first?.index).toBe(0);
@@ -290,7 +291,7 @@ describe("stepping", () => {
   it("wraps a lone match onto itself", () => {
     // A press that does nothing at all reads as a broken key, so it re-lands
     // and says why.
-    const set = MatchSet.of(single(0xaa), EXACT, 64, [16]);
+    const set = byteMatchSetOf(single(0xaa), EXACT, 64, [16]);
     expect(set.step("forward", 20)).toEqual({
       index: 0,
       range: { start: 16, end: 17 },
@@ -301,8 +302,8 @@ describe("stepping", () => {
 
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/MatchSetTests.swift#MatchSetTests.testThereIsNoStepWhereThereIsNothingToStepTo
   it("has nowhere to step when there is nothing to step to", () => {
-    expect(MatchSet.of(single(0xaa), EXACT, 64, []).step("forward", 0)).toBeUndefined();
-    const counted = new MatchSet(
+    expect(byteMatchSetOf(single(0xaa), EXACT, 64, []).step("forward", 0)).toBeUndefined();
+    const counted = byteMatchSet(
       single(0xaa),
       EXACT,
       1 << 20,
@@ -317,7 +318,7 @@ describe("stepping", () => {
 describe("a partial index", () => {
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SearchEngineTests.swift#SearchEngineTests.testAPartialSetKnowsItIsPartial
   it("knows it is partial", () => {
-    const builder = new MatchSetBuilder(pattern, EXACT, 1000);
+    const builder = byteMatchSetBuilder(pattern, EXACT, 1000);
     builder.add([10, 20]);
     const partial = builder.snapshot(400);
 

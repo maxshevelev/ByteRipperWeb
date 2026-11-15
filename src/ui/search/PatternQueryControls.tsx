@@ -4,13 +4,17 @@ import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/sea
 import { favoritesStore, requestManageFavorites, syncProblem } from "@/state/favoritesStore";
 import { showNotice } from "@/state/noticeStore";
 import {
+  barFor,
   clearRecents,
   searchStore,
   setCaseSensitive,
   setSearchEncoding,
   setSmartSearch,
+  setStandingCaseSensitive,
+  setToolEncoding,
 } from "@/state/searchStore";
 import { useStore } from "@/state/useStore";
+import type { SurfaceId } from "@/state/workspaceStore";
 import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
 import { type MenuSearch, type PatternMenuRow, patternMenuRows } from "@/ui/search/patternMenu";
 import { SearchField } from "@/ui/search/SearchField";
@@ -23,7 +27,8 @@ import { SearchField } from "@/ui/search/SearchField";
  * One set of controls wherever a pattern is asked for, so it reads, behaves and remembers alike:
  * the Find bar is built round it, and a tool that searches bytes gets one through its context
  * (`ToolContext.PatternQuery`). The recents and the library are the app's one history and one
- * library, and the Smart Search and case toggles are the app's one pair of standing choices.
+ * library, and Smart Search is the app's one standing choice. A find bar's encoding and case
+ * rule are its own (`surface`); a tool's field reads the standing ones.
  *
  * It holds no search of its own. It says what the field holds, and a row picked from the menu
  * is loaded into the controls — pattern, encoding and, for text, the case rule — and handed to
@@ -41,6 +46,7 @@ export function PatternQueryControls({
   id,
   inputRef,
   className,
+  surface,
   text,
   placeholder,
   onEdit,
@@ -51,6 +57,8 @@ export function PatternQueryControls({
   readonly id: string;
   readonly inputRef: React.RefObject<HTMLInputElement | null>;
   readonly className: string;
+  /** The find bar these controls are part of; none for a tool's field. */
+  readonly surface?: SurfaceId | undefined;
   /** The text the field shows; put into it only when the two part. */
   readonly text: string;
   readonly placeholder: string;
@@ -66,6 +74,14 @@ export function PatternQueryControls({
   readonly onKeep?: ((search: MenuSearch) => void) | undefined;
 }) {
   const state = useStore(searchStore);
+  // A find bar's own encoding and case rule; the standing ones for a tool's field.
+  const choices = surface === undefined ? state : barFor(state, surface);
+  const chooseEncoding = (encoding: SearchEncoding) =>
+    surface === undefined ? setToolEncoding(encoding) : setSearchEncoding(encoding, surface);
+  const chooseCase = (caseSensitive: boolean) =>
+    surface === undefined
+      ? setStandingCaseSensitive(caseSensitive)
+      : setCaseSensitive(caseSensitive, surface);
   const favoriteState = useStore(favoritesStore);
   const favorites = favoriteState.favorites;
   const [keeping, setKeeping] = useState<MenuSearch | undefined>(undefined);
@@ -95,9 +111,9 @@ export function PatternQueryControls({
       input.value = search.pattern;
       input.setSelectionRange(search.pattern.length, search.pattern.length);
     }
-    setSearchEncoding(search.encoding);
+    chooseEncoding(search.encoding);
     // Hex is byte-exact, so its flag is kept but never restored.
-    if (search.encoding !== "hex") setCaseSensitive(search.caseSensitive);
+    if (search.encoding !== "hex") chooseCase(search.caseSensitive);
     onPicked(search);
   };
 
@@ -112,8 +128,8 @@ export function PatternQueryControls({
       // What the field describes, with the encoding that worked.
       const search = {
         pattern: inputRef.current?.value ?? text,
-        encoding: state.encoding,
-        caseSensitive: state.caseSensitive,
+        encoding: choices.encoding,
+        caseSensitive: choices.caseSensitive,
       };
       if (onKeep !== undefined) onKeep(search);
       else setKeeping(search);
@@ -126,7 +142,7 @@ export function PatternQueryControls({
 
   // Hex is bytes, with no case to match: the toggle leaves the bar — unless Smart Search will try
   // the text encodings whatever the popup says.
-  const caseFoldable = state.smart || state.encoding !== "hex";
+  const caseFoldable = state.smart || choices.encoding !== "hex";
 
   return (
     <>
@@ -144,8 +160,8 @@ export function PatternQueryControls({
       <select
         className="find-encoding"
         aria-label={L("Encoding")}
-        value={state.encoding}
-        onChange={(event) => setSearchEncoding(event.target.value as SearchEncoding)}
+        value={choices.encoding}
+        onChange={(event) => chooseEncoding(event.target.value as SearchEncoding)}
         // @web-only the popup's explanation; upstream's has no tooltip
         title={
           state.smart
@@ -178,15 +194,15 @@ export function PatternQueryControls({
       {caseFoldable ? (
         <button
           type="button"
-          className={`find-glyph${state.caseSensitive ? " is-on" : ""}`}
-          aria-pressed={state.caseSensitive}
+          className={`find-glyph${choices.caseSensitive ? " is-on" : ""}`}
+          aria-pressed={choices.caseSensitive}
           aria-label={L("Case Sensitive")}
           title={
-            state.caseSensitive
+            choices.caseSensitive
               ? L("Case Sensitive — matching exactly")
               : L("Case Sensitive — off, upper and lower case match")
           }
-          onClick={() => setCaseSensitive(!state.caseSensitive)}
+          onClick={() => chooseCase(!choices.caseSensitive)}
         >
           <CaseGlyph />
         </button>

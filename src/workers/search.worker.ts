@@ -1,150 +1,100 @@
 /// <reference lib="webworker" />
 
-import { MatchSetBuilder } from "@/core/search/matchSet";
 import { findOne, SearchCancelled, scanAll } from "@/core/search/searchEngine";
-import type { SearchPattern } from "@/core/search/searchPattern";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type {
   JobId,
-  SearchIndexed,
+  SearchFirstMatchRequest,
+  SearchMatchStartsRequest,
   SearchWorkerRequest,
   SearchWorkerResponse,
 } from "@/workers/protocol";
 
 /**
- * Searching, off the main thread.
+ * A file's scans, off the main thread: the two a search's content asks for (`FindContent`) —
+ * the first match from a place, and every match in batches — each a request of its own.
  *
- * It answers twice. First the match itself, found by scanning from the caret —
- * which is what a person is waiting for, and takes about a millisecond. Then
- * the index, streamed in behind it, which is what the greys, the count and the
- * results panel need and which for a common byte takes a hundred times longer.
- *
- * The partial index is published as it goes, so a dump greys in file order
- * while the scan is still running rather than staying blank until it finishes.
+ * What a search does with them — the pass round the end and through the encodings, the index
+ * built from the batches, the steps — is the page's `FindIndexer`, one per pane. So several
+ * requests run here at once, each stopped by its own id: a search in one pane never stops the
+ * search in another.
  */
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 
-let cancelledId: JobId | undefined;
-let runningId: JobId | undefined;
+/** The jobs asked to stop, until they have. */
+const cancelled = new Set<JobId>();
 
-/** How often a partial index is published while the scan runs. */
-const PUBLISH_EVERY_MS = 120;
+/** How often a scan's batch of starts is sent while it runs. */
+const POST_EVERY_MS = 50;
 
 scope.addEventListener("message", (event: MessageEvent<SearchWorkerRequest>) => {
   const request = event.data;
   if (request.kind === "cancel") {
-    cancelledId = request.id;
+    cancelled.add(request.id);
     return;
   }
-  // A new search supersedes the one in flight: its answer is already stale.
-  if (runningId !== undefined) cancelledId = runningId;
-  void run(request);
+  void (request.kind === "firstMatch" ? firstMatch(request) : matchStarts(request)).finally(() =>
+    cancelled.delete(request.id)
+  );
 });
 
-async function run(request: Extract<SearchWorkerRequest, { kind: "search" }>): Promise<void> {
-  runningId = request.id;
+async function firstMatch(request: SearchFirstMatchRequest): Promise<void> {
   const storage = new FileBackedStorage(request.file, new ChunkCache());
-  const cancelled = () => cancelledId === request.id;
-
   try {
-    // The match first, always — and from the file's other end when the scan
-    // from the caret finds nothing, so "not found" means nowhere in the file.
-    const here = await findOne(request.pattern, storage, {
+    const match = await findOne(request.pattern, storage, {
       from: request.from,
       direction: request.direction,
       folding: request.folding,
-      shouldCancel: cancelled,
-    });
-    const wrappedFrom = request.direction === "forward" ? 0 : storage.size;
-    const match =
-      here ??
-      (await findOne(request.pattern, storage, {
-        from: wrappedFrom,
-        direction: request.direction,
-        folding: request.folding,
-        shouldCancel: cancelled,
-      }));
-
-    post({
-      kind: "first",
-      id: request.id,
-      ...(match === undefined ? {} : { match }),
-      wrapped: here === undefined && match !== undefined,
-    });
-
-    if (!request.index || match === undefined) {
-      if (runningId === request.id) runningId = undefined;
-      return;
-    }
-
-    const pattern: SearchPattern = {
-      bytes: request.patternBytes,
-      encoding: request.encoding,
-    };
-    const builder = new MatchSetBuilder(pattern, request.folding, storage.size);
-    let indexedUpTo = 0;
-    let lastPublished = 0;
-
-    await scanAll(request.pattern, storage, {
-      folding: request.folding,
-      shouldCancel: cancelled,
-      onMatches: (starts) => builder.add(starts),
-      onWindow: (upTo) => {
-        indexedUpTo = upTo;
-        const now = Date.now();
-        if (now - lastPublished < PUBLISH_EVERY_MS) return;
-        lastPublished = now;
-        publish(request.id, builder.snapshot(indexedUpTo));
-      },
+      shouldCancel: () => cancelled.has(request.id),
       onProgress: (fraction) => post({ kind: "searchProgress", id: request.id, fraction }),
     });
-
-    publish(request.id, builder.finish());
+    post({ kind: "first", id: request.id, ...(match === undefined ? {} : { match }) });
   } catch (error) {
-    if (error instanceof SearchCancelled) post({ kind: "cancelled", id: request.id });
-    else {
-      post({
-        kind: "error",
-        id: request.id,
-        message: error instanceof Error ? error.message : "The search failed.",
-      });
-    }
-  } finally {
-    if (runningId === request.id) runningId = undefined;
+    fail(request.id, error);
   }
 }
 
-/**
- * Sends a set across.
- *
- * The representation goes as it is: starts for a sparse set, the raw words for
- * a bitmap. Rebuilding a bitmap from a list of four million starts on the other
- * side would cost more than finding them did.
- */
-function publish(id: JobId, set: ReturnType<MatchSetBuilder["finish"]>): void {
-  const base = {
-    kind: "indexed" as const,
-    id,
-    extent: set.extent,
-    total: set.total,
-    indexedUpTo: set.indexedUpTo,
+async function matchStarts(request: SearchMatchStartsRequest): Promise<void> {
+  const storage = new FileBackedStorage(request.file, new ChunkCache());
+  let pending: number[] = [];
+  let lastPosted = 0;
+  const send = (scannedUpTo: number) => {
+    const starts = Float64Array.from(pending);
+    pending = [];
+    lastPosted = Date.now();
+    post({ kind: "batch", id: request.id, starts, scannedUpTo }, [starts.buffer]);
   };
+  try {
+    await scanAll(request.pattern, storage, {
+      folding: request.folding,
+      shouldCancel: () => cancelled.has(request.id),
+      onMatches: (starts) => {
+        for (const start of starts) pending.push(start);
+      },
+      onWindow: (upTo) => {
+        if (Date.now() - lastPosted >= POST_EVERY_MS) send(upTo);
+      },
+      onProgress: (fraction) => post({ kind: "searchProgress", id: request.id, fraction }),
+    });
+    send(storage.size);
+    post({ kind: "scanned", id: request.id });
+  } catch (error) {
+    fail(request.id, error);
+  }
+}
 
-  if (set.storage.kind === "sparse") {
-    const starts = set.storage.starts.slice();
-    const message: SearchIndexed = { ...base, starts, countedOnly: false };
-    post(message, [starts.buffer]);
+function fail(id: JobId, error: unknown): void {
+  if (error instanceof SearchCancelled) {
+    post({ kind: "cancelled", id });
     return;
   }
-  if (set.storage.kind === "bitmap") {
-    const words = set.storage.bitmap.rawWords.slice();
-    const message: SearchIndexed = { ...base, bitmapWords: words, countedOnly: false };
-    post(message, [words.buffer]);
-    return;
-  }
-  post({ ...base, countedOnly: true });
+  post({
+    kind: "error",
+    id,
+    message: error instanceof Error ? error.message : "The search failed.",
+  });
 }
 
 function post(response: SearchWorkerResponse, transfer: Transferable[] = []): void {

@@ -1,4 +1,4 @@
-import type { MatchSet } from "@/core/search/matchSet";
+import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import { NO_BASELINE } from "@/core/segments/baseline";
 import { operate } from "@/platform/sessions/sessionOperations";
 import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
@@ -724,7 +724,7 @@ function matchesMoved(search: ReturnType<typeof searchStore.getSnapshot>): boole
 
 const drawnMatches: Record<
   PaneId,
-  { matches: MatchSet | undefined; current: { start: number; end: number } | undefined }
+  { matches: ByteMatchSet | undefined; current: { start: number; end: number } | undefined }
 > = {
   a: { matches: undefined, current: undefined },
   b: { matches: undefined, current: undefined },

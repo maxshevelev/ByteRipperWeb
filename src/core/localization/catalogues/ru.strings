@@ -1389,7 +1389,6 @@
 "That search could not be run." = "Этот поиск выполнить не удалось.";
 "That text cannot be written in this encoding." = "Этот текст невозможно записать в этой кодировке.";
 "The encoding the search settled on. Picking one starts the next pass from it." = "Кодировка, на которой остановился поиск. Выбор другой начинает следующий проход с неё.";
-"The search failed." = "Поиск не удался.";
 "There is no way to write that as bytes." = "Это невозможно записать байтами.";
 "This Browser" = "Этот браузер";
 "This browser and the imported file hold the same patterns and say different things about them. Choose which to keep." = "В этом браузере и в импортированном файле одни и те же шаблоны описаны по-разному. Выберите, что оставить.";

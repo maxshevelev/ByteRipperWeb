@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MatchSetBuilder } from "@/core/search/matchSet";
+import { byteMatchSetBuilder } from "@/core/search/byteFindContent";
 import {
   DEFAULT_MAX_RESULTS,
   findOne,
@@ -342,7 +342,7 @@ describe("scanning for every match", () => {
 
     const bytes = new Uint8Array(500);
     for (let i = 0; i < 500; i += 25) bytes[i] = 0xaa;
-    const builder = new MatchSetBuilder(result.pattern, { kind: "exact" }, bytes.length);
+    const builder = byteMatchSetBuilder(result.pattern, { kind: "exact" }, bytes.length);
     await scanAll(result.pattern.bytes, storage(bytes), {
       folding: { kind: "exact" },
       chunkSize: 64,

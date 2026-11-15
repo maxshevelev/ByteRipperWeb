@@ -4,15 +4,23 @@ import { L } from "@/core/localization/localization";
 import { encodingTitle } from "@/core/search/searchPattern";
 import { showNotice } from "@/state/noticeStore";
 import {
+  barFor,
   closeSearch,
   editQuery,
   resultsFor,
+  runSearch,
+  type SearchState,
   searchStore,
   startSearch,
-  stepSearch,
   toggleSearchResults,
 } from "@/state/searchStore";
-import { useStore } from "@/state/useStore";
+import { useStore, useStoreSelector } from "@/state/useStore";
+import {
+  type PaneId,
+  type SurfaceId,
+  WORKSPACE_SURFACE,
+  workspaceStore,
+} from "@/state/workspaceStore";
 import { HelpButton } from "@/ui/help/HelpButton";
 import { AddFavoriteDialog } from "@/ui/search/AddFavoriteDialog";
 import { ChevronGlyph, ListGlyph } from "@/ui/search/findGlyphs";
@@ -31,6 +39,9 @@ import type { MenuSearch } from "@/ui/search/patternMenu";
 /** The class the shell focuses through, so only one place names it. */
 export const FIND_INPUT_CLASS = "find-input";
 
+/** The bar's own surface, on its element: which bar the shell focuses. */
+const SURFACE_ATTRIBUTE = "data-find-surface";
+
 /**
  * Puts the keyboard in the find field and selects what is there.
  *
@@ -41,10 +52,12 @@ export const FIND_INPUT_CLASS = "find-input";
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.focusForEditing
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.focusPatternField
  */
-export function focusFindInput(): void {
+export function focusFindInput(surface: SurfaceId): void {
   // After the render that mounts the bar, not before it.
   requestAnimationFrame(() => {
-    const input = document.querySelector<HTMLInputElement>(`input.${FIND_INPUT_CLASS}`);
+    const input = document.querySelector<HTMLInputElement>(
+      `[${SURFACE_ATTRIBUTE}="${surface}"] input.${FIND_INPUT_CLASS}`
+    );
     input?.focus();
     input?.select();
   });
@@ -85,17 +98,31 @@ export function focusFindInput(): void {
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.runSearchAll
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.setResultsShown
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.resultsShown
- * @upstream-differs a React component over the search store
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.verticalInset
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.wireBar
+ * @upstream-differs a React component over the search store, one per surface: the tab's over
+ * its panes and the minimap, a fragment panel's over its dump (`surface`)
  */
-export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => void }) {
+export function FindBar({
+  surface,
+  onReveal,
+}: {
+  /** Whose bar this is: the tab's, or a fragment panel's. */
+  readonly surface: SurfaceId;
+  readonly onReveal: (offset: number) => void;
+}) {
   const state = useStore(searchStore);
+  const bar = barFor(state, surface);
+  // The tab's bar searches the active pane; a panel's, its part.
+  const activePane = useStoreSelector(workspaceStore, (workspace) => workspace.activePane);
+  const pane: PaneId = surface === WORKSPACE_SURFACE ? activePane : surface;
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Reveal whatever the search landed on.
   // The bar reports on the pane it acts on. The other pane's list stays as it
   // was — it is about a file this search is not touching.
-  const results = resultsFor(state, state.pane);
+  const results = resultsFor(state, pane);
   const current = results.current;
   // Once per match landed on, and only then. The shell hands down a fresh
   // `onReveal` on every render, and scrolling renders it: an effect keyed on
@@ -103,27 +130,27 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
   // wheel, and the pane could not be scrolled away from it.
   const onRevealRef = useRef(onReveal);
   onRevealRef.current = onReveal;
+  // A panel's bar comes back up with its panel, its search with it: the match it
+  // stood on is not one landed on again, and the caret stays where the reader left it.
+  const shown = useRef(current);
   useEffect(() => {
-    if (current !== undefined) onRevealRef.current(current.start);
+    if (current === undefined || current === shown.current) return;
+    shown.current = current;
+    onRevealRef.current(current.start);
   }, [current]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
 
   // A search from the bar leaves the keyboard in the field, so Return searches
   // again; the dump takes it only when the bar is closed.
-  // @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.handOffFocusAfterFind
+  // @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.handOffFocus
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    // Return re-runs the search when the query changed, and steps when it did
-    // not — which is what every find bar does and what the fingers expect.
-    if (results.status === "found" && results.matches !== undefined) stepSearch("forward");
-    else startSearch({ query: inputRef.current?.value ?? state.query });
+    // Return steps through the search in hand for what the field asks, and runs
+    // a new one otherwise — which is what every find bar does and what the
+    // fingers expect.
+    runSearch(inputRef.current?.value ?? bar.query, "forward", surface);
   };
 
-  const count = statusText(state);
+  const count = statusText(state, surface, pane);
   // No search yet is not "no matches": the stepper is a way of starting one, so
   // it stays live until a scan has actually come back empty.
   const navLive = results.status !== "notFound" && results.status !== "failed";
@@ -136,8 +163,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
    * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.press
    */
   const navigate = (direction: "forward" | "backward") => {
-    if (results.matches?.isHighlightable === true) stepSearch(direction);
-    else startSearch({ query: inputRef.current?.value ?? state.query, direction });
+    runSearch(inputRef.current?.value ?? bar.query, direction, surface);
   };
 
   const [keeping, setKeeping] = useState<MenuSearch | undefined>(undefined);
@@ -149,14 +175,14 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
   const clearField = () => {
     const input = inputRef.current;
     if (input !== null) input.value = "";
-    editQuery("");
+    editQuery("", surface);
   };
 
   // help: shell.find-bar
   return (
     // `<search>` is the element the role names, and it is a landmark: a screen
     // reader can jump straight to the find bar rather than walking the dump.
-    <search className="find-bar">
+    <search className="find-bar" {...{ [SURFACE_ATTRIBUTE]: surface }}>
       <form className="find-form" onSubmit={submit}>
         <span className="find-label" aria-hidden="true">
           {L("Find")}
@@ -174,13 +200,16 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           id={inputId}
           inputRef={inputRef}
           className={FIND_INPUT_CLASS}
-          text={state.query}
+          surface={surface}
+          text={bar.query}
           placeholder={L("Find bytes or text")}
-          onEdit={editQuery}
+          onEdit={(text) => editQuery(text, surface)}
           // A row of either list was picked: it runs, and records nothing in the history — the
           // history is what was typed.
           // @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternPicked
-          onPicked={(search) => startSearch({ query: search.pattern, recordHistory: false })}
+          onPicked={(search) =>
+            startSearch({ query: search.pattern, surface, recordHistory: false })
+          }
           onEscape={clearField}
           onKeep={setKeeping}
         />
@@ -227,7 +256,7 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
           aria-pressed={results.resultsShown}
           title={results.resultsShown ? L("Hide Search Results") : L("Show Search Results")}
           disabled={!navLive}
-          onClick={() => toggleSearchResults(inputRef.current?.value ?? state.query)}
+          onClick={() => toggleSearchResults(inputRef.current?.value ?? bar.query, surface)}
         >
           <ListGlyph />
         </button>
@@ -237,7 +266,11 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
             @upstream Packages/HelpUI/Sources/HelpUI/HelpButton.swift#HelpButton.inline */}
         <HelpButton link={topicLink(TOPIC.search)} shape="inline" />
 
-        <button type="button" className="toolbar-button find-done" onClick={closeSearch}>
+        <button
+          type="button"
+          className="toolbar-button find-done"
+          onClick={() => closeSearch(surface)}
+        >
           {L("Done")}
         </button>
       </form>
@@ -266,22 +299,31 @@ export function FindBar({ onReveal }: { readonly onReveal: (offset: number) => v
  * @upstream ByteRipperApp/Search/FindCount.swift#FindCount.warning
  * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt
  * @upstream ByteRipperApp/Search/SearchEncodingNaming.swift#SmartSearch.Attempt.label
- * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.showFindMessage
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.showFindMessage
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.count
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.PaneContext.resultsShown
+ * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.apply
  * @upstream-differs the count and the encoding that answered are read from the store's results in one function; a find message is said here, where a count would go, without a beep
  */
-function statusText(state: ReturnType<typeof searchStore.getSnapshot>): string {
-  const results = resultsFor(state, state.pane);
-  if (results.status === "failed") return state.problem ?? L("That search could not be run.");
+function statusText(state: SearchState, surface: SurfaceId, pane: PaneId): string {
+  const results = resultsFor(state, pane);
+  if (results.status === "failed") {
+    return barFor(state, surface).problem ?? L("That search could not be run.");
+  }
   if (results.status === "idle") return "";
   if (results.status === "notFound") return L("Not found");
   const matches = results.matches;
   const current = results.current;
   // A search the results button started has no current match — the caret did
   // not move — so until its index arrives it is still searching.
+  // A pass still looking holds a set that covers nothing yet.
+  const nothingCovered =
+    matches === undefined || (matches.indexedUpTo === 0 && !matches.isComplete);
   if (
     (results.status === "searching" || results.status === "found") &&
     current === undefined &&
-    matches === undefined
+    nothingCovered
   ) {
     return L("Searching…");
   }

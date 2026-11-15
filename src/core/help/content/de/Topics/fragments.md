@@ -1,4 +1,4 @@
-@source-sha 844e76fd0051f8c4e53cff61bea1d4bf281479da3c8ba8290a81e22941256876
+@source-sha 4ea8a63212cbff5b562b52b80235721e81e85837c7da4e841948ae3ca86d9bb8
 # Fragment-Bereiche: ein Stück eines Dumps als eigene Datei
 
 > Einen Teil eines Images entnehmen, als eigene Datei bearbeiten und zurückschreiben.
@@ -20,12 +20,13 @@ Es ist immer nur ein Panel oben. Ein anderes hochzuholen klappt das bisherige ei
 
 [[edition:Ein Fragment kann sein Panel auch verlassen und zu einem Bereich werden. Ziehen Sie seine Pille aus dem Dock auf die freie Hälfte der Seite oder auf die Mitte eines Bereichs – in diesem Tab oder in einem anderen Tab von ByteRipper –, und das Fragment wird zu diesem Bereich; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie. Das Menü der Pille selbst bietet **In neuem Tab öffnen** an; damit wechselt das Fragment in einen neuen Browser-Tab. Die Verknüpfung bleibt dabei erhalten: Die Kopfzeile des Bereichs nennt weiterhin das Dokument, aus dem die Bytes stammen, **In der Quelle aktualisieren** schreibt sie dorthin zurück, und ein Klick auf dessen Namen holt den Tab nach vorn, in dem es geöffnet ist. Eine Kopie hat keine Verknüpfung.||Ein Fragment kann sein Panel auch verlassen und zu einem Bereich eines Fensters werden. Ziehen Sie seine Pille aus dem Dock auf die freie Hälfte eines Fensters – dieses oder eines anderen – oder auf die Mitte eines Bereichs, und das Fragment wird zu diesem Bereich; mit gedrückter Alt-Taste (Wahltaste am Mac) entsteht dort stattdessen eine Kopie. Das Menü der Pille selbst bietet **In neuem Fenster öffnen** an, und eine Pille, die auf dem Streifen am oberen Rand der Bereiche losgelassen wird, tut dasselbe. Die Verknüpfung bleibt dabei erhalten: Die Kopfzeile des Bereichs nennt weiterhin das Dokument, aus dem die Bytes stammen, **In der Quelle aktualisieren** schreibt sie dorthin zurück, und ein Klick auf dessen Namen holt das Fenster nach vorn, in dem es geöffnet ist. Eine Kopie hat keine Verknüpfung.]]
 
-## Eigene Minimap, eigener Werkzeugbereich
+## Eigene Minimap, eigener Werkzeugbereich, eigene Suchleiste
 
-Ein Fragment-Bereich ist eine eigenständige Lesefläche und nicht eine zweite Ansicht der Quelle; er trägt dieselben zwei Instrumente wie der Arbeitsbereich:
+Ein Fragment-Bereich ist eine eigenständige Lesefläche und nicht eine zweite Ansicht der Quelle; er trägt dieselben drei Instrumente wie der Arbeitsbereich:
 
 - **Eine eigene Minimap.** **Darstellung ▸ Minimap einblenden** ([[key:minimap]]) und die Taste ganz rechts in der Symbolleiste wirken auf den jeweils vordersten Bereich, sodass die Spalte neben einem Fragment das Fragment selbst abbildet: dessen Lesezeichen, dessen Segmentstreifen und die Zonen, die ein Werkzeug darin veröffentlicht hat. Ein Bereich öffnet sich mit ausgeblendeter Minimap, unabhängig davon, was der Arbeitsbereich zeigt; die Taste in der Symbolleiste zeigt an, ob die Minimap des vordersten Bereichs eingeblendet ist.
 - **Ein eigener Werkzeugbereich.** Das Menü **Werkzeuge** und die Werkzeugtaste der Symbolleiste wirken ebenso auf den vordersten Bereich, und das dort geöffnete Werkzeug liest die Bytes des Fragments. Es ist an dieses eine Fragment gebunden: Wo sich ein Werkzeug im Arbeitsbereich auf jede der geöffneten Dateien richten lässt, hat eines im Bereich eine einzige und bietet keinen Wechsel an.
+- **Eine eigene Suchleiste.** [[key:find]] öffnet im vordersten Bereich eine Suchleiste oberhalb des Fragment-Dumps. Sie durchsucht ausschließlich das Fragment; Muster und Groß-/Kleinschreibung werden unabhängig von der Suchleiste des Arbeitsbereichs eingestellt ([[topic:search|Bytes und Text finden]]).
 
 ## Wenn das Zurückschreiben abgelehnt wird
 

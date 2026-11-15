@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fixtureBytes, fixtureExists } from "@/core/testing/fixtureFile";
 import { version2Sample } from "@/core/testing/workspaceSamples";
 import { decodeUtf8 } from "@/core/text/utf";
-import { WORKSPACE_VERSION } from "@/core/workspace/workspace";
+import { type SurfaceState, WORKSPACE_VERSION } from "@/core/workspace/workspace";
 import {
   loadWorkspace,
   MIGRATION_STEPS,
@@ -43,6 +43,30 @@ describe("every version kept", () => {
   // @upstream-differs version 2, the first the web edition's release writes
   it("opens a workspace of version 2", () => {
     expect(loadWorkspace(fixture(2))).toEqual({ ok: true, value: version2Sample() });
+  });
+
+  // A surface's own case rule is an added optional field: written when there is one, absent in
+  // a record from before (§11), so it needs no new version.
+  // @upstream Packages/Workspace/Tests/WorkspaceTests/WorkspaceVersionTests.swift#WorkspaceVersionTests.testASurfacesCaseRuleIsAnOptionalField
+  it("reads a surface's case rule as an optional field", () => {
+    const surface: SurfaceState = {
+      minimapVisible: false,
+      findPattern: { text: "BEEF", encoding: "ascii" },
+      findCaseSensitive: true,
+    };
+    expect(JSON.parse(JSON.stringify(surface))).toEqual(surface);
+    const earlier: SurfaceState = JSON.parse(
+      '{"minimapVisible": false, "findPattern": {"text": "AA", "encoding": "hex"}}'
+    );
+    expect(earlier.findCaseSensitive).toBeUndefined();
+    const written = { ...version2Sample(), version: WORKSPACE_VERSION };
+    const withRule = {
+      ...written,
+      tab: { ...written.tab, surface: { ...written.tab.surface, findCaseSensitive: false } },
+    };
+    expect(loadWorkspace(withRule)).toEqual({ ok: true, value: withRule });
+    const none: SurfaceState = { minimapVisible: false };
+    expect(JSON.stringify(none)).not.toContain("findCaseSensitive");
   });
 });
 

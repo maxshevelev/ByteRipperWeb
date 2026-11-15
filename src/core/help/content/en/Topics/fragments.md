@@ -25,12 +25,13 @@ Only one panel is up at a time. Raising another folds the one that was up[[editi
 
 [[edition:A fragment can also leave its panel and become a pane. Drag its pill out of the dock onto the free half of the page or onto the middle of a pane — in this tab or in another tab of ByteRipper — and the fragment becomes that pane; with Alt held (Option on a Mac) a copy is made there instead. The pill's own menu offers **Open in New Tab**, which moves the fragment into a new browser tab. The pane keeps the fragment's link: its header still names the document the bytes came from, **Update in Parent** still writes them back there, and clicking the name brings forward the tab that shows that document. A copy has no link.||A fragment can also leave its panel and become a pane of a window. Drag its pill out of the dock onto the free half of a window — this one or another — or onto the middle of a pane, and the fragment becomes that pane; with Alt held (Option on a Mac) a copy is made there instead. The pill's own menu offers **Open in New Window**, and a pill dropped on the strip along the top of the panes does the same. The pane keeps the fragment's link: its header still names the document the bytes came from, **Update in Parent** still writes them back there, and clicking the name brings forward the window that shows that document. A copy has no link.]]
 
-## The panel's own minimap and tool panel
+## The panel's own minimap, tool panel and find bar
 
-A fragment panel is a reading surface in its own right rather than a second view of the parent's, and it carries the same two instruments the workspace carries:
+A fragment panel is a reading surface in its own right rather than a second view of the parent's, and it carries the same three instruments the workspace carries:
 
 - **Its own minimap.** **View ▸ Show Minimap** ([[key:minimap]]) and the button at the right end of the toolbar act on whichever panel is in front, so the column beside a fragment maps the fragment: its own bookmarks, its own segment strip, and the zones a tool published in it. A panel opens with its minimap hidden, whatever the workspace shows; the toolbar button shows whether the minimap of the panel in front is on.
 - **Its own tool panel.** The **Tools** menu and the toolbar's tool button act on the panel in front in the same way, and the tool that opens there reads the fragment's bytes. It is bound to that one fragment: where a tool in the workspace can be pointed at either of the open files, a tool in a panel has one and offers no switch.
+- **Its own find bar.** [[key:find]] in the panel in front opens a find bar over the fragment's dump, which searches the fragment and nothing else, with its own pattern and case rule ([[topic:search|Finding Bytes and Text]]).
 
 ## When putting it back is refused
 

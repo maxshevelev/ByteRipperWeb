@@ -1,9 +1,15 @@
-@source-sha 30f0603f4291dac93826a23bcdef750110e0d11c203d9e3a3b0a25fed2a7e1f4
+@source-sha 0b77ddbf5259a8e80b1b1362056272ef3707e6ea5a0f5d50da836aa85024cbc1
 # Bytes und Text finden
 
 > [[key:find]]. Suche nach einer Byte-Folge oder einer Zeichenfolge über den ganzen Dump, im Hintergrund.
 
 Die Suchleiste durchsucht den **aktiven Bereich** über seinen aktuellen Inhalt, ungesicherte Änderungen eingeschlossen.
+
+## Suchleiste des Arbeitsbereichs und der Fragment-Bereiche
+
+Jede Suchleiste ist dem Dump zugeordnet, in dem sie sucht. Im Arbeitsbereich befindet sie sich oberhalb der Vergleichsbereiche und der Minimap; durchsucht wird der jeweils aktive Bereich. Jeder [[topic:fragments|Fragment-Bereich]] verfügt über eine eigene Suchleiste oberhalb seines Dumps, deren Suche sich auf die Bytes des Fragments beschränkt. [[key:find]] sowie die Taste **Suchen** in der Symbolleiste beziehen sich stets auf die Suchleiste des vordersten Bereichs.
+
+Muster, Treffer und die Einstellung zur Groß-/Kleinschreibung werden für jede Suchleiste getrennt geführt; Suchvorgänge im Fragment und im Arbeitsbereich beeinflussen einander daher nicht. Ein neu geöffneter Fragment-Bereich übernimmt die Einstellung zur Groß-/Kleinschreibung aus der Suchleiste des Bereichs, dem das Fragment entnommen wurde. Beim Einklappen des Bereichs in seine Pille im Dock wird auch die Suchleiste eingeklappt; nach dem Aufklappen steht sie unverändert wieder zur Verfügung.
 
 ## Hex
 
