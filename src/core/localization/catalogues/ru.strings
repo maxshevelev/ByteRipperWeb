@@ -1778,3 +1778,5 @@
 "Sources (%1$@)" = "Источники (%1$@)";
 "model" = "модель";
 "code name" = "кодовое имя";
+"?? stands for a whole byte — half a byte cannot be masked." = "?? обозначает целый байт — замаскировать половину байта нельзя.";
+"A pattern of ?? alone matches everywhere — give at least one byte." = "Шаблон из одних ?? совпадает везде — укажите хотя бы один байт.";

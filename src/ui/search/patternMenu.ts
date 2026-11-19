@@ -148,7 +148,7 @@ function entryRow(search: MenuSearch, list: "recent" | "favorite", index: number
     name: search.name ?? "",
     pattern: search.pattern,
     flags: searchFlags(search),
-    usable: parsePattern(search.pattern, search.encoding).ok,
+    usable: parsePattern(search.pattern, search.encoding, true).ok,
   };
 }
 
@@ -163,7 +163,7 @@ export function favoriteNameProblem(
   alreadyKept: { readonly name: string } | undefined
 ): string | undefined {
   if (name.trim().length === 0) return L("Enter a name — it is what the menu shows.");
-  if (!parsePattern(search.pattern, search.encoding).ok) {
+  if (!parsePattern(search.pattern, search.encoding, true).ok) {
     return L("That pattern cannot be read as %1$@.", encodingTitle(search.encoding));
   }
   if (alreadyKept !== undefined) return L("Already a favourite, as “%1$@”.", alreadyKept.name);

@@ -1,6 +1,6 @@
 import type { FindContent, FindRange, MatchBatch, SearchDirection } from "@/core/find/findContent";
 import { type ByteQuery, sameByteQuery } from "@/core/search/byteFindContent";
-import { foldedPattern, SearchCancelled } from "@/core/search/searchEngine";
+import { SearchCancelled } from "@/core/search/searchEngine";
 import type { JobId, SearchWorkerRequest, SearchWorkerResponse } from "@/workers/protocol";
 
 /**
@@ -49,9 +49,7 @@ export class WorkerByteFindContent implements FindContent<ByteQuery> {
           kind: "firstMatch",
           id,
           file: this.file,
-          pattern: foldedPattern(query.pattern.bytes, query.folding),
-          encoding: query.pattern.encoding,
-          folding: query.folding,
+          query,
           from: anchor,
           direction,
         }),
@@ -84,9 +82,7 @@ export class WorkerByteFindContent implements FindContent<ByteQuery> {
         kind: "matchStarts",
         id,
         file: this.file,
-        pattern: foldedPattern(query.pattern.bytes, query.folding),
-        encoding: query.pattern.encoding,
-        folding: query.folding,
+        query,
       }),
       shouldCancel,
       (response, done) => {

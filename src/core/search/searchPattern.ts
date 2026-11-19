@@ -5,6 +5,13 @@
  */
 
 import { L } from "@/core/localization/localization";
+import {
+  type MaskedPattern,
+  MaskedPatternError,
+  maskedPatternHasHoles,
+  maskedPatternHexText,
+  parseHexPattern,
+} from "@/core/search/maskedSearch";
 
 /**
  * How the text in the find field becomes bytes.
@@ -96,20 +103,78 @@ export type SearchFailure =
   | "emptyPattern"
   /** Hex input was malformed: non-hex characters, or an odd number of digits. */
   | "invalidHexPattern"
+  /** A `?` that is not half of a `??`: a hole is a whole byte, and half a byte cannot be masked. */
+  | "partialByteMask"
+  /** A hex pattern of `??` alone, which would match at every offset. */
+  | "holesOnly"
   /** The text cannot be written in the requested encoding. */
   | "undecodableText";
 
 /**
- * A resolved pattern: the exact bytes to find, and the encoding they came from.
+ * A resolved search pattern: the byte sequence to find, the bytes of it that match anything
+ * (`??` in hex), and the encoding it came from (for display).
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern
  */
 export interface SearchPattern {
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.bytes */
   readonly bytes: Uint8Array;
+  /**
+   * Where true, the byte is a hole: it matches any byte, and the value in `bytes` is not looked
+   * at. All false for every pattern but a hex one with `??` in it.
+   *
+   * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.isWild
+   */
+  readonly isWild: readonly boolean[];
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.encoding */
   readonly encoding: SearchEncoding;
 }
+
+/**
+ * A pattern of these bytes, with holes where `isWild` says so (none by default). A hole per byte:
+ * a shorter or longer mask is a caller's mistake, caught here rather than as a read past the end
+ * inside a scan.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.init
+ */
+export function searchPattern(
+  bytes: Uint8Array | readonly number[],
+  encoding: SearchEncoding,
+  isWild?: readonly boolean[]
+): SearchPattern {
+  const copy = Uint8Array.from(bytes);
+  if (isWild !== undefined && isWild.length !== copy.length) {
+    throw new RangeError("isWild must have one entry per byte");
+  }
+  return {
+    bytes: copy,
+    isWild: isWild ?? Array.from({ length: copy.length }, () => false),
+    encoding,
+  };
+}
+
+/**
+ * Whether any byte of the pattern is a hole.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.hasHoles
+ */
+export const patternHasHoles = (pattern: SearchPattern): boolean => maskedPatternHasHoles(pattern);
+
+/**
+ * Why a pattern is not a search, in the words the field says it in.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.errorText
+ * @upstream-differs the web's own words for an empty pattern, bad hex and text no encoding holds,
+ * which it said before #33; the two #33 added are upstream's
+ */
+export const searchFailureText = (failure: SearchFailure): string =>
+  ({
+    emptyPattern: L("Type something to look for."),
+    invalidHexPattern: L("That is not a hexadecimal byte sequence."),
+    partialByteMask: L("?? stands for a whole byte — half a byte cannot be masked."),
+    holesOnly: L("A pattern of ?? alone matches everywhere — give at least one byte."),
+    undecodableText: L("That text cannot be written in this encoding."),
+  })[failure];
 
 export type ParseResult =
   | { readonly ok: true; readonly pattern: SearchPattern }
@@ -117,7 +182,7 @@ export type ParseResult =
 
 /**
  * The bytes written the way a hex dump writes them: uppercase pairs, one space
- * between.
+ * between, `??` for a hole.
  *
  * The parser accepts more forms than a dump prints — `deadbeef`, `DE AD BE EF`,
  * `0xDE 0xAD` — so this is the one form to show back: text a reader can compare,
@@ -126,29 +191,47 @@ export type ParseResult =
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchPattern.hexText
  */
-export const patternHexText = (pattern: SearchPattern): string =>
-  Array.from(pattern.bytes, (byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+export const patternHexText = (pattern: SearchPattern): string => maskedPatternHexText(pattern);
 
 /**
  * Resolves the text in the find field to bytes.
  *
+ * Hex is `MaskedPattern.hex`'s reading, the one the agent's search makes too. `??` in it is a
+ * hole only where the caller searches with one — `allowingHoles`: the find bar and the pattern
+ * library do; a fill, which has to write every byte it names, does not, and is refused a pattern
+ * with a hole as `invalidHexPattern`.
+ *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.parsePattern
  */
-export function parsePattern(text: string, encoding: SearchEncoding): ParseResult {
+export function parsePattern(
+  text: string,
+  encoding: SearchEncoding,
+  allowingHoles = false
+): ParseResult {
+  if (encoding === "hex") {
+    let masked: MaskedPattern;
+    try {
+      masked = parseHexPattern(text);
+    } catch (error) {
+      if (error instanceof MaskedPatternError) return { ok: false, reason: error.reason };
+      throw error;
+    }
+    if (!allowingHoles && maskedPatternHasHoles(masked)) {
+      return { ok: false, reason: "invalidHexPattern" };
+    }
+    return { ok: true, pattern: { bytes: masked.bytes, isWild: masked.isWild, encoding } };
+  }
   const bytes = encodePattern(text, encoding);
-  if (bytes === "invalidHex") return { ok: false, reason: "invalidHexPattern" };
   if (bytes === "undecodable") return { ok: false, reason: "undecodableText" };
   if (bytes.length === 0) return { ok: false, reason: "emptyPattern" };
-  return { ok: true, pattern: { bytes, encoding } };
+  return { ok: true, pattern: searchPattern(bytes, encoding) };
 }
 
 function encodePattern(
   text: string,
-  encoding: SearchEncoding
-): Uint8Array | "invalidHex" | "undecodable" {
+  encoding: Exclude<SearchEncoding, "hex">
+): Uint8Array | "undecodable" {
   switch (encoding) {
-    case "hex":
-      return parseHexPattern(text);
     case "ascii": {
       const bytes = new Uint8Array(text.length);
       for (let i = 0; i < text.length; i++) {
@@ -176,32 +259,6 @@ function encodePattern(
       return bytes;
     }
   }
-}
-
-/**
- * Hex input as bytes.
- *
- * Accepts `DEADBEEF`, `DE AD BE EF` and `0xDE 0xAD`, case-insensitive. Refuses
- * non-hex characters and an odd number of digits — a missing nibble means the
- * pattern is not the one the user meant, and guessing a half would search for
- * bytes nobody asked for.
- */
-function parseHexPattern(text: string): Uint8Array | "invalidHex" {
-  let digits = "";
-  for (const token of text.split(/[\s,;|]+/)) {
-    if (token.length === 0) continue;
-    const body = /^0[xX]/.test(token) ? token.slice(2) : token;
-    if (body.length === 0 || !/^[0-9a-fA-F]+$/.test(body)) return "invalidHex";
-    digits += body;
-  }
-  if (digits.length === 0) return new Uint8Array(0);
-  if (digits.length % 2 !== 0) return "invalidHex";
-
-  const bytes = new Uint8Array(digits.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = Number.parseInt(digits.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
 }
 
 /**

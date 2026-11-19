@@ -8,7 +8,7 @@ import {
   type ByteMatchSet,
   type ByteQuery,
 } from "@/core/search/byteFindContent";
-import { type MaskedPattern, maskedPattern, parseHexPattern } from "@/core/search/maskedSearch";
+import { type MaskedPattern, maskedPattern } from "@/core/search/maskedSearch";
 import {
   encodingTitle,
   foldingFor,
@@ -17,6 +17,7 @@ import {
   SEARCH_ENCODINGS,
   type SearchEncoding,
   type SearchFailure,
+  searchFailureText,
 } from "@/core/search/searchPattern";
 import { forBytes, forText, type SelectionFindPattern } from "@/core/search/selectionFindPattern";
 import {
@@ -535,12 +536,7 @@ function prepare(pane: PaneId, surface: SurfaceId, slot: PaneState): ByteFindInd
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.reportNoUsablePattern
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.reportNoUsablePattern
  */
-const failureMessage = (failure: SearchFailure): string =>
-  ({
-    emptyPattern: L("Type something to look for."),
-    invalidHexPattern: L("That is not a hexadecimal byte sequence."),
-    undecodableText: L("That text cannot be written in this encoding."),
-  })[failure];
+const failureMessage = (failure: SearchFailure): string => searchFailureText(failure);
 
 /**
  * What the field is asking for, as things to look for: one attempt for a chosen encoding, Smart
@@ -604,8 +600,7 @@ export function runSearch(
  * is arithmetic over the query string, and only the asking is worth a worker.
  *
  * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.pass
- * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.searchAnchor
- * @upstream-differs the anchor is the caret, or where the caller says
+ * @upstream-differs the anchor may be given by the caller; otherwise it is `searchAnchor`'s
  */
 export function startSearch(options: {
   readonly query: string;
@@ -692,7 +687,13 @@ export function startSearch(options: {
   const finder = prepare(pane, surface, slot);
   const search = finder.start(
     attempts.map(attemptQuery),
-    options.from ?? slot.document.caret,
+    options.from ??
+      searchAnchor(
+        slot.document.selection,
+        slot.document.caret,
+        direction,
+        Math.max(1, ...attempts.map((attempt) => attempt.pattern.bytes.length))
+      ),
     direction,
     goal === "show"
   );
@@ -836,7 +837,7 @@ function resolveOne(
   encoding: SearchEncoding,
   caseSensitive: boolean
 ): Attempt[] | SearchFailure {
-  const parsed = parsePattern(query, encoding);
+  const parsed = parsePattern(query, encoding, true);
   if (!parsed.ok) return parsed.reason;
   return [
     {
@@ -895,6 +896,32 @@ export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
 }
 
 /**
+ * Where a search starts from: the caret, or the selection (§11). Find Previous is the last match
+ * starting before the selection's start (`ByteFindContent`, `MatchSet.indexBefore`).
+ *
+ * Find Next depends on what is selected. A selection no longer than a match — the match the
+ * reader stands on — is passed by one byte, not by its length: matches overlap (#33), and the next
+ * one can begin inside it, so `FF FF` over a run of 0xFF is found a byte at a time. A longer
+ * selection is a stretch the reader marked, and the search goes on after it. `matchLength` is the
+ * longest match the search can make.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.searchAnchor
+ * @upstream-differs takes the selection and the caret rather than the pane
+ */
+export function searchAnchor(
+  selection: { readonly start: number; readonly end: number },
+  caret: number,
+  direction: SearchDirection,
+  matchLength: number
+): number {
+  if (selection.end <= selection.start) return caret;
+  if (direction !== "forward") return selection.start;
+  return selection.end - selection.start <= Math.max(matchLength, 1)
+    ? selection.start + 1
+    : selection.end;
+}
+
+/**
  * The next or previous match of the search in hand (§11): from the index where it can answer —
  * at once, so the press lands before it returns — and by one scan where it cannot.
  *
@@ -902,7 +929,8 @@ export function noteSearchEdit(pane: PaneId, _edit: DiffEdit): void {
  * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.land
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
- * @upstream-differs the anchor is the match the reader stands on, else the caret
+ * @upstream-differs the match the reader stands on counts as the selection: landing on a match
+ * here puts the caret on it rather than selecting it
  */
 export function stepSearch(direction: SearchDirection, surface: SurfaceId = frontSurface()): void {
   const pane = searchedPane(surface);
@@ -910,8 +938,12 @@ export function stepSearch(direction: SearchDirection, surface: SurfaceId = fron
   const slot = paneState(pane);
   if (finder?.matches === undefined || slot === undefined) return;
   const results = resultsFor(searchStore.getSnapshot(), pane);
-  const caret = results.current?.start ?? slot.document.caret;
-  const from = direction === "forward" ? caret + 1 : caret;
+  const from = searchAnchor(
+    results.current ?? slot.document.selection,
+    slot.document.caret,
+    direction,
+    finder.highlightedMatches?.matchLength ?? 1
+  );
   const land = (wrapped: boolean) => {
     updateResults(pane, { status: "found", wrapped });
     // Said after the move, not instead of it: the plate is the answer and this is the footnote.
@@ -963,7 +995,7 @@ function adopt(surface: SurfaceId, encoding: SearchEncoding | undefined): void {
  */
 export function hexFieldText(query: string, encoding: SearchEncoding): string {
   if (encoding !== "hex") return query;
-  const parsed = parsePattern(query, encoding);
+  const parsed = parsePattern(query, encoding, true);
   return parsed.ok ? patternHexText(parsed.pattern) : query;
 }
 
@@ -1432,9 +1464,10 @@ export interface ToolPatternAttempt {
 /**
  * What a tool's pattern field asks for, read by the standing choices — the tools' encoding,
  * Smart Search and the case rule last chosen: one attempt for the encoding chosen, or Smart
- * Search's, one encoding after another. Bytes with holes — `24 ?? 4D 49` — which the Find bar's
- * own parse does not take, are hex as the scan reads it, holes kept. A problem with the text, in
- * the Find bar's words, where it asks for nothing.
+ * Search's, one encoding after another. The field is read as the dump's bar reads it —
+ * `24 ?? 4D 49` is bytes with a hole in them, in hex and in Smart Search's hex attempt alike — so
+ * a pattern finds in a panel what it finds in the dump. A problem with the text, in the Find bar's
+ * words, where it asks for nothing.
  *
  * @upstream ByteRipperApp/Tools/ToolPatternQueryControls.swift#ToolPatternQueryControls.attempts
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.searchRequest
@@ -1444,18 +1477,14 @@ export function toolPatternAttempts(
 ): { readonly attempts: readonly ToolPatternAttempt[] } | { readonly problem: string } {
   const state = searchStore.getSnapshot();
   if (text.length === 0) return { problem: failureMessage("emptyPattern") };
-  if (text.includes("??") && (state.smart || state.encoding === "hex")) {
-    try {
-      return { attempts: [{ pattern: parseHexPattern(text), encoding: "hex" }] };
-    } catch {
-      // Not bytes after all: asked as the field's text below.
-    }
-  }
   const attempts = attemptsForField(text, state.encoding, state.smart, state.caseSensitive);
   if (typeof attempts === "string") return { problem: attempts };
   return {
     attempts: attempts.map((attempt) => ({
-      pattern: maskedPattern(attempt.pattern.bytes, { folding: attempt.folding }),
+      pattern: maskedPattern(attempt.pattern.bytes, {
+        isWild: attempt.pattern.isWild,
+        folding: attempt.folding,
+      }),
       encoding: attemptEncoding(attempt),
     })),
   };

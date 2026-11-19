@@ -1,4 +1,4 @@
-import { patternHexText, type SearchEncoding } from "@/core/search/searchPattern";
+import { patternHexText, type SearchEncoding, searchPattern } from "@/core/search/searchPattern";
 
 /**
  * What a selection becomes when it is used as a find pattern — the text the
@@ -30,7 +30,7 @@ export interface SelectionFindPattern {
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SelectionFindPattern.swift#SelectionFindPattern.forBytes
  */
 export function forBytes(bytes: Uint8Array): SelectionFindPattern {
-  return { text: patternHexText({ bytes, encoding: "hex" }), encoding: "hex" };
+  return { text: patternHexText(searchPattern(bytes, "hex")), encoding: "hex" };
 }
 
 /**

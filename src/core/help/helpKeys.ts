@@ -39,6 +39,7 @@ export type HelpCommand =
   | "cut"
   | "paste"
   | "find"
+  | "findNext"
   | "goTo"
   | "minimap"
   | "bookmark"
@@ -99,6 +100,7 @@ export const HELP_KEY_SPELLINGS: Readonly<Record<HelpCommand, KeySpelling>> = {
   cut: { apple: "⌘X", other: "Ctrl+X" },
   paste: { apple: "⌘V", other: "Ctrl+V" },
   find: { apple: "⌘F", other: "Ctrl+F" },
+  findNext: { apple: "⌘G", other: "Ctrl+G" },
   goTo: { apple: "⌘L", other: "Ctrl+L" },
   minimap: { apple: "⌘M", other: "Ctrl+M" },
   bookmark: { apple: "⌘D", other: "Ctrl+D" },

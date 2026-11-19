@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
-import { findOne, SearchCancelled, scanAll } from "@/core/search/searchEngine";
+import { ByteFindContent } from "@/core/search/byteFindContent";
+import { SearchCancelled } from "@/core/search/searchEngine";
 import { ChunkCache } from "@/core/storage/chunkCache";
 import { FileBackedStorage } from "@/core/storage/fileBackedStorage";
 import type {
@@ -40,16 +41,19 @@ scope.addEventListener("message", (event: MessageEvent<SearchWorkerRequest>) => 
   );
 });
 
+/** The file's bytes as the dump's search scans them: the page's own `ByteFindContent`. */
+const contentOf = (file: Blob) =>
+  new ByteFindContent(new FileBackedStorage(file, new ChunkCache()));
+
 async function firstMatch(request: SearchFirstMatchRequest): Promise<void> {
-  const storage = new FileBackedStorage(request.file, new ChunkCache());
   try {
-    const match = await findOne(request.pattern, storage, {
-      from: request.from,
-      direction: request.direction,
-      folding: request.folding,
-      shouldCancel: () => cancelled.has(request.id),
-      onProgress: (fraction) => post({ kind: "searchProgress", id: request.id, fraction }),
-    });
+    const match = await contentOf(request.file).firstMatch(
+      request.query,
+      request.from,
+      request.direction,
+      () => cancelled.has(request.id),
+      (fraction) => post({ kind: "searchProgress", id: request.id, fraction })
+    );
     post({ kind: "first", id: request.id, ...(match === undefined ? {} : { match }) });
   } catch (error) {
     fail(request.id, error);
@@ -57,7 +61,7 @@ async function firstMatch(request: SearchFirstMatchRequest): Promise<void> {
 }
 
 async function matchStarts(request: SearchMatchStartsRequest): Promise<void> {
-  const storage = new FileBackedStorage(request.file, new ChunkCache());
+  const content = contentOf(request.file);
   let pending: number[] = [];
   let lastPosted = 0;
   const send = (scannedUpTo: number) => {
@@ -67,18 +71,20 @@ async function matchStarts(request: SearchMatchStartsRequest): Promise<void> {
     post({ kind: "batch", id: request.id, starts, scannedUpTo }, [starts.buffer]);
   };
   try {
-    await scanAll(request.pattern, storage, {
-      folding: request.folding,
-      shouldCancel: () => cancelled.has(request.id),
-      onMatches: (starts) => {
-        for (const start of starts) pending.push(start);
-      },
-      onWindow: (upTo) => {
-        if (Date.now() - lastPosted >= POST_EVERY_MS) send(upTo);
-      },
-      onProgress: (fraction) => post({ kind: "searchProgress", id: request.id, fraction }),
-    });
-    send(storage.size);
+    let covered = 0;
+    for await (const batch of content.matchStarts(
+      request.query,
+      () => cancelled.has(request.id),
+      (fraction) => post({ kind: "searchProgress", id: request.id, fraction })
+    )) {
+      for (let index = 0; index < batch.starts.length; index++) {
+        pending.push(batch.starts[index] ?? 0);
+      }
+      covered = batch.scannedUpTo;
+      if (Date.now() - lastPosted >= POST_EVERY_MS) send(covered);
+    }
+    if (cancelled.has(request.id)) throw new SearchCancelled();
+    send(Math.max(covered, content.extent));
     post({ kind: "scanned", id: request.id });
   } catch (error) {
     fail(request.id, error);
