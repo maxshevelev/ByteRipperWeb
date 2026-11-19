@@ -36,6 +36,7 @@ export const sameRange = (a: FindRange | undefined, b: FindRange | undefined): b
  * an ordinal — waits for the end (§11).
  *
  * @upstream Packages/Find/Sources/Find/FindContent.swift#MatchBatch
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEngine.MatchBatch
  */
 export interface MatchBatch {
   /** @upstream Packages/Find/Sources/Find/FindContent.swift#MatchBatch.starts */
