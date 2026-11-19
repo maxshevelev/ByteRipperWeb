@@ -12,6 +12,7 @@ import {
   toggleBookmarkInPane,
 } from "@/state/bookmarkEditStore";
 import { addBookmark, bookmarkAt, bookmarks, removeBookmark } from "@/state/bookmarksStore";
+import { addressValue } from "@/ui/controls/addressEvaluation";
 
 const session = () => bookmarkEditStore.getSnapshot().session;
 
@@ -65,20 +66,20 @@ describe("the offset field", () => {
   });
 
   it("names a row, rounding down to its start", () => {
-    expect(editedBookmarkRow("0x1237", 0)).toBe(0x1230);
-    expect(editedBookmarkRow("4660", 0)).toBe(0x1230);
+    expect(editedBookmarkRow(addressValue("0x1237"), 0)).toBe(0x1230);
+    expect(editedBookmarkRow(addressValue("4660"), 0)).toBe(0x1230);
   });
 
   it("names no row for text that is not an offset", () => {
-    expect(editedBookmarkRow("0xZZ", 0)).toBeUndefined();
-    expect(editedBookmarkRow("", 0)).toBeUndefined();
+    expect(editedBookmarkRow(addressValue("0xZZ"), 0)).toBeUndefined();
+    expect(editedBookmarkRow(addressValue(""), 0)).toBeUndefined();
   });
 
   it("refuses a row another bookmark holds, but not the mark's own", () => {
     addBookmark("a", 0x300, "other");
     addBookmark("a", 0x100, "mine");
-    expect(editedBookmarkRow("0x300", 0x100)).toBeUndefined();
-    expect(editedBookmarkRow("0x10F", 0x100)).toBe(0x100);
+    expect(editedBookmarkRow(addressValue("0x300"), 0x100)).toBeUndefined();
+    expect(editedBookmarkRow(addressValue("0x10F"), 0x100)).toBe(0x100);
   });
 });
 

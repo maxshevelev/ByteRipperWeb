@@ -169,7 +169,10 @@ export class AgentDumpTools {
     const place = this.desk.placeNamed(args.string("document"));
     const offset = args.optionalOffset("offset") ?? 0;
     const length = args.optionalOffset("length") ?? 0;
-    const asked = AgentArguments.range(offset, length);
+    const asked = AgentArguments.range(
+      args.exactOffset("offset") ?? 0n,
+      args.exactOffset("length") ?? 0n
+    );
     let onScreen: AgentPlace;
     let replaced: string | undefined;
     if (place.isOnScreen) {

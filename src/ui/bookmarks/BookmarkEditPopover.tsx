@@ -10,6 +10,12 @@ import {
 } from "@/state/bookmarkEditStore";
 import { removeBookmark } from "@/state/bookmarksStore";
 import { paneInFront } from "@/state/workspaceStore";
+import { AddressField } from "@/ui/controls/AddressField";
+import {
+  addressValue,
+  isUnfinished,
+  recordAddressInHistory,
+} from "@/ui/controls/addressEvaluation";
 import { shortcutKey } from "@/ui/pane/hexKeys";
 
 /**
@@ -60,12 +66,21 @@ export function BookmarkEditPopover({
   const nameRef = useRef<HTMLInputElement | null>(null);
 
   /**
-   * Red digits in a field of digits say "no such row" without a sentence.
+   * Return, or a press outside, on the text as it stands: an unfinished sum is
+   * then as red as a typo. Any edit takes it back.
+   */
+  const [acted, setActed] = useState(false);
+
+  /**
+   * Red digits in a field of digits say "no such row" without a sentence. A sum
+   * that ends at its operator is not red while it is typed — it is not wrong
+   * yet (issue #9). Acted on, it is.
    *
    * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.updateOffsetValidation
    * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.controlTextDidChange
    */
-  const edited = editedBookmarkRow(offsetText, session.row);
+  const edited = editedBookmarkRow(addressValue(offsetText), session.row);
+  const red = edited === undefined && (acted || !isUnfinished(offsetText));
 
   /**
    * The caret goes straight into the name, with an existing one selected so
@@ -78,23 +93,36 @@ export function BookmarkEditPopover({
     nameRef.current?.select();
   }, []);
 
-  const typed = useRef({ edited, name });
-  typed.current = { edited, name };
+  const typed = useRef({ edited, name, offsetText });
+  typed.current = { edited, name, offsetText };
 
   /**
    * Dismissed by anything but the keys, the popover keeps what was typed. An
    * address that names no row is the one thing not kept: the bookmark stays on
    * its own row, with the name.
    *
+   * An unfinished sum is not settled by a press outside: closing would drop it
+   * without a word, from a field that never turned red. The popover stays, and
+   * the field turns red; Return, Esc and a finished sum close it as before. A
+   * switch to another window presses nothing here, so it leaves the popover and
+   * the sum as they are.
+   *
    * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.popoverDidClose
+   * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.popoverShouldClose
    * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.settled
    * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.popover
    */
   useEffect(() => {
     const onOutsidePress = (event: PointerEvent) => {
       if (formRef.current?.contains(event.target as Node) === true) return;
-      const settled = commitBookmarkEdit(typed.current.edited ?? session.row, typed.current.name);
-      if (settled !== undefined) onCommitted(settled, typed.current.edited ?? session.row);
+      const { edited, name, offsetText } = typed.current;
+      if (isUnfinished(offsetText)) {
+        setActed(true);
+        return;
+      }
+      if (edited !== undefined) recordAddressInHistory(offsetText);
+      const settled = commitBookmarkEdit(edited ?? session.row, name);
+      if (settled !== undefined) onCommitted(settled, edited ?? session.row);
     };
     document.addEventListener("pointerdown", onOutsidePress, true);
     return () => document.removeEventListener("pointerdown", onOutsidePress, true);
@@ -108,7 +136,11 @@ export function BookmarkEditPopover({
    */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (edited === undefined) return;
+    if (edited === undefined) {
+      setActed(true);
+      return;
+    }
+    recordAddressInHistory(offsetText);
     const settled = commitBookmarkEdit(edited, name);
     if (settled !== undefined) onCommitted(settled, edited);
     onKeyboardClose();
@@ -156,14 +188,15 @@ export function BookmarkEditPopover({
       onCut={(event) => event.stopPropagation()}
       onPaste={(event) => event.stopPropagation()}
     >
-      <input
-        className={`bookmark-popover-offset${edited === undefined ? " is-invalid" : ""}`}
+      {/* The address in the dump's own font: read far more often than edited. */}
+      <AddressField
         aria-label={L("Bookmark offset")}
-        aria-invalid={edited === undefined}
+        invalid={red}
         value={offsetText}
-        onChange={(event) => setOffsetText(event.target.value)}
-        spellCheck={false}
-        autoComplete="off"
+        onChange={(text) => {
+          setOffsetText(text);
+          setActed(false);
+        }}
       />
       <input
         ref={nameRef}

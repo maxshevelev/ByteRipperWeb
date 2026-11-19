@@ -1424,7 +1424,6 @@
 "No bookmarks yet. Ctrl+D marks the row your caret is on, so you can come back to it." = "Noch keine Lesezeichen. Strg+D setzt eines auf der Zeile, auf der die Einfügemarke steht, damit Sie dorthin zurückkehren können.";
 "Nothing was joined." = "Es wurde nichts zusammengefügt.";
 "One cell per byte, around where the panes are" = "Eine Zelle je Byte, rund um die Stelle, an der die Bereiche stehen";
-"Recent addresses" = "Zuletzt besuchte Adressen";
 "Repeated across %1$@ bytes." = "Wiederholt über %1$@ Bytes.";
 "Repeated across 1 byte." = "Wiederholt über 1 Byte.";
 "Replace %1$@" = "%1$@ ersetzen";
@@ -1781,3 +1780,10 @@
 "code name" = "Codename";
 "?? stands for a whole byte — half a byte cannot be masked." = "?? steht für ein ganzes Byte — ein halbes Byte lässt sich nicht maskieren.";
 "A pattern of ?? alone matches everywhere — give at least one byte." = "Ein Muster nur aus ?? passt überall — geben Sie mindestens ein Byte an.";
+
+/* The address field: a sum in place of a number (upstream 232f7ffb..eb7ec61b, copied word for word) */
+"Addresses and sums entered before" = "Zuvor eingegebene Adressen und Summen";
+"Nothing entered yet" = "Noch nichts eingegeben";
+"The result does not fit in 64 bits." = "Das Ergebnis passt nicht in 64 Bit.";
+"The result is negative." = "Das Ergebnis ist negativ.";
+"The sum is not finished." = "Die Summe ist unvollständig.";

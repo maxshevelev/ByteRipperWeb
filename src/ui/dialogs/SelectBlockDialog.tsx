@@ -1,8 +1,19 @@
 import { useEffect, useId, useState } from "react";
 import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
-import { parseOffset } from "@/core/text/offsetParser";
+import { AddressField } from "@/ui/controls/AddressField";
+import { addressValue, recordAddressInHistory } from "@/ui/controls/addressEvaluation";
 import { Dialog } from "@/ui/dialogs/Dialog";
+import {
+  type SelectBlockField,
+  type SelectBlockLine,
+  type SelectBlockMode,
+  selectBlockModeSwitched,
+  selectBlockNote,
+  selectBlockStartError,
+  selectBlockTyped,
+  validateSelectBlock,
+} from "@/ui/dialogs/selectBlock";
 
 /**
  * Select Block (§10.2).
@@ -11,6 +22,10 @@ import { Dialog } from "@/ui/dialogs/Dialog";
  * to hand: an end address, read off another tool's output, or a length, read
  * off a datasheet. The option that is not active keeps its text, so switching
  * back and forth costs nothing.
+ *
+ * Each field is the app's address field (`AddressField`), so each takes a sum
+ * as well as a number, and the sum being typed is read back on the message's
+ * line (issue #9). The checks are `selectBlock.ts`'s.
  *
  * **End is the block's last byte, and the conversion happens here.** Inside the
  * application a range is half-open `[start, end)`; a person reading a dump
@@ -31,17 +46,15 @@ export interface SelectBlockDialogProps {
   readonly onClose: () => void;
 }
 
-/**
- * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.endRadio
- * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.lengthRadio
- */
-type Mode = "end" | "length";
+/** Nothing typed yet, nothing wrong yet. */
+const QUIET_LINE: SelectBlockLine = { lastEdited: undefined, error: undefined };
 
 /**
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.startField
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.endField
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.lengthField
+ * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.addAddressRow
  */
 export function SelectBlockDialog({
   open,
@@ -53,45 +66,72 @@ export function SelectBlockDialog({
   const [start, setStart] = useState("0x");
   const [end, setEnd] = useState("0x");
   const [length, setLength] = useState("0x");
-  const [mode, setMode] = useState<Mode>("end");
+  const [mode, setMode] = useState<SelectBlockMode>("end");
+  /**
+   * The message's line: the error last found, or the field whose sum it reads
+   * back. Updated as a key is typed or the option switched, as upstream's is —
+   * not on every render, so switching the option over a field nobody has
+   * typed in raises no error of its own.
+   *
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.errorLabel
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.noteLabel
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.showError
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.showNote
+   */
+  const [line, setLine] = useState<SelectBlockLine>(QUIET_LINE);
   const group = useId();
 
   useEffect(() => {
     if (!open) return;
+    // A preset past 4 GB comes into the field whole.
     setStart(presetStart === undefined ? "0x" : hexNumber(presetStart));
     setEnd("0x");
     setLength("0x");
     // With the start already filled in, the length is the user's job, so that
     // is the active option and the field the keyboard lands in.
     setMode(presetStart === undefined ? "end" : "length");
+    setLine(QUIET_LINE);
   }, [open, presetStart]);
 
-  const startValue = offsetIn(start);
-  const problem = validate();
+  const form = { start, end, length, mode, fileSize };
+
+  /** @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.updateLiveError */
+  const type = (field: SelectBlockField, text: string) => {
+    const next = { ...form, [field]: text };
+    if (field === "start") setStart(text);
+    else if (field === "end") setEnd(text);
+    else setLength(text);
+    setLine(selectBlockTyped(next, field));
+  };
+
+  /** @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.modeRadioChanged */
+  const choose = (next: SelectBlockMode) => {
+    setMode(next);
+    setLine((current) => selectBlockModeSwitched({ ...form, mode: next }, current));
+  };
+
+  /** Shown on the line: an error, never with the sum read back beside it. */
+  const showError = (message: string) => setLine((current) => ({ ...current, error: message }));
 
   /**
-   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.validate
-   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.validate
-   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.showError
-   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.errorLabel
+   * A sum the selection was made from goes into the fields' list, so it can be
+   * picked again and corrected — the start last, so it is the entry the list
+   * opens on. A plain number does not: the list would fill with every length
+   * ever typed.
+   *
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.keepSums
    */
-  function validate(): string | undefined {
-    if (startValue === undefined) return L("Invalid start offset.");
-    if (startValue > fileSize) return L("Start is beyond the end of the file.");
-    if (mode === "end") {
-      const endValue = offsetIn(end);
-      if (endValue === undefined) return L("Invalid end offset.");
-      if (startValue > endValue) return L("Start must not exceed end.");
-      // End names the last byte, so it has to be a byte the file holds.
-      if (endValue >= fileSize) return L("End is beyond the end of the file.");
-      return undefined;
-    }
-    if (offsetIn(length) === undefined) return L("Invalid length.");
-    return undefined;
-  }
+  const keepSums = (texts: readonly string[]) => {
+    for (const text of [...texts].reverse()) recordAddressInHistory(text);
+  };
 
   /**
+   * OK refuses with what is wrong, named on the line — an unfinished sum among
+   * it, which the line waited on while it was typed.
+   *
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.validate
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.handleSubmit
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.validate
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.onSubmit
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.handleSubmit
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.submitPressed
@@ -99,36 +139,52 @@ export function SelectBlockDialog({
    */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (problem !== undefined || startValue === undefined) return;
+    const problem = validateSelectBlock(form);
+    const startValue = addressValue(start);
+    if (problem !== undefined || startValue === undefined) {
+      showError(problem ?? L("Invalid start offset."));
+      return;
+    }
     if (mode === "end") {
-      const endValue = offsetIn(end);
+      const endValue = addressValue(end);
       if (endValue === undefined) return;
+      keepSums([start, end]);
       // The inclusive end becomes the half-open one, here and nowhere else.
       onSelect(startValue, Math.min(endValue + 1, fileSize));
     } else {
-      const count = offsetIn(length);
+      const count = addressValue(length);
       if (count === undefined) return;
+      keepSums([start, length]);
       onSelect(startValue, Math.min(startValue + count, fileSize));
     }
     onClose();
   };
 
   /**
-   * The two boundary shortcuts read the Start field and nothing else.
+   * The two boundary shortcuts read the Start field and nothing else, and refuse
+   * with what is wrong in it.
    *
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toBeginningButton
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toEndButton
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toBeginningPressed
+   * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.toEndPressed
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.submitToBeginning
    * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.submitToEnd
    */
   const toBoundary = (which: "beginning" | "end") => {
-    if (startValue === undefined || startValue > fileSize) return;
+    const problem = selectBlockStartError(form);
+    const startValue = addressValue(start);
+    if (problem !== undefined || startValue === undefined) {
+      showError(problem ?? L("Invalid start offset."));
+      return;
+    }
+    recordAddressInHistory(start);
     if (which === "beginning") onSelect(0, startValue);
     else onSelect(startValue, fileSize);
     onClose();
   };
 
-  const startBad = startValue === undefined || startValue > fileSize;
+  const note = line.error === undefined ? selectBlockNote(form, line.lastEdited) : undefined;
 
   return (
     <Dialog open={open} title={L("Select Block")} onClose={onClose}>
@@ -139,15 +195,15 @@ export function SelectBlockDialog({
           </p>
         ) : null}
 
-        <label className="dialog-field">
+        <div className="dialog-field">
           {L("Start")}
-          <input
+          <AddressField
             autoFocus={presetStart === undefined}
             value={start}
-            onChange={(event) => setStart(event.target.value)}
-            spellCheck={false}
+            onChange={(text) => type("start", text)}
+            aria-label={L("Start")}
           />
-        </label>
+        </div>
 
         <div className="dialog-field is-radio">
           <label className="dialog-radio">
@@ -155,15 +211,14 @@ export function SelectBlockDialog({
               type="radio"
               name={group}
               checked={mode === "end"}
-              onChange={() => setMode("end")}
+              onChange={() => choose("end")}
             />
             {L("End")}
           </label>
-          <input
+          <AddressField
             value={end}
             disabled={mode !== "end"}
-            onChange={(event) => setEnd(event.target.value)}
-            spellCheck={false}
+            onChange={(text) => type("end", text)}
             aria-label={L("End offset")}
           />
         </div>
@@ -174,27 +229,35 @@ export function SelectBlockDialog({
               type="radio"
               name={group}
               checked={mode === "length"}
-              onChange={() => setMode("length")}
+              onChange={() => choose("length")}
             />
             {L("Length")}
           </label>
-          <input
+          <AddressField
             autoFocus={presetStart !== undefined}
             value={length}
             disabled={mode !== "length"}
-            onChange={(event) => setLength(event.target.value)}
-            spellCheck={false}
+            onChange={(text) => type("length", text)}
             aria-label={L("Length")}
           />
         </div>
 
-        <p className="dialog-help">{problem ?? L("Decimal, or hex as 1F or 0x1F.")}</p>
+        {/* One line for the error, the sum read back, or how to type a number:
+            never two of them at once. */}
+        <p className="dialog-help" aria-live="polite">
+          {line.error !== undefined ? (
+            line.error
+          ) : note !== undefined ? (
+            <span className="address-breakdown">{note}</span>
+          ) : (
+            L("Decimal, or hex as 1F or 0x1F.")
+          )}
+        </p>
 
         <div className="dialog-actions">
           <button
             type="button"
             className="toolbar-button"
-            disabled={startBad}
             onClick={() => toBoundary("beginning")}
             title={L("Select from the file's start to the position above")}
           >
@@ -203,7 +266,6 @@ export function SelectBlockDialog({
           <button
             type="button"
             className="toolbar-button"
-            disabled={startBad}
             onClick={() => toBoundary("end")}
             title={L("Select from the position above to the file's end")}
           >
@@ -213,19 +275,11 @@ export function SelectBlockDialog({
           <button type="button" className="toolbar-button" onClick={onClose}>
             {L("Cancel")}
           </button>
-          <button type="submit" className="toolbar-button" disabled={problem !== undefined}>
+          <button type="submit" className="toolbar-button">
             {L("Select")}
           </button>
         </div>
       </form>
     </Dialog>
   );
-}
-
-/** An empty field is not a zero: it is nothing yet, and nothing is not valid. */
-function offsetIn(text: string): number | undefined {
-  const trimmed = text.trim();
-  if (trimmed === "" || trimmed === "0x" || trimmed === "0X") return undefined;
-  const parsed = parseOffset(trimmed);
-  return parsed.ok ? parsed.value : undefined;
 }

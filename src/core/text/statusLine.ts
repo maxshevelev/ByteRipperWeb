@@ -17,7 +17,13 @@
  *   what a dialog asks for; it is not the line's own spelling.
  */
 
-import { bareHexNumber, decimalNumber, hexDigitCount, hexNumber } from "@/core/hexText/hexText";
+import {
+  bareHexNumber,
+  decimalNumber,
+  hexDigitCount,
+  hexNumber,
+  lastByte,
+} from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { SegmentReadout } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
@@ -213,7 +219,7 @@ export function statusParts(status: PaneStatus): StatusLineParts {
     // length. The count is the range's, not the last byte's — a piece of eight
     // bytes ending at 0x0F is "8 B", not "0F".
     parts.push(
-      `${segment.label}: ${address(segment.start)}-${address(segment.end - 1)} ` +
+      `${segment.label}: ${address(segment.start)}-${address(lastByte(segment.start, segment.end))} ` +
         `(${friendlySize(segment.end - segment.start)})`
     );
   }

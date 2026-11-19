@@ -241,7 +241,10 @@ export class AgentHostTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const offset = args.offset("offset");
     const length = args.optionalOffset("length") ?? 0;
-    const asked = AgentArguments.range(offset, length);
+    const asked = AgentArguments.range(
+      args.exactOffset("offset") ?? 0n,
+      args.exactOffset("length") ?? 0n
+    );
     const select = args.bool("select", length > 0);
     const pane = place.onScreen();
     const size = place.document.size;

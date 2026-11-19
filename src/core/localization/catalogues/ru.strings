@@ -1423,7 +1423,6 @@
 "No bookmarks yet. Ctrl+D marks the row your caret is on, so you can come back to it." = "Закладок пока нет. Ctrl+D ставит закладку на строке, где стоит курсор, чтобы к ней можно было вернуться.";
 "Nothing was joined." = "Ничего не присоединено.";
 "One cell per byte, around where the panes are" = "Одна клетка на байт, вокруг того места, где стоят панели";
-"Recent addresses" = "Недавние адреса";
 "Repeated across %1$@ bytes." = "Повторяется на байтах: %1$@.";
 "Repeated across 1 byte." = "Повторяется на одном байте.";
 "Replace %1$@" = "Заменить %1$@";
@@ -1780,3 +1779,10 @@
 "code name" = "кодовое имя";
 "?? stands for a whole byte — half a byte cannot be masked." = "?? обозначает целый байт — замаскировать половину байта нельзя.";
 "A pattern of ?? alone matches everywhere — give at least one byte." = "Шаблон из одних ?? совпадает везде — укажите хотя бы один байт.";
+
+/* The address field: a sum in place of a number (upstream 232f7ffb..eb7ec61b, copied word for word) */
+"Addresses and sums entered before" = "Ранее введённые адреса и выражения";
+"Nothing entered yet" = "Пока ничего не введено";
+"The result does not fit in 64 bits." = "Результат не помещается в 64 бита.";
+"The result is negative." = "Результат отрицательный.";
+"The sum is not finished." = "Выражение не дописано.";

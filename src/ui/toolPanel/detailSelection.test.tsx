@@ -152,6 +152,7 @@ describe("the name column of a detail list", () => {
   // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolFieldListTests.swift#ToolFieldListTests.testAColumnIsAsWideAsItsWidestName
   // @upstream ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnFitsTheLongestNameAndStopsAtHalfTheList
   // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailScrollTests.swift#ToolDetailScrollTests.testShowRowsSizesTheNameColumnToTheLongestName
+  // @upstream ByteRipperTests/UEFIToolFlowTests.swift#UEFIToolFlowTests.testTheDetailsNameColumnFitsItsNames
   // @upstream-differs the column is the stylesheet's, read from it rather than measured
   it("takes the longest name in every panel, never narrower than the shared column", () => {
     const html = renderToStaticMarkup(

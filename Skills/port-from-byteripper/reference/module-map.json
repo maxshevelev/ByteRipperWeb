@@ -65,6 +65,10 @@
       "why": "XcodeGen project generation."
     },
     {
+      "prefix": ".github/workflows/refresh-jedec-ids.yml",
+      "why": "Upstream's scheduled refresh of the flash-chip IDs it bundles; the web has no such table or job."
+    },
+    {
       "prefix": "ByteRipper.xcodeproj",
       "why": "Generated Xcode project."
     },
@@ -313,7 +317,9 @@
         "Tests/ByteRipperCoreTests/MaskedSearchTests.swift": "src/core/search/maskedSearch.test.ts",
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/KeptFormatVersionTests.swift": "src/core/edit/keptFormatVersion.test.ts",
         "ByteFindContent.swift": "src/core/search/byteFindContent.ts",
-        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ByteFindContentTests.swift": "src/core/search/byteFindContent.test.ts"
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/ByteFindContentTests.swift": "src/core/search/byteFindContent.test.ts",
+        "OffsetExpression.swift": "src/core/text/offsetExpression.ts",
+        "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OffsetExpressionTests.swift": "src/core/text/offsetExpression.test.ts"
       },
       "unported": {
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ContentSnapshot.swift#ContentSnapshot.*": "n/a — the snapshot is a scratch file read through a ByteSource (EditOverlayStorage.contentSnapshot), so it has no reader type of its own",
@@ -392,7 +398,8 @@
         "Packages/ByteRipperCore/Tests/ByteRipperCoreTests/UndoJournalTests.swift#UndoJournalTests.testAMoveTheHistoryOutranIsAbandoned": "n/a — no rounds to abandon; see UndoHistory.JournalMove",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#ByteQuery.init": "n/a — an object literal; there is nothing to construct",
         "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#MatchSet.pattern": "n/a — TypeScript extends no generic class for one of its arguments: a byte set's pattern is read as `set.query.pattern`",
-        "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#MatchSet.folding": "n/a — TypeScript extends no generic class for one of its arguments: a byte set's case rule is read as `set.query.folding`"
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#MatchSet.folding": "n/a — TypeScript extends no generic class for one of its arguments: a byte set's case rule is read as `set.query.folding`",
+        "Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetExpression.swift#OffsetExpression.Term.init": "n/a — a term is a record literal"
       }
     },
     {
@@ -1890,7 +1897,6 @@
         "ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.adoptFindPasteboard": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
         "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.surface": "n/a — a bar is kept under its surface's id; there is no surface object to point back at",
         "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.host": "n/a — the store calls the stores; there is no window controller to point back at",
-        "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.init": "n/a — a bar is a record in the store, made as its surface arrives (`followParts`)",
         "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.park": "n/a — React renders a surface's bar where the surface is, while it is open; there is no view to keep in the hierarchy between shows",
         "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.findAgain": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history",
         "ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.returnsFocusTo": "n/a — AppKit's find pasteboard and ⌘G (Find Next, Find Previous): the owner's decision, the web keeps its own find history"
@@ -1910,9 +1916,8 @@
         "GoToBookmarksForm.swift": "src/ui/dialogs/GoToDialog.tsx",
         "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift": ""
       },
-      "note": "Across at M7. BookmarkStore whole, with the drag rule that is the substance of it: a mark dragged onto an occupied row jumps over it, stops before it when there is no room beyond, and moves nothing only when even that room is missing. GoToHistoryStore's UserDefaults become the workspace record: the tab's id is in sessionStorage (which is exactly per-tab and survives a reload) and the marks and recent addresses are in IndexedDB under it, through src/platform/storage/keyValueStore.ts — ANALYSIS.md § Bookmarks asks for a reload to keep them, which upstream's window scope does not have to answer. The form is one dialog as upstream has it: Go To and the bookmark list are one question. The naming popover is a panel of the pane's own, hung under the mark's row inside the dump's scroller (src/ui/bookmarks/BookmarkEditPopover.tsx) — the same two fields, keys and outside-press commit as upstream's NSPopover — with its session and commands in src/state/bookmarkEditStore.ts. The marks themselves are drawn by the hex grid (the offset column's pentagon, §20.4) and by the minimap (a triangle in a margin of its own, §19.4.3).",
+      "note": "Across at M7. BookmarkStore whole, with the drag rule that is the substance of it: a mark dragged onto an occupied row jumps over it, stops before it when there is no room beyond, and moves nothing only when even that room is missing. The marks are the workspace record: the tab's id is in sessionStorage (which is exactly per-tab and survives a reload) and the marks are in IndexedDB under it, through src/platform/storage/keyValueStore.ts — ANALYSIS.md § Bookmarks asks for a reload to keep them, which upstream's window scope does not have to answer. The form is one dialog as upstream has it: Go To and the bookmark list are one question. The naming popover is a panel of the pane's own, hung under the mark's row inside the dump's scroller (src/ui/bookmarks/BookmarkEditPopover.tsx) — the same two fields, keys and outside-press commit as upstream's NSPopover — with its session and commands in src/state/bookmarkEditStore.ts. The marks themselves are drawn by the hex grid (the offset column's pentagon, §20.4) and by the minimap (a triangle in a margin of its own, §19.4.3). Go To's recent addresses are the address field's list since upstream #43 (ByteRipperApp/Controls): app-wide in localStorage, as upstream's UserDefaults list is the app's; a tab's earlier rows are adopted into it once.",
       "unported": {
-        "ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.defaults": "n/a — UserDefaults",
         "ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.init": "n/a — AppKit view plumbing",
         "ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.loadView": "n/a — AppKit view plumbing",
         "ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.viewDidAppear": "n/a — AppKit view plumbing",
@@ -1930,7 +1935,57 @@
         "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.init": "n/a — AppKit view plumbing",
         "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.loadView": "n/a — AppKit view plumbing",
         "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.width": "n/a — CSS lays it out",
-        "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.beep": "n/a — the browser has no system beep"
+        "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.beep": "n/a — the browser has no system beep",
+        "ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.isAppActive": "n/a — NSPopover asks to close when the app is left; a page's popover is closed only by a press in the page"
+      }
+    },
+    {
+      "swift": "ByteRipperApp/Controls",
+      "web": [
+        "src/ui/controls",
+        "src/state/addressHistoryStore.ts"
+      ],
+      "status": "ported",
+      "note": "Across with upstream #43 (issue #9): the one field an address or a length is typed in. AddressField is a React component over an input, with the result and the list's arrow laid over its right edge and the list a listbox under it; what the text comes to is read in addressEvaluation.ts, pure and tested from AddressFieldTests. AddressHistoryStore is src/state/addressHistoryStore.ts over localStorage. CaretAtEndTextField is CaretAtEndInput: a browser selects a field's text when Tab brings the focus to it, as AppKit does on becomeFirstResponder, so the counterpart is real; the Fill dialog's byte field uses it too. A result past Number.MAX_SAFE_INTEGER is no offset here (D3) and reads as invalid input.",
+      "files": {
+        "AddressField.swift": [
+          "src/ui/controls/AddressField.tsx",
+          "src/ui/controls/addressEvaluation.ts",
+          "src/state/addressHistoryStore.ts"
+        ],
+        "CaretAtEndTextField.swift": "src/ui/controls/CaretAtEndInput.tsx",
+        "ByteRipperTests/AddressFieldTests.swift": "src/ui/controls/addressEvaluation.test.ts"
+      },
+      "unported": {
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.init": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.cellClass": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.stringValue": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.textColor": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.isEnabled": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.textDidChange": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.drawnResult": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.refreshResult": "n/a — React: the field's text is the form's state, and the result is drawn from it on render",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.buttonWidth": "n/a — CSS lays it out",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.gap": "n/a — CSS lays it out",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.layoutAdornments": "n/a — CSS lays it out; the component measures the result for the input's right padding",
+        "ByteRipperApp/Controls/AddressField.swift#AddressField.popUpHistory": "n/a — an NSMenu popped up and tracked; the web's list is a listbox the field's keys walk",
+        "ByteRipperApp/Controls/AddressField.swift#HistoryChoice*": "n/a — an NSMenu popped up and tracked; the web's list is a listbox the field's keys walk",
+        "ByteRipperApp/Controls/AddressField.swift#AddressFieldCell*": "n/a — an NSTextFieldCell narrowed for the result; CSS padding does it",
+        "ByteRipperApp/Controls/AddressField.swift#AddressFieldEditor.field": "n/a — AppKit view plumbing",
+        "ByteRipperApp/Controls/AddressField.swift#ResultLabel*": "n/a — a label that passes clicks on; CSS pointer-events does it",
+        "ByteRipperApp/Controls/CaretAtEndTextField.swift#CaretAtEndTextField.onTextChange": "n/a — React: the input's onChange",
+        "ByteRipperApp/Controls/CaretAtEndTextField.swift#CaretAtEndTextField.textDidChange": "n/a — React: the input's onChange",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.isolatedSuiteName": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.isolatedDefaults": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.previousDefaults": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.setUp": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.tearDown": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#DownTaker*": "n/a — test scaffolding",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.testAPickIntoAnUnfocusedFieldFocusesIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.testAPickInTheEditorIsUndoable": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.testADelegateThatTakesDownKeepsTheListShut": "n/a — AppKit's field editor asks the form's delegate first; the web's field calls the form's keydown first, which the component does by construction",
+        "ByteRipperTests/AddressFieldTests.swift#AddressFieldTests.testTheEditorMakesRoomForTheResult": "n/a — AppKit's field editor clip; the web's room is the input's right padding"
       }
     },
     {
@@ -2001,7 +2056,9 @@
         "ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.linkUnlinkedPieces": "n/a — the web holds the partition as an immutable `Segmentation` snapshot; the observable `SegmentStore`'s pass-through mutators are not ported (the equivalent runs on the `Segmentation` value)",
         "ByteRipperApp/Segments/SegmentStore.swift#SegmentStore.applyGrowth": "n/a — the web holds the partition as an immutable `Segmentation` snapshot; the observable `SegmentStore`'s pass-through mutators are not ported (the equivalent runs on the `Segmentation` value)",
         "ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.revertPiece": "n/a — the form carries no revert closure; the web's dialog drives `revertPiece` in `segmentCommands`",
-        "ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.revertSegmentToSource": "n/a — the AppKit menu action; the web's row menu calls `revertPiece` in `segmentCommands`"
+        "ByteRipperApp/Segments/SegmentsForm.swift#SegmentsFormController.revertSegmentToSource": "n/a — the AppKit menu action; the web's row menu calls `revertPiece` in `segmentCommands`",
+        "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.isAppActive": "n/a — the web's cut form is a modal dialog, and a press outside one is its Cancel",
+        "ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.popoverShouldClose": "n/a — the web's cut form is a modal dialog, and a press outside one is its Cancel"
       }
     },
     {
@@ -2508,7 +2565,6 @@
         "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.firstField": "n/a — each dialog focuses its first field",
         "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.fieldLabelWidth": "n/a — CSS lays it out",
         "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.fieldRowSpacing": "n/a — CSS lays it out",
-        "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.addFieldRow": "n/a — each dialog lays out its own form inside Dialog",
         "ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.init": "n/a — AppKit view plumbing",
         "ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.loadView": "n/a — AppKit view plumbing",
         "ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.firstField": "n/a — each dialog focuses its first field",
@@ -2540,7 +2596,8 @@
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift#OpenDocumentRegistry.controllers": "n/a — no registry to keep: each window of the desktop shell answers for its own panes, asked over a channel (openOnce.ts); a browser tab has no other window",
         "ByteRipperApp/Documents/OpenDocumentRegistry.swift#OpenDocumentRegistry.compact": "n/a — no registry to keep: each window of the desktop shell answers for its own panes, asked over a channel (openOnce.ts); a browser tab has no other window",
         "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.cancelButton": "n/a — an AppKit sheet's button; the web's dialogs own theirs",
-        "ByteRipperApp/Documents/HandedFilesBatch.swift#HandedFilesBatch*": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `handedFilesBatch`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs"
+        "ByteRipperApp/Documents/HandedFilesBatch.swift#HandedFilesBatch*": "n/a — the desktop shell's main process (desktop/handedFiles.cjs, `handedFilesBatch`), outside src/, which the anchor check reads; tested in desktop/test/handedFiles.test.cjs",
+        "ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.viewDidLoad": "n/a — AppKit view plumbing: a sheet's starting width; CSS lays the dialog out"
       }
     },
     {
@@ -3511,6 +3568,8 @@
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testReturnInTheListWithNothingSelectedDoesNothing": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheListPreselectsItsFirstBookmarkOnlyWhenTheFormOpensForIt": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testADoubleClickOpensTheBookmarksEditor": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testThePastTheEndAlertQuotesALargeOffsetWhole": "n/a — the web's Go To refuses an offset past the end on its own line (\"This file ends at 0x…\") rather than moving to the end with an alert",
+        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testThePanelsPastTheEndAlertQuotesALargeOffsetWhole": "n/a — the web's Go To refuses an offset past the end on its own line (\"This file ends at 0x…\") rather than moving to the end with an alert",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheListHoldsNoEditableFields": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheListEditsABookmarkInThePopover": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheEditedBookmarkStaysSelected": "later — an app flow test; the port has no component or end-to-end test for it yet",
@@ -3534,8 +3593,6 @@
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheListsContextMenuDeletesABookmarkAndNothingWithNoRow": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testAJumpFromTheFieldIsRecordedCanonically": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testAJumpFromTheListIsNotRecorded": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheHistoryKeepsTheLastTenMostRecentFirst": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testRecordingAnAddressAgainMovesItToTheFront": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheFieldOffersThePersistedRecents": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testTheFieldsCaretLandsAfterThe0xPrefix": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.makeController": "n/a — test scaffolding",
@@ -5000,9 +5057,18 @@
         "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.shownBar": "n/a — XCTest fixture plumbing",
         "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.defaults": "n/a — XCTest fixture plumbing",
         "ByteRipperTests/FindBarPlacementTests.swift#FindBarPlacementTests.defaultsName": "n/a — XCTest fixture plumbing",
-        "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAHoleInAHexPatternMatchesAnyByte": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testOverlappingMatchesAreCountedAndSteppedAByteAtATime": "later — an app flow test; the port has no component or end-to-end test for it yet",
-        "ByteRipperTests/FindHighlightTests.swift#FindHighlightTests.isIndicatorYellow": "n/a — test scaffolding"
+        "ByteRipperTests/FindHighlightTests.swift#FindHighlightTests.isIndicatorYellow": "n/a — test scaffolding",
+        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testASumJumpsToItsResultAndIsKeptAsTyped": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testAnUnfinishedSumIsNotAnError": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/GoToBookmarksTests.swift#GoToBookmarksTests.testASumBelowZeroSaysSo": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testCommitMakesACutAtWhatASumComesTo": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testAnUnfinishedSumIsNotRedButDoesNotCommit": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testAPrefillPastFourGigabytesIsWhole": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/BookmarkTests.swift#BookmarkTests.testAClickOutsideKeepsAnUnfinishedAddress": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testReturnAndEscInTheAddressFieldReachThePopover": "n/a — AppKit's field editor and its command dispatch; the web's field takes its keys in its own keydown",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testDownInTheAddressFieldOpensTheList": "n/a — AppKit's field editor and its command dispatch; the web's field takes its keys in its own keydown",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testAClickOutsideKeepsAnUnfinishedSum": "n/a — the web's cut form is a modal dialog, and a press outside one is its Cancel",
+        "ByteRipperTests/CutEditPopoverTests.swift#CutEditPopoverTests.testSwitchingAppsKeepsAnUnfinishedSumQuietly": "n/a — the web's cut form is a modal dialog, and a press outside one is its Cancel"
       }
     },
     {

@@ -93,6 +93,7 @@ const {
   setSearchEncoding,
   setSmartSearch,
   startSearch,
+  stepSearch,
   toggleSearchResults,
 } = await import("@/state/searchStore");
 
@@ -547,4 +548,79 @@ test("Find All formats the field and records the same way", async () => {
   expect(mostRecent()?.pattern).toBe("5A A5 F0 0F");
   hideSearchResults("a");
   setSmartSearch(true);
+});
+
+/** Pane A holding `bytes` from 0, unsaved, so the scan runs here against it. */
+async function holding(bytes: readonly number[]): Promise<void> {
+  closeSearch();
+  const slot = workspaceStore.getSnapshot().panes.a;
+  if (slot === undefined) throw new Error("the pane did not open");
+  await slot.document.overwrite(0, Uint8Array.from(bytes));
+  setSearchEncoding("hex");
+}
+
+const standingOn = () => paneResults().current?.start;
+/** Where the pane puts the caret on a landing: the start of the match, nothing selected. */
+function caretTo(offset: number): void {
+  const document = workspaceStore.getSnapshot().panes.a?.document;
+  document?.setSelection({ start: offset, end: offset, fileSize: document.size });
+}
+
+/** A step, and the landing the pane makes of it: the caret goes to the match. */
+async function landed(): Promise<number | undefined> {
+  await settle();
+  const at = standingOn();
+  if (at !== undefined) caretTo(at);
+  return at;
+}
+
+// Matches overlap: `FF FF` over a run of five 0xFF is four matches, and the steps walk the run a
+// byte at a time both ways — on with the bar closed too, from the match the caret stands on.
+// @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testOverlappingMatchesAreCountedAndSteppedAByteAtATime
+test("overlapping matches are counted and stepped a byte at a time", async () => {
+  await holding([0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]);
+  startSearch({ query: "FF FF", from: 0, smart: false, encoding: "hex" });
+  expect(await landed()).toBe(1);
+  expect(paneResults().matches?.total).toBe(4);
+
+  stepSearch("forward");
+  expect(await landed()).toBe(2);
+  stepSearch("forward");
+  expect(await landed()).toBe(3);
+  stepSearch("backward");
+  expect(await landed()).toBe(2);
+
+  // A click elsewhere leaves the match: the search steps from the click, not from the match.
+  caretTo(0);
+  stepSearch("forward");
+  expect(await landed()).toBe(1);
+  stepSearch("forward");
+  expect(await landed()).toBe(2);
+
+  // Done, and Find Next again from the caret the landing left: the match stood on is passed,
+  // not found a second time.
+  closeSearch();
+  stepSearch("forward");
+  expect(await landed()).toBe(3);
+});
+
+// @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAHoleInAHexPatternMatchesAnyByte
+test("a hole in a hex pattern matches any byte", async () => {
+  const bytes = new Array<number>(32).fill(0);
+  const put = (at: number, text: string) => {
+    for (let i = 0; i < text.length; i++) bytes[at + i] = text.charCodeAt(i);
+  };
+  put(5, "$DMI");
+  put(20, "$BMI");
+  put(26, "$DMX");
+  await holding(bytes);
+  startSearch({ query: "24??4d49", from: 0, smart: false, encoding: "hex" });
+  await settle();
+  expect(query()).toBe("24 ?? 4D 49");
+  expect(paneResults().current).toEqual({ start: 5, end: 9 });
+  expect(paneResults().matches?.total).toBe(2);
+  caretTo(5);
+  stepSearch("forward");
+  await settle();
+  expect(paneResults().current).toEqual({ start: 20, end: 24 });
 });

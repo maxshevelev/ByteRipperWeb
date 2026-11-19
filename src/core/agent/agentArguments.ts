@@ -139,6 +139,22 @@ export class AgentArguments {
   }
 
   /**
+   * `offset(name)` as the agent wrote it, exactly: a double keeps a 64-bit argument only to
+   * 4096 near 2^64, and `range` must tell `0xFFFFFFFFFFFFFFFF` from 2^64. Refuses what
+   * `offset(name)` refuses, in the same words.
+   *
+   * @web-only upstream's argument is a `UInt64` already
+   */
+  exactOffset(name: string): bigint | undefined {
+    if (!this.has(name)) return undefined;
+    const number = this.offset(name);
+    const value = this.get(name);
+    return typeof value === "string"
+      ? (parseOffsetExactly(value) ?? BigInt(number))
+      : BigInt(number);
+  }
+
+  /**
    * How many items a list may return: the argument, clamped to `1...maximum`, or `fallback`
    * when it was not given.
    *
@@ -158,38 +174,42 @@ export class AgentArguments {
    * `offset` and `length` as one half-open range, `[start, end)`, or a refusal when the two add
    * up past 2^64. The one place a tool turns them into a range, so every tool refuses a length
    * that wraps in the same words — an agent's argument is any hex string, `0xFFFFFFFFFFFFFFFF`
-   * included.
+   * included, and `offset` 0 with that length is the whole of any file.
    *
    * @upstream Packages/AgentKit/Sources/AgentKit/AgentArguments.swift#AgentArguments.range
-   * @upstream-differs nothing traps here — a number past 2^53 only rounds — so the check is
-   * what keeps the refusal's words the same as upstream's; and a double rounds
-   * `0xFFFFFFFFFFFFFFFF` up to 2^64, so a value at 2^64 or past it is written as the largest
-   * 64-bit one, the argument the agent can have given
+   * @upstream-differs the sum is made in `bigint`, from the arguments as written
+   * (`exactOffset`), since a double cannot tell 2^64 - 1 from 2^64; the range comes back in
+   * numbers, its end rounded as a double rounds it, for the tool to clamp to the file
    */
-  static range(offset: number, length: number): readonly [number, number] {
-    const end = offset + length;
-    if (end >= UINT64_LIMIT) {
+  static range(offset: number | bigint, length: number | bigint): readonly [number, number] {
+    const start = BigInt(offset);
+    const span = BigInt(length);
+    const end = start + span;
+    if (end > UINT64_MAX) {
       throw new AgentToolError(
-        `\`length\` ${argumentHex(length)} from \`offset\` ${argumentHex(offset)} runs past any file.`
+        `\`length\` ${hexNumber(span)} from \`offset\` ${hexNumber(start)} runs past any file.`
       );
     }
-    return [offset, end];
+    return [Number(start), Number(end)];
   }
 }
 
-/** 2^64: the first value past every 64-bit offset, exactly representable as a double. */
-const UINT64_LIMIT = 2 ** 64;
+/** 2^64 - 1: the last 64-bit offset. */
+const UINT64_MAX = 2n ** 64n - 1n;
 
-/** A 64-bit argument as the agent wrote it, as near as a double keeps it. */
-const argumentHex = (value: number): string =>
-  value >= UINT64_LIMIT ? hexNumber(2n ** 64n - 1n) : hexNumber(value);
+/** `parseOffset`, exactly. */
+function parseOffsetExactly(text: string): bigint | undefined {
+  const lower = text.trim().replaceAll("_", "").toLowerCase();
+  if (/^0x[0-9a-f]+$/.test(lower)) return BigInt(lower);
+  if (/^[0-9]+$/.test(lower)) return BigInt(lower);
+  return undefined;
+}
 
 /** @upstream Packages/AgentKit/Sources/AgentKit/AgentArguments.swift#AgentArguments.parseOffset */
 export function parseOffset(text: string): number | undefined {
-  const lower = text.trim().replaceAll("_", "").toLowerCase();
-  if (/^0x[0-9a-f]+$/.test(lower)) return Number.parseInt(lower.slice(2), 16);
-  if (/^[0-9]+$/.test(lower)) return Number.parseInt(lower, 10);
-  return undefined;
+  // Past 64 bits is not an offset — upstream's `UInt64(_:radix:)` refuses it as it reads it.
+  const exact = parseOffsetExactly(text);
+  return exact === undefined || exact > UINT64_MAX ? undefined : Number(exact);
 }
 
 const missing = (name: string) => new AgentToolError(`Argument \`${name}\` is required.`);

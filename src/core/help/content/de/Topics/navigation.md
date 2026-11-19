@@ -1,4 +1,4 @@
-@source-sha 20d60302e71bbc4443f6ad7539cb347eafbbe016c83342aa816066fc018fb79b
+@source-sha 73ed7b4bafdaed66d06fae1e1c81bfdc8fd68a74527704bda4480bac67ca4dd6
 # Sich bewegen
 
 > Zwischen Unterschieden springen, zu einer Adresse springen oder auf einem Byte stehen und ablesen, wo man ist.
@@ -19,9 +19,24 @@ Ein „Unterschied“ ist beim Springen eine ganze Folge abweichender Bytes, nic
 - `0x1FE00` — hexadezimal, mit dem Präfix `0x` (es steht schon im Feld).
 - `130560` — dezimal, ohne Präfix.
 
-Das Feld behält die zuletzt eingegebenen zehn Adressen: der Pfeil am rechten Rand des Feldes, oder ↓, klappt die Liste auf, und eine Auswahl füllt das Feld — der Sprung bleibt ein Return. Darunter liegt die [[topic:bookmarks|Lesezeichenliste]]: Tab bringt die Tastatur dorthin, Return springt zum ausgewählten Lesezeichen.
+Das Feld behält die letzten zehn Einträge, Summen eingeschlossen (siehe unten). Darunter liegt die [[topic:bookmarks|Lesezeichenliste]]: Tab bringt die Tastatur dorthin, Return springt zum ausgewählten Lesezeichen.
 
 Im Vergleichsmodus bewegt der Sprung **beide** Bereiche, die an dieselbe Adresse gebunden sind.
+
+## Eine Summe statt einer Zahl
+
+Jedes Feld, das eine Adresse oder eine Länge erwartet, nimmt auch eine Summe an – Zahlen, verbunden durch `+` und `-`, hexadezimal und dezimal gemischt: in „Gehe zu“, in **Block ab hier auswählen, bei…**, **Segmente ▸ Hier trennen…** und in der Adresse eines Lesezeichens.
+
+- `0x1FE000 + 4096` — eine Adresse hexadezimal plus eine Länge dezimal.
+- `0x2C0000 - 0x400 - 16` — beliebig viele Glieder.
+
+Die Summe bleibt so im Feld stehen, wie sie eingegeben wurde, und lässt sich prüfen und korrigieren. Ihr Ergebnis steht fett am rechten Rand des Feldes, und der Befehl verwendet dieses Ergebnis. „Gehe zu“ und „Block auswählen“ zeigen die ganze Summe zusätzlich hexadezimal unter dem Feld: `0x1FE000 + 0x1000 = 0x1FF000 (2093056)`.
+
+! Eine Zahl ohne `0x` ist dezimal: `0x1FE000 + 40` addiert vierzig, nicht `0x40`. Im Zweifel hilft die Zeile unter dem Feld.
+
+Klammern und Multiplikation werden nicht unterstützt. Ein Befehl wird nicht ausgeführt, solange die Summe unvollständig ist, etwa `0x1FE000 +`, oder ihr Ergebnis negativ ist.
+
+Der Pfeil am rechten Rand des Feldes oder **↓** öffnet die Liste der letzten Adressen und Summen. Ein gewählter Eintrag wird in das Feld übernommen; ausgeführt wird erst nach der Bestätigung.
 
 ## Zurück, wo man war
 
@@ -33,7 +48,7 @@ Der Verlauf gehört zum Tab und hält die letzten fünfzig Stellen. Im Vergleich
 
 ## Einen Block auswählen
 
-**Block ab hier auswählen, bei…** im Kontextmenü des Bereichs wählt einen Bereich über Zahlen statt über die Maus: Anfang und Ende oder Anfang und Länge. Der Punkt nennt die Adresse unter dem Zeiger, und der Dialog öffnet sich mit ihr als Anfang. Beide Felder nehmen Hexadezimalwerte mit dem Präfix `0x` und schlichtes Dezimal entgegen. Der Befehl dient der Auswahl von Hand, wenn Anfang, Ende oder Länge eines Bereichs bekannt oder errechnet sind.
+**Block ab hier auswählen, bei…** im Kontextmenü des Bereichs wählt einen Bereich über Zahlen statt über die Maus: Anfang und Ende oder Anfang und Länge. Der Punkt nennt die Adresse unter dem Zeiger, und der Dialog öffnet sich mit ihr als Anfang. Jedes Feld nimmt Hexadezimalwerte mit dem Präfix `0x`, schlichtes Dezimal oder eine Summe aus beiden entgegen. Der Befehl dient der Auswahl von Hand, wenn Anfang, Ende oder Länge eines Bereichs bekannt oder errechnet sind.
 
 ! **Ende** ist die Adresse des letzten Bytes der Auswahl und nicht die des ersten Bytes dahinter. Ein Anfang `0x1000` mit einem Ende `0x1FFF` wählt daher genau `0x1000` Bytes aus.
 

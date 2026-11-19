@@ -155,10 +155,16 @@ describe("arguments a tool does not take", () => {
   // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentArgumentsTests.swift#AgentArgumentsTests.testARangeThatWrapsIsRefused
   it("refuses a range that wraps", () => {
     expect(AgentArguments.range(0x10, 0x20)).toEqual([0x10, 0x30]);
-    const max = args({ length: "0xFFFFFFFFFFFFFFFF" }).offset("length");
-    expect(AgentArguments.range(0, Number.MAX_SAFE_INTEGER)).toEqual([0, Number.MAX_SAFE_INTEGER]);
+    const max = args({ length: "0xFFFFFFFFFFFFFFFF" }).exactOffset("length") ?? 0n;
+    expect(max).toBe(2n ** 64n - 1n);
+    // The whole of any file: upstream's `range(at: 0, length: .max)`.
+    expect(AgentArguments.range(0, max)).toEqual([0, Number(2n ** 64n - 1n)]);
     expect(message(() => AgentArguments.range(0x10, max))).toBe(
       "`length` 0xFFFFFFFFFFFFFFFF from `offset` 0x10 runs past any file."
+    );
+    // Past 64 bits is not an offset at all, and is refused as the argument it is.
+    expect(message(() => args({ length: "0x10000000000000000" }).exactOffset("length"))).toBe(
+      'Argument `length`: expected an integer, or a string such as "0x7F3000".'
     );
   });
 });

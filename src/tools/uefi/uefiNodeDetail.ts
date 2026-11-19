@@ -1,4 +1,10 @@
-import { bareHexNumber, decimalNumber, hexExtent, hexNumber } from "@/core/hexText/hexText";
+import {
+  bareHexNumber,
+  decimalNumber,
+  hexExtent,
+  hexNumber,
+  lastByte,
+} from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { amdKindName } from "@/firmware/uefi/amdFirmware";
@@ -1391,7 +1397,9 @@ function headerFields(
       const range = nodeRange(node);
       fields.push(field("Base (4 KiB)", hexNumber(Math.floor(range.start / 0x1000))));
       if (range.end > 0) {
-        fields.push(field("Limit (4 KiB)", hexNumber(Math.floor((range.end - 1) / 0x1000))));
+        fields.push(
+          field("Limit (4 KiB)", hexNumber(Math.floor(lastByte(range.start, range.end) / 0x1000)))
+        );
       }
       break;
     }

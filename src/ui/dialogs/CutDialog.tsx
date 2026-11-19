@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
-import { hexAddress } from "@/core/text/hexText";
-import { parseOffset } from "@/core/text/offsetParser";
+import { AddressField } from "@/ui/controls/AddressField";
+import {
+  addressProblemMessage,
+  evaluateAddress,
+  recordAddressInHistory,
+} from "@/ui/controls/addressEvaluation";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -12,13 +17,16 @@ import { Dialog } from "@/ui/dialogs/Dialog";
  * as a popover hanging off the byte; a browser has no popover worth the
  * machinery, and the offset is in the title, which says the same thing.
  *
- * The offset is validated as it is typed, against the two ways a cut can be
- * impossible: outside the file, or exactly where one already is.
+ * The offset is the app's address field (`AddressField`), so it takes a sum as
+ * well as a number (issue #9). It is validated as it is typed, against the two
+ * ways a cut can be impossible: outside the file, or exactly where one already
+ * is. A sum still being typed is not wrong yet: the field waits for the rest,
+ * and Return on it names it.
  *
  * The popover says its problems by turning the field red; a dialog with the
  * dump out of sight has to say them in words, so this form's words — the title,
  * the labels, the problems — are its own and carry their own translations
- * (`Cancel` is the one that is upstream's).
+ * (`Cancel` and the sum's are upstream's). The field turns red as well.
  */
 export interface CutDialogProps {
   readonly open: boolean;
@@ -47,33 +55,47 @@ export function CutDialog({
 }: CutDialogProps) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
+  /** Return was pressed on the text as it stands: an unfinished sum is then wrong. */
+  const [acted, setActed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setText(`0x${hexAddress(presetOffset)}`);
+    // A prefill past 4 GB comes into the field whole.
+    setText(hexNumber(presetOffset));
     setName("");
+    setActed(false);
   }, [open, presetOffset]);
 
   /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.offsetField */
-  const parsed = text.trim() === "" ? undefined : parseOffset(text);
+  const evaluation = text.trim() === "" ? undefined : evaluateAddress(text);
   /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.editedOffset */
-  const value = parsed?.ok === true ? parsed.value : undefined;
+  const value = evaluation?.ok === true ? evaluation.value : undefined;
+  /**
+   * A sum that ends at its operator is not wrong while it is typed. Acted on —
+   * Return — it is.
+   *
+   * @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.updateOffsetValidation
+   */
+  const waiting = evaluation?.ok === false && evaluation.reason === "incomplete" && !acted;
   /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.controlTextDidChange */
   const problem =
-    parsed === undefined
+    evaluation === undefined
       ? L("Type the offset the new piece starts at.")
-      : !parsed.ok
-        ? L("Type a decimal number, or hex as 1F or 0x1F.")
-        : value === undefined || value <= 0 || value >= fileSize
-          ? L("A cut has to fall inside the file, past its first byte.")
-          : existingCuts.includes(value)
-            ? L("There is already a cut there.")
-            : undefined;
+      : waiting
+        ? undefined
+        : !evaluation.ok
+          ? (addressProblemMessage(text) ?? L("Type a decimal number, or hex as 1F or 0x1F."))
+          : value === undefined || value <= 0 || value >= fileSize
+            ? L("A cut has to fall inside the file, past its first byte.")
+            : existingCuts.includes(value)
+              ? L("There is already a cut there.")
+              : undefined;
 
   /** @upstream ByteRipperApp/Segments/CutEditPopover.swift#CutEditPopoverController.commit */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (value === undefined || problem !== undefined) return;
+    recordAddressInHistory(text);
     onCut(value, name.trim());
     onClose();
   };
@@ -81,15 +103,20 @@ export function CutDialog({
   return (
     <Dialog open={open} title={L("Add a cut")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
-        <label className="dialog-field">
+        <div className="dialog-field">
           {L("Cut at")}
-          <input
+          <AddressField
             autoFocus={open}
             value={text}
-            onChange={(event) => setText(event.target.value)}
-            spellCheck={false}
+            onChange={(next) => {
+              setText(next);
+              setActed(false);
+            }}
+            onReturn={() => setActed(true)}
+            invalid={problem !== undefined}
+            aria-label={L("Cut at")}
           />
-        </label>
+        </div>
         <label className="dialog-field">
           {L("Name the piece that starts there")}
           <input
@@ -106,7 +133,11 @@ export function CutDialog({
           <button type="button" className="toolbar-button" onClick={onClose}>
             {L("Cancel")}
           </button>
-          <button type="submit" className="toolbar-button" disabled={problem !== undefined}>
+          <button
+            type="submit"
+            className="toolbar-button"
+            disabled={problem !== undefined || value === undefined}
+          >
             {L("Cut")}
           </button>
         </div>

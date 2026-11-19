@@ -6,7 +6,6 @@ import { bareHexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { SessionView } from "@/core/session/sessionView";
 import { hexAddress } from "@/core/text/hexText";
-import { parseOffset } from "@/core/text/offsetParser";
 import {
   abandonBookmarkEdit,
   type BookmarkEditSession,
@@ -18,6 +17,13 @@ import { bookmarksIn, bookmarksStore, removeBookmark } from "@/state/bookmarksSt
 import type { PaneId } from "@/state/paneId";
 import { useStore } from "@/state/useStore";
 import { BookmarkEditPopover } from "@/ui/bookmarks/BookmarkEditPopover";
+import { AddressField } from "@/ui/controls/AddressField";
+import {
+  addressBreakdown,
+  addressProblemMessage,
+  evaluateAddress,
+  recordAddressInHistory,
+} from "@/ui/controls/addressEvaluation";
 import {
   bookmarksUnavailable,
   rowDescription,
@@ -43,9 +49,10 @@ import { openContextMenu } from "@/ui/shell/ContextMenu";
  * bookmark lives in two places. The editor is the popover the dump's ⇧⌘D opens:
  * one editor for a bookmark, wherever it is edited from.
  *
- * The parser is `src/core/text/offsetParser.ts`, which already knows every
- * spelling this accepts and refuses — `0x1F`, `1F`, `4096` — and refuses a
- * value too large to address rather than rounding it into a different offset.
+ * The field is the app's one address field (`AddressField`): it takes every
+ * spelling of a number — `0x1F`, `1F`, `4096` — and a sum of them, refuses a
+ * value too large to address rather than rounding it into a different offset,
+ * and offers back the addresses and sums entered before.
  */
 export interface GoToDialogProps {
   readonly open: boolean;
@@ -88,8 +95,8 @@ const platform = detectKeyboardPlatform();
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.bookmarkTable
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.errorLabel
  * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.emptyLabel
- * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.mostRecent
- * @upstream-differs a dialog, and a combobox with an arrow and a listbox where upstream is an NSComboBox; the recent addresses are offered in the field's list
+ * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.breakdownLabel
+ * @upstream-differs a dialog rather than a window of its own
  */
 export function GoToDialog({
   open,
@@ -127,12 +134,11 @@ export function GoToDialog({
   const rowElements = useRef(new Map<number, HTMLDivElement>());
   const offsetId = useId();
   const errorId = useId();
-  const recentListId = useId();
-  /** The field's list of recent addresses, and the row under the highlight. */
-  const [recentOpen, setRecentOpen] = useState(false);
-  const [recentActive, setRecentActive] = useState(-1);
-  const comboRef = useRef<HTMLDivElement | null>(null);
-  const hasRecent = state.recent.length > 0;
+  /**
+   * Return was pressed on the text as it stands: an unfinished sum the form
+   * waited on while it was typed is then named. Any edit takes it back.
+   */
+  const [acted, setActed] = useState(false);
 
   const bookmarksNow = useRef(marks);
   bookmarksNow.current = marks;
@@ -140,8 +146,7 @@ export function GoToDialog({
   useEffect(() => {
     if (!open) return;
     setText(HEX_PREFIX);
-    setRecentOpen(false);
-    setRecentActive(-1);
+    setActed(false);
     if (focus === "bookmarks") {
       // Opened for the list, the list offers its first bookmark — the lowest
       // address. The jump still takes a Return: a selection is an offer.
@@ -172,23 +177,27 @@ export function GoToDialog({
   /**
    * Validation as the address is typed. The form opens with "0x" in the field:
    * nothing to go to yet, so the button is off — but no error, because nothing
-   * has been typed wrong.
+   * has been typed wrong. A sum still being typed is not a mistake yet either:
+   * the button waits, and the form says nothing until Return is pressed on it.
    *
    * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.controlTextDidChange
    * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.updateValidation
-   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.showValidationError
    */
   const typed = text.trim();
   const untouched = typed === "" || typed.toLowerCase() === HEX_PREFIX;
-  const parsed = parseOffset(text);
+  const evaluation = evaluateAddress(text);
   const problem = untouched
     ? undefined
-    : !parsed.ok
-      ? L("Invalid offset — use hex with 0x prefix or decimal.")
-      : parsed.value > fileSize
+    : !evaluation.ok
+      ? evaluation.reason === "incomplete" && !acted
+        ? undefined
+        : (addressProblemMessage(text) ?? L("Invalid offset — use hex with 0x prefix or decimal."))
+      : evaluation.value > fileSize
         ? L("This file ends at 0x%1$@.", bareHexNumber(fileSize))
         : undefined;
-  const target = parsed.ok && problem === undefined ? parsed.value : undefined;
+  const target = evaluation.ok && problem === undefined ? evaluation.value : undefined;
+  /** The sum read back, on the message's line while there is no message. */
+  const breakdown = problem === undefined ? addressBreakdown(text) : undefined;
 
   /**
    * Leaving the form takes a bookmark editor hanging off its list with it.
@@ -210,74 +219,21 @@ export function GoToDialog({
     [onGo, close]
   );
 
-  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.goToTypedOffset */
+  /**
+   * Return in the field, and the Go To button: what the field comes to. What
+   * was typed is what is kept: a sum goes into the list as the sum, so it can
+   * be picked again, read, and corrected (issue #9). A Go To in a part is
+   * kept too, as upstream keeps it: the list is what was typed into these
+   * fields, not a list of places in the file — the earlier web edition left a
+   * part's offset out, since it named another row of the file.
+   *
+   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.goToTypedOffset
+   */
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (target !== undefined) go(target);
-  };
-
-  /**
-   * A pick from the field's list: the address only fills the field — the jump
-   * is still a Return away, so the list cannot navigate the dump by itself.
-   *
-   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.comboBoxSelectionDidChange
-   */
-  const pickRecent = (row: number) => {
-    setRecentOpen(false);
-    setText(`0x${hexAddress(row)}`);
-  };
-
-  // A press anywhere else puts the list away, as a menu does.
-  useEffect(() => {
-    if (!recentOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const root = comboRef.current;
-      if (root !== null && event.target instanceof Node && root.contains(event.target)) return;
-      setRecentOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [recentOpen]);
-
-  /**
-   * The field's own keys. ↓ drops the list down, as the arrow does; while it is
-   * up, ↓ and ↑ walk the rows from the top, and Return takes the row under the
-   * highlight — and only that, filling the field, the way a pick does. With
-   * nothing under the highlight, Return is the form's: it submits the typed
-   * address. With the list away, Escape is the dialog's; with it up, Escape
-   * only puts the list away.
-   *
-   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToBookmarksController.offsetCombo
-   */
-  const onOffsetKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    switch (event.key) {
-      case "ArrowDown":
-        if (!hasRecent) return;
-        event.preventDefault();
-        if (recentOpen) setRecentActive((index) => Math.min(index + 1, state.recent.length - 1));
-        else {
-          setRecentActive(0);
-          setRecentOpen(true);
-        }
-        return;
-      case "ArrowUp":
-        if (!recentOpen) return;
-        event.preventDefault();
-        setRecentActive((index) => Math.max(index - 1, 0));
-        return;
-      case "Enter": {
-        if (!recentOpen || recentActive < 0) return;
-        event.preventDefault();
-        const row = state.recent[recentActive];
-        if (row !== undefined) pickRecent(row);
-        return;
-      }
-      case "Escape":
-        if (!recentOpen) return;
-        // The list goes away; the form stays — the next Escape is the dialog's.
-        event.preventDefault();
-        setRecentOpen(false);
-    }
+    if (target === undefined) return;
+    recordAddressInHistory(text, true);
+    go(target);
   };
 
   /**
@@ -416,96 +372,37 @@ export function GoToDialog({
           <label className="goto-offset-label" htmlFor={offsetId}>
             {L("Offset:")}
           </label>
-          <div className="goto-combo" ref={comboRef}>
-            <input
-              id={offsetId}
-              ref={offsetRef}
-              value={text}
-              onChange={(event) => {
-                // Typing is the field's own business: the list goes away, as
-                // one does while typing in a combobox.
-                setText(event.target.value);
-                setRecentOpen(false);
-              }}
-              inputMode="text"
-              spellCheck={false}
-              autoComplete="off"
-              aria-invalid={problem !== undefined}
-              aria-describedby={errorId}
-              role="combobox"
-              aria-expanded={recentOpen}
-              aria-controls={recentOpen ? recentListId : undefined}
-              aria-autocomplete="none"
-              aria-activedescendant={
-                recentOpen && recentActive >= 0 ? `${recentListId}-${recentActive}` : undefined
-              }
-              // The list belongs to the arrow and to ↓, not to the focus: a
-              // combobox's field is a field until it is asked for its list, and
-              // ⌘L opening Go To onto a dropped list would bury the bookmarks
-              // under it. Losing the focus (Tab, the Bookmarks list) puts the
-              // list away.
-              onBlur={() => setRecentOpen(false)}
-              onKeyDown={onOffsetKeyDown}
-            />
-            {/* The arrow an NSComboBox wears: what says this field has a list
-                at all. Off when nothing has been typed yet — an arrow that
-                drops an empty list is an arrow that lies. Not a tab stop and
-                never the focus: the press keeps the caret in the field, so
-                Return after a pick still submits from where it was typed. */}
-            <button
-              type="button"
-              className="goto-combo-arrow"
-              tabIndex={-1}
-              disabled={!hasRecent}
-              aria-hidden="true"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                if (!hasRecent) return;
-                offsetRef.current?.focus({ preventScroll: true });
-                setRecentActive(-1);
-                setRecentOpen((up) => !up);
-              }}
-            >
-              ▾
-            </button>
-            {/* The addresses this workspace has already been sent to, offered
-                back rather than retyped: the field's own list, a combobox's. */}
-            {recentOpen && hasRecent ? (
-              <div
-                id={recentListId}
-                className="menu-popup goto-combo-popup"
-                role="listbox"
-                aria-label={L("Recent addresses")}
-              >
-                {state.recent.map((row, index) => (
-                  <div
-                    key={row}
-                    id={`${recentListId}-${index}`}
-                    role="option"
-                    tabIndex={-1}
-                    aria-selected={recentActive === index}
-                    className={`goto-combo-option${recentActive === index ? " is-active" : ""}`}
-                    // Chosen on the press, which also keeps the focus in the
-                    // field; the keyboard walks the rows through the combobox.
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      pickRecent(row);
-                    }}
-                    onPointerEnter={() => setRecentActive(index)}
-                  >
-                    {`0x${hexAddress(row)}`}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {/* The list of recent entries belongs to the arrow and to ↓, not to
+              the focus: ⌘L opening Go To onto a dropped list would bury the
+              bookmarks under it. A picked entry only fills the field: the jump
+              is still a Return away, so the list cannot navigate the dump by
+              itself. */}
+          <AddressField
+            id={offsetId}
+            ref={offsetRef}
+            value={text}
+            onChange={(next) => {
+              setText(next);
+              setActed(false);
+            }}
+            onReturn={() => setActed(true)}
+            invalid={problem !== undefined}
+            aria-describedby={errorId}
+          />
           <button type="submit" className="toolbar-button" disabled={target === undefined}>
             {L("Go To")}
           </button>
           {/* Always in the layout, empty when nothing is wrong, so the list does
-              not move under the pointer as the address is typed. */}
+              not move under the pointer as the address is typed. A sum that
+              evaluates has no error, and one that does not has nothing to read
+              back: the two share the line. */}
           <p className="goto-error" id={errorId} aria-live="polite">
-            {problem ?? ""}
+            {problem ??
+              (breakdown === undefined ? (
+                ""
+              ) : (
+                <span className="address-breakdown">{breakdown}</span>
+              ))}
           </p>
         </form>
 

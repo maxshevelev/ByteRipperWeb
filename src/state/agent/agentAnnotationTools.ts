@@ -222,7 +222,10 @@ export class AgentAnnotationTools {
     const offset = args.optionalOffset("offset");
     const length = args.optionalOffset("length") ?? 1;
     if (length <= 0) throw new AgentToolError("Argument `length` must be at least 1.");
-    const asked = offset === undefined ? undefined : AgentArguments.range(offset, length);
+    const asked =
+      offset === undefined
+        ? undefined
+        : AgentArguments.range(args.exactOffset("offset") ?? 0n, args.exactOffset("length") ?? 1n);
     let node = args.optionalString("node");
     // Without `node`, `offset` is in the document; with it, in the node.
     let range: readonly [number, number] | undefined = node === undefined ? asked : undefined;

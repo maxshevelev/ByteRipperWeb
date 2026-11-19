@@ -32,19 +32,31 @@ const HEX = /^[0-9a-fA-F]+$/;
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetParser.swift#OffsetParser.parse */
 export function parseOffset(text: string): OffsetParseResult {
+  const value = readOffsetDigits(text);
+  if (value === undefined) return { ok: false, reason: "invalidInput" };
+  return fromBigInt(value);
+}
+
+/**
+ * The number `text` spells by `parseOffset`'s rules, before any ceiling — or
+ * `undefined` when it spells none. Shared with the sums (`offsetExpression.ts`),
+ * whose terms are read exactly as a lone number is but against upstream's
+ * 64-bit ceiling rather than this application's.
+ *
+ * @web-only the half of `parseOffset` a sum's term needs: the reading without the ceiling
+ */
+export function readOffsetDigits(text: string): bigint | undefined {
   const trimmed = text.trim();
-  if (trimmed.length === 0) return { ok: false, reason: "invalidInput" };
+  if (trimmed.length === 0) return undefined;
 
   if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
     const digits = trimmed.slice(2);
-    if (!HEX.test(digits)) return { ok: false, reason: "invalidInput" };
-    return fromBigInt(BigInt(`0x${digits}`));
+    return HEX.test(digits) ? BigInt(`0x${digits}`) : undefined;
   }
 
-  if (DECIMAL.test(trimmed)) return fromBigInt(BigInt(trimmed));
-  if (HEX.test(trimmed)) return fromBigInt(BigInt(`0x${trimmed}`));
-
-  return { ok: false, reason: "invalidInput" };
+  if (DECIMAL.test(trimmed)) return BigInt(trimmed);
+  if (HEX.test(trimmed)) return BigInt(`0x${trimmed}`);
+  return undefined;
 }
 
 function fromBigInt(value: bigint): OffsetParseResult {

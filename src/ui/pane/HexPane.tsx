@@ -1588,7 +1588,7 @@ export function HexPane({
   // array every render would repaint the dump every render.
   const publishedMarks = useStore(bookmarksStore).bookmarks;
   const marks = useMemo(
-    () => bookmarksIn({ bookmarks: publishedMarks, recent: [] }, paneId),
+    () => bookmarksIn({ bookmarks: publishedMarks }, paneId),
     [publishedMarks, paneId]
   );
   useEffect(() => {

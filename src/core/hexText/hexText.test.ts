@@ -98,4 +98,11 @@ describe("a number in hex", () => {
     expect(bareHexNumber(0x1_2345_6780, { digits: 8 })).toBe("123456780"); // wider than the field
     expect(hexNumber(0xab, { digits: 0 })).toBe("0xAB");
   });
+
+  // A number is not an integer type: a fraction is written as its whole part, never thrown on.
+  it("writes a fraction as its whole part", () => {
+    expect(hexNumber(0x10 + 0.5)).toBe("0x10");
+    expect(hexNumber(-0.5)).toBe("0x0");
+    expect(hexNumber(-1.5, { width: 8 })).toBe("0xFF");
+  });
 });

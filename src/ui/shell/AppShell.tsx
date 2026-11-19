@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffEdit } from "@/core/diff/diffEngine";
 import { JoinEmpty, type JoinPosition } from "@/core/document/binaryDocument";
+import type { FindRange } from "@/core/find/findContent";
 import { L } from "@/core/localization/localization";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import { ChunkCache } from "@/core/storage/chunkCache";
@@ -27,7 +28,7 @@ import {
   showHandedAnnotation,
 } from "@/state/agent/annotationWindows";
 import { editBookmarkInPane, toggleBookmarkInPane } from "@/state/bookmarkEditStore";
-import { bookmarksStore, marksFor, noteVisited, restoreBookmarks } from "@/state/bookmarksStore";
+import { bookmarksStore, marksFor, restoreBookmarks } from "@/state/bookmarksStore";
 import { diffStore, noteEdit, watchWorkspaceForComparison } from "@/state/diffStore";
 import { editStore } from "@/state/editStore";
 import { manageFavoritesRequests, restoreFavorites } from "@/state/favoritesStore";
@@ -85,7 +86,9 @@ import {
   closeSearch,
   noteSearchEdit,
   openSearch,
+  type PaneResults,
   resultsFor,
+  type SearchState,
   searchStore,
   useSelectionForFind,
 } from "@/state/searchStore";
@@ -1559,10 +1562,6 @@ export function AppShell() {
         b: { offset, token: revealToken.current },
       });
       setActivePane(target);
-      // Remembered, so the next Go To offers it back rather than being retyped.
-      // A part's offset is local to the bytes it was taken out of, so it is not
-      // offered back, where it would name a different row of the file.
-      noteVisited(offset);
     } else {
       setReveal({ [target]: { offset, token: ++revealToken.current } });
     }
@@ -1728,6 +1727,10 @@ export function AppShell() {
     },
     [revealInBoth]
   );
+
+  // A search that lands on a match puts the caret there and shows it, with the bar up or not:
+  // ⌘G with the bar closed steps the set the bar left, and is a landing like any other.
+  useMatchLanding(search, revealIn);
 
   /**
    * The link in a part's header was clicked: the parent comes to the front with
@@ -2843,9 +2846,7 @@ export function AppShell() {
       {/* The panel's own find bar, over its dump and its map: it searches the part
           alone, keeps its own pattern, and folds into the pill with the panel (§11).
           @upstream ByteRipperApp/Fragments/FragmentPanels.swift#FragmentPanels.open */}
-      {barFor(search, pane).open ? (
-        <FindBar surface={pane} onReveal={(offset) => revealIn(pane, offset)} />
-      ) : null}
+      {barFor(search, pane).open ? <FindBar surface={pane} /> : null}
       <PartDump
         key={`${pane}:${documentKey(part.document)}`}
         paneId={pane}
@@ -3021,8 +3022,6 @@ export function AppShell() {
       {searchOpen && panes.length > 0 ? (
         <FindBar
           surface={WORKSPACE_SURFACE}
-          // The tab's bar searches the active pane, so a match is shown there.
-          onReveal={(offset) => revealIn(state.activePane, offset)}
           // @upstream ByteRipperApp/App/AppDelegate.swift#AppDelegate.showFavoritePatternSettings
         />
       ) : null}
@@ -3285,4 +3284,39 @@ export function AppShell() {
       <ContextMenuHost />
     </div>
   );
+}
+
+/**
+ * Shows each match a search lands on, in the pane it was searched in: once per match landed on,
+ * and only then — a render, a scroll or a bar coming back up with its panel is not a landing,
+ * so the caret stays where the reader left it. A match held when the shell first renders is
+ * not one landed on either.
+ *
+ * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.land
+ * @upstream-differs upstream's landing selects the match from inside the step; here the step
+ * names the match in the store, and the shell — up whether the bar is or not — takes the caret
+ * there
+ */
+function useMatchLanding(
+  search: SearchState,
+  reveal: (pane: PaneId, offset: number) => void
+): void {
+  const shown = useRef<Map<PaneId, FindRange> | undefined>(undefined);
+  const revealRef = useRef(reveal);
+  revealRef.current = reveal;
+  useEffect(() => {
+    const first = shown.current === undefined;
+    const seen = shown.current ?? new Map<PaneId, FindRange>();
+    shown.current = seen;
+    for (const [pane, results] of Object.entries(search.results) as [PaneId, PaneResults][]) {
+      const current = results.current;
+      if (current === undefined) {
+        seen.delete(pane);
+        continue;
+      }
+      if (seen.get(pane) === current) continue;
+      seen.set(pane, current);
+      if (!first) revealRef.current(pane, current.start);
+    }
+  }, [search.results]);
 }

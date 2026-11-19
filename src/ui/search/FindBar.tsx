@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
 import { L } from "@/core/localization/localization";
 import { encodingTitle } from "@/core/search/searchPattern";
@@ -105,11 +105,9 @@ export function focusFindInput(surface: SurfaceId): void {
  */
 export function FindBar({
   surface,
-  onReveal,
 }: {
   /** Whose bar this is: the tab's, or a fragment panel's. */
   readonly surface: SurfaceId;
-  readonly onReveal: (offset: number) => void;
 }) {
   const state = useStore(searchStore);
   const bar = barFor(state, surface);
@@ -119,25 +117,10 @@ export function FindBar({
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Reveal whatever the search landed on.
   // The bar reports on the pane it acts on. The other pane's list stays as it
-  // was — it is about a file this search is not touching.
+  // was — it is about a file this search is not touching. What a search lands
+  // on is shown by the shell (`useMatchLanding`), with the bar up or not.
   const results = resultsFor(state, pane);
-  const current = results.current;
-  // Once per match landed on, and only then. The shell hands down a fresh
-  // `onReveal` on every render, and scrolling renders it: an effect keyed on
-  // the callback put the match back in the middle under every turn of the
-  // wheel, and the pane could not be scrolled away from it.
-  const onRevealRef = useRef(onReveal);
-  onRevealRef.current = onReveal;
-  // A panel's bar comes back up with its panel, its search with it: the match it
-  // stood on is not one landed on again, and the caret stays where the reader left it.
-  const shown = useRef(current);
-  useEffect(() => {
-    if (current === undefined || current === shown.current) return;
-    shown.current = current;
-    onRevealRef.current(current.start);
-  }, [current]);
 
   // A search from the bar leaves the keyboard in the field, so Return searches
   // again; the dump takes it only when the bar is closed.

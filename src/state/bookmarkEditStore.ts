@@ -1,5 +1,4 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
-import { parseOffset } from "@/core/text/offsetParser";
 import {
   addBookmark,
   bookmarkAt,
@@ -180,18 +179,17 @@ export function handleOffsetDoubleClick(pane: PaneId, offset: number): void {
 }
 
 /**
- * The row the Offset field names, or `undefined` when it names none: the text
- * is not an offset, or it lands on a row another bookmark already holds — one
+ * The row the Offset field names, or `undefined` when it names none: the field
+ * names no offset (`offset` is `undefined`), or it lands on a row another bookmark already holds — one
  * row holds one bookmark, so that is as invalid as a typo. The mark's own row
  * is always its to keep.
  *
  * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.editedRow
  * @upstream ByteRipperApp/Bookmarks/BookmarkEditPopover.swift#BookmarkEditPopoverController.rowIsFree
  */
-export function editedBookmarkRow(text: string, row: number): number | undefined {
-  const parsed = parseOffset(text);
-  if (!parsed.ok) return undefined;
-  const candidate = rowContaining(parsed.value);
+export function editedBookmarkRow(offset: number | undefined, row: number): number | undefined {
+  if (offset === undefined) return undefined;
+  const candidate = rowContaining(offset);
   return candidate === row || bookmarkAt(editedPane(), candidate) === undefined
     ? candidate
     : undefined;

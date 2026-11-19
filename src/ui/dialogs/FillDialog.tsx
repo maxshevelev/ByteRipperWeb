@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { L } from "@/core/localization/localization";
 import { formatHex, parseHex } from "@/core/text/hexText";
 import { lastFillPattern, saveFillPattern } from "@/state/fillPatternStore";
+import { CaretAtEndInput } from "@/ui/controls/CaretAtEndInput";
 import { Dialog } from "@/ui/dialogs/Dialog";
 
 /**
@@ -22,6 +23,7 @@ export interface FillDialogProps {
 /** @upstream ByteRipperApp/Documents/SheetControllers.swift#FillSheetController */
 export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps) {
   const [text, setText] = useState(lastFillPattern);
+  const patternId = useId();
 
   // Every opening starts from the last pattern used, so a second fill with the
   // same bytes is Return.
@@ -50,9 +52,12 @@ export function FillDialog({ open, byteCount, onFill, onClose }: FillDialogProps
   return (
     <Dialog open={open} title={L("Fill Selection with…")} onClose={onClose}>
       <form className="dialog-body" onSubmit={submit}>
-        <label className="dialog-field">
+        <label className="dialog-field" htmlFor={patternId}>
           {L("Pattern")}
-          <input
+          {/* The caret lands after the pattern offered, so it can be added to.
+              @upstream ByteRipperApp/Documents/SheetControllers.swift#SheetViewController.addFieldRow */}
+          <CaretAtEndInput
+            id={patternId}
             autoFocus
             value={text}
             onChange={(event) => setText(event.target.value)}

@@ -193,7 +193,10 @@ export class AgentEditTools {
     const offset = args.offset("offset");
     const length = args.offset("length");
     if (length <= 0) throw new AgentToolError("Argument `length` must be at least 1.");
-    const asked = AgentArguments.range(offset, length);
+    const asked = AgentArguments.range(
+      args.exactOffset("offset") ?? 0n,
+      args.exactOffset("length") ?? 0n
+    );
     const sourceSize = source.document.size;
     if (asked[1] > sourceSize) {
       throw new AgentToolError(

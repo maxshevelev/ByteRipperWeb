@@ -1,8 +1,9 @@
 import { BookmarkSpace } from "@/core/bookmarks/bookmarkSpace";
-import { type Bookmark, BookmarkStore, rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { type Bookmark, BookmarkStore } from "@/core/bookmarks/bookmarkStore";
 import { L } from "@/core/localization/localization";
 import { hexAddress } from "@/core/text/hexText";
 import { openKeyValueStore } from "@/platform/storage/keyValueStore";
+import { adoptAddressHistory } from "@/state/addressHistoryStore";
 import { isSlot, type PaneId } from "@/state/paneId";
 import { createStore } from "@/state/store";
 import { workspaceId } from "@/state/workspace/workspaceIdentity";
@@ -40,13 +41,6 @@ import { paneState } from "@/state/workspaceStore";
  * it is.
  */
 
-/**
- * The most recent addresses Go To offers back, newest first.
- *
- * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.limit
- */
-const RECENT_LIMIT = 10;
-
 export interface BookmarksState {
   /**
    * The workspace's marks, at the workspace's own offsets. Every surface reads
@@ -54,17 +48,6 @@ export interface BookmarksState {
    * {@link BookmarkSpace}.
    */
   readonly bookmarks: readonly Bookmark[];
-  /**
-   * Addresses this workspace has been sent to, newest first.
-   *
-   * The workspace's, not a surface's: Go To offers back what was typed into it,
-   * and the form is the window's one form wherever the address was meant.
-   *
-   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore
-   * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.recent
-   * @upstream-differs kept with the workspace's bookmarks in IndexedDB
-   */
-  readonly recent: readonly number[];
 }
 
 /** The list the workspace's panes, its panels, the minimap and the dialogs read. */
@@ -137,7 +120,6 @@ export const bookmarksIn = (state: BookmarksState, pane: PaneId): readonly Bookm
  */
 export const bookmarksStore = createStore<BookmarksState>({
   bookmarks: [],
-  recent: [],
 });
 
 const DATABASE = "byteripper";
@@ -146,8 +128,12 @@ const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface StoredWorkspace {
   readonly bookmarks: readonly Bookmark[];
-  /** @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.userDefaultsKey */
-  readonly recent: readonly number[];
+  /**
+   * The rows Go To was sent to, newest first, in a record written before the
+   * list of recent addresses became the app's (`addressHistoryStore.ts`). Read
+   * once, to be adopted there; no longer written.
+   */
+  readonly recent?: readonly number[];
   readonly savedAt: number;
 }
 
@@ -178,7 +164,6 @@ async function persist(): Promise<void> {
   }
   const record: StoredWorkspace = {
     bookmarks: bookmarksStore.getSnapshot().bookmarks,
-    recent: bookmarksStore.getSnapshot().recent,
     savedAt: Date.now(),
   };
   writing = values.put(workspaceId(), record).finally(() => {
@@ -203,11 +188,8 @@ export async function restoreBookmarks(): Promise<void> {
     // Seeded rather than replayed: `seed` reports nothing, which is what a
     // store nothing is drawing yet wants.
     bookmarks.seed(stored.bookmarks ?? []);
-    bookmarksStore.update((state) => ({
-      ...state,
-      bookmarks: [...bookmarks.bookmarks],
-      recent: stored.recent ?? [],
-    }));
+    bookmarksStore.update((state) => ({ ...state, bookmarks: [...bookmarks.bookmarks] }));
+    adoptAddressHistory(stored.recent ?? []);
   }
   void sweep();
 }
@@ -362,25 +344,6 @@ export function bookmarkHoverText(pane: PaneId, offset: number): string {
   const host = bookmarkHostName(pane);
   const line = host === undefined ? there : L("%1$@ in %2$@", there, host);
   return mark.name.length === 0 ? line : `${mark.name}\n${line}`;
-}
-
-/**
- * Remembers where the user went.
- *
- * Go To offers these back, which is what makes a second visit to the same
- * structure a keystroke rather than a retyped address. The row, not the byte:
- * two addresses in the same row are the same place to come back to, and a list
- * of sixteen near-identical entries is a list of one useful one.
- *
- * @upstream ByteRipperApp/Bookmarks/GoToBookmarksForm.swift#GoToHistoryStore.record
- */
-export function noteVisited(offset: number): void {
-  const row = rowContaining(offset);
-  bookmarksStore.update((state) => ({
-    ...state,
-    recent: [row, ...state.recent.filter((entry) => entry !== row)].slice(0, RECENT_LIMIT),
-  }));
-  void persist();
 }
 
 /** `00001000` — what the lists and the menus call a row. */

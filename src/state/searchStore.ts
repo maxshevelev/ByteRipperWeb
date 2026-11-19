@@ -929,8 +929,9 @@ export function searchAnchor(
  * @upstream ByteRipperApp/Search/SurfaceFindController.swift#SurfaceFindController.land
  * @upstream ByteRipperApp/Search/FindBarView.swift#FindBarView.Request
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.Request
- * @upstream-differs the match the reader stands on counts as the selection: landing on a match
- * here puts the caret on it rather than selecting it
+ * @upstream-differs the match the reader stands on counts as the selection — the current one,
+ * or, with the bar closed, a match of the set starting at the caret: landing on a match here
+ * puts the caret on it rather than selecting it. A selection the reader made comes first.
  */
 export function stepSearch(direction: SearchDirection, surface: SurfaceId = frontSurface()): void {
   const pane = searchedPane(surface);
@@ -938,11 +939,24 @@ export function stepSearch(direction: SearchDirection, surface: SurfaceId = fron
   const slot = paneState(pane);
   if (finder?.matches === undefined || slot === undefined) return;
   const results = resultsFor(searchStore.getSnapshot(), pane);
+  const { selection, caret } = slot.document;
+  const matches = finder.matches;
+  // What the reader stands on, as upstream's selection after a landing: a stretch they selected
+  // by hand first, then the match the search put them on — and, once the bar is closed and
+  // `current` with it, a match of the set starting at the caret, which is where a landing left it.
+  const atCaret =
+    matches.indexStartingAt(caret) === undefined
+      ? undefined
+      : { start: caret, end: caret + Math.max(matches.patternLength, 1) };
   const from = searchAnchor(
-    results.current ?? slot.document.selection,
-    slot.document.caret,
+    selection.end > selection.start
+      ? selection
+      : // The current match only while the caret is still on it: a click elsewhere is upstream's
+        // deselection, and the search steps from the click.
+        ((results.current?.start === caret ? results.current : undefined) ?? atCaret ?? selection),
+    caret,
     direction,
-    finder.highlightedMatches?.matchLength ?? 1
+    finder.highlightedMatches?.matchLength ?? Math.max(matches.patternLength, 1)
   );
   const land = (wrapped: boolean) => {
     updateResults(pane, { status: "found", wrapped });

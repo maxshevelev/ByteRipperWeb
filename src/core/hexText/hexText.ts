@@ -41,8 +41,11 @@ export interface HexOptions {
  * JavaScript number has no type whose width it could be read from
  */
 function asUnsigned(value: HexInteger, width: IntegerWidth): HexInteger {
-  if (value >= 0) return value;
-  return BigInt.asUintN(width, typeof value === "bigint" ? value : BigInt(value));
+  // An integer type cannot hold a fraction; a number can, and is written as its whole part rather
+  // than as `0.8` — or a throw from `BigInt` under a refusal that only meant to name a value.
+  const whole = typeof value === "bigint" ? value : Math.trunc(value);
+  if (whole >= 0) return whole;
+  return BigInt.asUintN(width, typeof whole === "bigint" ? whole : BigInt(whole));
 }
 
 /**

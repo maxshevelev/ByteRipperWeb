@@ -1552,15 +1552,6 @@ textarea,
   font-size: 12px;
 }
 
-/* The address in the dump's own font: read far more often than edited. */
-.bookmark-popover input.bookmark-popover-offset {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.bookmark-popover input.bookmark-popover-offset.is-invalid {
-  color: var(--semantic-bad);
-}
-
 .bookmark-popover-delete {
   font-size: 11px;
 }
@@ -1888,19 +1879,22 @@ textarea,
   opacity: 0.55;
 }
 
-/* The field's wrapper: the grid's column is the combobox, and the popup hangs
-   off the field, an NSComboBox's list. */
-.goto-combo {
+/* The address field (src/ui/controls/AddressField.tsx, issue #9): the one field
+   an address or a length is typed in. The wrapper is the field's box, so the
+   result, the arrow and the list hang off the input, an NSComboBox's way. */
+.address-field {
   position: relative;
   min-width: 0;
 }
 
-.goto-combo input {
+.address-field input {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   font: inherit;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  /* Room at the right for the arrow, so a long address runs under nothing. */
+  /* The right padding is the component's: room for the arrow and the result,
+     so a long sum runs beside them rather than under them. */
   padding: 0.3rem 1.7rem 0.3rem 0.5rem;
   border: 1px solid var(--border-strong);
   border-radius: 5px;
@@ -1908,11 +1902,48 @@ textarea,
   color: var(--text);
 }
 
-/* The arrow an NSComboBox wears, inside the field's frame at its right edge:
-   what tells the reader this field has a list before they press anything. It
-   sits on the field's own ground rather than a button's, because it is part of
-   the field — a raised button here would read as a second control. */
-.goto-combo-arrow {
+.address-field[data-invalid] input {
+  color: var(--semantic-bad);
+}
+
+/* What the text comes to, at the right edge beside the arrow: the number the
+   form acts on, in heavier type, behind a quiet `=`. It never takes more than
+   three fifths of the field — the sum being typed keeps the rest. */
+.address-field-result {
+  position: absolute;
+  top: 50%;
+  right: calc(1.5rem + 2px);
+  max-width: calc(60% - 1.5rem - 6px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.address-field-equals {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.address-field[data-invalid] .address-field-result {
+  color: var(--semantic-bad);
+}
+
+.address-field[data-disabled] .address-field-result,
+.address-field[data-disabled] .address-field-equals {
+  color: var(--text-faint);
+}
+
+/* The arrow at the field's right edge, inside its frame: what tells the reader
+   this field has a list before they press anything. It sits on the field's own
+   ground rather than a button's, because it is part of the field — a raised
+   button here would read as a second control. */
+.address-field-arrow {
   position: absolute;
   top: 1px;
   right: 1px;
@@ -1928,35 +1959,33 @@ textarea,
   cursor: pointer;
 }
 
-.goto-combo-arrow:hover:not(:disabled) {
+.address-field-arrow:hover:not(:disabled) {
   background: var(--surface-raised);
   color: var(--text);
 }
 
-/* Nothing jumped to yet: the arrow is there, so the field still reads as a
-   combobox, but it is plainly off rather than dropping an empty list. */
-.goto-combo-arrow:disabled {
+.address-field-arrow:disabled {
   color: var(--text-faint);
   cursor: default;
 }
 
-/* The recent addresses: the field's own dropdown, an NSComboBox's list. It
-   hangs flush off the field's bottom edge and is the field's width — not a
-   floating menu. .menu-popup is a *button's* menu (a gap below, a 15rem floor,
-   a heavier shadow), so this overrides its geometry; the descendant selector is
-   what lets it, since .menu-popup comes later in the sheet. */
-.goto-combo .goto-combo-popup {
+/* The entries typed before: the field's own dropdown, flush off its bottom
+   edge and at least its width — not a floating menu. .menu-popup is a
+   *button's* menu (a gap below, a 15rem floor, a heavier shadow), so this
+   overrides its geometry; the descendant selector is what lets it, since
+   .menu-popup comes later in the sheet. */
+.address-field .address-field-popup {
   top: 100%;
   margin-top: -1px;
-  width: 100%;
-  min-width: 0;
+  min-width: 100%;
   max-height: 12rem;
   padding: 0.2rem;
   border-radius: 0 0 5px 5px;
   box-shadow: 0 6px 16px rgb(0 0 0 / 0.14);
 }
 
-.goto-combo-option {
+/* Monospaced, since these are addresses. */
+.address-field-option {
   padding: 0.2rem 0.4rem;
   border-radius: 4px;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -1966,8 +1995,19 @@ textarea,
   cursor: pointer;
 }
 
-.goto-combo-option.is-active {
+.address-field-option strong {
+  font-weight: 600;
+}
+
+.address-field-option.is-active {
   background: var(--selection);
+}
+
+/* "Nothing entered yet": a row that says so, never a row to choose. */
+.address-field-option.is-empty {
+  color: var(--text-faint);
+  font-family: inherit;
+  cursor: default;
 }
 
 .goto-error {
@@ -1976,6 +2016,49 @@ textarea,
   margin: 0;
   font-size: 11px;
   color: var(--semantic-bad);
+}
+
+/* A sum read back under the field it was typed in, on the error's own line:
+   there is one or the other, never both. A long sum is cut rather than
+   widening the form, and stays selectable to be copied. */
+.address-breakdown {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: text;
+}
+
+/* The line that holds it is held to the form's width as well — a grid item or a block whose
+   least width would otherwise be the whole unbroken sum. */
+:is(.goto-error, .dialog-help):has(> .address-breakdown) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* The bookmark's address is the popover's full width, as the name under it is,
+   and as tall: the address in the dump's own font, read far more often than
+   edited. */
+.bookmark-popover > .address-field {
+  align-self: stretch;
+}
+
+.bookmark-popover .address-field input {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-left: 6px;
+  font-size: 12px;
+}
+
+/* An address field in a radio's row takes the rest of it, as a plain field does. */
+.dialog-field.is-radio > .address-field {
+  flex: 1;
 }
 
 .goto-list-label {
