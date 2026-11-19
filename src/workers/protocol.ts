@@ -20,7 +20,7 @@
 import type { Json } from "@/core/agent/json";
 import type { SearchDirection } from "@/core/find/findContent";
 import type { Catalogue, LocalizedTextData } from "@/core/localization/localization";
-import type { CaseFolding, SearchEncoding } from "@/core/search/searchPattern";
+import type { ByteQuery } from "@/core/search/byteFindContent";
 import type { FITReport } from "@/firmware/fit/fitTable";
 import type { EFSVolume, MFSVolume } from "@/firmware/me/models/fileSystemFacts";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
@@ -124,11 +124,11 @@ export interface SearchFirstMatchRequest {
   readonly kind: "firstMatch";
   readonly id: JobId;
   readonly file: Blob;
-  /** The bytes to find, already folded the way the data will be. */
-  readonly pattern: Uint8Array;
-  /** The encoding the pattern was written in: which question of a pass this is. */
-  readonly encoding: SearchEncoding;
-  readonly folding: CaseFolding;
+  /**
+   * What to find: the bytes with their holes, the encoding they were written in (which question
+   * of a pass this is), and how letters compare.
+   */
+  readonly query: ByteQuery;
   /** Where the scan starts. */
   readonly from: number;
   readonly direction: SearchDirection;
@@ -142,9 +142,7 @@ export interface SearchMatchStartsRequest {
   readonly kind: "matchStarts";
   readonly id: JobId;
   readonly file: Blob;
-  readonly pattern: Uint8Array;
-  readonly encoding: SearchEncoding;
-  readonly folding: CaseFolding;
+  readonly query: ByteQuery;
 }
 
 export type SearchWorkerRequest =

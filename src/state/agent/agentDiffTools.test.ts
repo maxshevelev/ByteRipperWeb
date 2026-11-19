@@ -450,12 +450,12 @@ describe("find_bytes", () => {
   it("comes in pages under the bound with an exact total", async () => {
     open(zeros(0x2000, 0xff));
     const plain = await call("find_bytes", { hex: "FF FF", limit: 1000 });
-    expect(member(plain.json, "total")).toBe(0x1000);
+    // One match per byte but the last, as in the find bar: matches overlap unless asked otherwise.
+    expect(member(plain.json, "total")).toBe(0x1fff);
     expect(member(plain.json, "truncated")).toBe("size");
     expect(plain.text.length).toBeLessThanOrEqual(24 << 10);
-    const overlapping = (await call("find_bytes", { hex: "FF FF", overlapping: true, limit: 1 }))
-      .json;
-    expect(member(overlapping, "total")).toBe(0x1fff);
+    const apart = (await call("find_bytes", { hex: "FF FF", overlapping: false, limit: 1 })).json;
+    expect(member(apart, "total")).toBe(0x1000);
 
     let seen = 0;
     let after: Json | undefined;
@@ -471,7 +471,7 @@ describe("find_bytes", () => {
       const next = member(page, "next");
       after = next === null ? undefined : next;
     } while (after !== undefined);
-    expect(seen).toBe(0x1000);
+    expect(seen).toBe(0x1fff);
   });
 
   // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAPatternThatCannotBeSearchedIsRefused

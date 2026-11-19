@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   asciiPattern,
+  lastPatternMatch,
   type MaskedPattern,
   MaskedPatternError,
   maskedMatches,
   maskedPattern,
+  maskedPatternHasHoles,
+  maskedPatternHexText,
   parseHexPattern,
   scanPatterns,
   utf16LEPattern,
 } from "@/core/search/maskedSearch";
 import type { ByteRange } from "@/core/search/searchEngine";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
+import { SeededRandom } from "@/core/testing/support";
 
 /** Ported from `MaskedSearchTests.swift`. */
 
@@ -31,7 +35,7 @@ const run = async (
     },
     {
       ...(options.range ? { range: options.range } : {}),
-      ...(options.overlapping ? { overlapping: true } : {}),
+      overlapping: options.overlapping ?? false,
       ...(options.chunk ? { chunkSize: options.chunk } : {}),
     }
   );
@@ -169,7 +173,8 @@ describe("MaskedSearchTests", () => {
       count += 1;
       return true;
     });
-    expect(count).toBe(2 << 20);
+    // Matches overlap by default, as in the find bar: one per byte but the last.
+    expect(count).toBe((4 << 20) - 1);
     expect(Date.now() - began).toBeLessThan(5000);
   });
 });
@@ -240,5 +245,172 @@ describe("PatternScanTests", () => {
     expect(() => parseHexPattern("4G")).toThrow();
     expect(() => asciiPattern("Привет", false)).toThrow();
     expect(() => asciiPattern("", false)).toThrow();
+  });
+
+  // MARK: - Reading hex
+
+  const refusal = (text: string): string | undefined => {
+    try {
+      parseHexPattern(text);
+      return undefined;
+    } catch (error) {
+      return error instanceof MaskedPatternError ? error.reason : "other";
+    }
+  };
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testHexIsReadInPairsAcrossTheWholeText
+  it("reads hex in pairs across the whole text", () => {
+    for (const text of [
+      "DEADBEEF",
+      "DE AD BE EF",
+      "0xDE 0xAD 0xBE 0xEF",
+      "D EADBEEF",
+      "de ad be ef",
+    ]) {
+      const pattern = parseHexPattern(text);
+      expect([...pattern.bytes], text).toEqual([0xde, 0xad, 0xbe, 0xef]);
+      expect(maskedPatternHasHoles(pattern), text).toBe(false);
+    }
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testAHoleIsAWholeByteWhereverItIsWritten
+  it("reads a hole as a whole byte wherever it is written", () => {
+    for (const text of ["24 ?? 4D", "24??4D", "0x24 ?? 0x4D", "2 4?? 4D"]) {
+      const pattern = parseHexPattern(text);
+      expect(pattern.isWild, text).toEqual([false, true, false]);
+      expect(maskedPatternHexText(pattern), text).toBe("24 ?? 4D");
+    }
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testHalfAByteCannotBeMasked
+  it("cannot mask half a byte", () => {
+    for (const text of ["2?", "?4", "24 ?", "24 ? 4D", "24 2? 4D"]) {
+      expect(refusal(text), text).toBe("partialByteMask");
+    }
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testHolesAloneAndNonsenseAreRefusedAsSuch
+  it("refuses holes alone and nonsense, each as such", () => {
+    expect(refusal("?? ??")).toBe("holesOnly");
+    expect(refusal("4G")).toBe("invalidHexPattern");
+    expect(refusal("ABC")).toBe("invalidHexPattern");
+    expect(refusal("0x")).toBe("invalidHexPattern");
+    expect(refusal("   ")).toBe("invalidHexPattern");
+  });
+
+  // MARK: - How far a scan has got
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testEachWindowSaysHowFarTheScanHasGot
+  it("says after each window how far the scan has got", () => {
+    const bytes = new Uint8Array(10);
+    const marks: number[] = [];
+    const fractions: number[] = [];
+    scanPatterns(
+      [parseHexPattern("01")],
+      10,
+      (offset, length) => bytes.slice(offset, offset + length),
+      () => true,
+      {
+        chunkSize: 4,
+        onProgress: (fraction) => fractions.push(fraction),
+        windowFinished: (upTo) => marks.push(upTo),
+      }
+    );
+    expect(marks).toEqual([4, 8, 10]);
+    expect(fractions).toEqual([0.4, 0.8, 1.0]);
+  });
+
+  // MARK: - Find Previous
+
+  const last = (
+    pattern: MaskedPattern,
+    bytes: readonly number[],
+    before: number,
+    chunk = 4
+  ): number | undefined => {
+    const held = Uint8Array.from(bytes);
+    return lastPatternMatch(
+      pattern,
+      held.length,
+      before,
+      (offset, length) => held.slice(offset, offset + length),
+      { chunkSize: chunk }
+    )?.start;
+  };
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testFindPreviousIsTheLastMatchStartingBeforeTheAnchor
+  it("finds as Find Previous the last match starting before the anchor", () => {
+    const bytes = [0, 0x24, 0x11, 0x4d, 0, 0, 0, 0, 0, 0x24, 0x22, 0x4d, 0];
+    const pattern = parseHexPattern("24 ?? 4D");
+    expect(last(pattern, bytes, 13)).toBe(9);
+    // A match starting at the anchor is not before it.
+    expect(last(pattern, bytes, 9)).toBe(1);
+    // One starting before it and running past it is.
+    expect(last(pattern, bytes, 10)).toBe(9);
+    expect(last(pattern, bytes, 1)).toBeUndefined();
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testFindPreviousStepsBackThroughARunOneByteAtATime
+  it("steps Find Previous back through a run one byte at a time", () => {
+    const bytes = new Array<number>(9).fill(0xff);
+    const pattern = parseHexPattern("FF FF");
+    let anchor = 9;
+    const found: number[] = [];
+    for (;;) {
+      const start = last(pattern, bytes, anchor, 3);
+      if (start === undefined) break;
+      found.push(start);
+      anchor = start;
+    }
+    // Every overlapping match, none skipped across a window.
+    expect(found).toEqual([7, 6, 5, 4, 3, 2, 1, 0]);
+  });
+
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testFindPreviousFindsAMatchAcrossTheEdgeOfTwoWindows
+  it("finds as Find Previous a match across the edge of two windows", () => {
+    const bytes = new Array<number>(20).fill(0);
+    bytes.splice(7, 4, 0x24, 0x44, 0x4d, 0x49);
+    expect(last(parseHexPattern("24 44 4D 49"), bytes, 20, 4)).toBe(7);
+    expect(last(parseHexPattern("24 44 4D 49"), bytes, 8, 4)).toBe(7);
+  });
+
+  // Looking through a window from its end back finds what every forward match up to the anchor
+  // would have ended on — for holes, letters in either case, and a match across windows alike.
+  // @upstream Packages/BytePattern/Tests/BytePatternTests/PatternScanTests.swift#PatternScanTests.testFindPreviousAgreesWithTheLastOfTheForwardMatches
+  it("agrees in Find Previous with the last of the forward matches", () => {
+    const random = new SeededRandom(0x5ca1ab1e);
+    const alphabet = [0x00, 0xff, 0x41, 0x61, 0x42];
+    const patterns = [
+      parseHexPattern("FF FF"),
+      parseHexPattern("41 ?? 41"),
+      asciiPattern("aB", true),
+      parseHexPattern("00 ?? ?? FF"),
+    ];
+    for (let round = 0; round < 200; round++) {
+      const bytes = Array.from(
+        { length: random.int(0, 41) },
+        () => alphabet[random.int(0, alphabet.length)] ?? 0
+      );
+      const chunk = random.int(1, 10);
+      const anchor = random.int(0, bytes.length + 1);
+      for (const pattern of patterns) {
+        const held = Uint8Array.from(bytes);
+        const forward: number[] = [];
+        scanPatterns(
+          [pattern],
+          held.length,
+          (offset, length) => held.slice(offset, offset + length),
+          (range) => {
+            forward.push(range.start);
+            return true;
+          },
+          { chunkSize: chunk, overlapping: true }
+        );
+        expect(
+          last(pattern, bytes, anchor, chunk),
+          `${maskedPatternHexText(pattern)} in ${bytes} before ${anchor}, windows of ${chunk}`
+        ).toBe(forward.filter((start) => start < anchor).at(-1));
+      }
+    }
   });
 });

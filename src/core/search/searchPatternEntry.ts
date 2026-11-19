@@ -110,7 +110,7 @@ export function isSameSearch(one: SearchPatternEntry, other: SearchPatternEntry)
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchPatternEntry.swift#SearchPatternEntry.isUsable
  */
 export function isUsableEntry(entry: SearchPatternEntry): boolean {
-  return parsePattern(entry.pattern, entry.encoding).ok;
+  return parsePattern(entry.pattern, entry.encoding, true).ok;
 }
 
 /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchPatternEntry.swift#SearchPatternEntry.folding */

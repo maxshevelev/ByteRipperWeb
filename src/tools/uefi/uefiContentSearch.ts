@@ -193,6 +193,7 @@ export const DEFAULT_KEEP = 10_000;
 export interface ContentSearchOptions {
   /** The tree's version: an edit gives a new one, and a remembered answer is for one version only. */
   readonly generation: number;
+  /** Whether matches overlap, as the find bar counts them (#33). Default true. */
   readonly overlapping?: boolean;
   readonly keep?: number;
   readonly padding?: number;
@@ -234,7 +235,7 @@ function answers(
     asked.generation === options.generation &&
     asked.start === start.join(".") &&
     asked.patterns === patternsKey(patterns) &&
-    asked.overlapping === (options.overlapping ?? false) &&
+    asked.overlapping === (options.overlapping ?? true) &&
     asked.keep >= (options.keep ?? DEFAULT_KEEP) &&
     asked.padding === (options.padding ?? EXCERPT_PADDING)
   );
@@ -280,7 +281,7 @@ export async function runContentSearch(
 ): Promise<ContentSearchResult> {
   const keep = options.keep ?? DEFAULT_KEEP;
   const padding = options.padding ?? EXCERPT_PADDING;
-  const overlapping = options.overlapping ?? false;
+  const overlapping = options.overlapping ?? true;
   const progress = options.progress ?? (() => undefined);
   const cancelled = () => options.shouldCancel?.() === true;
   const pause = options.pause ?? (async () => undefined);

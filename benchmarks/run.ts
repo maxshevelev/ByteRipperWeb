@@ -11,8 +11,7 @@ import { readSync } from "node:fs";
 import { open } from "node:fs/promises";
 import { applyEdit, scanDiff } from "@/core/diff/diffEngine";
 import { BinaryDocument } from "@/core/document/binaryDocument";
-import { byteMatchSetBuilder } from "@/core/search/byteFindContent";
-import { findOne, foldedPattern, scanAll } from "@/core/search/searchEngine";
+import { ByteFindContent, byteMatchSetBuilder } from "@/core/search/byteFindContent";
 import { foldingFor, parsePattern } from "@/core/search/searchPattern";
 import { NO_BASELINE } from "@/core/segments/baseline";
 import { ChunkCache } from "@/core/storage/chunkCache";
@@ -276,9 +275,15 @@ async function main(): Promise<void> {
       note: `Scanning from the caret, which is what shows a user their match.`,
       measurement: await measure(
         () =>
-          findOne(foldedPattern(pattern.bytes, exact), left, { folding: exact }).then(
-            () => undefined
-          ),
+          new ByteFindContent(left)
+            .firstMatch(
+              { pattern, folding: exact },
+              0,
+              "forward",
+              () => false,
+              () => {}
+            )
+            .then(() => undefined),
         { samples: 7 }
       ),
     });
@@ -295,10 +300,13 @@ async function main(): Promise<void> {
       measurement: await measure(
         async () => {
           const builder = byteMatchSetBuilder(pattern, exact, blob.size);
-          await scanAll(foldedPattern(pattern.bytes, exact), left, {
-            folding: exact,
-            onMatches: (starts) => builder.add(starts),
-          });
+          for await (const batch of new ByteFindContent(left).matchStarts(
+            { pattern, folding: exact },
+            () => false,
+            () => {}
+          )) {
+            builder.add(batch.starts);
+          }
           builder.finish();
         },
         { samples: 3, bytes: blob.size }

@@ -1334,6 +1334,14 @@ export class HexGridRenderer {
    * ({@link paintFindIndicator}) — so the eye can see how many there are and
    * where this one sits among them, which is what a scroll through a result set
    * is for.
+   *
+   * Matches that overlap are one fill: they paint the same grey, and a run of
+   * 0xFF under a long `FF…` pattern would otherwise be dozens of identical
+   * rectangles per row (#33). Matches that only touch stay apart, as the gap
+   * between their bytes shows where one ends.
+   *
+   * @upstream ByteRipperApp/Hex/HexView.swift#HexView.drawMatchFills
+   * @upstream-differs the current match is left to the find indicator rather than filled under it
    */
   private paintMatches(rowStart: number, y: number): void {
     const config = this.config;
@@ -1343,8 +1351,8 @@ export class HexGridRenderer {
     const found = matches.matchesIntersecting(rowStart, rowStart + BYTES_PER_ROW);
     if (found.length === 0) return;
 
-    const { layout, colors } = config;
-    for (const match of found) {
+    const spans: { from: number; to: number }[] = [];
+    for (const match of [...found].sort((a, b) => a.start - b.start)) {
       const from = Math.max(match.start, rowStart) - rowStart;
       const to = Math.min(match.end, rowStart + BYTES_PER_ROW) - rowStart;
       if (to <= from) continue;
@@ -1355,6 +1363,13 @@ export class HexGridRenderer {
         match.start === this.currentMatch.start &&
         match.end === this.currentMatch.end;
       if (isCurrent) continue;
+      const last = spans.at(-1);
+      if (last !== undefined && from < last.to) last.to = Math.max(last.to, to);
+      else spans.push({ from, to });
+    }
+
+    const { layout, colors } = config;
+    for (const { from, to } of spans) {
       this.context.fillStyle = colors.matchFill;
       this.context.fillRect(
         layout.hexByteX(from),

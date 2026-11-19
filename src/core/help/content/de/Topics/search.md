@@ -1,4 +1,4 @@
-@source-sha 0b77ddbf5259a8e80b1b1362056272ef3707e6ea5a0f5d50da836aa85024cbc1
+@source-sha 52214dd7d24e64520ec622047471ae2442816c343e415ac93d1bb6cfa7c39bb2
 # Bytes und Text finden
 
 > [[key:find]]. Suche nach einer Byte-Folge oder einer Zeichenfolge über den ganzen Dump, im Hintergrund.
@@ -17,6 +17,8 @@ Eine Byte-Folge wird als `DEADBEEF`, `DE AD BE EF` oder `0xDE 0xAD` eingegeben; 
 
 Eine Hex-Suche ist immer exakt. Bytes haben keine Groß- und Kleinschreibung, und die entsprechende Option wird dafür deshalb nicht angeboten.
 
+`??` anstelle eines Ziffernpaars steht für ein beliebiges Byte. `24 ?? 4D 49` findet `$DMI`, aber ebenso `$BMI` und jede andere Folge von vier Bytes mit `24` am Anfang und `4D 49` am Ende; nach dem Start der Suche wird das Muster wie jedes andere als `24 ?? 4D 49` geschrieben. Eine Maske umfasst immer ein ganzes Byte: Ein halbes Byte wie in `2?` lässt sich nicht maskieren, und das Feld weist darauf hin. Ein Muster nur aus `??` passte an jeder Adresse und wird abgewiesen. Gespeicherte Muster und der Suchverlauf behalten `??` so, wie es eingegeben wurde.
+
 ## Text
 
 Es wird eine Codierung gewählt — ASCII, UTF-8, UTF-16 LE oder UTF-16 BE — und die Zeichenfolge eingegeben. Sie wird in Bytes codiert und exakt auf diesen Bytes gesucht.
@@ -29,7 +31,7 @@ Eine Zeichenfolge in einem Dump steht in der Codierung, die der Hersteller der F
 
 Das Eingegebene wird in einer Form nach der anderen gesucht, bis etwas gefunden wird:
 
-- Liest es sich als Byte-Folge — eine gerade Anzahl von Hex-Ziffern, `DEADBEEF`, oder dieselben Ziffern paarweise, `DE AD BE EF` —, wird es zuerst als Bytes und erst danach als Text gesucht.
+- Liest es sich als Byte-Folge — eine gerade Anzahl von Hex-Ziffern, `DEADBEEF`, oder dieselben Ziffern paarweise, `DE AD BE EF`, auch mit `??` für ein beliebiges Byte —, wird es zuerst als Bytes und erst danach als Text gesucht. `??` gilt nur dort als Byte, wo es an der Stelle eines Bytes steht: als eigenes Paar, `24 ?? 4D 49`, oder als Paar innerhalb einer zusammenhängenden Folge, `24??4D49`. Am Rand einer Folge sind es Fragezeichen; `FACE??` wird daher als Text gesucht.
 - Sonst werden die Codierungen der Reihe nach durchprobiert: ASCII, UTF-8, dann UTF-16 LE und UTF-16 BE.
 - Eine Codierung, die das Eingegebene überhaupt nicht darstellen kann, entfällt: In ihr gibt es nichts zu suchen.
 - Versuche, die auf dieselben Bytes hinauslaufen, werden zu einem Durchlauf zusammengefasst. `abc` als ASCII und als UTF-8 sind dieselben drei Bytes, und der Dump wird für eine Antwort nicht zweimal gelesen.
@@ -43,6 +45,14 @@ Eine von Hand gewählte Codierung legt fest, wo die Suche beginnt; ebenso ein Ei
 Jeder Treffer in der Datei ist grau gefüllt; der aktuelle wird als angehobene gelbe Blase dargestellt. **‹ ›** bewegen zwischen ihnen, und die Leiste nennt die Anzahl. Über einen großen Dump läuft die Suche im Hintergrund und lässt sich abbrechen; die Treffer erscheinen, während sie gefunden werden.
 
 Die Treffer werden auch in der [[topic:minimap|Minimap]] markiert, in der ihre Verteilung über das Image sichtbar wird.
+
+### Überlappende Treffer
+
+Ein Treffer zählt an jeder Adresse, an der das Muster beginnt, auch wenn diese Adresse innerhalb eines anderen Treffers liegt. `FF FF` in einer Folge von fünf `FF`-Bytes ergibt daher vier Treffer, nicht zwei. Ein Unterschied entsteht nur bei einem Muster, das sich in sich selbst wiederholt — einer Folge wie `FF FF` oder `00 00 00` oder einer Maske wie `24 ?? 24`; eine Signatur wie `$DMI` oder `_FVH` wird genauso gefunden wie ohne diese Regel. Manche andere Hex-Editoren zählen überlappende Treffer nicht mit; ihre Anzahl kann für ein solches Muster daher geringer sein.
+
+Überlappende Treffer werden als ein grauer Streifen gefüllt. **‹ ›** und [[key:findNext]] gehen sie Byte für Byte durch, und **Suchergebnisse** führt jeden mit seiner eigenen Adresse auf.
+
+Das Ergebnis hängt nicht davon ab, wo die Suche begonnen wurde: **Nächstes suchen** ab der Einfügemarke landet nur auf Treffern, die auch in der Liste **Suchergebnisse** stehen.
 
 **Suchergebnisse** in der Suchleiste öffnet eine Liste des Gefundenen, die sich durchklicken lässt; ein erneuter Druck schließt sie.
 

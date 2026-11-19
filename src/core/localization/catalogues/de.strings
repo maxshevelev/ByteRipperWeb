@@ -1779,3 +1779,5 @@
 "Sources (%1$@)" = "Quellen (%1$@)";
 "model" = "Modell";
 "code name" = "Codename";
+"?? stands for a whole byte — half a byte cannot be masked." = "?? steht für ein ganzes Byte — ein halbes Byte lässt sich nicht maskieren.";
+"A pattern of ?? alone matches everywhere — give at least one byte." = "Ein Muster nur aus ?? passt überall — geben Sie mindestens ein Byte an.";

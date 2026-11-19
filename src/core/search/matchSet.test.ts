@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MatchBitmap } from "@/core/find/matchSet";
 import { byteMatchSet, byteMatchSetBuilder, byteMatchSetOf } from "@/core/search/byteFindContent";
 import { DEFAULT_MAX_RESULTS } from "@/core/search/searchEngine";
-import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
+import { EXACT, type SearchPattern, searchPattern } from "@/core/search/searchPattern";
 
 /**
  * Ported from `MatchSetTests.swift`.
@@ -14,11 +14,8 @@ import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
  * the thousands is the diagnosis that the pattern is too generic.
  */
 
-const pattern: SearchPattern = { bytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]), encoding: "hex" };
-const single = (byte: number): SearchPattern => ({
-  bytes: new Uint8Array([byte]),
-  encoding: "hex",
-});
+const pattern: SearchPattern = searchPattern([0xde, 0xad, 0xbe, 0xef], "hex");
+const single = (byte: number): SearchPattern => searchPattern([byte], "hex");
 
 const built = (extent: number, starts: number[], maxIndexBytes?: number) => {
   const builder = byteMatchSetBuilder(pattern, EXACT, extent, maxIndexBytes);

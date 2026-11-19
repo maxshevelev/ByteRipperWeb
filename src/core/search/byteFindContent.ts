@@ -6,7 +6,13 @@ import {
   MatchSetBuilder,
   type MatchStorage,
 } from "@/core/find/matchSet";
-import { findOne, foldedPattern, scanAll } from "@/core/search/searchEngine";
+import {
+  type MaskedPattern,
+  maskedLastMatch,
+  maskedMatches,
+  maskedPattern,
+} from "@/core/search/maskedSearch";
+import { type ByteRange, DEFAULT_BATCH_SIZE, SearchCancelled } from "@/core/search/searchEngine";
 import type { CaseFolding, SearchPattern } from "@/core/search/searchPattern";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 
@@ -40,8 +46,15 @@ export function sameByteQuery(a: ByteQuery, b: ByteQuery): boolean {
   const y = b.pattern.bytes;
   if (x.length !== y.length) return false;
   for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+  const holes = a.pattern.isWild;
+  const others = b.pattern.isWild;
+  for (let i = 0; i < x.length; i++) if ((holes[i] === true) !== (others[i] === true)) return false;
   return true;
 }
+
+/** The pattern a query looks for: its bytes and its holes, its letters compared by its folding. */
+const queryPattern = (query: ByteQuery): MaskedPattern =>
+  maskedPattern(query.pattern.bytes, { isWild: query.pattern.isWild, folding: query.folding });
 
 /** How long every match of a byte query is. */
 const byteMatchLength = (query: ByteQuery): number => Math.max(query.pattern.bytes.length, 1);
@@ -124,9 +137,22 @@ export interface ByteFindContentOptions {
 }
 
 /**
- * A dump's bytes as something `FindIndexer` searches: positions are byte offsets, and the scans
- * are the search engine's, run on the thread that asks — with a turn for the event loop between
- * windows when it is given a pause, so a page that scans its own document keeps drawing.
+ * A dump's bytes as something `FindIndexer` searches: positions are byte offsets, and the scan is
+ * `PatternScan`'s (`maskedMatches`, `maskedLastMatch`) — the one the agent's `find_bytes` and the
+ * UEFI Structure's search run, so all three find the same. It runs on the thread that asks, with
+ * a turn for the event loop between windows when it is given a pause, so a page that scans its
+ * own document keeps drawing.
+ *
+ * **Matches overlap, always.** After a match the scan looks again one byte after its start, not
+ * after its end, so `FF FF` over a run of five 0xFF is four matches. A non-overlapping set depends
+ * on where the scan started — `FF FF` in `FF FF FF` is a match at 0 from offset 0 and at 1 from
+ * offset 1 — so Find Next from the caret could land on a match Find All's set does not hold; an
+ * overlapping set is the file's alone. The two differ only for a pattern that overlaps itself: a
+ * run, or a mask such as `24 ?? 24` (#33).
+ *
+ * So the steps are by start: Find Next is the first match starting at or after the anchor, Find
+ * Previous the last starting before it — a match the reader stands on is passed by one byte, not
+ * by its length, and a run is walked a byte at a time either way.
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#ByteFindContent
  */
@@ -166,16 +192,39 @@ export class ByteFindContent implements FindContent<ByteQuery> {
     shouldCancel: () => boolean,
     progress: (fraction: number) => void
   ): Promise<FindRange | undefined> {
+    const pattern = queryPattern(query);
+    const options = this.scanOptions(shouldCancel, progress);
+    if (direction === "backward") {
+      return maskedLastMatch(pattern, this.storage, anchor, options);
+    }
+    return (async () => {
+      if (anchor >= this.storage.size) {
+        progress(1);
+        return undefined;
+      }
+      let found: ByteRange | undefined;
+      await maskedMatches(
+        [pattern],
+        this.storage,
+        (match) => {
+          found = match;
+          return false;
+        },
+        { ...options, range: { start: anchor, end: this.storage.size }, overlapping: true }
+      );
+      return found;
+    })();
+  }
+
+  /** The chunk size, the cancel check, the progress and the pause every scan here is given. */
+  private scanOptions(shouldCancel: () => boolean, progress: (fraction: number) => void) {
     const pause = this.options.pause?.();
-    return findOne(foldedPattern(query.pattern.bytes, query.folding), this.storage, {
-      from: anchor,
-      direction,
-      folding: query.folding,
+    return {
       shouldCancel,
       onProgress: progress,
       ...(this.options.chunkSize === undefined ? {} : { chunkSize: this.options.chunkSize }),
       ...(pause === undefined ? {} : { pause }),
-    });
+    };
   }
 
   /** @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/ByteFindContent.swift#ByteFindContent.matchStarts */
@@ -191,28 +240,39 @@ export class ByteFindContent implements FindContent<ByteQuery> {
     let wake: (() => void) | undefined;
     let done = false;
     let failure: unknown;
-    const pause = this.options.pause?.();
-    const scan = scanAll(foldedPattern(query.pattern.bytes, query.folding), this.storage, {
-      folding: query.folding,
-      shouldCancel,
-      onProgress: progress,
-      onMatches: (starts) => {
-        for (const start of starts) pending.push(start);
+    const deliver = (scannedUpTo: number) => {
+      queue.push({ starts: pending, scannedUpTo });
+      pending = [];
+      wake?.();
+    };
+    const scan = maskedMatches(
+      [queryPattern(query)],
+      this.storage,
+      (match) => {
+        pending.push(match.start);
+        if (pending.length >= DEFAULT_BATCH_SIZE) {
+          // Matches are visited in order of start, and they overlap: what is known complete
+          // mid-window is every start up to this one, not up to its end.
+          deliver(match.start + 1);
+        }
+        return true;
       },
-      onWindow: (upTo) => {
-        queue.push({ starts: pending, scannedUpTo: upTo });
-        pending = [];
-        wake?.();
-      },
-      ...(this.options.chunkSize === undefined ? {} : { chunkSize: this.options.chunkSize }),
-      ...(pause === undefined ? {} : { pause }),
-    }).then(
+      {
+        ...this.scanOptions(shouldCancel, progress),
+        overlapping: true,
+        // Every window is an instalment, even an empty one: a stretch with no match in it is
+        // still a stretch the index now knows about.
+        windowFinished: deliver,
+      }
+    ).then(
       () => {
         done = true;
         wake?.();
       },
       (error: unknown) => {
-        failure = error ?? new Error("The search failed.");
+        // A cancelled scan ends the stream normally, with whatever it had: a superseded search
+        // must not throw at the app.
+        if (!(error instanceof SearchCancelled)) failure = error ?? new Error("The search failed.");
         done = true;
         wake?.();
       }

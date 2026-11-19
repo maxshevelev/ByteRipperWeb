@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { byteMatchSet, byteMatchSetOf } from "@/core/search/byteFindContent";
-import { EXACT, type SearchPattern } from "@/core/search/searchPattern";
+import { EXACT, type SearchPattern, searchPattern } from "@/core/search/searchPattern";
 import { currentMatchMarks, matchOverlayMarks } from "@/render/minimap/matchOverlay";
 
-const twoBytes: SearchPattern = { bytes: new Uint8Array([0xde, 0xad]), encoding: "hex" };
+const twoBytes: SearchPattern = searchPattern([0xde, 0xad], "hex");
 const set = (extent: number, starts: number[]) => byteMatchSetOf(twoBytes, EXACT, extent, starts);
 const columns = (...list: number[]) => list.reduce((bits, column) => bits | (1 << column), 0);
 

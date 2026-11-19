@@ -148,8 +148,8 @@ describe("the pass", () => {
   });
 
   it("goes backwards when asked", async () => {
-    // Backward means the last match whose *end* is at or before the anchor, so
-    // an anchor at 6 still finds the match occupying 4..6.
+    // Backward means the last match *starting* before the anchor (#33), so an
+    // anchor at 5 finds the match occupying 4..6, and one at 4 the match at 0.
     const bytes = [...ascii("aa"), 0, 0, ...ascii("aa")];
     const at = async (from: number) => {
       const outcome = await firstMatchAmong(attemptsFor("aa", true), storage(bytes), {
@@ -159,9 +159,10 @@ describe("the pass", () => {
       return outcome.kind === "found" ? `${outcome.range.start}-${outcome.range.end}` : "nothing";
     };
     expect(await at(6)).toBe("4-6");
-    expect(await at(5)).toBe("0-2");
-    // Before the first match, the pass wraps to the last one.
-    expect(await at(1)).toBe("4-6");
+    expect(await at(5)).toBe("4-6");
+    expect(await at(4)).toBe("0-2");
+    // At the first match's start, nothing starts before it: the pass wraps to the last one.
+    expect(await at(0)).toBe("4-6");
   });
 
   // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift#SmartSearchTests.testProgressCoversTheWholePass

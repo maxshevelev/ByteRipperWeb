@@ -15,7 +15,7 @@ import type { CaseFolding } from "@/core/search/searchPattern";
  * and what a match says of itself.
  *
  * The search is the find bar's own engine, so an agent and a person find the same; it is given holes
- * in a hex pattern and, when asked, matches that overlap.
+ * in a hex pattern, and matches overlap as they do in the find bar unless `overlapping` is false.
  *
  * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools
  * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.Wanted
@@ -48,7 +48,8 @@ export function wantedPatterns(args: AgentArguments): WantedPattern[] {
       if (!(error instanceof MaskedPatternError)) throw error;
       throw new AgentToolError(
         "`hex` is not a byte pattern. Give pairs of hex digits and `??` for any byte, " +
-          'e.g. "24 ?? 4D 49"; a pattern of `??` alone matches everywhere.'
+          'e.g. "24 ?? 4D 49". A hole is a whole byte — half a byte (`2?`) cannot be masked — ' +
+          "and a pattern of `??` alone matches everywhere."
       );
     }
   }

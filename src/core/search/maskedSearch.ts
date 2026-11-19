@@ -11,22 +11,31 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
 /**
  * Search with holes in the pattern and matches that overlap.
  *
- * Ported from `MaskedSearch.swift`: what an agent's `find_bytes` asks of the
- * find bar's engine.
+ * Ported from `MaskedPattern.swift`, `PatternScan.swift` and `MaskedSearch.swift`: the one scan
+ * the find bar, the agent's `find_bytes` and the UEFI Structure's search all run, so the three
+ * cannot disagree about what a match is (#33).
  */
 
 /**
- * A hex pattern that cannot be read. The message is just the reason; a caller
- * words the sentence around it.
+ * A hex pattern that cannot be read, and why: not hex at all, half a byte masked, or holes alone.
+ * The message is just the reason; a caller words the sentence around it.
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.invalidHexPattern
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.partialByteMask
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.holesOnly
  */
 export class MaskedPatternError extends Error {
-  constructor(message: string) {
+  readonly reason: MaskedPatternFailure;
+
+  constructor(message: string, reason: MaskedPatternFailure = "invalidHexPattern") {
     super(message);
     this.name = "MaskedPatternError";
+    this.reason = reason;
   }
 }
+
+/** Why a hex pattern was refused: the three of `SearchError`'s cases a hex reading can raise. */
+export type MaskedPatternFailure = "invalidHexPattern" | "partialByteMask" | "holesOnly";
 
 /**
  * A pattern with holes in it: bytes, some of which match anything — the
@@ -51,6 +60,9 @@ export interface MaskedPattern {
 /**
  * A pattern of these bytes, with holes where `isWild` says so (none by default).
  *
+ * A hole per byte: a shorter or longer mask is a caller's mistake, caught here rather than as a
+ * read past the end inside a scan.
+ *
  * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.init
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#MaskedPattern.init
  */
@@ -59,6 +71,9 @@ export function maskedPattern(
   options: { readonly isWild?: readonly boolean[]; readonly folding?: CaseFolding } = {}
 ): MaskedPattern {
   const copy = Uint8Array.from(bytes);
+  if (options.isWild !== undefined && options.isWild.length !== copy.length) {
+    throw new RangeError("isWild must have one entry per byte");
+  }
   return {
     bytes: copy,
     isWild: options.isWild ?? Array.from({ length: copy.length }, () => false),
@@ -74,38 +89,77 @@ export function maskedPattern(
 export const maskedPatternCount = (pattern: MaskedPattern): number => pattern.bytes.length;
 
 /**
- * Hex text with `??` for any byte: pairs of digits, spaces and `0x` prefixes as
- * the find bar takes them, and `??` — on its own or between pairs, `24??4D` as
- * well — for a byte that matches anything. A pattern of holes alone matches
- * everywhere and is refused. Throws `MaskedPatternError`.
+ * Whether any byte of the pattern is a hole.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hasHoles
+ */
+export const maskedPatternHasHoles = (pattern: { readonly isWild: readonly boolean[] }): boolean =>
+  pattern.isWild.includes(true);
+
+/**
+ * The pattern as a hex dump writes it: uppercase pairs, one space between them, `??` for a hole —
+ * the one form a search shows back.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hexText
+ */
+export const maskedPatternHexText = (pattern: {
+  readonly bytes: Uint8Array;
+  readonly isWild: readonly boolean[];
+}): string =>
+  Array.from(pattern.bytes, (byte, index) =>
+    pattern.isWild[index] === true ? "??" : byte.toString(16).toUpperCase().padStart(2, "0")
+  ).join(" ");
+
+/**
+ * Hex text with `??` for any byte — the one reading of a hex search, the find bar's and the
+ * agent's.
+ *
+ * Digits are read in pairs across the whole text: spaces between them, and a `0x` in front of a
+ * group, are for the eye and change nothing, so `DEADBEEF`, `DE AD BE EF`, `0xDE 0xAD` and
+ * `D EADBEEF` are the same four bytes. `??` in place of a pair is a byte that matches anything —
+ * `24 ?? 4D 49`, `24??4D` as well.
+ *
+ * A hole is a whole byte. A `?` paired with a digit (`2?`) would mask half a byte, which the scan
+ * does not do, and is refused as `partialByteMask` rather than read as something else; so is a
+ * lone `?`. A pattern of holes alone matches everywhere and is refused as `holesOnly`. Throws
+ * `MaskedPatternError`, whose `reason` says which.
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hex
  */
 export function parseHexPattern(text: string): MaskedPattern {
-  const bytes: number[] = [];
-  const wild: boolean[] = [];
+  let symbols = "";
   for (const token of text.split(/\s+/)) {
     if (token === "") continue;
     const rest = /^0x/i.test(token) ? token.slice(2) : token;
-    if (rest === "" || rest.length % 2 !== 0) {
-      throw new MaskedPatternError("not a whole number of hex bytes");
+    if (rest === "" || !/^[0-9a-fA-F?]+$/.test(rest)) {
+      throw new MaskedPatternError("not a hex byte sequence");
     }
-    for (let i = 0; i < rest.length; i += 2) {
-      const pair = rest.slice(i, i + 2);
-      if (pair === "??") {
-        bytes.push(0);
-        wild.push(true);
-      } else if (/^[0-9a-fA-F]{2}$/.test(pair)) {
-        bytes.push(Number.parseInt(pair, 16));
-        wild.push(false);
-      } else {
-        throw new MaskedPatternError(`"${pair}" is not a hex byte`);
-      }
+    symbols += rest;
+  }
+  // No digits at all is not a hex pattern, as the find bar has always said.
+  if (symbols === "") throw new MaskedPatternError("not a hex byte sequence");
+  if (symbols.length % 2 !== 0) {
+    throw symbols.includes("?")
+      ? new MaskedPatternError("half a byte cannot be masked", "partialByteMask")
+      : new MaskedPatternError("not a whole number of hex bytes");
+  }
+  const bytes: number[] = [];
+  const wild: boolean[] = [];
+  for (let index = 0; index < symbols.length; index += 2) {
+    const highHole = symbols[index] === "?";
+    const lowHole = symbols[index + 1] === "?";
+    if (highHole && lowHole) {
+      bytes.push(0);
+      wild.push(true);
+    } else if (!highHole && !lowHole) {
+      bytes.push(Number.parseInt(symbols.slice(index, index + 2), 16));
+      wild.push(false);
+    } else {
+      throw new MaskedPatternError("half a byte cannot be masked", "partialByteMask");
     }
   }
-  if (bytes.length === 0) throw new MaskedPatternError("the pattern is empty");
   if (!wild.includes(false)) {
-    throw new MaskedPatternError("a pattern of holes alone matches everywhere");
+    throw new MaskedPatternError("a pattern of holes alone matches everywhere", "holesOnly");
   }
   return { bytes: Uint8Array.from(bytes), isWild: wild, folding: { kind: "exact" } };
 }
@@ -173,6 +227,47 @@ function matchesAt(start: number, pattern: MaskedPattern, buffer: Uint8Array): b
 }
 
 /**
+ * The byte a pattern is found by, and that byte's other case where the folding lets it have one
+ * (the byte itself where it does not).
+ *
+ * Not a hole, so it is found fast and only there is the rest compared. Not 0x00 or 0xFF where the
+ * pattern has another byte — a dump is full of both, and an anchor on them stops at almost every
+ * byte: an address such as `00 80 66 FF` is found by its 0x80.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.Anchor
+ */
+export interface PatternAnchor {
+  /** @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.Anchor.index */
+  readonly index: number;
+  /** @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.Anchor.byte */
+  readonly byte: number;
+  /** @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.Anchor.alternative */
+  readonly alternative: number;
+}
+
+/**
+ * The pattern's anchor, worked out once: a run of matches asks for the next one millions of
+ * times. None for a pattern of holes alone, which is found nowhere.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.Anchor.init
+ */
+export function patternAnchor(pattern: MaskedPattern): PatternAnchor | undefined {
+  let index = -1;
+  for (let at = 0; at < pattern.bytes.length; at++) {
+    if (pattern.isWild[at] === true) continue;
+    const byte = pattern.bytes[at] ?? 0;
+    if (byte !== 0x00 && byte !== 0xff) {
+      index = at;
+      break;
+    }
+  }
+  if (index === -1) index = pattern.isWild.indexOf(false);
+  if (index === -1) return undefined;
+  const byte = pattern.bytes[index] ?? 0;
+  return { index, byte, alternative: alternativeCase(byte, index, pattern) };
+}
+
+/**
  * The first place at or after `from`, starting below `below`, where `pattern`
  * matches whole inside `window`; -1 when there is none.
  *
@@ -182,42 +277,63 @@ export function firstMaskedMatch(
   pattern: MaskedPattern,
   window: Uint8Array,
   from: number,
-  below: number
+  below: number,
+  anchor: PatternAnchor | undefined = patternAnchor(pattern)
 ): number {
-  const count = pattern.bytes.length;
-  const lastStart = Math.min(below - 1, window.length - count);
-  if (from > lastStart) return -1;
-  // Anchored on a byte that is not a hole: found fast, and only there is the rest
-  // compared. Not on 0x00 or 0xFF where the pattern has another byte — a dump is full
-  // of both, and an anchor on them stops at almost every byte: an address such as
-  // `00 80 66 FF` is found by its 0x80.
-  let anchor = -1;
-  for (let index = 0; index < pattern.bytes.length; index++) {
-    if (pattern.isWild[index] === true) continue;
-    const byte = pattern.bytes[index] ?? 0;
-    if (byte !== 0x00 && byte !== 0xff) {
-      anchor = index;
-      break;
-    }
-  }
-  if (anchor === -1) anchor = pattern.isWild.indexOf(false);
-  if (anchor === -1) return -1;
-  const first = pattern.bytes[anchor] ?? 0;
-  const alternative = alternativeCase(first, anchor, pattern);
-  const end = lastStart + anchor;
+  const lastStart = Math.min(below - 1, window.length - pattern.bytes.length);
+  if (anchor === undefined || from > lastStart) return -1;
+  const first = anchor.byte;
+  const alternative = anchor.alternative;
+  const end = lastStart + anchor.index;
   let start = from;
   while (start <= lastStart) {
-    let at = start + anchor;
+    // The next place the anchor byte, or its other case, is.
+    let at = start + anchor.index;
     if (alternative === first) {
+      // One byte to look for: the native scan, which is what makes a search of a whole dump fast.
       at = window.indexOf(first, at);
       if (at === -1 || at > end) return -1;
     } else {
       while (at <= end && window[at] !== first && window[at] !== alternative) at++;
       if (at > end) return -1;
     }
-    const candidate = at - anchor;
+    const candidate = at - anchor.index;
     if (matchesAt(candidate, pattern, window)) return candidate;
     start = candidate + 1;
+  }
+  return -1;
+}
+
+/**
+ * The last place starting below `below` where `pattern` matches whole inside `window`: the window
+ * looked through from its end back; -1 when there is none.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.lastMatch
+ */
+export function lastMaskedMatch(
+  pattern: MaskedPattern,
+  window: Uint8Array,
+  below: number,
+  anchor: PatternAnchor | undefined = patternAnchor(pattern)
+): number {
+  const lastStart = Math.min(below - 1, window.length - pattern.bytes.length);
+  if (anchor === undefined || lastStart < 0) return -1;
+  const first = anchor.byte;
+  const alternative = anchor.alternative;
+  let at = lastStart + anchor.index;
+  while (at >= anchor.index) {
+    if (alternative === first) {
+      at = window.lastIndexOf(first, at);
+      if (at < anchor.index) return -1;
+    } else {
+      const byte = window[at];
+      if (byte !== first && byte !== alternative) {
+        at--;
+        continue;
+      }
+    }
+    if (matchesAt(at - anchor.index, pattern, window)) return at - anchor.index;
+    at--;
   }
   return -1;
 }
@@ -255,16 +371,130 @@ export function utf16LEPattern(text: string, ignoringCase: boolean): MaskedPatte
   });
 }
 
+/** What a scan for every match is told besides its patterns. */
+export interface PatternScanOptions {
+  readonly range?: ByteRange;
+  /**
+   * Whether a match is looked for again one byte after the last one's start rather than after
+   * its end. True unless asked otherwise — the count the find bar gives (#33).
+   */
+  readonly overlapping?: boolean;
+  /**
+   * Told after each window how far the scan has got: every match starting below that offset has
+   * been visited — what an index built while the scan runs needs to show what it already knows.
+   */
+  readonly windowFinished?: (scannedUpTo: number) => void;
+}
+
+/** One scan's bounds, its patterns' anchors and where each pattern may next start. */
+interface ScanState {
+  readonly patterns: readonly MaskedPattern[];
+  readonly anchors: readonly (PatternAnchor | undefined)[];
+  readonly counts: readonly number[];
+  readonly longest: number;
+  readonly lowerBound: number;
+  readonly upperBound: number;
+  readonly overlapping: boolean;
+  /** Where each pattern may next start, so the non-overlapping rule holds across windows. */
+  readonly nextStart: number[];
+}
+
+/** The scan's state, or undefined when no pattern can fit in the range. */
+function beginScan(
+  patterns: readonly MaskedPattern[],
+  size: number,
+  options: PatternScanOptions
+): ScanState | { readonly upperBound: number } {
+  if (patterns.length === 0 || patterns.some((p) => p.bytes.length === 0)) {
+    throw new SearchPatternEmpty();
+  }
+  const lowerBound = Math.min(Math.max(options.range?.start ?? 0, 0), size);
+  const upperBound = Math.min(Math.max(options.range?.end ?? size, lowerBound), size);
+  const counts = patterns.map((p) => p.bytes.length);
+  if (Math.min(...counts) > upperBound - lowerBound) return { upperBound };
+  return {
+    patterns,
+    anchors: patterns.map((pattern) => patternAnchor(pattern)),
+    counts,
+    longest: Math.max(...counts),
+    lowerBound,
+    upperBound,
+    overlapping: options.overlapping ?? true,
+    nextStart: patterns.map(() => lowerBound),
+  };
+}
+
+/**
+ * Visits the matches starting in the fresh part of one window, in order of start; false when
+ * `visit` said to stop.
+ */
+function scanWindow(
+  scan: ScanState,
+  window: Uint8Array,
+  cursor: number,
+  fresh: number,
+  visit: (match: ByteRange, pattern: number) => boolean
+): boolean {
+  const { patterns, anchors, counts, nextStart, overlapping } = scan;
+  // One pattern: its matches are in order as they are found, and go straight to `visit` — a
+  // pattern that matches everywhere visits millions, and gathering them first is most of the cost.
+  if (patterns.length === 1) {
+    const pattern = patterns[0] as MaskedPattern;
+    const count = counts[0] ?? 0;
+    const step = overlapping ? 1 : count;
+    let from = Math.max(0, (nextStart[0] ?? 0) - cursor);
+    while (from < fresh) {
+      const at = firstMaskedMatch(pattern, window, from, fresh, anchors[0]);
+      if (at === -1) break;
+      const start = cursor + at;
+      if (!visit({ start, end: start + count }, 0)) return false;
+      nextStart[0] = cursor + at + step;
+      from = at + step;
+    }
+    return true;
+  }
+  // The window's matches, every pattern's, in order of start.
+  const found: { start: number; pattern: number }[] = [];
+  for (const [index, pattern] of patterns.entries()) {
+    const step = overlapping ? 1 : (counts[index] ?? 0);
+    let from = Math.max(0, (nextStart[index] ?? 0) - cursor);
+    while (from < fresh) {
+      const at = firstMaskedMatch(pattern, window, from, fresh, anchors[index]);
+      if (at === -1) break;
+      found.push({ start: at, pattern: index });
+      nextStart[index] = cursor + at + step;
+      from = at + step;
+    }
+  }
+  found.sort((a, b) => a.start - b.start || a.pattern - b.pattern);
+  for (const match of found) {
+    const start = cursor + match.start;
+    if (!visit({ start, end: start + (counts[match.pattern] ?? 0) }, match.pattern)) return false;
+  }
+  return true;
+}
+
+/** One window is done: every start below its end has been looked for. */
+function windowDone(
+  scan: { readonly lowerBound: number; readonly upperBound: number },
+  upTo: number,
+  options: PatternScanOptions & { readonly onProgress?: (fraction: number) => void }
+): void {
+  options.windowFinished?.(upTo);
+  const span = scan.upperBound - scan.lowerBound;
+  options.onProgress?.(span === 0 ? 1 : (upTo - scan.lowerBound) / span);
+}
+
 /**
  * Every match of any of `patterns` in `range` of `storage` (half-open absolute
  * offsets), in order of where it starts, handed to `visit` with the pattern's
  * index — `visit` returns false to stop.
  *
- * What `scanAll` does, and the two things it does not: a pattern may have holes
- * (`MaskedPattern`), and with `overlapping` a match is looked for again one byte
- * after the last one's start rather than after its end, so `AA` in `AAAA` is
- * three matches. Each window is read once, a chunk and the longest pattern's
- * length less one, so a match across the boundary is found once and only once.
+ * A pattern may have holes (`MaskedPattern`), and matches overlap unless `overlapping` is false:
+ * a match is looked for again one byte after the last one's start rather than after its end, so
+ * `AA` in `AAAA` is three matches. Each window is read once, a chunk and the longest pattern's
+ * length less one, so a match across the boundary is found once and only once. After each window
+ * `windowFinished` is told how far the scan has got, and `onProgress` the same as a fraction.
  *
  * Two patterns matching at one place are both reported, the lower index first.
  * A pattern longer than the range finds nothing. Throws `SearchPatternEmpty`
@@ -278,68 +508,29 @@ export async function maskedMatches(
   patterns: readonly MaskedPattern[],
   storage: ByteStorage,
   visit: (match: ByteRange, pattern: number) => boolean,
-  options: {
-    readonly range?: ByteRange;
-    readonly overlapping?: boolean;
-  } & ScanOptions = {}
+  options: PatternScanOptions & ScanOptions = {}
 ): Promise<void> {
-  if (patterns.length === 0 || patterns.some((p) => p.bytes.length === 0)) {
-    throw new SearchPatternEmpty();
+  const scan = beginScan(patterns, storage.size, options);
+  if (!("patterns" in scan)) {
+    options.windowFinished?.(scan.upperBound);
+    options.onProgress?.(1);
+    return;
   }
-  const overlapping = options.overlapping ?? false;
   const chunkSize = options.chunkSize ?? DEFAULT_SEARCH_CHUNK_SIZE;
-  const lowerBound = Math.min(Math.max(options.range?.start ?? 0, 0), storage.size);
-  const upperBound = Math.min(
-    Math.max(options.range?.end ?? storage.size, lowerBound),
-    storage.size
-  );
-  const counts = patterns.map((p) => p.bytes.length);
-  const longest = Math.max(...counts);
-  const shortest = Math.min(...counts);
-  if (shortest > upperBound - lowerBound) return;
-
-  // Where each pattern may next start, so the non-overlapping rule holds across
-  // windows; the rule is per pattern, as each is its own search.
-  const nextStart = patterns.map(() => lowerBound);
-  let cursor = lowerBound;
-  while (cursor < upperBound) {
+  let cursor = scan.lowerBound;
+  while (cursor < scan.upperBound) {
     if (options.shouldCancel?.() === true) throw new SearchCancelled();
-    const fresh = Math.min(chunkSize, upperBound - cursor);
-    const length = Math.min(fresh + longest - 1, upperBound - cursor);
+    const fresh = Math.min(chunkSize, scan.upperBound - cursor);
+    const length = Math.min(fresh + scan.longest - 1, scan.upperBound - cursor);
     const window = await storage.read(cursor, length);
     if (window.length === 0) break;
-
-    const found: { start: number; pattern: number }[] = [];
-    for (const [index, pattern] of patterns.entries()) {
-      const count = pattern.bytes.length;
-      const step = overlapping ? 1 : count;
-      let from = Math.max(0, (nextStart[index] ?? 0) - cursor);
-      while (from < fresh) {
-        const at = firstMaskedMatch(pattern, window, from, fresh);
-        if (at === -1) break;
-        if (patterns.length === 1) {
-          // Straight to `visit`: a pattern that matches everywhere visits
-          // millions, and gathering them first is most of the cost.
-          const start = cursor + at;
-          if (!visit({ start, end: start + count }, 0)) return;
-        } else {
-          found.push({ start: at, pattern: index });
-        }
-        nextStart[index] = cursor + at + step;
-        from = at + step;
-      }
-    }
-    found.sort((a, b) => a.start - b.start || a.pattern - b.pattern);
-    for (const match of found) {
-      const start = cursor + match.start;
-      const count = counts[match.pattern] ?? 0;
-      if (!visit({ start, end: start + count }, match.pattern)) return;
-    }
+    if (!scanWindow(scan, window, cursor, fresh, visit)) return;
     cursor += fresh;
-    options.onProgress?.((cursor - lowerBound) / (upperBound - lowerBound));
+    windowDone(scan, cursor, options);
     const turn = options.pause?.();
     if (turn !== undefined) await turn;
   }
+  if (cursor < scan.upperBound) windowDone(scan, scan.upperBound, options);
 }
 
 /**
@@ -348,12 +539,14 @@ export async function maskedMatches(
  * as `maskedMatches`, over bytes the caller reads for it at once: what a worker holding the
  * decompressed buffers scans them with.
  *
- * A pattern may have holes, and with `overlapping` a match is looked for again one byte after the
- * last one's start rather than after its end. Each window is read once, a chunk and the longest
- * pattern's length less one, so a match across the boundary is found once and only once. Two
- * patterns matching at one place are both reported, the lower index first. Throws
- * `SearchPatternEmpty` for no pattern or an empty one, and `SearchCancelled` when `shouldCancel`
- * says so between windows.
+ * A pattern may have holes. Matches overlap by default: a match is looked for again one byte after
+ * the last one's start rather than after its end, so `AA` in `AAAA` is three matches — the count
+ * the find bar, the UEFI Structure's search and `find_bytes` all give (#33); `overlapping: false`
+ * is two. Each window is read once, a chunk and the longest pattern's length less one, so a match
+ * across the boundary is found once and only once. Two patterns matching at one place are both
+ * reported, the lower index first. After each window, `windowFinished` is told how far the scan
+ * has got and `progress` the same as a fraction of the range. Throws `SearchPatternEmpty` for no
+ * pattern or an empty one, and `SearchCancelled` when `shouldCancel` says so between windows.
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.matches
  */
@@ -362,59 +555,144 @@ export function scanPatterns(
   size: number,
   read: (offset: number, length: number) => Uint8Array,
   visit: (match: ByteRange, pattern: number) => boolean,
-  options: {
-    readonly range?: ByteRange;
-    readonly overlapping?: boolean;
+  options: PatternScanOptions & {
     readonly chunkSize?: number;
     readonly shouldCancel?: () => boolean;
+    readonly onProgress?: (fraction: number) => void;
   } = {}
 ): void {
-  if (patterns.length === 0 || patterns.some((p) => p.bytes.length === 0)) {
-    throw new SearchPatternEmpty();
+  const scan = beginScan(patterns, size, options);
+  if (!("patterns" in scan)) {
+    options.windowFinished?.(scan.upperBound);
+    options.onProgress?.(1);
+    return;
   }
-  const overlapping = options.overlapping ?? false;
   const chunkSize = options.chunkSize ?? DEFAULT_SEARCH_CHUNK_SIZE;
-  const lowerBound = Math.min(Math.max(options.range?.start ?? 0, 0), size);
-  const upperBound = Math.min(Math.max(options.range?.end ?? size, lowerBound), size);
-  const counts = patterns.map((p) => p.bytes.length);
-  const longest = Math.max(...counts);
-  const shortest = Math.min(...counts);
-  if (shortest > upperBound - lowerBound) return;
-
-  const nextStart = patterns.map(() => lowerBound);
-  let cursor = lowerBound;
-  while (cursor < upperBound) {
+  let cursor = scan.lowerBound;
+  while (cursor < scan.upperBound) {
     if (options.shouldCancel?.() === true) throw new SearchCancelled();
-    const fresh = Math.min(chunkSize, upperBound - cursor);
-    const length = Math.min(fresh + longest - 1, upperBound - cursor);
+    const fresh = Math.min(chunkSize, scan.upperBound - cursor);
+    const length = Math.min(fresh + scan.longest - 1, scan.upperBound - cursor);
     const window = read(cursor, length);
     if (window.length === 0) break;
-
-    const found: { start: number; pattern: number }[] = [];
-    for (const [index, pattern] of patterns.entries()) {
-      const count = pattern.bytes.length;
-      const step = overlapping ? 1 : count;
-      let from = Math.max(0, (nextStart[index] ?? 0) - cursor);
-      while (from < fresh) {
-        const at = firstMaskedMatch(pattern, window, from, fresh);
-        if (at === -1) break;
-        if (patterns.length === 1) {
-          const start = cursor + at;
-          if (!visit({ start, end: start + count }, 0)) return;
-        } else {
-          found.push({ start: at, pattern: index });
-        }
-        nextStart[index] = cursor + at + step;
-        from = at + step;
-      }
-    }
-    found.sort((a, b) => a.start - b.start || a.pattern - b.pattern);
-    for (const match of found) {
-      const start = cursor + match.start;
-      if (!visit({ start, end: start + (counts[match.pattern] ?? 0) }, match.pattern)) return;
-    }
+    if (!scanWindow(scan, window, cursor, fresh, visit)) return;
     cursor += fresh;
+    windowDone(scan, cursor, options);
   }
+  if (cursor < scan.upperBound) windowDone(scan, scan.upperBound, options);
+}
+
+/** What a scan for the last match before a place is told besides its pattern. */
+export interface LastMatchOptions {
+  /** The lowest place a match may start. Default 0. */
+  readonly lowerBound?: number;
+  readonly chunkSize?: number;
+  readonly shouldCancel?: () => boolean;
+  /** The fraction of `[lowerBound, anchor)` looked at. */
+  readonly onProgress?: (fraction: number) => void;
+}
+
+/** One backward scan's bounds; undefined when no match can start in them. */
+function beginLastMatch(
+  pattern: MaskedPattern,
+  size: number,
+  anchor: number,
+  options: LastMatchOptions
+): { readonly limit: number; readonly lowerBound: number; readonly count: number } | undefined {
+  if (pattern.bytes.length === 0) throw new SearchPatternEmpty();
+  const count = pattern.bytes.length;
+  if (count > size) return undefined;
+  // No match can start after `size - count`.
+  const limit = Math.min(anchor, size - count + 1);
+  const lowerBound = options.lowerBound ?? 0;
+  if (limit <= lowerBound) {
+    options.onProgress?.(1);
+    return undefined;
+  }
+  return { limit, lowerBound, count };
+}
+
+/**
+ * The last match of `pattern` that starts below `anchor` and at or above `lowerBound`, in `size`
+ * bytes `read` gives: Find Previous.
+ *
+ * A match that starts below the anchor and runs past it counts. That is what makes Find Previous
+ * step through matches that overlap — a run of `FF FF` is found one byte back at a time, as Find
+ * Next finds it one byte on — where "the last match that *ends* before the anchor" would skip the
+ * ones overlapping the match the reader stands on.
+ *
+ * Windows are read from the anchor back towards `lowerBound`, a chunk at a time with the
+ * pattern's length less one more, so a match across the edge of two windows is found, and each is
+ * looked through from its end back: the last match is the first one met, however many the window
+ * holds before it.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/PatternScan.swift#PatternScan.lastMatch
+ */
+export function lastPatternMatch(
+  pattern: MaskedPattern,
+  size: number,
+  anchor: number,
+  read: (offset: number, length: number) => Uint8Array,
+  options: LastMatchOptions = {}
+): ByteRange | undefined {
+  const bounds = beginLastMatch(pattern, size, anchor, options);
+  if (bounds === undefined) return undefined;
+  const { limit, lowerBound, count } = bounds;
+  const chunkSize = options.chunkSize ?? DEFAULT_SEARCH_CHUNK_SIZE;
+  const found = patternAnchor(pattern);
+  let startsEnd = limit;
+  while (startsEnd > lowerBound) {
+    if (options.shouldCancel?.() === true) throw new SearchCancelled();
+    const windowStart = Math.max(lowerBound, startsEnd - chunkSize);
+    const fresh = startsEnd - windowStart;
+    const window = read(windowStart, Math.min(fresh + count - 1, size - windowStart));
+    const last = lastMaskedMatch(pattern, window, fresh, found);
+    if (last !== -1) {
+      options.onProgress?.(1);
+      return { start: windowStart + last, end: windowStart + last + count };
+    }
+    startsEnd = windowStart;
+    options.onProgress?.((limit - startsEnd) / (limit - lowerBound));
+  }
+  return undefined;
+}
+
+/**
+ * The last match of `pattern` starting below `anchor` in `storage`: Find Previous
+ * (`lastPatternMatch`, over a storage's reads).
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/MaskedSearch.swift#SearchEngine.lastMatch
+ * @upstream-differs asynchronous because a storage read is, with the shared ScanOptions' pause
+ */
+export async function maskedLastMatch(
+  pattern: MaskedPattern,
+  storage: ByteStorage,
+  anchor: number,
+  options: ScanOptions = {}
+): Promise<ByteRange | undefined> {
+  const size = storage.size;
+  const bounds = beginLastMatch(pattern, size, anchor, options);
+  if (bounds === undefined) return undefined;
+  const { limit, lowerBound, count } = bounds;
+  const chunkSize = options.chunkSize ?? DEFAULT_SEARCH_CHUNK_SIZE;
+  const found = patternAnchor(pattern);
+  let startsEnd = limit;
+  while (startsEnd > lowerBound) {
+    if (options.shouldCancel?.() === true) throw new SearchCancelled();
+    const windowStart = Math.max(lowerBound, startsEnd - chunkSize);
+    const fresh = startsEnd - windowStart;
+    const window = await storage.read(windowStart, Math.min(fresh + count - 1, size - windowStart));
+    const last = lastMaskedMatch(pattern, window, fresh, found);
+    if (last !== -1) {
+      options.onProgress?.(1);
+      return { start: windowStart + last, end: windowStart + last + count };
+    }
+    startsEnd = windowStart;
+    options.onProgress?.((limit - startsEnd) / (limit - lowerBound));
+    const turn = options.pause?.();
+    if (turn !== undefined) await turn;
+  }
+  return undefined;
 }
 
 /** A masked pattern as it crosses to a worker: plain arrays and the folding by name. */

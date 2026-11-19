@@ -17,7 +17,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 interface Posted {
   readonly kind: string;
   readonly id: number;
-  readonly encoding?: string;
+  readonly query?: { readonly pattern: { readonly encoding: string } };
   readonly from?: number;
   readonly direction?: "forward" | "backward";
 }
@@ -49,7 +49,7 @@ class FakeWorker implements Pick<Worker, "addEventListener" | "removeEventListen
 
   postMessage(request: Posted): void {
     posted.push(request);
-    const here = request.encoding === answerFor;
+    const here = request.query?.pattern.encoding === answerFor;
     let replies: unknown[] = [];
     if (request.kind === "firstMatch") {
       const ahead =
@@ -87,6 +87,7 @@ const {
   noteSearchEdit,
   openSearch,
   resultsFor,
+  searchAnchor,
   searchStore,
   selectMatch,
   setSearchEncoding,
@@ -106,7 +107,7 @@ const bar = () => barFor(searchStore.getSnapshot());
 const asked = () =>
   posted
     .filter((request) => request.kind === "firstMatch")
-    .map((request) => request.encoding)
+    .map((request) => request.query?.pattern.encoding)
     .filter((encoding, i, all) => i === 0 || all[i - 1] !== encoding);
 const { openInPane, workspaceStore } = await import("@/state/workspaceStore");
 
@@ -500,6 +501,33 @@ test("a pass that lands on a text encoding leaves the field alone", async () => 
   await settle();
   expect(query()).toBe("root");
   expect(mostRecent()?.pattern).toBe("root");
+});
+
+test("a hole in a hex pattern is written back as the dump writes bytes", () => {
+  startSearch({ query: "24??4d49", smart: false, encoding: "hex" });
+  expect(query()).toBe("24 ?? 4D 49");
+  expect(bar().problem).toBeUndefined();
+});
+
+// Half a byte cannot be masked, and the field says so rather than reading `2?` as something else.
+// @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testHalfAByteIsRefusedWithItsOwnReason
+test("half a byte is refused with its own reason", () => {
+  startSearch({ query: "24 4? 4D", smart: false, encoding: "hex" });
+  expect(bar().problem).toBe("?? stands for a whole byte — half a byte cannot be masked.");
+  expect(paneResults().status).toBe("failed");
+  startSearch({ query: "?? ??", smart: false, encoding: "hex" });
+  expect(bar().problem).toBe("A pattern of ?? alone matches everywhere — give at least one byte.");
+});
+
+// A selection longer than a match is a stretch the reader marked, not a match stood on: Find Next
+// goes on after it, not one byte into it. One no longer than a match is passed by one byte, as
+// matches overlap (#33).
+// @upstream ByteRipperTests/FindFlowTests.swift#FindFlowTests.testFindNextFromALongSelectionStartsAfterIt
+test("Find Next from a long selection starts after it, from a match one byte in", () => {
+  expect(searchAnchor({ start: 2, end: 32 }, 2, "forward", 2)).toBe(32);
+  expect(searchAnchor({ start: 4, end: 6 }, 4, "forward", 2)).toBe(5);
+  expect(searchAnchor({ start: 2, end: 32 }, 2, "backward", 2)).toBe(2);
+  expect(searchAnchor({ start: 7, end: 7 }, 7, "forward", 2)).toBe(7);
 });
 
 test("typing is not reformatted", () => {

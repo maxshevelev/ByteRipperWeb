@@ -57,15 +57,21 @@ export function matchOverlayMarks(
     }
 
     let marks = 0;
+    let markedUpTo = 0;
     while (
       start !== undefined &&
       start < rowEnd &&
       marks < PER_ROW_MARK_LIMIT &&
       matched[row] !== FULL_ROW
     ) {
+      const end = start + length;
       // The whole row range, not this one row: a match can cross into the next.
-      binning.markHexColumns(start, start + length, rows, matched);
-      marks++;
+      binning.markHexColumns(start, end, rows, matched);
+      // A match that overlaps the one before it is marked but not counted (#33): a run of 0xFF
+      // under `FF FF` is one stretch, not a match per byte, and it fills the row's columns long
+      // before it could use up the limit.
+      if (start >= markedUpTo) marks++;
+      markedUpTo = Math.max(markedUpTo, end);
       start = set.startAtOrAfter(start + 1);
     }
     row++;

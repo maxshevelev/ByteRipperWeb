@@ -58,7 +58,8 @@ import type { WireNode } from "@/workers/protocol";
  * search and extract).
  *
  * The search is the find bar's own engine (`maskedMatches`), so an agent and a person find the same;
- * it is given holes in a hex pattern and, when asked, matches that overlap. A node inside a
+ * it is given holes in a hex pattern, and matches overlap as they do in the find bar unless
+ * `overlapping` is false. A node inside a
  * compressed section is searched in what the tree decompressed it to. A part opens as the window
  * opens one — Open Zone's way for a range, the UEFI panel's Open for a node — over its parent,
  * linked back to it.
@@ -114,8 +115,8 @@ export class AgentFindTools {
         '`uefi_node_data` reads — and `decoded` ("XOR 77") in a LENV block decoded. With `context`, ' +
         "a `preview` of the bytes around it — none, and `redacted: true`, in an area the flash map " +
         "names MSDM, Password or Key. `total` counts every match; with `node`, `unread` lists the " +
-        "compressed sections that would not decompress. Matches do not overlap unless " +
-        '`overlapping`: "AA" in "AAAA" is two, or three with it. Pages: `limit` is a ceiling — a ' +
+        "compressed sections that would not decompress. Matches overlap, as in the find " +
+        'bar: "AA" in "AAAA" is three, or two with `overlapping` false. Pages: `limit` is a ceiling — a ' +
         'page also stops before the answer passes the size bound and says `truncated: "size"`; pass ' +
         "`next` back as `after` until it is null. With `survey`, which dumps of a folder hold a " +
         "string.",
@@ -132,7 +133,9 @@ export class AgentFindTools {
         ignore_case: AgentSchema.boolean(
           "Letters in either case — ASCII letters of `text`. Default false."
         ),
-        overlapping: AgentSchema.boolean("Count matches that overlap one another. Default false."),
+        overlapping: AgentSchema.boolean(
+          "Count matches that overlap one another, as the find bar does. Default true."
+        ),
         offset: AgentSchema.offset(
           "Where the search of the document starts. Default 0x0. Not with `node`."
         ),
@@ -158,7 +161,7 @@ export class AgentFindTools {
     const args = call.arguments;
     const place = this.desk.placeNamed(args.optionalString("document"));
     const wanted = wantedPatterns(args);
-    const overlapping = args.bool("overlapping", false);
+    const overlapping = args.bool("overlapping", true);
     const context = contextArgument(args);
     const limit = args.limit(100, 1000);
     const host = this.moduleTools.hostFor(place);

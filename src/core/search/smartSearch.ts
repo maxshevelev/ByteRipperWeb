@@ -86,6 +86,11 @@ export type SmartOutcome =
  * as far as this test is concerned; a reader who means those four bytes writes
  * them the way every hex dump prints them.
  *
+ * `??` is a byte of a hex search, but only where it stands as a byte: a pair of its own in the
+ * paired form — `24 ?? 4D 49` — or a pair inside an unbroken run — `24??4D49`. Never half a pair,
+ * and never at the edge of a run: `be??` and `FACE??` are words with question marks after them,
+ * and read as hex they would match almost anywhere a 0xBE stands.
+ *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.looksLikeHexBytes
  */
 export function looksLikeHexBytes(text: string): boolean {
@@ -93,9 +98,18 @@ export function looksLikeHexBytes(text: string): boolean {
   if (trimmed.length === 0) return false;
 
   const groups = trimmed.split(/\s+/).filter((group) => group.length > 0);
-  if (!groups.every((group) => /^[0-9a-fA-F]+$/.test(group))) return false;
-  if (groups.length === 1) return (groups[0]?.length ?? 0) % 2 === 0;
-  return groups.every((group) => group.length === 2);
+  let pairs: string[];
+  if (groups.length === 1) {
+    const run = groups[0] ?? "";
+    if (run.length % 2 !== 0) return false;
+    pairs = [];
+    for (let at = 0; at < run.length; at += 2) pairs.push(run.slice(at, at + 2));
+    if (pairs[0] === "??" || pairs.at(-1) === "??") return false;
+  } else {
+    if (!groups.every((group) => group.length === 2)) return false;
+    pairs = groups;
+  }
+  return pairs.every((pair) => pair === "??" || /^[0-9a-fA-F]{2}$/.test(pair));
 }
 
 /**
@@ -138,14 +152,15 @@ export function attemptsFor(
 
   const attempts: Attempt[] = [];
   for (const encoding of order) {
-    const parsed = parsePattern(text, encoding);
+    const parsed = parsePattern(text, encoding, true);
     if (!parsed.ok) continue;
 
     const folding = foldingFor(encoding, caseSensitive);
     const existing = attempts.findIndex(
       (attempt) =>
         sameFolding(attempt.folding, folding) &&
-        sameBytes(attempt.pattern.bytes, parsed.pattern.bytes)
+        sameBytes(attempt.pattern.bytes, parsed.pattern.bytes) &&
+        sameHoles(attempt.pattern.isWild, parsed.pattern.isWild)
     );
     if (existing !== -1) {
       const already = attempts[existing];
@@ -162,6 +177,9 @@ export function attemptsFor(
 
 const sameBytes = (a: Uint8Array, b: Uint8Array): boolean =>
   a.length === b.length && a.every((byte, index) => byte === b[index]);
+
+const sameHoles = (a: readonly boolean[], b: readonly boolean[]): boolean =>
+  a.length === b.length && a.every((hole, index) => hole === b[index]);
 
 /**
  * Runs the attempts in order until one of them finds something.

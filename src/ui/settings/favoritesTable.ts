@@ -1,5 +1,10 @@
 import { L } from "@/core/localization/localization";
-import { encodingTitle, parsePattern, type SearchEncoding } from "@/core/search/searchPattern";
+import {
+  encodingTitle,
+  parsePattern,
+  type SearchEncoding,
+  searchFailureText,
+} from "@/core/search/searchPattern";
 import { type SearchPatternEntry, searchPatternEntry } from "@/core/search/searchPatternEntry";
 import type { ImportResult } from "@/state/favoritesStore";
 
@@ -23,9 +28,17 @@ export interface TableEdit {
 }
 
 /**
+ * Why `pattern` is not a search in `encoding`: the bar's own reason where it has one of its own —
+ * half a byte masked, holes alone — and otherwise the pattern named, so the reader sees which
+ * text was refused.
+ *
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.complaint
  */
 export function patternComplaint(pattern: string, encoding: SearchEncoding): string {
+  const parsed = parsePattern(pattern, encoding, true);
+  if (!parsed.ok && (parsed.reason === "partialByteMask" || parsed.reason === "holesOnly")) {
+    return searchFailureText(parsed.reason);
+  }
   return encoding === "hex"
     ? L("“%1$@” is not hex — use pairs like DE AD BE EF.", pattern)
     : L("“%1$@” cannot be written in %2$@.", pattern, encodingTitle(encoding));
@@ -70,7 +83,7 @@ export function commitPattern(
   const row = rows[index];
   if (row === undefined) return { rows };
   const pattern = text.trim();
-  if (pattern !== "" && !parsePattern(pattern, row.encoding).ok) {
+  if (pattern !== "" && !parsePattern(pattern, row.encoding, true).ok) {
     return { rows, message: patternComplaint(pattern, row.encoding) };
   }
   return { rows: replaced(rows, index, { pattern }) };
@@ -90,7 +103,7 @@ export function commitEncoding(
 ): TableEdit {
   const row = rows[index];
   if (row === undefined) return { rows };
-  if (row.pattern !== "" && !parsePattern(row.pattern, encoding).ok) {
+  if (row.pattern !== "" && !parsePattern(row.pattern, encoding, true).ok) {
     return { rows, message: patternComplaint(row.pattern, encoding) };
   }
   return { rows: replaced(rows, index, { encoding }) };
