@@ -14,7 +14,6 @@ import { DiffBlockIndex } from "@/core/diff/diffBlock";
 import { type Segmentation, segmentReadout, wholeFile } from "@/core/segments/segmentation";
 import {
   exactSizeText,
-  hexSizeText,
   type PaneStatus,
   sizeCopyText,
   statusLine,
@@ -159,7 +158,6 @@ describe("the parts of the line the pointer acts on", () => {
     expect(exactSizeText(0)).toBe("0x0 (0 bytes)");
     expect(exactSizeText(2 * 1024 * 1024)).toBe("0x200000 (2097152 bytes)");
     expect(exactSizeText(0x100000001)).toBe("0x100000001 (4294967297 bytes)");
-    expect(hexSizeText(0x100000001)).toBe("0x100000001");
   });
 
   /** @upstream ByteRipperTests/StatusBarSizeTests.swift#StatusBarSizeTests.testEachHalfOfTheExactFormIsCopiedInItsOwnFormat */

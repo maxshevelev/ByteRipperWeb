@@ -18,6 +18,7 @@
  * without a view — the dialog that shows it is `ConfirmDialog`.
  */
 
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 
 /**
@@ -63,7 +64,7 @@ export interface ShiftWarning {
  * @upstream ByteRipperApp/Window/MainViewController.swift#MainViewController.deleteSelectionOrCaret
  */
 export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
-  const at = hexOffset(edit.at);
+  const at = hexNumber(edit.at);
   switch (edit.kind) {
     // The alert `flipInsertMode` injects into the pane, shown on the first
     // insert-mode keystroke in a file and asked no more after it is answered.
@@ -101,16 +102,4 @@ export function shiftWarning(edit: ShiftingEdit): ShiftWarning {
         confirmLabel: L("Delete"),
       };
   }
-}
-
-/**
- * An offset as these sentences name one: `0x` and the upper-case digits, with
- * no padding — upstream's `String(format: "0x%X", offset)`.
- *
- * Not the dump's {@link hexAddress}, which pads to eight digits, nor the status
- * line's spelling, which pads to the file's widest address: both pad because
- * they are read as columns, and a sentence has no column to line up with.
- */
-function hexOffset(offset: number): string {
-  return `0x${offset.toString(16).toUpperCase()}`;
 }

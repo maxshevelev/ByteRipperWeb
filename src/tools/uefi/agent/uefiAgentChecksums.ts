@@ -4,16 +4,12 @@ import { hexByteText } from "@/core/agent/agentHexBytes";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
 import type { ChecksumRepair } from "@/firmware/uefi/checksumRepair";
 import { type NodeID, nodeFileRange, nodeIdText, type UEFINode } from "@/firmware/uefi/uefiNode";
-import {
-  hexText,
-  nodeSummary,
-  pathNames,
-  type UefiAgentContext,
-} from "@/tools/uefi/agent/uefiAgentQueries";
+import { nodeSummary, pathNames, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
 import {
   type AgentTree,
   allNodes,
@@ -244,7 +240,7 @@ export function uefiChecksums(
       checksums: wrong.fields.map((field) => {
         const members: { [key: string]: Json } = {
           field: field.field,
-          at: hexText(field.offset),
+          at: hexNumber(field.offset),
           stored: bytesHex(field.stored),
           should_be: bytesHex(field.shouldBe),
         };

@@ -13,6 +13,7 @@ import { annotationTitles, drawnHover } from "@/core/agent/agentAnnotation";
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
 import type { InputRegion, TypingController } from "@/core/edit/typingController";
+import { hexDigitCount } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import { segmentReadout } from "@/core/segments/segmentation";
@@ -770,7 +771,7 @@ export function HexPane({
       const layout = new HexLayout({
         charWidth: metrics.charWidth,
         rowHeight: metrics.rowHeight,
-        offsetColumnChars: Math.max(8, doc.size.toString(16).length),
+        offsetColumnChars: Math.max(8, hexDigitCount(doc.size)),
         wordSize,
       });
       layoutRef.current = layout;

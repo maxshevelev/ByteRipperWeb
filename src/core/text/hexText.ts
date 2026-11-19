@@ -9,6 +9,8 @@
  * somebody else's tool.
  */
 
+import { bareHexNumber } from "@/core/hexText/hexText";
+
 /**
  * Bytes as uppercase pairs separated by spaces, wrapped every 16.
  *
@@ -74,5 +76,5 @@ export function parseHex(text: string): Uint8Array | undefined {
  * @upstream ByteRipperApp/Hex/HexView.swift#UInt64.hexAddress
  */
 export function hexAddress(offset: number): string {
-  return offset.toString(16).toUpperCase().padStart(8, "0");
+  return bareHexNumber(offset, { digits: 8 });
 }

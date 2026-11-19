@@ -1,5 +1,6 @@
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { bareHexNumber, halfOpenHexText, hexNumber } from "@/core/hexText/hexText";
 import { type ByteSpace, isFileSpace, sameSpace } from "@/firmware/uefi/byteSpace";
 import {
   type NodeID,
@@ -9,7 +10,6 @@ import {
   type UEFINode,
 } from "@/firmware/uefi/uefiNode";
 import { compressedView, nodeBytes } from "@/tools/uefi/agent/uefiAgentNodeData";
-import { hexText } from "@/tools/uefi/agent/uefiAgentQueries";
 import { type AgentTree, nodeAtPath, parseNodeId } from "@/tools/uefi/agent/uefiAgentTree";
 import { decodableBlock } from "@/tools/uefi/uefiLenovoDMIDetail";
 import { decompressedBody } from "@/tools/uefi/uefiPresenter";
@@ -132,7 +132,7 @@ function fileSourceOf(node: UEFINode, tree: AgentTree): readonly [number, number
   return range === undefined ? undefined : [range.start, range.end];
 }
 
-const xorBadge = (key: number) => `XOR ${key.toString(16).toUpperCase().padStart(2, "0")}`;
+const xorBadge = (key: number) => `XOR ${bareHexNumber(key, { digits: 2 })}`;
 
 /**
  * Where node `text` of the tree is — or the stretch `within` of its bytes, from its first: in the
@@ -152,7 +152,7 @@ export function nodePlace(
     const size = found.range.end - found.range.start;
     if (within[1] > size) {
       throw new AgentToolError(
-        `${hexText(within[0])}–${hexText(within[1])} runs past the end of node ${text}, which is ${hexText(size)} bytes long.`
+        `The range ${halfOpenHexText(within[0], within[1])} runs past the end of node ${text}, which is ${hexNumber(size)} bytes long.`
       );
     }
     range = [found.range.start + within[0], found.range.start + within[1]];

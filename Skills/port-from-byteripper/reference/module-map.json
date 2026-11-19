@@ -1338,7 +1338,6 @@
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.all": "n/a — the module's list is `uefiAgentQueries`",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentNodeData.swift#UEFIAgentNodeData.isCompressedSection": "n/a — a check on the node's own fields, inline",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.all": "n/a — the module's list is `uefiAgentQueries`",
-        "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.hex": "n/a — `hexText`",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentChecksums.swift#UEFIAgentChecksums.hexText": "n/a — `hexText` in `agentBytes.ts`",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentQueries.swift#UEFIAgentQueries.merged": "n/a — the tree is the worker's and is one parse, so there is nothing to merge",
         "Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift#UEFIAgentVariables.Variable*": "n/a — a plain record here (`VariableRow`)",
@@ -1533,7 +1532,6 @@
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.protected": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.reader": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
         "Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode.Ground.table": "n/a — the firmware worker holds the ground a change starts from (`planPaneFit`)",
-        "Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries.hex": "n/a — `hex` in `fitAgentAnswers.ts`",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITOutlineItem.init": "n/a — the outline item is a value literal (`fitOutline.ts`); there is nothing to construct",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITToolViewController.outlineViewColumnDidResize": "n/a — AppKit table column resizing; the one column is laid out by `fittedColumnWidths`",
         "Modules/FITTool/Sources/FITToolUI/FITToolViewController.swift#FITCPUIDPlate.height": "n/a — NSTextView mechanics of the CPUID lines: the web's lines are the page's own text, which the browser selects and copies, with the ⓘ a button between the words (`FitCpuidLines` in fitTool.tsx)",
@@ -1619,7 +1617,6 @@
         "Modules/MEATool/Sources/MEATool/MEASummary.swift#MEASummaryRow.isEmphasized": "n/a — `isEmphasized(row)`, a function over the row, anchored to the view code it was lifted from",
         "Modules/MEATool/Tests/MEAToolTests/MEASummaryTests.swift#MEASummaryTests.testAPendingValueIsNotEmphasized": "n/a — covered by `isEmphasized` itself, which refuses everything but a value (meaSummary.test.ts)",
         "Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.detailPane": "n/a — the tool renders `ToolDetail`, which is the pane",
-        "Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries.hex": "n/a — `hex` in `meAgentAnswers.ts`",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheTabIsKeptByName": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheConfigurationTabOfFirmwareWithoutAMapSaysNoConfiguration": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testAWorkspaceFromBeforeTheConfigurationTabKeepsItsTab": "n/a — the web has always kept the tab by name, so no workspace holds a tab number",
@@ -1756,9 +1753,7 @@
         "ByteRipperApp/Hex/HexView.swift#HexView.bounceFindIndicator": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexView.isBouncingFindIndicatorForTests": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
         "ByteRipperApp/Hex/HexView.swift#HexTheme.indicatorShadow": "n/a — the web edition's find indicator is a flat yellow plate with an outline: no lift, bounce or shadow (GAPS.md G9)",
-        "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator",
-        "ByteRipperApp/Hex/HexView.swift#String*": "n/a — padStart",
-        "ByteRipperApp/Hex/HexView.swift#Range*": "n/a — each site subtracts one from a half-open end"
+        "ByteRipperApp/Hex/HexView.swift#HexTheme.mutedIndicatorInk": "n/a — the decoded-text column draws a placeholder in its byte's own ink, so there is no dimmed placeholder ink to swap for one on the indicator"
       }
     },
     {
@@ -6088,6 +6083,21 @@
         "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.appRecordPath": "n/a — the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place",
         "Packages/AgentKit/Sources/AgentKit/AgentEndpoint.swift#AgentEndpoint.folder": "n/a — the folder the installed relay and its app record live in, beside the socket; the shell keeps no installed copy of the relay beside the endpoint (AgentRelayInstall is n/a): its helper is the app's own executable run as Node over relay.cjs, the whole Electron runtime, and the path an installed build hands out is its install folder, which the setup updates in place, and on Windows the endpoint is a named pipe, which has no folder",
         "Packages/AgentKit/Tests/AgentKitTests/AgentEndpointTests.swift#*": "n/a — tests relayPath, folder and appRecordPath, which are n/a; that BYTERIPPER_AGENT_SOCKET names the endpoint itself, file name and all, is the shell's (desktop/agent-endpoint.cjs), tested in desktop/test/agent.test.cjs"
+      }
+    },
+    {
+      "swift": "Packages/HexText",
+      "web": [
+        "src/core/hexText"
+      ],
+      "status": "ported",
+      "note": "Every number the app writes in hex, in one module: hexNumber and bareHexNumber (padded to a field's width, never cut), decimalNumber beside it, hexDigitCount for a column's width, and a range as hexExtent (first–last, by its last byte), lastByte, and halfOpenHexText ([start, end), an agent's terms). A JavaScript number has no width of its own, so a negative is written at the width a caller names (`width`, 64 when none), as upstream writes it at its type's; `bigint` is taken for a 64-bit field read whole. In src/core because the app and the tool modules both quote offsets, and a tool may not see the app.",
+      "files": {
+        "Packages/HexText/Sources/HexText/HexText.swift": "src/core/hexText/hexText.ts",
+        "Packages/HexText/Tests/HexTextTests/HexTextTests.swift": "src/core/hexText/hexText.test.ts"
+      },
+      "unported": {
+        "Packages/HexText/Package.swift#*": "n/a — SwiftPM manifest"
       }
     },
     {

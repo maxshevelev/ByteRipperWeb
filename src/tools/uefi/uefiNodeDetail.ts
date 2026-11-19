@@ -1,3 +1,4 @@
+import { bareHexNumber, decimalNumber, hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { amdKindName } from "@/firmware/uefi/amdFirmware";
@@ -397,7 +398,7 @@ function bvdtEntry(
     case "esrtVersion":
       return {
         name: L("ESRT version"),
-        text: table.esrtVersion === undefined ? undefined : hex(table.esrtVersion),
+        text: table.esrtVersion === undefined ? undefined : hexNumber(table.esrtVersion),
       };
   }
 }
@@ -422,9 +423,7 @@ function settingFields(setting: DellSetupSetting, value: Uint8Array): DetailFiel
     }
     const meaning = dvarMeaning(number, setting);
     if (meaning !== undefined) {
-      fields.push(
-        field(L("Value in Setup"), `${meaning} (0x${number.toString(16).toUpperCase()})`)
-      );
+      fields.push(field(L("Value in Setup"), `${meaning} (${hexNumber(number)})`));
     }
   }
   if (setting.help !== undefined) fields.push(field(L("Setup help"), setting.help));
@@ -453,7 +452,10 @@ function dvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
   };
   const stateName = stateNames[state];
   const fields: DetailField[] = [
-    field("State", stateName === undefined ? hex(state) : `${hex(state)} (${stateName})`),
+    field(
+      "State",
+      stateName === undefined ? hexNumber(state) : `${hexNumber(state)} (${stateName})`
+    ),
     field(
       "Entry flags",
       bits(flags, [
@@ -461,9 +463,9 @@ function dvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
         [0x04, "NamespaceGuid"],
       ])
     ),
-    field("Type", hex(type)),
-    field("Attributes", hex(0xff - (raw[3] ?? 0))),
-    field("Namespace ID", hex(0xff - (raw[4] ?? 0))),
+    field("Type", hexNumber(type)),
+    field("Attributes", hexNumber(0xff - (raw[3] ?? 0))),
+    field("Namespace ID", hexNumber(0xff - (raw[4] ?? 0))),
   ];
   // Past the namespace's GUID, when the entry declares one, the name id and the
   // data size, one or two bytes each by the type.
@@ -471,7 +473,8 @@ function dvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
   const wideName = type !== 0x00;
   const wideSize = type === 0x05;
   const nameId = wideName ? reader.uint16(cursor) : reader.uint8(cursor);
-  if (nameId !== undefined) fields.push(field("Name ID", hex((wideName ? 0xffff : 0xff) - nameId)));
+  if (nameId !== undefined)
+    fields.push(field("Name ID", hexNumber((wideName ? 0xffff : 0xff) - nameId)));
   cursor += wideName ? 2 : 1;
   const size = wideSize ? reader.uint16(cursor) : reader.uint8(cursor);
   if (size !== undefined)
@@ -514,7 +517,7 @@ function listedRangesTable(
       );
     });
     rows.push([
-      cell(hex(start)),
+      cell(hexNumber(start)),
       cell(sizeText(range.end - range.start)),
       cell(holder === undefined ? "—" : holderText(holder)),
     ]);
@@ -605,8 +608,8 @@ function mapRegionsTable(
           });
     rows.push([
       cell(type),
-      cell(hex(entry.address)),
-      cell(placed === undefined ? "—" : hex(placed.start)),
+      cell(hexNumber(entry.address)),
+      cell(placed === undefined ? "—" : hexNumber(placed.start)),
       cell(sizeText(entry.size)),
       cell(holder === undefined ? "—" : holderText(holder)),
     ]);
@@ -813,7 +816,7 @@ function historyRow(
   const change = previous === undefined ? undefined : variableChange(previous, version, reader);
   return [
     cell(isFocus(version) ? `▸ ${number}` : number),
-    cell(hex(version.offset)),
+    cell(hexNumber(version.offset)),
     cell(state),
     cell(`${version.value.end - version.value.start}`),
     cell(change === undefined ? "—" : changeText(change)),
@@ -833,11 +836,7 @@ function changeText(change: NvramVariableChange): string {
     parts.push(L("size %1$@ → %2$@", change.oldSize, change.newSize));
   }
   if (change.changed.length > 0) {
-    const runs = change.changed
-      .slice(0, 4)
-      .map((run) =>
-        run.end - run.start === 1 ? `+${hex(run.start)}` : `+${hex(run.start)}–${hex(run.end - 1)}`
-      );
+    const runs = change.changed.slice(0, 4).map((run) => `+${hexExtent(run.start, run.end)}`);
     if (change.changed.length > 4) runs.push("…");
     parts.push(L("changed bytes: %1$@, at %2$@", changedBytes(change), runs.join(", ")));
   }
@@ -955,7 +954,7 @@ function buildDetailRows(
         title: L("Text in the record"),
         symbol: "text.alignleft",
         columns: [L("Offset"), L("Text")],
-        rows: texts.map((one) => [cell(`+${hex(one.offset)}`), cell(one.text)]),
+        rows: texts.map((one) => [cell(`+${hexNumber(one.offset)}`), cell(one.text)]),
       });
     }
   }
@@ -972,8 +971,8 @@ function buildDetailRows(
           cell(entry.name),
           cell(entry.key),
           cell(`${entry.blockCount}`),
-          cell(hex(entry.range.start)),
-          cell(hex(entry.range.end - entry.range.start)),
+          cell(hexNumber(entry.range.start)),
+          cell(hexNumber(entry.range.end - entry.range.start)),
         ]),
       });
     }
@@ -993,7 +992,7 @@ function buildDetailRows(
           const contents = row.startsWith(`${record.name} = `)
             ? row.slice(record.name.length + 3)
             : "";
-          return [cell(record.name), cell(hex(record.header.start)), cell(contents)];
+          return [cell(record.name), cell(hexNumber(record.header.start)), cell(contents)];
         }),
         rowTargets: current.map((record) => ({ kind: "node", path: record.id })),
         // GPNV links by name, as the other areas link by their entry.
@@ -1022,7 +1021,7 @@ function buildDetailRows(
             cell(microcodeCpuid(signature.processorSignature)),
             cell(microcodeProcessorText(signature.processorSignature)),
             cell(microcodePlatformsText(signature.platformIDs)),
-            cell(hex(signature.checksum)),
+            cell(hexNumber(signature.checksum)),
           ]),
         },
       ],
@@ -1134,11 +1133,11 @@ function protectedByTable(
         text:
           range.range === undefined
             ? L("Not placed")
-            : `${hex(range.range.start)}–${hex(range.range.end)}`,
+            : hexExtent(range.range.start, range.range.end),
         tone: "plain" as const,
       },
       { text: protectedRangeKindName(range.kind), tone: "plain" as const },
-      { text: hex(range.source.start), tone: "plain" as const },
+      { text: hexNumber(range.source.start), tone: "plain" as const },
       verdictCell(range),
     ]),
   };
@@ -1183,7 +1182,7 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
       found !== undefined && found.header.start === outermost
         ? found.name
         : L("Compressed section");
-    let text = L("%1$@ at %2$@", section, hex(outermost));
+    let text = L("%1$@ at %2$@", section, hexNumber(outermost));
     if (node.space.length > 1) {
       text = L("%1$@, %2$@ compressed sections deep", text, node.space.length);
     }
@@ -1205,7 +1204,7 @@ function commonFields(node: UEFINode, image: UEFIImage): DetailField[] {
   // wherever it likes — so the one thing worth showing is skipped there.
   if (!isNodeCompressed(node)) {
     const address = image.addressForOffset(range.start);
-    if (address !== undefined) fields.push(field(L("Address"), hex(address)));
+    if (address !== undefined) fields.push(field(L("Address"), hexNumber(address)));
   }
   return fields;
 }
@@ -1227,7 +1226,7 @@ function headerFields(
   switch (node.kind) {
     case "volume": {
       add("Length", reader.uint64(h + 0x20), sizeText);
-      add("Signature", reader.uint32(h + 0x28), hex);
+      add("Signature", reader.uint32(h + 0x28), hexNumber);
       add("Attributes", reader.uint32(h + 0x2c), (value) =>
         bits(value, [[0x0000_0800, "Erase polarity"]])
       );
@@ -1236,7 +1235,7 @@ function headerFields(
       if (checksum !== undefined) {
         fields.push(checksumRow(L("Checksum"), checksum, 4, repairs, h + 0x32));
       }
-      add("Ext. header", reader.uint16(h + 0x34), hex);
+      add("Ext. header", reader.uint16(h + 0x34), hexNumber);
       add(L("Revision"), reader.uint8(h + 0x37), (value) => `${value}`);
       break;
     }
@@ -1272,7 +1271,7 @@ function headerFields(
       if (headerChecksum !== undefined) {
         fields.push(
           markedInvalid
-            ? field("Header checksum", L("%1$@ (not checked)", hex(headerChecksum)))
+            ? field("Header checksum", L("%1$@ (not checked)", hexNumber(headerChecksum)))
             : checksumRow("Header checksum", headerChecksum, 2, repairs, h + 0x10)
         );
       }
@@ -1280,7 +1279,7 @@ function headerFields(
       if (bodyChecksum !== undefined) {
         fields.push(
           markedInvalid
-            ? field("Body checksum", L("%1$@ (not checked)", hex(bodyChecksum)))
+            ? field("Body checksum", L("%1$@ (not checked)", hexNumber(bodyChecksum)))
             : checksumRow("Body checksum", bodyChecksum, 2, repairs, h + 0x11)
         );
       }
@@ -1302,10 +1301,10 @@ function headerFields(
       // panel gives the microcode an entry points at (`microcodeFields`), so the
       // two say it in the same words — with the checksum's verdict this panel's
       // own: the repairs.
-      add("Header type", reader.uint32(h), hex);
+      add("Header type", reader.uint32(h), hexNumber);
       const header = readMicrocodeHeader(h, reader);
       if (header !== undefined) {
-        add("Loader revision", reader.uint32(h + 0x14), hex);
+        add("Loader revision", reader.uint32(h + 0x14), hexNumber);
         const repair = repairs.find((one) => one.offset === h + 0x10);
         fields.push(
           // The engine's own field carries a flag; the detail carries a tone.
@@ -1325,33 +1324,34 @@ function headerFields(
       const patch = readAMDMicrocode(h, node.body.end, reader);
       if (patch === undefined) break;
       fields.push(field("Date", amdMicrocodeDate(patch)));
-      fields.push(
-        field(
-          "CPUID",
-          amdCpuID(patch.processorSignature).toString(16).toUpperCase().padStart(8, "0")
-        )
-      );
-      fields.push(field("Processor signature", hex(patch.processorSignature)));
-      fields.push(field("Revision", hex(patch.updateRevision)));
-      fields.push(field("Loader ID", hex(patch.loaderID)));
+      fields.push(field("CPUID", bareHexNumber(amdCpuID(patch.processorSignature), { digits: 8 })));
+      fields.push(field("Processor signature", hexNumber(patch.processorSignature)));
+      fields.push(field("Revision", hexNumber(patch.updateRevision)));
+      fields.push(field("Loader ID", hexNumber(patch.loaderID)));
       if (patch.northBridgeVendor !== 0 || patch.northBridgeDevice !== 0) {
         fields.push(
-          field("North bridge", `${hex(patch.northBridgeVendor)}:${hex(patch.northBridgeDevice)}`)
+          field(
+            "North bridge",
+            `${hexNumber(patch.northBridgeVendor)}:${hexNumber(patch.northBridgeDevice)}`
+          )
         );
       }
       if (patch.southBridgeVendor !== 0 || patch.southBridgeDevice !== 0) {
         fields.push(
-          field("South bridge", `${hex(patch.southBridgeVendor)}:${hex(patch.southBridgeDevice)}`)
+          field(
+            "South bridge",
+            `${hexNumber(patch.southBridgeVendor)}:${hexNumber(patch.southBridgeDevice)}`
+          )
         );
       }
-      fields.push(field("BIOS API revision", hex(patch.biosAPIRevision)));
-      fields.push(field("Load control", hex(patch.loadControl)));
+      fields.push(field("BIOS API revision", hexNumber(patch.biosAPIRevision)));
+      fields.push(field("Load control", hexNumber(patch.loadControl)));
       break;
     }
 
     case "capsule":
       add("Header size", reader.uint32(h + 0x10), sizeText);
-      add(L("Flags"), reader.uint32(h + 0x14), hex);
+      add(L("Flags"), reader.uint32(h + 0x14), hexNumber);
       add("Image size", reader.uint32(h + 0x18), sizeText);
       break;
 
@@ -1381,44 +1381,44 @@ function headerFields(
     }
 
     case "flashDescriptor":
-      add("Signature", reader.uint32(h + 0x10), hex);
-      add("FLMAP", reader.uint32(h + 0x14), hex);
-      add(L("Version"), reader.uint32(h + 0x20), hex);
+      add("Signature", reader.uint32(h + 0x10), hexNumber);
+      add("FLMAP", reader.uint32(h + 0x14), hexNumber);
+      add(L("Version"), reader.uint32(h + 0x20), hexNumber);
       break;
 
     case "region": {
       // The descriptor's table keeps base and limit in 4 KiB units.
       const range = nodeRange(node);
-      fields.push(field("Base (4 KiB)", hex(Math.floor(range.start / 0x1000))));
+      fields.push(field("Base (4 KiB)", hexNumber(Math.floor(range.start / 0x1000))));
       if (range.end > 0) {
-        fields.push(field("Limit (4 KiB)", hex(Math.floor((range.end - 1) / 0x1000))));
+        fields.push(field("Limit (4 KiB)", hexNumber(Math.floor((range.end - 1) / 0x1000))));
       }
       break;
     }
 
     case "vssStore":
-      add("Format", reader.uint8(h + 8), hex);
-      add("State", reader.uint8(h + 9), hex);
-      add("Reserved", reader.uint16(h + 10), hex);
-      add("Reserved1", reader.uint32(h + 12), hex);
+      add("Format", reader.uint8(h + 8), hexNumber);
+      add("State", reader.uint8(h + 9), hexNumber);
+      add("Reserved", reader.uint16(h + 10), hexNumber);
+      add("Reserved1", reader.uint32(h + 12), hexNumber);
       break;
 
     case "vss2Store":
       // The same four fields, after the 16-byte store GUID and size.
-      add("Format", reader.uint8(h + 20), hex);
-      add("State", reader.uint8(h + 21), hex);
-      add("Reserved", reader.uint16(h + 22), hex);
-      add("Reserved1", reader.uint32(h + 24), hex);
+      add("Format", reader.uint8(h + 20), hexNumber);
+      add("State", reader.uint8(h + 21), hexNumber);
+      add("Reserved", reader.uint16(h + 22), hexNumber);
+      add("Reserved1", reader.uint32(h + 24), hexNumber);
       break;
 
     case "ftwStore":
-      add("State", reader.uint8(h + 20), hex);
-      add("Header CRC32", reader.uint32(h + 16), hex);
+      add("State", reader.uint8(h + 20), hexNumber);
+      add("Header CRC32", reader.uint32(h + 16), hexNumber);
       break;
 
     case "sysFStore": {
-      add(L("Unknown"), reader.uint8(h + 4), hex);
-      add("Unknown1", reader.uint32(h + 5), hex);
+      add(L("Unknown"), reader.uint8(h + 4), hexNumber);
+      add("Unknown1", reader.uint32(h + 5), hexNumber);
       // The store's CRC32 is its final four bytes, over everything before them.
       const end = nodeRange(node).end;
       if (end >= h + 4) {
@@ -1445,10 +1445,10 @@ function headerFields(
     case "flashDeviceMapStore": {
       // `INSYDE_FLASH_DEVICE_MAP_HEADER`.
       add(L("Size"), reader.uint32(h + 4), sizeText);
-      add("Data offset", reader.uint32(h + 8), hex);
+      add("Data offset", reader.uint32(h + 8), hexNumber);
       add("Entry size", reader.uint32(h + 12), sizeText);
-      add("Entry format", reader.uint8(h + 16), hex);
-      add(L("Revision"), reader.uint8(h + 17), hex);
+      add("Entry format", reader.uint8(h + 16), hexNumber);
+      add(L("Revision"), reader.uint8(h + 17), hexNumber);
       add(L("Extensions"), reader.uint8(h + 18), (value) => `${value}`);
       const stored = reader.uint8(h + 19);
       const header = reader.bytes({ start: h, end: h + 0x1c });
@@ -1458,12 +1458,12 @@ function headerFields(
           field(
             L("Checksum"),
             expected === stored
-              ? `${hex(stored)}, valid`
-              : `${hex(stored)}, should be ${hex(expected)}`
+              ? `${hexNumber(stored)}, valid`
+              : `${hexNumber(stored)}, should be ${hexNumber(expected)}`
           )
         );
       }
-      add("Flash device base address", reader.uint64(h + 20), hex);
+      add("Flash device base address", reader.uint64(h + 20), hexNumber);
       break;
     }
 
@@ -1471,8 +1471,8 @@ function headerFields(
       // The region type GUID is the common "GUID" field.
       const regionId = reader.bytes({ start: h + 16, end: h + 32 });
       if (regionId !== undefined) fields.push(field("Region ID", hexBytes(regionId)));
-      add("Region offset", reader.uint64(h + 32), hex);
-      add("Region size", reader.uint64(h + 40), hex);
+      add("Region offset", reader.uint64(h + 32), hexNumber);
+      add("Region size", reader.uint64(h + 40), hexNumber);
       const attributes = reader.uint32(h + 48);
       if (attributes !== undefined) {
         const words: string[] = [];
@@ -1481,7 +1481,9 @@ function headerFields(
         fields.push(
           field(
             "Attributes",
-            words.length === 0 ? hex(attributes) : `${hex(attributes)} (${words.join(", ")})`
+            words.length === 0
+              ? hexNumber(attributes)
+              : `${hexNumber(attributes)} (${words.join(", ")})`
           )
         );
       }
@@ -1492,20 +1494,20 @@ function headerFields(
 
     case "flashMapStore":
       add("Entries", reader.uint16(h + 10), (value) => `${value}`);
-      add("Reserved", reader.uint32(h + 12), hex);
+      add("Reserved", reader.uint32(h + 12), hexNumber);
       break;
 
     case "flashMapEntry":
-      add("Data type", reader.uint16(h + 16), hex);
-      add("Entry type", reader.uint16(h + 18), hex);
+      add("Data type", reader.uint16(h + 16), hexNumber);
+      add("Entry type", reader.uint16(h + 18), hexNumber);
       add(L("Size"), reader.uint32(h + 28), sizeText);
-      add("Offset", reader.uint32(h + 32), hex);
-      add("Physical address", reader.uint64(h + 20), hex);
+      add("Offset", reader.uint32(h + 32), hexNumber);
+      add("Physical address", reader.uint64(h + 20), hexNumber);
       break;
 
     case "evsaStore": {
-      add("Attributes", reader.uint32(h + 8), hex);
-      add("Reserved", reader.uint32(h + 16), hex);
+      add("Attributes", reader.uint32(h + 8), hexNumber);
+      add("Reserved", reader.uint32(h + 16), hexNumber);
       const checksum = evsaChecksum(h + 1, node.header.end, reader);
       if (checksum !== undefined) fields.push(field(L("Checksum"), checksumText(checksum)));
       break;
@@ -1519,14 +1521,14 @@ function headerFields(
       // What the header adds depends on the entry's kind.
       switch (node.subtype) {
         case Sub.guidEvsaEntry:
-          add("GuidId", reader.uint16(h + 4), hex);
+          add("GuidId", reader.uint16(h + 4), hexNumber);
           break;
         case Sub.nameEvsaEntry:
-          add("VarId", reader.uint16(h + 4), hex);
+          add("VarId", reader.uint16(h + 4), hexNumber);
           break;
         default:
-          add("VarId", reader.uint16(h + 6), hex);
-          add("GuidId", reader.uint16(h + 4), hex);
+          add("VarId", reader.uint16(h + 6), hexNumber);
+          add("GuidId", reader.uint16(h + 4), hexNumber);
           add("Attributes", reader.uint32(h + 8), (value) => bits(value, EVSA_ATTRIBUTE_BITS));
       }
       const checksum = evsaChecksum(h + 1, nodeRange(node).end, reader);
@@ -1541,7 +1543,7 @@ function headerFields(
     // Every DVAR field is stored as its complement; these are the values.
     case "dvarStore": {
       const flags = reader.uint8(h + 8);
-      if (flags !== undefined) fields.push(field("Store flags", hex(0xff - flags)));
+      if (flags !== undefined) fields.push(field("Store flags", hexNumber(0xff - flags)));
       break;
     }
 
@@ -1558,14 +1560,14 @@ function headerFields(
     case "slicData":
       switch (node.subtype) {
         case Sub.pubkeySlicData:
-          add("Key type", reader.uint8(h + 8), hex);
-          add(L("Version"), reader.uint8(h + 9), hex);
-          add("Algorithm", reader.uint32(h + 12), hex);
-          add("Bit length", reader.uint32(h + 20), hex);
-          add("Exponent", reader.uint32(h + 24), hex);
+          add("Key type", reader.uint8(h + 8), hexNumber);
+          add(L("Version"), reader.uint8(h + 9), hexNumber);
+          add("Algorithm", reader.uint32(h + 12), hexNumber);
+          add("Bit length", reader.uint32(h + 20), hexNumber);
+          add("Exponent", reader.uint32(h + 24), hexNumber);
           break;
         case Sub.markerSlicData: {
-          add(L("Version"), reader.uint32(h + 8), hex);
+          add(L("Version"), reader.uint32(h + 8), hexNumber);
           const oemId = reader.bytesAt(h + 12, 6);
           if (oemId !== undefined) fields.push(field("OEM ID", asciiText(oemId)));
           const tableId = reader.bytesAt(h + 18, 8);
@@ -1574,13 +1576,10 @@ function headerFields(
           const flag = reader.uint64Bits(h + 26);
           if (flag !== undefined) {
             fields.push(
-              field(
-                "Windows flag",
-                flag === 0x2053_574f_444e_4957n ? "WINDOWS" : `0x${flag.toString(16).toUpperCase()}`
-              )
+              field("Windows flag", flag === 0x2053_574f_444e_4957n ? "WINDOWS" : hexNumber(flag))
             );
           }
-          add("SLIC version", reader.uint32(h + 34), hex);
+          add("SLIC version", reader.uint32(h + 34), hexNumber);
           break;
         }
       }
@@ -1731,7 +1730,7 @@ function headerFields(
       if (block === undefined) break;
       fields.push(field("Version", `${block.version}`));
       fields.push(
-        field(L("Signature"), `${hpSignatureName(block)} (${hex(block.signatureLength)})`)
+        field(L("Signature"), `${hpSignatureName(block)} (${hexNumber(block.signatureLength)})`)
       );
       fields.push(field(L("BIOS version"), block.biosVersion));
       fields.push(field(L("Date"), hpSignatureDate(block)));
@@ -1775,21 +1774,21 @@ function headerFields(
           break;
         case "acm":
           fields.push(
-            field("Module subtype", acmSubtypeName(header.subtype) ?? hex(header.subtype))
+            field("Module subtype", acmSubtypeName(header.subtype) ?? hexNumber(header.subtype))
           );
-          fields.push(field("Header version", hex(header.headerVersion)));
-          fields.push(field("Chipset ID", hex(header.chipsetID)));
+          fields.push(field("Header version", hexNumber(header.headerVersion)));
+          fields.push(field("Chipset ID", hexNumber(header.chipsetID)));
           fields.push(field(L("Date"), header.date));
           fields.push(field("ACM SVN", `${header.svn}`));
           break;
         case "keyManifest":
-          fields.push(field("Version", hex(header.version)));
-          fields.push(field("KM version", hex(header.kmVersion)));
+          fields.push(field("Version", hexNumber(header.version)));
+          fields.push(field("KM version", hexNumber(header.kmVersion)));
           fields.push(field("KM SVN", `${header.svn}`));
-          fields.push(field("KM ID", hex(header.id)));
+          fields.push(field("KM ID", hexNumber(header.id)));
           break;
         case "bootPolicy":
-          fields.push(field("Version", hex(header.version)));
+          fields.push(field("Version", hexNumber(header.version)));
           fields.push(field("BPM revision", `${header.revision}`));
           fields.push(field("BP SVN", `${header.svn}`));
           fields.push(field("ACM SVN", `${header.acmSVN}`));
@@ -1824,7 +1823,7 @@ function ecImageFields(node: UEFINode, image: UEFIImage, reader: ImageReader): D
     fields.push(field(L("Format"), "PHCM (Microchip MEC)"));
   }
   fields.push(field(L("Written"), sizeText(found.written)));
-  if (found.copyOf !== undefined) fields.push(field(L("Copy of"), hex(found.copyOf)));
+  if (found.copyOf !== undefined) fields.push(field(L("Copy of"), hexNumber(found.copyOf)));
   return fields;
 }
 
@@ -1836,7 +1835,7 @@ function ecImageFields(node: UEFINode, image: UEFIImage, reader: ImageReader): D
  */
 function iteFields(node: UEFINode, reader: ImageReader): DetailField[] {
   return allITEFirmware(nodeRange(node), reader).map((image) =>
-    field("ITE identification", `${image.identification} · ${hex(image.start)}`)
+    field("ITE identification", `${image.identification} · ${hexNumber(image.start)}`)
   );
 }
 
@@ -1945,7 +1944,7 @@ function componentFields(component: DescriptorComponent, imageSize: number): Det
   );
   const first = component.chipSizes[0];
   if (component.chipSizes.length === 2 && first !== undefined) {
-    fields.push(field(L("Second chip starts at"), hex(first)));
+    fields.push(field(L("Second chip starts at"), hexNumber(first)));
   }
   fields.push(field(L("Read ID and status clock"), clockText(component.readIDClock)));
   fields.push(field(L("Write and erase clock"), clockText(component.writeEraseClock)));
@@ -1972,7 +1971,9 @@ function componentFields(component: DescriptorComponent, imageSize: number): Det
  * @upstream Modules/UEFITool/Sources/UEFITool/UEFINodeDetail.swift#UEFIDetail.gpr0Text
  */
 function gpr0Text(range: DescriptorProtectedRange): string {
-  const span = `${hex(range.start)} – ${hex(range.end)}`;
+  // The register's limit is its last byte already: first–last, the way `hexExtent` writes a
+  // half-open range.
+  const span = `${hexNumber(range.start)}–${hexNumber(range.end)}`;
   if (range.readProtected && range.writeProtected) return L("%1$@: reads and writes refused", span);
   if (range.writeProtected) return L("%1$@: writes refused", span);
   if (range.readProtected) return L("%1$@: reads refused", span);
@@ -2022,13 +2023,12 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
       columns: [L("Region"), L("Base"), L("Limit")],
       rows: regions.map((region) => [
         cell(regionLabel(region.type)),
-        cell(hex(region.base)),
-        cell(hex(region.limit)),
+        cell(hexNumber(region.base)),
+        cell(hexNumber(region.limit)),
       ]),
     });
   }
-  const mask = (value: number) =>
-    `0x${value.toString(16).toUpperCase().padStart(descriptor.maskDigits, "0")}`;
+  const mask = (value: number) => `0x${bareHexNumber(value).padStart(descriptor.maskDigits, "0")}`;
   if (descriptor.masters.length > 0) {
     tables.push({
       title: L("Region access settings"),
@@ -2085,7 +2085,7 @@ function descriptorTables(descriptor: DescriptorInfo, imageSize: number): Detail
         const bytes = chip.sizeKB === undefined ? undefined : chip.sizeKB << 10;
         const invalid = bytes !== undefined && smallest !== undefined && bytes < smallest;
         return [
-          cell(chip.jedecId.toString(16).toUpperCase().padStart(6, "0")),
+          cell(bareHexNumber(chip.jedecId, { digits: 6 })),
           cell(
             chip.name ??
               (chip.vendor === undefined ? L("Unknown") : L("Unknown (%1$@)", chip.vendor))
@@ -2139,7 +2139,7 @@ function strapMeaning(index: number, straps: DescriptorStraps): string {
 }
 
 /** A word's eight hex digits, as a strap section's raw rows write it. */
-const wordHex = (word: number): string => `0x${word.toString(16).toUpperCase().padStart(8, "0")}`;
+const wordHex = (word: number): string => hexNumber(word, { digits: 8 });
 
 /** A field's bits as the tables write them: one number, or the first and the last. */
 const bitsText = (low: number, high: number): string =>
@@ -2179,7 +2179,7 @@ function strapSections(
       start,
       end,
       target: { kind: "range", start: address, end: address + 4, name },
-      address: hex(address),
+      address: hexNumber(address),
       note: set === 0 ? undefined : L("Non-default: %1$@", `${set}`),
     });
     start = end;
@@ -2227,7 +2227,7 @@ function strapTable(straps: DescriptorStraps): DetailTable {
       const address = straps.base + index * 4;
       rows.push([
         cell(name),
-        cell(hex(address)),
+        cell(hexNumber(address)),
         cell(wordHex(word)),
         cell(strapMeaning(index, straps)),
       ]);
@@ -2252,8 +2252,8 @@ function strapTable(straps: DescriptorStraps): DetailTable {
     cells: [
       cell(strapLocalName(reading.field.name)),
       cell(bitsText(reading.field.low, reading.field.high)),
-      { text: hex(reading.value), tone: "plain", isStrong: isStrapSet(reading) },
-      cell(reading.field.defaultValue === undefined ? "" : hex(reading.field.defaultValue)),
+      { text: hexNumber(reading.value), tone: "plain", isStrong: isStrapSet(reading) },
+      cell(reading.field.defaultValue === undefined ? "" : hexNumber(reading.field.defaultValue)),
     ],
   }));
   // The bit that soft-disables the ME is not one of the layout's fields — the tool calls
@@ -2278,7 +2278,7 @@ function strapTable(straps: DescriptorStraps): DetailTable {
       word: index,
       bit: -1,
       isSet: false,
-      cells: [cell(`PCHSTRP${index}`), cell(""), cell(hex(word)), cell("")],
+      cells: [cell(`PCHSTRP${index}`), cell(""), cell(hexNumber(word)), cell("")],
     });
   });
   rows.sort(byWordAndBit);
@@ -2310,7 +2310,7 @@ function processorStrapTable(straps: DescriptorProcessorStraps): DetailTable {
     straps.words.forEach((word, index) => {
       const name = `CPUSTRP${index}`;
       const address = straps.base + index * 4;
-      rows.push([cell(name), cell(hex(address)), cell(wordHex(word)), cell(L("Unknown"))]);
+      rows.push([cell(name), cell(hexNumber(address)), cell(wordHex(word)), cell(L("Unknown"))]);
       targets.push({ kind: "range", start: address, end: address + 4, name });
     });
     return {
@@ -2334,13 +2334,15 @@ function processorStrapTable(straps: DescriptorProcessorStraps): DetailTable {
         // The tool's own word for the value where it states one — "Yes", "All Cores
         // Active" — and the number otherwise.
         {
-          text: reading.field.options?.get(reading.value) ?? hex(reading.value),
+          text: reading.field.options?.get(reading.value) ?? hexNumber(reading.value),
           tone: "plain" as const,
           isStrong: isStrapSet(reading),
         },
         // The message states no default: the dash says the column has nothing to
         // compare against, rather than leaving it blank.
-        cell(reading.field.defaultValue === undefined ? "—" : hex(reading.field.defaultValue)),
+        cell(
+          reading.field.defaultValue === undefined ? "—" : hexNumber(reading.field.defaultValue)
+        ),
       ],
     }))
     .sort(byWordAndBit);
@@ -2369,11 +2371,11 @@ function pmcTable(pmc: DescriptorPMCSection): DetailTable {
       cell(reading.field.label ?? strapLocalName(reading.field.name)),
       cell(bitsText(reading.field.low, reading.field.high)),
       {
-        text: reading.field.options?.get(reading.value) ?? hex(reading.value),
+        text: reading.field.options?.get(reading.value) ?? hexNumber(reading.value),
         tone: "plain",
         isStrong: isStrapSet(reading),
       },
-      cell(reading.field.defaultValue === undefined ? "" : hex(reading.field.defaultValue)),
+      cell(reading.field.defaultValue === undefined ? "" : hexNumber(reading.field.defaultValue)),
     ]);
     targets.push({ kind: "range", start: address, end: address + 4, name: reading.field.name });
   }
@@ -2401,7 +2403,7 @@ function mipTable(mip: DescriptorMIPTable): DetailTable {
     columns: [L("Block"), L("Offset"), L("Length")],
     rows: mip.blocks.map((block) => [
       cell(mipBlockName(block.type)),
-      cell(hex(block.offset)),
+      cell(hexNumber(block.offset)),
       cell(`${block.length}`),
     ]),
   };
@@ -2434,8 +2436,8 @@ function dbcTable(dbc: DescriptorDBCStraps): DetailTable {
     rows.push([
       cell(reading.field.label ?? strapLocalName(reading.field.name)),
       cell(bitsText(reading.field.low, reading.field.high)),
-      cell(hex(reading.value)),
-      cell(hex(address)),
+      cell(hexNumber(reading.value)),
+      cell(hexNumber(address)),
     ]);
     targets.push({ kind: "range", start: address, end: address + 4, name: reading.field.name });
   }
@@ -2473,7 +2475,7 @@ function descriptorRegisterTable(readings: readonly DescriptorRegisterReading[])
       rows.push([
         cell(one.label ?? strapLocalName(one.name)),
         cell(bitsText(inWord, inWord + one.count - 1)),
-        cell(one.options?.get(fieldValue) ?? hex(fieldValue)),
+        cell(one.options?.get(fieldValue) ?? hexNumber(fieldValue)),
       ]);
     }
     const end = rows.length;
@@ -2491,7 +2493,7 @@ function descriptorRegisterTable(readings: readonly DescriptorRegisterReading[])
         end: reading.base + length,
         name: reading.register.name,
       },
-      address: hex(reading.base),
+      address: hexNumber(reading.base),
     });
   }
   return {
@@ -2523,12 +2525,12 @@ function oemSectionTable(descriptor: DescriptorInfo): DetailTable {
       Math.min(start + 16, descriptor.oemSection.length)
     );
     const address = base + start;
-    rows.push([cell(hex(address)), cell(hexBytes(bytes))]);
+    rows.push([cell(hexNumber(address)), cell(hexBytes(bytes))]);
     targets.push({
       kind: "range",
       start: address,
       end: address + bytes.length,
-      name: hex(address),
+      name: hexNumber(address),
     });
   }
   return {
@@ -2577,7 +2579,8 @@ function nvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
   fields.push(field("Attributes", bits(attributes, NVAR_ATTRIBUTE_BITS)));
   // `next` is relative to the entry; the row says where it lands.
   const next = reader.uint24(h + 6);
-  if (next !== undefined && next !== NVAR.noNext) fields.push(field("Next entry", hex(h + next)));
+  if (next !== undefined && next !== NVAR.noNext)
+    fields.push(field("Next entry", hexNumber(h + next)));
   // An entry that names its GUID by index carries the index right after the
   // header — on a valid entry that is not a later link.
   if (
@@ -2600,16 +2603,13 @@ function nvarFields(node: UEFINode, reader: ImageReader): DetailField[] {
   if ((extended & NVAR.extendedTimeBased) !== 0 && tailSize >= 1 + NVAR.timestampSize + 2) {
     const timestamp = reader.uint64(tail.start + 1);
     if (timestamp !== undefined) {
-      fields.push(field("Timestamp", hex(timestamp)));
+      fields.push(field("Timestamp", hexNumber(timestamp)));
       const hashEnd = 1 + NVAR.timestampSize + NVAR.hashSize + 2;
       if ((attributes & NVAR.dataOnly) === 0 && tailSize >= hashEnd) {
         const hash = reader.bytesAt(tail.start + 1 + NVAR.timestampSize, NVAR.hashSize);
         if (hash !== undefined) {
           fields.push(
-            field(
-              "Hash",
-              [...hash].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join("")
-            )
+            field("Hash", [...hash].map((byte) => bareHexNumber(byte, { digits: 2 })).join(""))
           );
         }
       }
@@ -2734,7 +2734,9 @@ function typeText(node: UEFINode): string {
       return subtype === 1 ? L("In use", { context: "LENV block" }) : L("Not in use");
     case "region": {
       const type = FLASH_REGIONS[subtype];
-      return type === undefined ? hex(subtype) : `${regionLabel(type)} · ${hex(subtype)}`;
+      return type === undefined
+        ? hexNumber(subtype)
+        : `${regionLabel(type)} · ${hexNumber(subtype)}`;
     }
     case "amdDirectory":
       return amdKindName(subtype);
@@ -2748,9 +2750,9 @@ function typeText(node: UEFINode): string {
     case "dvarEntry":
     case "startupApData":
     case "slicData":
-      return subtypeName(itemType(node), subtype) ?? hex(subtype);
+      return subtypeName(itemType(node), subtype) ?? hexNumber(subtype);
     default:
-      return hex(subtype);
+      return hexNumber(subtype);
   }
 }
 
@@ -2786,9 +2788,11 @@ function vssFields(variable: VSSVariable, reader: ImageReader): DetailField[] {
   const fields: DetailField[] = [
     field(
       "State",
-      stateName === undefined ? hex(variable.state) : `${hex(variable.state)} (${stateName})`
+      stateName === undefined
+        ? hexNumber(variable.state)
+        : `${hexNumber(variable.state)} (${stateName})`
     ),
-    field("Reserved", hex(variable.reserved)),
+    field("Reserved", hexNumber(variable.reserved)),
     field("Attributes", bits(variable.attributes, NVRAM_ATTRIBUTE_BITS)),
   ];
   if (variable.totalSize !== undefined)
@@ -2831,27 +2835,23 @@ function vssFields(variable: VSSVariable, reader: ImageReader): DetailField[] {
 }
 
 function sizeText(bytes: number): string {
-  return bytes === 0 ? L("Empty") : `${hex(bytes)} (${bytes})`;
+  return bytes === 0 ? L("Empty") : `${hexNumber(bytes)} (${decimalNumber(bytes)})`;
 }
 
 /** Where the part starts and how long it is: `0x0 · 0x2000 (8192) bytes`. */
 function rangeText(range: ImageRange): string {
   const count = range.end - range.start;
-  return count <= 0 ? sizeText(0) : `${hex(range.start)} · ${sizeText(count)} bytes`;
+  return count <= 0 ? sizeText(0) : `${hexNumber(range.start)} · ${sizeText(count)} bytes`;
 }
 
 /** The hex value, with the well-known bits named when they are set. */
 function bits(value: number, names: readonly (readonly [number, string])[]): string {
   const set = names.filter(([bit]) => (value & bit) !== 0).map(([, name]) => name);
-  return set.length === 0 ? hex(value) : `${hex(value)} (${set.join(", ")})`;
-}
-
-function hex(value: number): string {
-  return `0x${value.toString(16).toUpperCase()}`;
+  return set.length === 0 ? hexNumber(value) : `${hexNumber(value)} (${set.join(", ")})`;
 }
 
 function hexBytes(bytes: Uint8Array): string {
-  return [...bytes].map((byte) => byte.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+  return [...bytes].map((byte) => bareHexNumber(byte, { digits: 2 })).join(" ");
 }
 
 /**

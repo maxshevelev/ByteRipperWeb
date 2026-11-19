@@ -279,6 +279,29 @@ describe("copy_to_other_pane", () => {
     expect([...((await paneState("b")?.document.read(0, 4)) ?? [])]).toEqual([0, 0, 0, 0]);
   });
 
+  // A range past the end is refused, and a length so large that offset and length wrap past 2^64
+  // is refused the same way — the refusal names the arguments, never a range they cannot make.
+  // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyPastTheEndIsRefusedEvenWhenItWraps
+  it("is refused past the end, even when the length wraps", async () => {
+    open([1, 2, 3, 4], "a");
+    open([9, 9, 9, 9], "b");
+    service.setEditsAllowed(true);
+    const past = await call("copy_to_other_pane", { document: idOf("a"), offset: 2, length: 4 });
+    expect(past.isError).toBe(true);
+    expect(past.text.startsWith("The range [0x2, 0x6) runs past the end of")).toBe(true);
+    const wrapping = await call("copy_to_other_pane", {
+      document: idOf("a"),
+      offset: "0x10",
+      length: "0xFFFFFFFFFFFFFFFF",
+    });
+    expect(wrapping.isError).toBe(true);
+    expect(
+      wrapping.text.startsWith("`length` 0xFFFFFFFFFFFFFFFF from `offset` 0x10 runs past any file.")
+    ).toBe(true);
+    // Nothing written.
+    expect([...((await paneState("b")?.document.read(0, 4)) ?? [])]).toEqual([9, 9, 9, 9]);
+  });
+
   // @upstream ByteRipperTests/AgentEditToolsTests.swift#AgentEditToolsTests.testACopyNeedsASecondFileThatCanBeWritten
   it("needs a second file", async () => {
     open([1, 2, 3], "a");

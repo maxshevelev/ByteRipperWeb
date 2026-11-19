@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import {
   isIdentical,
@@ -38,8 +39,6 @@ export interface UefiUpdateDialogProps {
    */
   readonly onSelectRow: (row: number | undefined) => void;
 }
-
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
 
 /** @upstream Modules/UEFITool/Sources/UEFIToolUI/UEFIUpdateViewController.swift#UEFIUpdateViewController.loadView */
 export function UefiUpdateDialog({
@@ -85,12 +84,11 @@ export function UefiUpdateDialog({
       <div className="dialog-body">
         <p className="update-note">
           {L(
-            "%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@–%5$@.",
+            "%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@.",
             fileName,
             comparison.platform,
             blockCount,
-            hex(region.start),
-            hex(region.end - 1)
+            hexExtent(region.start, region.end)
           )}
         </p>
         <p className="update-note update-scope">
@@ -130,8 +128,8 @@ export function UefiUpdateDialog({
                     )}
                   </td>
                   <td>{nameText(row)}</td>
-                  <td className="update-number">{hex(row.range.start)}</td>
-                  <td className="update-number">{hex(row.range.end - row.range.start)}</td>
+                  <td className="update-number">{hexNumber(row.range.start)}</td>
+                  <td className="update-number">{hexNumber(row.range.end - row.range.start)}</td>
                   <td
                     data-tone={isIdentical(row) ? "quiet" : row.isBoardData ? "caution" : "plain"}
                   >

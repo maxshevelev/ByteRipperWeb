@@ -104,10 +104,10 @@ describe("a Top Swap copy", () => {
         (one) => one.label === "Top Swap"
       )?.value;
     const img = image();
-    expect(topSwap([0, 0], img)).toBe("Copy of 0x10000–0x20000; the copies match");
-    expect(topSwap([0, 1], img)).toBe("Copied at 0x0–0x10000; the copies match");
+    expect(topSwap([0, 0], img)).toBe("Copy of 0x10000–0x1FFFF; the copies match");
+    expect(topSwap([0, 1], img)).toBe("Copied at 0x0–0xFFFF; the copies match");
     expect(topSwap([0, 0, 0], img)).toBeUndefined();
-    expect(topSwap([0, 0], image(false))).toBe("Copy of 0x10000–0x20000; the copies differ");
+    expect(topSwap([0, 0], image(false))).toBe("Copy of 0x10000–0x1FFFF; the copies differ");
   });
 
   // @upstream Modules/UEFITool/Tests/UEFIToolTests/UEFITopSwapTests.swift#UEFITopSwapTests.testTheCopysHelpIsTheTopSwapPage

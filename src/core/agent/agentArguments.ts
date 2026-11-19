@@ -1,5 +1,6 @@
 import { AgentToolError } from "@/core/agent/agentTool";
 import { integerValue, isObject, type Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 
 /**
  * The most an answer to a call may be, in bytes, when nothing says otherwise — the server's
@@ -152,7 +153,36 @@ export class AgentArguments {
   json(): Json {
     return { ...this.values };
   }
+
+  /**
+   * `offset` and `length` as one half-open range, `[start, end)`, or a refusal when the two add
+   * up past 2^64. The one place a tool turns them into a range, so every tool refuses a length
+   * that wraps in the same words — an agent's argument is any hex string, `0xFFFFFFFFFFFFFFFF`
+   * included.
+   *
+   * @upstream Packages/AgentKit/Sources/AgentKit/AgentArguments.swift#AgentArguments.range
+   * @upstream-differs nothing traps here — a number past 2^53 only rounds — so the check is
+   * what keeps the refusal's words the same as upstream's; and a double rounds
+   * `0xFFFFFFFFFFFFFFFF` up to 2^64, so a value at 2^64 or past it is written as the largest
+   * 64-bit one, the argument the agent can have given
+   */
+  static range(offset: number, length: number): readonly [number, number] {
+    const end = offset + length;
+    if (end >= UINT64_LIMIT) {
+      throw new AgentToolError(
+        `\`length\` ${argumentHex(length)} from \`offset\` ${argumentHex(offset)} runs past any file.`
+      );
+    }
+    return [offset, end];
+  }
 }
+
+/** 2^64: the first value past every 64-bit offset, exactly representable as a double. */
+const UINT64_LIMIT = 2 ** 64;
+
+/** A 64-bit argument as the agent wrote it, as near as a double keeps it. */
+const argumentHex = (value: number): string =>
+  value >= UINT64_LIMIT ? hexNumber(2n ** 64n - 1n) : hexNumber(value);
 
 /** @upstream Packages/AgentKit/Sources/AgentKit/AgentArguments.swift#AgentArguments.parseOffset */
 export function parseOffset(text: string): number | undefined {

@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { FIT } from "@/firmware/fit/fitEntry";
 import { type FITProblem, fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
@@ -89,8 +90,8 @@ export function fitRowMarks(row: FITDisplayRow, problems: readonly FITProblem[])
       errors.push(
         L(
           "Invalid microcode image checksum: %1$@, should be %2$@",
-          hex(target.header.checksum),
-          hex(computed)
+          hexNumber(target.header.checksum, { digits: 8 }),
+          hexNumber(computed, { digits: 8 })
         )
       );
     } else {
@@ -135,26 +136,20 @@ export function verdict(
     case "outdated":
       return {
         mark: "newerListed",
-        toolTip: L("Catalogue lists a newer revision (r.%1$@)", revision(state.newestRevision)),
+        toolTip: L(
+          "Catalogue lists a newer revision (r.%1$@)",
+          bareHexNumber(state.newestRevision)
+        ),
       };
     case "undecided":
       return {
         mark: "newerMaybe",
         toolTip: L(
           "Catalogue lists a newer revision (r.%1$@) whose platforms only partly overlap this one's — whether it serves this board depends on the board's own platform ID, which the image does not carry",
-          revision(state.newestRevision)
+          bareHexNumber(state.newestRevision)
         ),
       };
     case "notRated":
       return undefined;
   }
-}
-
-/** @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.revision */
-const revision = (value: number): string => value.toString(16).toUpperCase();
-
-/** @upstream Modules/FITTool/Sources/FITTool/FITRowMarks.swift#FITRowMarks.hex */
-function hex(value: number): string {
-  const digits = value.toString(16).toUpperCase();
-  return `0x${"0".repeat(Math.max(0, 8 - digits.length))}${digits}`;
 }

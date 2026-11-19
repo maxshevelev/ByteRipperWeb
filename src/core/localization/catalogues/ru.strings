@@ -124,9 +124,9 @@
 "Append File…" = "Дописать файл в конец…";
 "Apply" = "Применить";
 "Ask before edits that shift the file" = "Спрашивать перед правками, сдвигающими файл";
-"Copied at %1$@–%2$@; %3$@" = "Копия расположена по адресу %1$@–%2$@; %3$@";
+"Copied at %1$@; %2$@" = "Копия расположена в диапазоне %1$@; %2$@";
 "Copy of" = "Копия образа по адресу";
-"Copy of %1$@–%2$@; %3$@" = "Копия блока %1$@–%2$@; %3$@";
+"Copy of %1$@; %2$@" = "Копия блока %1$@; %2$@";
 "Could not add the microcode" = "Не удалось добавить микрокод";
 "Could not remove the microcode" = "Не удалось удалить микрокод";
 "Could not replace the microcode" = "Не удалось заменить микрокод";
@@ -955,7 +955,7 @@
 "The reserved byte is %1$@, and should be zero" = "Зарезервированный байт равен %1$@, а должен быть нулём";
 "the rest of the file" = "остаток файла";
 "The section does not decompress." = "Секция не распаковывается.";
-"The selection ends at %1$@, past the end of “%2$@”, which ends at %3$@. Nothing was copied." = "Выделение доходит до адреса %1$@, а «%2$@» кончается на %3$@. Ничего не скопировано.";
+"The selection runs through %1$@, past the end of “%2$@”, whose size is %3$@. Nothing was copied." = "Выделение доходит до адреса %1$@ включительно, а это за концом «%2$@», размер которого %3$@. Ничего не скопировано.";
 "The shared library changed while you were answering — %1$@ to look at again" = "Общая библиотека изменилась, пока вы отвечали — %1$@ придётся посмотреть заново";
 "The table checksum is %1$@, and should be %2$@" = "Контрольная сумма таблицы — %1$@, а должна быть %2$@";
 "The table has no empty slot, and the sixteen bytes after it are not free — they are %1$@." = "В таблице нет пустого слота, а шестнадцать байт за ней не свободны — это %1$@.";
@@ -978,7 +978,7 @@
 "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another folder." = "В этом дампе есть сегменты, взятые из %1$@, и запись туда заменит файлы, с которыми эти сегменты сравниваются. Выберите другую папку.";
 "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another name." = "В этом дампе есть сегменты, взятые из %1$@, и запись туда заменит файлы, с которыми эти сегменты сравниваются. Выберите другое имя.";
 "this entry, or what it points at, is not the same as in the top block" = "эта запись или то, на что она указывает, не совпадает с верхним блоком";
-"This image keeps a Top Swap backup of the boot block at 0x%1$@–0x%2$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed." = "В образе есть резервная копия Top Swap загрузочного блока по 0x%1$@–0x%2$@, и она не совпадает с блоком, где лежит FIT, поэтому правку нельзя внести в обе копии. Ничего не изменено.";
+"This image keeps a Top Swap backup of the boot block at %1$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed." = "В образе есть резервная копия Top Swap загрузочного блока в диапазоне %1$@, и она не совпадает с блоком, где лежит FIT, поэтому правку нельзя внести в обе копии. Ничего не изменено.";
 "Those bytes could not be read." = "Эти байты не удалось прочитать.";
 "To Beginning" = "В начало";
 "To End" = "В конец";
@@ -1047,7 +1047,7 @@
 "%1$@ bytes differ" = "Отличается байт: %1$@";
 "%1$@ bytes written in %2$@ parts." = "Записано байт: %1$@, областей: %2$@.";
 "%1$@ of %2$@ parts identical. To write: %3$@ parts, %4$@ bytes. Kept as they are: %5$@." = "Совпадает областей: %1$@ из %2$@. К записи: областей — %3$@, байт — %4$@. Остаются без изменений: %5$@.";
-"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@–%5$@." = "%1$@: обновление AMI BIOS Guard для %2$@, блоков: %3$@. BIOS-регион этого дампа: %4$@–%5$@.";
+"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@." = "%1$@: обновление AMI BIOS Guard для %2$@, блоков: %3$@. BIOS-регион этого дампа: %4$@.";
 "Block %1$@ of the update file does not read as a block." = "Блок %1$@ файла обновления не читается как блок.";
 "Board data; %1$@ bytes differ" = "Данные платы; отличается байт: %1$@";
 "Board data; empty in the update" = "Данные платы; в обновлении пусто";

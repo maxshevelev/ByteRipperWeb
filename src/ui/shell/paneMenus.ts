@@ -1,4 +1,5 @@
 import { rowContaining } from "@/core/bookmarks/bookmarkStore";
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { CopyPartCodec, GatherPartCodec } from "@/core/parts/partCodec";
 import { mergeTitle, segmentLabel } from "@/core/segments/segmentation";
@@ -336,7 +337,7 @@ export function dumpMenu(
     ...(inSelection ? selectionItems(slot, pane, actions) : []),
     ...notes,
     inSelection || notes.length > 0 ? { kind: "separator" as const } : undefined,
-    { label: L("Copy offset"), onSelect: () => void copyText(hexAddress(offset)) },
+    { label: L("Copy offset"), onSelect: () => void copyText(bareHexNumber(offset)) },
     { kind: "separator" },
     {
       // help: menu.edit.select-block

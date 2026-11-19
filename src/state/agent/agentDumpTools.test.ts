@@ -477,6 +477,30 @@ describe("survey", () => {
 });
 
 describe("show", () => {
+  // A length that wraps past 2^64 is refused before any window is opened.
+  // @upstream ByteRipperTests/AgentDumpToolsTests.swift#AgentDumpToolsTests.testShowRefusesALengthThatWraps
+  it("refuses a length that wraps", async () => {
+    open(Uint8Array.from([0]), "a", "front.bin");
+    disk.put("/dumps/wraps.bin", new Array(0x100).fill(7));
+    const id = member(
+      (await call("open_dump", { path: "/dumps/wraps.bin" })).json,
+      "document"
+    ) as string;
+    let opened = false;
+    agentShell.openInNewWindow = () => {
+      opened = true;
+      return true;
+    };
+    const refused = await call("show", {
+      document: id,
+      offset: "0x10",
+      length: "0xFFFFFFFFFFFFFFFF",
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toBe("`length` 0xFFFFFFFFFFFFFFFF from `offset` 0x10 runs past any file.");
+    expect(opened).toBe(false);
+  });
+
   // A background dump goes on screen in a new window, as upstream's goes in a new tab — with a pane
   // of this window free, which is for a comparison. That window shows the place itself; the answer
   // is the id it gives the document once it says it holds it.

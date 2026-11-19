@@ -1,4 +1,4 @@
-import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
+import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AGENT_FORMATS, type AgentFormat, shownBytes } from "@/core/agent/agentBytes";
 import {
   type AgentTool,
@@ -8,6 +8,7 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
@@ -28,21 +29,15 @@ import { scrollLink } from "@/ui/pane/scrollLink";
 /** The most a `read` returns. @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.maxRead */
 export const MAX_READ = 4096;
 
-/** @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.hexText */
-export const hexText = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
-
-/** @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.hex */
-export const hexJson = (value: number): Json => hexText(value);
-
 /**
  * A half-open range, as the app keeps every range: `end` is the first byte after it.
  *
  * @upstream ByteRipperApp/Agent/AgentHostTools.swift#AgentHostTools.range
  */
 export const rangeJson = (start: number, end: number): Json => ({
-  start: hexText(start),
-  end: hexText(end),
-  length: hexText(end - start),
+  start: hexNumber(start),
+  end: hexNumber(end),
+  length: hexNumber(end - start),
 });
 
 /** The bytes in a row of the dump, for the first byte on screen. */
@@ -94,7 +89,7 @@ export class AgentHostTools {
         id: place.id,
         label: place.label,
         name: place.name,
-        size: hexText(place.document.size),
+        size: hexNumber(place.document.size),
         slot: place.slot,
       };
       if (place.isOnScreen) {
@@ -144,7 +139,7 @@ export class AgentHostTools {
     const answer: { [key: string]: Json } = {
       document: place.id,
       name: place.name,
-      caret: hexText(document.caret),
+      caret: hexNumber(document.caret),
     };
     const selection = document.selection;
     answer.selection =
@@ -207,8 +202,8 @@ export class AgentHostTools {
     const answer: { [key: string]: Json } = {
       ...shownBytes(bytes, offset, format, bigEndian),
       document: place.id,
-      offset: hexText(offset),
-      length: hexText(end - offset),
+      offset: hexNumber(offset),
+      length: hexNumber(end - offset),
     };
     if (end - offset < asked) answer.cut_at_end_of_file = true;
     return answer;
@@ -246,12 +241,13 @@ export class AgentHostTools {
     const place = this.desk.placeNamed(args.optionalString("document"));
     const offset = args.offset("offset");
     const length = args.optionalOffset("length") ?? 0;
+    const asked = AgentArguments.range(offset, length);
     const select = args.bool("select", length > 0);
     const pane = place.onScreen();
     const size = place.document.size;
     if (!(offset < size || (offset === size && length === 0)))
       throw pastTheEnd(offset, place, size);
-    const end = Math.min(offset + length, size);
+    const end = Math.min(asked[1], size);
     // The place the reader is leaving goes into the history first, so their Back undoes what the
     // agent did.
     recordJump(pane);
@@ -266,6 +262,6 @@ export class AgentHostTools {
 
 function pastTheEnd(offset: number, place: AgentPlace, size: number): AgentToolError {
   return new AgentToolError(
-    `Offset ${hexText(offset)} is past the end of ${place.named}, which is ${hexText(size)} bytes long.`
+    `Offset ${hexNumber(offset)} is past the end of ${place.named}, which is ${hexNumber(size)} bytes long.`
   );
 }

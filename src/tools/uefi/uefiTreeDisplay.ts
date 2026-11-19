@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L, localized } from "@/core/localization/localization";
 import { APPLE_IDENTITY_NAMES } from "@/firmware/uefi/appleDmiArea";
 import {
@@ -496,7 +497,7 @@ function dvarValueText(
   setting: DellSetupSetting | undefined
 ): string | undefined {
   if (value.length === 0 || value.length > 8 || value.number === undefined) return undefined;
-  const hex = `0x${value.number.toString(16).toUpperCase()}`;
+  const hex = hexNumber(value.number);
   const meaning = setting === undefined ? undefined : dvarMeaning(value.number, setting);
   return meaning === undefined ? hex : `${meaning} (${hex})`;
 }
@@ -641,9 +642,5 @@ export function dmiStoreTitle(store: DMIStore): string {
       : store.kind === "sysFStore"
         ? L("Apple DMI")
         : kindLabel(store.kind);
-  return L(
-    "%1$@ at %2$@",
-    kind,
-    `0x${store.range.start.toString(16).toUpperCase().padStart(8, "0")}`
-  );
+  return L("%1$@ at %2$@", kind, hexNumber(store.range.start, { digits: 8 }));
 }

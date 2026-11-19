@@ -12,8 +12,9 @@ import {
 import type { Json } from "@/core/agent/json";
 import type { DiffBlock } from "@/core/diff/diffBlock";
 import { DiffCancelled, scanDiffRange } from "@/core/diff/diffEngine";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
-import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { rangeJson } from "@/state/agent/agentHostTools";
 import type { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { diffStore } from "@/state/diffStore";
@@ -211,14 +212,14 @@ export class AgentDiffTools {
     const end = args.optionalOffset("end") ?? common;
     if (end > common) {
       throw new AgentToolError(
-        `\`end\` ${hexText(end)} is past the end of the shorter document, which is ${hexText(common)} bytes long.`
+        `\`end\` ${hexNumber(end)} is past the end of the shorter document, which is ${hexNumber(common)} bytes long.`
       );
     }
     if (start >= end) {
       throw new AgentToolError(
         common === 0
           ? "One of the documents is empty; there is nothing to compare."
-          : `\`offset\` ${hexText(start)} is not below \`end\` ${hexText(end)}.`
+          : `\`offset\` ${hexNumber(start)} is not below \`end\` ${hexNumber(end)}.`
       );
     }
     const mergeGap = args.has("merge_gap")
@@ -267,16 +268,16 @@ export class AgentDiffTools {
 
     const answer: { [key: string]: Json } = {
       range: rangeJson(start, end),
-      sizes: { document: hexText(sizes[0]), against: hexText(sizes[1]) },
+      sizes: { document: hexNumber(sizes[0]), against: hexNumber(sizes[1]) },
       totals: { runs: runs.length, differing_bytes: differing },
     };
     if (sizes[0] !== sizes[1]) {
       answer.tail = {
         in: sizes[0] > sizes[1] ? "document" : "against",
-        start: hexText(common),
-        end: hexText(Math.max(sizes[0], sizes[1])),
+        start: hexNumber(common),
+        end: hexNumber(Math.max(sizes[0], sizes[1])),
       };
-      answer.truncated_at = hexText(common);
+      answer.truncated_at = hexNumber(common);
     }
     answer.document = place.id;
     answer.against = other.id;
@@ -294,9 +295,9 @@ export class AgentDiffTools {
         : page.map((): ToolAgentPlace[] => []);
     const items = page.map((run, index): Json => {
       const members: { [key: string]: Json } = {
-        start: hexText(run.start),
-        end: hexText(run.end),
-        length: hexText(run.end - run.start),
+        start: hexNumber(run.start),
+        end: hexNumber(run.end),
+        length: hexNumber(run.end - run.start),
         differing_bytes: run.differing,
       };
       if (structure === "auto") members.where = (places[index] ?? []).map(placeJson);
@@ -383,8 +384,8 @@ export class AgentDiffTools {
       attributed += bytes;
       result.push({
         ...(placeJson(area) as { [key: string]: Json }),
-        start: hexText(bounds.start),
-        end: hexText(bounds.end),
+        start: hexNumber(bounds.start),
+        end: hexNumber(bounds.end),
         differing_bytes: bytes,
         runs: runs.filter((one) => one.start < bounds.end && bounds.start < one.end).length,
       });
@@ -488,7 +489,7 @@ export class AgentDiffTools {
         const size = one.document.size;
         if (size > COPY_LIMIT) {
           throw new AgentToolError(
-            `Copies are made of documents up to ${hexText(COPY_LIMIT)} bytes; compare them with \`diff\`, or open a smaller part.`
+            `Copies are made of documents up to ${hexNumber(COPY_LIMIT)} bytes; compare them with \`diff\`, or open a smaller part.`
           );
         }
         const bytes = await one.document.read(0, size);

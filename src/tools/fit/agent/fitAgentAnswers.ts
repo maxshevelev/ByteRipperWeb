@@ -2,6 +2,7 @@ import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { type FITProblem, fitProblemMessage, fitSeverity } from "@/firmware/fit/fitProblem";
 import type { FITReport, FITRow } from "@/firmware/fit/fitTable";
 import {
@@ -32,9 +33,6 @@ import { extendedCpuids } from "@/tools/fit/microcodeSignatures";
  * @upstream Modules/FITTool/Sources/FITTool/FITAgentQueries.swift#FITAgentQueries
  * @upstream Modules/FITTool/Sources/FITTool/FITAgentMicrocode.swift#FITAgentMicrocode
  */
-
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
-const hex2 = (value: number): string => `0x${value.toString(16).toUpperCase().padStart(2, "0")}`;
 
 // MARK: - fit_table
 
@@ -68,16 +66,16 @@ export function fitTableAnswer(report: FITReport, args: AgentArguments): Json {
   const table = report.table;
   if (table !== undefined) {
     answer.table = {
-      start: hex(table.range.start),
-      end: hex(table.range.end),
-      pointer_at: hex(table.pointerOffset),
-      pointer: hex(table.pointerAddress),
-      checksum: hex2(table.storedChecksum),
-      checksum_should_be: hex2(table.computedChecksum),
+      start: hexNumber(table.range.start),
+      end: hexNumber(table.range.end),
+      pointer_at: hexNumber(table.pointerOffset),
+      pointer: hexNumber(table.pointerAddress),
+      checksum: hexNumber(table.storedChecksum, { digits: 2 }),
+      checksum_should_be: hexNumber(table.computedChecksum, { digits: 2 }),
       checksum_checked: table.checksumIsChecked,
     };
   } else if (report.candidates.length > 0) {
-    answer.tables_found_elsewhere = report.candidates.map(hex);
+    answer.tables_found_elsewhere = report.candidates.map((one) => hexNumber(one));
   }
   const main = display.rows.filter((row) => !row.isBackup);
   const backup = display.rows.filter((row) => row.isBackup);
@@ -112,15 +110,15 @@ function rowJson(row: FITDisplayRow): Json {
     address: row.addressText,
     size: row.sizeText,
     version: row.versionText,
-    row_start: hex(row.rowRange.start),
+    row_start: hexNumber(row.rowRange.start),
   };
   if (row.targetText !== "") members.points_at = row.targetText;
   if (row.targetRange !== undefined) {
-    members.target_start = hex(row.targetRange.start);
-    members.target_end = hex(row.targetRange.end);
+    members.target_start = hexNumber(row.targetRange.start);
+    members.target_end = hexNumber(row.targetRange.end);
   }
   if (row.cpuids.length > 0) {
-    members.cpuids = row.cpuids.map((one) => one.toString(16).toUpperCase());
+    members.cpuids = row.cpuids.map((one) => bareHexNumber(one));
   }
   if (row.hasProblem) members.problem = true;
   return members;
@@ -132,7 +130,7 @@ function problemJson(problem: FITProblem): Json {
     severity: fitSeverity(problem.detail) === "error" ? "error" : "warning",
   };
   if (problem.entryIndex !== undefined) members.entry = problem.entryIndex;
-  if (problem.offset !== undefined) members.offset = hex(problem.offset);
+  if (problem.offset !== undefined) members.offset = hexNumber(problem.offset);
   if (problem.inBackup === true) members.in_backup = true;
   return members;
 }
@@ -247,9 +245,9 @@ function installedRows(
       entry: row.entry.index,
       cpuids: microcodeProcessorPlatforms(header).map((pair) => ({
         cpuid: microcodeCpuid(pair.signature),
-        platforms: hex2(pair.platformIDs),
+        platforms: hexNumber(pair.platformIDs, { digits: 2 }),
       })),
-      revision: `0x${header.updateRevision.toString(16).toUpperCase()}`,
+      revision: hexNumber(header.updateRevision),
       date: microcodeDate(header),
     };
     const rating = latestOf(header, catalogue);
@@ -259,11 +257,11 @@ function installedRows(
         break;
       case "outdated":
         members.catalogue = "outdated";
-        members.newest_revision = `0x${rating.newestRevision.toString(16).toUpperCase()}`;
+        members.newest_revision = hexNumber(rating.newestRevision);
         break;
       case "undecided":
         members.catalogue = "undecided";
-        members.newest_revision = `0x${rating.newestRevision.toString(16).toUpperCase()}`;
+        members.newest_revision = hexNumber(rating.newestRevision);
         break;
       case "notRated":
         members.catalogue = "not_rated";
@@ -287,7 +285,7 @@ function entryJson(entry: MicrocodeCatalogueEntry, installed: readonly FITRow[])
     revision: `0x${entry.revisionText}`,
     date: entry.date,
     production: entry.isProduction,
-    size: hex(entry.size),
+    size: hexNumber(entry.size),
   };
   // The other CPUIDs the file's update serves (its extended signature table),
   // as the form's Extended CPUIDs column shows them.
@@ -363,8 +361,8 @@ export function chosenEntries(
  */
 export function editReport(outcome: FITEditOutcome | FITRemovalOutcome): { [key: string]: Json } {
   const span = (range: { start: number; end: number }): Json => ({
-    start: hex(range.start),
-    end: hex(range.end),
+    start: hexNumber(range.start),
+    end: hexNumber(range.end),
   });
   const members: { [key: string]: Json } = {};
   if ("range" in outcome) {
@@ -375,7 +373,7 @@ export function editReport(outcome: FITEditOutcome | FITRemovalOutcome): { [key:
     if (outcome.replaced !== undefined) {
       members.replaced = {
         cpuid: microcodeCpuid(outcome.replaced.processorSignature),
-        revision: `0x${outcome.replaced.updateRevision.toString(16).toUpperCase()}`,
+        revision: hexNumber(outcome.replaced.updateRevision),
         date: microcodeDate(outcome.replaced),
       };
     }

@@ -246,6 +246,14 @@ describe("an annotation", () => {
     const past = await call("annotate", { offset: "0xF0", length: "0x20", title: "Tail" });
     expect(past.text.endsWith(" (d1), which is 0x100 bytes long.")).toBe(true);
     expect((await call("annotate", { offset: 0, title: "  " })).isError).toBe(true);
+    // A length that wraps past 2^64 is refused, never added up.
+    const wrapping = await call("annotate", {
+      offset: "0x10",
+      length: "0xFFFFFFFFFFFFFFFF",
+      title: "All",
+    });
+    expect(wrapping.isError).toBe(true);
+    expect(wrapping.text).toContain("runs past any file");
     expect((await call("annotate", { offset: 0, length: 0, title: "Nothing" })).isError).toBe(true);
     // The top of the tree is no node.
     expect((await call("annotate", { offset: 0, node: "root", title: "Root" })).isError).toBe(true);

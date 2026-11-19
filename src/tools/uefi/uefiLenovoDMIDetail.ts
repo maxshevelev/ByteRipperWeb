@@ -1,9 +1,9 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import type { LDBGEntry, LDBGLog } from "@/firmware/lenovoDmi/ldbgLog";
 import { findingIsProblem, findingText, LenovoDMIArea } from "@/firmware/lenovoDmi/lenovoDmiArea";
 import {
-  hexText,
   isSMBIOS,
   keyNamespaceText,
   keyTypeText,
@@ -58,8 +58,6 @@ export function readsLenovoDMI(kind: string): boolean {
     kind === "lenvEntry"
   );
 }
-
-const hex = (value: number, digits: number): string => hexText(value, digits);
 
 const blocksOf = (bytes: Uint8Array | undefined, offset: number): LENVBlock | undefined =>
   bytes === undefined || bytes.length < LenovoDMIFormat.lenvHeaderSize
@@ -163,7 +161,7 @@ export function encodingRole(node: UEFINode, reader: ImageReader): RowRole | und
   const range = nodeRange(node);
   const block = blocksOf(reader.bytes(range), range.start);
   if (block === undefined || !block.hasSignature || block.isBlank) return undefined;
-  const key = hex(block.xorKey, 2);
+  const key = hexNumber(block.xorKey, { digits: 2 });
   switch (block.encoding) {
     case "encoded":
       return { kind: "encoded", words: L("Encoded with the XOR key %1$@", key), decoded: false };
@@ -288,9 +286,9 @@ function logFields(log: LDBGLog): DetailField[] {
   }
   const misplaced =
     log.writeOffsetProblem === "outOfRange" || log.writeOffsetProblem === "misaligned";
-  fields.push(field(L("Write offset"), hex(log.writeOffset, 8), misplaced));
+  fields.push(field(L("Write offset"), hexNumber(log.writeOffset, { digits: 8 }), misplaced));
   fields.push(field(L("Entries"), L("%1$@ of %2$@", log.entries.length, log.capacity)));
-  fields.push(field(L("XOR key"), log.key === undefined ? "—" : hex(log.key, 2)));
+  fields.push(field(L("XOR key"), log.key === undefined ? "—" : hexNumber(log.key, { digits: 2 })));
   fields.push(field(L("Unknown"), valueHex(log.unknownHeader)));
   return fields;
 }
@@ -359,7 +357,7 @@ function operationName(entry: LDBGEntry): string {
     case "unprotect":
       return L("Unprotect", { context: "log operation" });
     case undefined:
-      return L("Unknown operation %1$@", hex(entry.operation, 2));
+      return L("Unknown operation %1$@", hexNumber(entry.operation, { digits: 2 }));
   }
 }
 
@@ -389,10 +387,10 @@ function blockFields(block: LENVBlock, live: string | undefined): DetailField[] 
       !block.entriesFit
     )
   );
-  fields.push(field(L("XOR key"), hex(block.xorKey, 2)));
+  fields.push(field(L("XOR key"), hexNumber(block.xorKey, { digits: 2 })));
   fields.push(field(L("Stored"), encodingText(block.encoding)));
   fields.push(field(L("Checksum"), checksumText(block), !block.isBlank && !block.checksumIsValid));
-  fields.push(field(L("Access flag"), hex(block.accessFlag, 2)));
+  fields.push(field(L("Access flag"), hexNumber(block.accessFlag, { digits: 2 })));
   fields.push(field(L("Write-protected"), (block.accessFlag & 1) !== 0 ? L("Yes") : L("No")));
   return fields;
 }
@@ -437,13 +435,13 @@ function encodingText(encoding: LENVEncoding): string {
 }
 
 function checksumText(block: LENVBlock): string {
-  const stored = hex(block.checksum, 4);
+  const stored = hexNumber(block.checksum, { digits: 4 });
   if (block.checksumIsOfEncodedBody) {
     return L("%1$@ (Valid for the body encoded again)", stored);
   }
   return block.checksumIsValid
     ? L("%1$@ (Valid)", stored)
-    : L("%1$@ (Invalid), should be %2$@", stored, hex(block.expectedChecksum, 4));
+    : L("%1$@ (Invalid), should be %2$@", stored, hexNumber(block.expectedChecksum, { digits: 4 }));
 }
 
 // MARK: - An entry
@@ -488,8 +486,11 @@ function entryFields(
     field(L("Entry type"), keyTypeText(entry.key)),
     field(L("Size"), L("%1$@ bytes", entry.data.length)),
     field(L("Write-protected"), isWriteProtected(entry) ? L("Yes") : L("No")),
-    field(L("Entry flags"), hex(entry.flags, 2)),
-    field(L("Unknown"), `${hex(entry.unknown1, 2)} ${hex(entry.unknown2, 4)}`)
+    field(L("Entry flags"), hexNumber(entry.flags, { digits: 2 })),
+    field(
+      L("Unknown"),
+      `${hexNumber(entry.unknown1, { digits: 2 })} ${hexNumber(entry.unknown2, { digits: 4 })}`
+    )
   );
   return fields;
 }

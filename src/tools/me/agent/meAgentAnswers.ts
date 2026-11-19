@@ -2,6 +2,7 @@ import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { FirmwareAnalysis } from "@/firmware/me/models/firmwareAnalysis";
 import {
   type MFSState,
@@ -29,8 +30,6 @@ import { isStatusTone, type ToolValueTone } from "@/tools/toolValueTone";
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEAAgentQueries.swift#MEAAgentQueries
  */
-
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
 
 // MARK: - me_summary
 
@@ -198,7 +197,7 @@ export function efsText(efs: MFSStateEFS): string {
     case "filesNotNamed":
       return "the EFS volume was read, but its files are known only from the firmware database's file table, which was not available";
     case "unreadable":
-      return `unreadable: the partition table lists an EFS partition at ${hex(efs.offset)}, but no EFS volume could be read there`;
+      return `unreadable: the partition table lists an EFS partition at ${hexNumber(efs.offset)}, but no EFS volume could be read there`;
     case "noPartition":
       return "no EFS partition";
   }
@@ -277,7 +276,7 @@ export function meTreeAnswer(
     if (extents !== undefined && extents.length > 0) {
       detail.extents = extents
         .slice(0, EXTENTS_SHOWN)
-        .map((one): Json => ({ start: hex(one.start), end: hex(one.end) }));
+        .map((one): Json => ({ start: hexNumber(one.start), end: hexNumber(one.end) }));
       if (extents.length > EXTENTS_SHOWN) {
         detail.extents_note = `${extents.length} stretches; the first ${EXTENTS_SHOWN} are listed.`;
       }
@@ -300,8 +299,8 @@ function summaryOf(node: MEANode): Json {
   const members: { [key: string]: Json } = { id: idText(node.path), title: node.title };
   if (node.subtitle !== "") members.subtitle = node.subtitle;
   if (node.range !== undefined) {
-    members.start = hex(node.range.start);
-    members.end = hex(node.range.end);
+    members.start = hexNumber(node.range.start);
+    members.end = hexNumber(node.range.end);
   }
   if (node.extents !== undefined && node.extents.length > 0)
     members.stretches = node.extents.length;

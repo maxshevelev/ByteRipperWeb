@@ -1,9 +1,10 @@
 import { type FindEncoding, fromWire, previewJson, type WirePattern } from "@/core/agent/agentFind";
 import type { Json } from "@/core/agent/json";
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import type { ByteStorage, Bytes } from "@/core/storage/byteStorage";
 import type { ImageReader } from "@/firmware/imageReader";
 import { nodeIdText, ROOT_ID } from "@/firmware/uefi/uefiNode";
-import { hexText, nodeLabel, nodeSummary } from "@/tools/uefi/agent/uefiAgentQueries";
+import { nodeLabel, nodeSummary } from "@/tools/uefi/agent/uefiAgentQueries";
 import { isSecret } from "@/tools/uefi/agent/uefiAgentRegions";
 import { type AgentTree, nodeAtPath, parseNodeId } from "@/tools/uefi/agent/uefiAgentTree";
 import {
@@ -89,7 +90,7 @@ export async function findInNode(
   );
   const envelope: { [key: string]: Json } = {
     total: result.total,
-    searched: hexText(result.searchedBytes),
+    searched: hexNumber(result.searchedBytes),
     buffers: result.buffers,
   };
   const top = start.length === 0 ? undefined : nodeAtPath(tree, start);
@@ -132,24 +133,24 @@ export function contentMatchEntry(
   const members: { [key: string]: Json } = { encoding };
   const node = match.node === undefined ? undefined : nodeAtPath(tree, match.node);
   if (node !== undefined) members.node = nodeSummary(tree, node);
-  if (match.nodeOffset !== undefined) members.node_offset = hexText(match.nodeOffset);
+  if (match.nodeOffset !== undefined) members.node_offset = hexNumber(match.nodeOffset);
   const volume = match.volume === undefined ? undefined : nodeAtPath(tree, match.volume);
   if (volume !== undefined) {
     members.volume = { id: nodeIdText(volume.id), label: nodeLabel(volume, tree) };
   }
-  if (match.volumeOffset !== undefined) members.volume_offset = hexText(match.volumeOffset);
+  if (match.volumeOffset !== undefined) members.volume_offset = hexNumber(match.volumeOffset);
   const range = matchFileRange(match);
   if (range !== undefined) {
-    members.start = hexText(range.start);
-    members.end = hexText(range.end);
+    members.start = hexNumber(range.start);
+    members.end = hexNumber(range.end);
   } else {
     members.in_compressed = true;
-    members.buffer_start = hexText(match.range.start);
-    members.buffer_end = hexText(match.range.end);
+    members.buffer_start = hexNumber(match.range.start);
+    members.buffer_end = hexNumber(match.range.end);
   }
   if (match.section !== undefined) members.section = nodeIdText(match.section);
   if (match.decodedXORKey !== undefined) {
-    members.decoded = `XOR ${match.decodedXORKey.toString(16).toUpperCase().padStart(2, "0")}`;
+    members.decoded = `XOR ${bareHexNumber(match.decodedXORKey, { digits: 2 })}`;
   }
   return members;
 }

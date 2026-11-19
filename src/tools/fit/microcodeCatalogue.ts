@@ -1,3 +1,4 @@
+import { bareHexNumber } from "@/core/hexText/hexText";
 import type { MicrocodeSignatures } from "@/firmware/intelCpuid/microcodeSignatures";
 import { familyMatches, type ProcessorFamily } from "@/firmware/intelCpuid/processorFamily";
 import { currentProcessorTables } from "@/firmware/intelCpuid/processorTables";
@@ -113,7 +114,7 @@ export interface MicrocodeCatalogueEntry {
  */
 export function platformText(entry: MicrocodeCatalogueEntry): string {
   if (entry.platformID === undefined) return "";
-  return entry.platformID.toString(16).toUpperCase().padStart(2, "0");
+  return bareHexNumber(entry.platformID, { digits: 2 });
 }
 
 /** @upstream Modules/FITTool/Sources/FITTool/MicrocodeCatalogue.swift#MicrocodeCatalogueEntry.fileName */
@@ -241,9 +242,9 @@ export function entryAt(path: string, size: number): MicrocodeCatalogueEntry | u
     cpuid,
     // Leading zeros dropped, so a search for what is on screen matches: AMD
     // writes `00800F11` where Intel writes `906EB`.
-    cpuidText: cpuid === undefined ? identifier : cpuid.toString(16).toUpperCase(),
+    cpuidText: cpuid === undefined ? identifier : bareHexNumber(cpuid),
     platformID: parseHex(field("plat") ?? ""),
-    revisionText: revisionValue === undefined ? revision : revisionValue.toString(16).toUpperCase(),
+    revisionText: revisionValue === undefined ? revision : bareHexNumber(revisionValue),
     date: date ?? "",
     isProduction: !fields.includes("PRE"),
     size,

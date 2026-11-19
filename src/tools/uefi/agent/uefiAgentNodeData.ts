@@ -2,11 +2,11 @@ import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AGENT_FORMATS, shownBytes } from "@/core/agent/agentBytes";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { ImageReader } from "@/firmware/imageReader";
 import type { ByteSpace } from "@/firmware/uefi/byteSpace";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { nodeIdText, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { hexText } from "@/tools/uefi/agent/uefiAgentQueries";
 import {
   type AgentTree,
   expanded,
@@ -140,8 +140,8 @@ export function sectionSource(
   if (outer === undefined) return undefined;
   const members: { [key: string]: Json } = {
     section: nodeIdText(outer.id),
-    start: hexText(outer.header.start),
-    end: hexText(Math.max(outer.header.end, outer.body.end, outer.tail.end)),
+    start: hexNumber(outer.header.start),
+    end: hexNumber(Math.max(outer.header.end, outer.body.end, outer.tail.end)),
   };
   if (outer.compression?.algorithm !== undefined) members.algorithm = outer.compression.algorithm;
   if (depth > 1) members.nested = depth - 1;
@@ -221,7 +221,7 @@ export function uefiNodeData(tree: AgentTree, args: AgentArguments): Json {
   const size = found.range.end - found.range.start;
   if (offset >= size) {
     throw new AgentToolError(
-      `Offset ${hexText(offset)} is past the end of the ${part}, which is ${hexText(size)} bytes long.`
+      `Offset ${hexNumber(offset)} is past the end of the ${part}, which is ${hexNumber(size)} bytes long.`
     );
   }
   const length = Math.min(asked, size - offset);
@@ -234,13 +234,13 @@ export function uefiNodeData(tree: AgentTree, args: AgentArguments): Json {
     ...shownBytes(read, offset, format, bigEndian),
     node: nodeIdText(found.node.id),
     part,
-    offset: hexText(offset),
-    length: hexText(length),
-    size: hexText(size),
+    offset: hexNumber(offset),
+    length: hexNumber(length),
+    size: hexNumber(size),
     in_compressed: !isFileSpace(found.space),
   };
   const fileRange = fileRangeOfBytes(found);
-  if (fileRange !== undefined) answer.file_start = hexText(fileRange.start);
+  if (fileRange !== undefined) answer.file_start = hexNumber(fileRange.start);
   const source = sectionSource(tree, found.node, part === "decompressed");
   if (source !== undefined) answer.source = source;
   if (length < asked) answer.cut_at_end_of_part = true;

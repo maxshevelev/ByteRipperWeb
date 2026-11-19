@@ -150,4 +150,15 @@ describe("arguments a tool does not take", () => {
       "`documents` takes no argument `limit`. It takes no arguments."
     );
   });
+
+  // A length that wraps past 2^64 is refused, never added up.
+  // @upstream Packages/AgentKit/Tests/AgentKitTests/AgentArgumentsTests.swift#AgentArgumentsTests.testARangeThatWrapsIsRefused
+  it("refuses a range that wraps", () => {
+    expect(AgentArguments.range(0x10, 0x20)).toEqual([0x10, 0x30]);
+    const max = args({ length: "0xFFFFFFFFFFFFFFFF" }).offset("length");
+    expect(AgentArguments.range(0, Number.MAX_SAFE_INTEGER)).toEqual([0, Number.MAX_SAFE_INTEGER]);
+    expect(message(() => AgentArguments.range(0x10, max))).toBe(
+      "`length` 0xFFFFFFFFFFFFFFFF from `offset` 0x10 runs past any file."
+    );
+  });
 });

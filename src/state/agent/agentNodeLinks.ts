@@ -1,4 +1,5 @@
 import { isObject, type Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { PartCodec } from "@/core/parts/partCodec";
 import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
@@ -199,7 +200,7 @@ export class AgentNodeLinks {
       const state = paneState(target.pane);
       if (state === undefined || start >= state.document.size) return undefined;
     }
-    const chain = await this.query(target, "uefi_at", { offset: hex(start) });
+    const chain = await this.query(target, "uefi_at", { offset: hexNumber(start) });
     const items = isObject(chain) && Array.isArray(chain.chain) ? chain.chain : [];
     for (let at = items.length - 1; at >= 0; at--) {
       const item = items[at];
@@ -243,8 +244,6 @@ interface Related {
 /** A block opened decoded, not one stored in the clear. */
 export const decodes = (codec: PartCodec): boolean =>
   codec instanceof LenovoDMIBlockCodec && codec.encodes;
-
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
 
 function address(text: string): number | undefined {
   const lower = text.toLowerCase();

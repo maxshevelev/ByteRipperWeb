@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L, localized } from "@/core/localization/localization";
 import { type ByteSpace, outermostSection } from "@/firmware/uefi/byteSpace";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
@@ -277,8 +278,6 @@ const LABELS: () => Readonly<Record<Structure, string>> = localized(() => ({
   pspDirectory: L("PSP directory", { context: "checksum" }),
 }));
 
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
-
 /**
  * One line, for the tool's own list.
  *
@@ -289,8 +288,8 @@ export function diagnosticMessage(diagnostic: UEFIDiagnostic): string {
   const message = kindMessage(diagnostic.detail);
   return inside === undefined
     ? message
-    : `${message} (at ${hex(inside.offset)} in what the compressed section at ` +
-        `${hex(diagnostic.offset)} decompresses to)`;
+    : `${message} (at ${hexNumber(inside.offset)} in what the compressed section at ` +
+        `${hexNumber(diagnostic.offset)} decompresses to)`;
 }
 
 /** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIDiagnostic.swift#UEFIDiagnostic.kindMessage */
@@ -301,17 +300,17 @@ function kindMessage(detail: DiagnosticKind): string {
     case "zeroSize":
       return `${LABELS()[detail.structure]} has a size of zero`;
     case "checksumMismatch":
-      return `${LABELS()[detail.structure]} checksum is ${hex(detail.stored)}, computed ${hex(
+      return `${LABELS()[detail.structure]} checksum is ${hexNumber(detail.stored)}, computed ${hexNumber(
         detail.computed
       )}`;
     case "sizeMismatch":
-      return `${LABELS()[detail.structure]} size is ${hex(detail.stored)}, computed ${hex(
+      return `${LABELS()[detail.structure]} size is ${hexNumber(detail.stored)}, computed ${hexNumber(
         detail.computed
       )}`;
     case "unknownFileSystem":
       return `unknown volume file system ${guidText(detail.guid)}`;
     case "unknownType":
-      return `unknown ${LABELS()[detail.structure]} type ${hex(detail.code)}`;
+      return `unknown ${LABELS()[detail.structure]} type ${hexNumber(detail.code)}`;
     case "recursionLimit":
       return "nesting is too deep to be an image";
     case "addressesUnknown":
@@ -324,13 +323,13 @@ function kindMessage(detail: DiagnosticKind): string {
         : `${detail.algorithm} data does not decompress`;
     case "decompressedTooLarge":
       return (
-        `${detail.algorithm} data says it decompresses to ${hex(detail.declared)} bytes, ` +
+        `${detail.algorithm} data says it decompresses to ${hexNumber(detail.declared)} bytes, ` +
         "more than a parse allocates"
       );
     case "decompressedSizeMismatch":
       return (
-        `compressed section says it decompresses to ${hex(detail.stored)} bytes, ` +
-        `it came to ${hex(detail.computed)}`
+        `compressed section says it decompresses to ${hexNumber(detail.stored)} bytes, ` +
+        `it came to ${hexNumber(detail.computed)}`
       );
     case "processingRequiredNotSet":
       return "compressed GUID-defined section does not have PROCESSING_REQUIRED set";
@@ -349,13 +348,13 @@ function kindMessage(detail: DiagnosticKind): string {
     case "unsupportedHashAlgorithm":
       return `${tcgHashName(detail.algorithm)} digests are not computed by this tool`;
     case "unknownVendorHashFileSize":
-      return `AMI vendor hash table of ${hex(detail.size)} bytes is of no known version`;
+      return `AMI vendor hash table of ${hexNumber(detail.size)} bytes is of no known version`;
     case "unknownRevision":
-      return `${LABELS()[detail.structure]} revision ${hex(detail.revision)} is later than any this parser reads`;
+      return `${LABELS()[detail.structure]} revision ${hexNumber(detail.revision)} is later than any this parser reads`;
     case "unknownFlashDeviceMapEntries":
       return (
-        `Insyde flash device map entries of ${hex(detail.size)} bytes in format ` +
-        `${hex(detail.format)} are of no known layout`
+        `Insyde flash device map entries of ${hexNumber(detail.size)} bytes in format ` +
+        `${hexNumber(detail.format)} are of no known layout`
       );
     case "nonUEFIDataInPadFile":
       return "padding file holds data that is not UEFI";
@@ -370,7 +369,7 @@ function kindMessage(detail: DiagnosticKind): string {
     case "dvarNamespaceMissing":
       return "DVAR variable names a namespace no entry of the store declares";
     case "fileHeaderMarkedInvalid":
-      return `file state ${hex(detail.state)} marks its header invalid; its checksums are not checked`;
+      return `file state ${hexNumber(detail.state)} marks its header invalid; its checksums are not checked`;
     case "unreadableNvarEntry":
       return "NVAR entry cannot be read; the store is kept as padding from here";
   }

@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { decodeUtf8 } from "@/core/text/utf";
 import { guidFromBytes, guidText } from "@/firmware/uefi/efiGuid";
 
@@ -55,36 +56,37 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
   switch (key) {
     // Hardware.
     case 0x0101:
-      if (n >= 6) return `Pci(${hex(node[5] ?? 0)},${hex(node[4] ?? 0)})`;
+      if (n >= 6) return `Pci(${hexNumber(node[5] ?? 0)},${hexNumber(node[4] ?? 0)})`;
       break;
     case 0x0102:
-      if (n >= 5) return `PcCard(${hex(node[4] ?? 0)})`;
+      if (n >= 5) return `PcCard(${hexNumber(node[4] ?? 0)})`;
       break;
     case 0x0103:
-      if (n >= 24) return `MemoryMapped(${hex(f.u32(4))},${hex(f.u64(8))},${hex(f.u64(16))})`;
+      if (n >= 24)
+        return `MemoryMapped(${hexNumber(f.u32(4))},${hexNumber(f.u64(8))},${hexNumber(f.u64(16))})`;
       break;
     case 0x0104:
       if (n >= 20) return `VenHw(${f.guid(4)})`;
       break;
     case 0x0105:
-      if (n >= 8) return `Ctrl(${hex(f.u32(4))})`;
+      if (n >= 8) return `Ctrl(${hexNumber(f.u32(4))})`;
       break;
     // ACPI.
     case 0x0201:
       if (n >= 12) return acpiText(f.u32(4), f.u32(8));
       break;
     case 0x0203:
-      if (n >= 8) return `AcpiAdr(${hex(f.u32(4))})`;
+      if (n >= 8) return `AcpiAdr(${hexNumber(f.u32(4))})`;
       break;
     // Messaging.
     case 0x0301:
       if (n >= 8) return `Ata(${node[4]},${node[5]},${f.u16(6)})`;
       break;
     case 0x0302:
-      if (n >= 8) return `Scsi(${hex(f.u16(4))},${hex(f.u16(6))})`;
+      if (n >= 8) return `Scsi(${hexNumber(f.u16(4))},${hexNumber(f.u16(6))})`;
       break;
     case 0x0305:
-      if (n >= 6) return `USB(${hex(node[4] ?? 0)},${hex(node[5] ?? 0)})`;
+      if (n >= 6) return `USB(${hexNumber(node[4] ?? 0)},${hexNumber(node[5] ?? 0)})`;
       break;
     case 0x030a:
       if (n >= 20) return `VenMsg(${f.guid(4)})`;
@@ -92,9 +94,9 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
     case 0x030b:
       if (n >= 37) {
         const address = [...node.subarray(4, 10)]
-          .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
+          .map((byte) => bareHexNumber(byte, { digits: 2 }))
           .join("");
-        return `MAC(${address},${hex(node[36] ?? 0)})`;
+        return `MAC(${address},${hexNumber(node[36] ?? 0)})`;
       }
       break;
     case 0x030c:
@@ -104,35 +106,37 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
       return "IPv6()";
     case 0x030f:
       if (n >= 11) {
-        return `UsbClass(${hex(f.u16(4))},${hex(f.u16(6))},${hex(node[8] ?? 0)},${hex(node[9] ?? 0)},${hex(node[10] ?? 0)})`;
+        return `UsbClass(${hexNumber(f.u16(4))},${hexNumber(f.u16(6))},${hexNumber(node[8] ?? 0)},${hexNumber(node[9] ?? 0)},${hexNumber(node[10] ?? 0)})`;
       }
       break;
     case 0x0312:
-      if (n >= 10) return `Sata(${hex(f.u16(4))},${hex(f.u16(6))},${hex(f.u16(8))})`;
+      if (n >= 10)
+        return `Sata(${hexNumber(f.u16(4))},${hexNumber(f.u16(6))},${hexNumber(f.u16(8))})`;
       break;
     case 0x0317:
       if (n >= 16) {
         const eui = [...node.subarray(8, 16)]
           .reverse()
-          .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
+          .map((byte) => bareHexNumber(byte, { digits: 2 }))
           .join("-");
-        return `NVMe(${hex(f.u32(4))},${eui})`;
+        return `NVMe(${hexNumber(f.u32(4))},${eui})`;
       }
       break;
     case 0x0318:
       return `Uri(${decodeUtf8(node.subarray(4))})`;
     case 0x031a:
-      if (n >= 5) return `SD(${hex(node[4] ?? 0)})`;
+      if (n >= 5) return `SD(${hexNumber(node[4] ?? 0)})`;
       break;
     case 0x031d:
-      if (n >= 5) return `eMMC(${hex(node[4] ?? 0)})`;
+      if (n >= 5) return `eMMC(${hexNumber(node[4] ?? 0)})`;
       break;
     // Media.
     case 0x0401:
       if (n >= 42) return hardDriveText(f, node);
       break;
     case 0x0402:
-      if (n >= 24) return `CDROM(${hex(f.u32(4))},${hex(f.u64(8))},${hex(f.u64(16))})`;
+      if (n >= 24)
+        return `CDROM(${hexNumber(f.u32(4))},${hexNumber(f.u64(8))},${hexNumber(f.u64(16))})`;
       break;
     case 0x0403:
       if (n >= 20) return `VenMedia(${f.guid(4)})`;
@@ -156,7 +160,7 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
       if (n >= 20) return `Fv(${f.guid(4)})`;
       break;
     case 0x0408:
-      if (n >= 24) return `Offset(${hex(f.u64(8))},${hex(f.u64(16))})`;
+      if (n >= 24) return `Offset(${hexNumber(f.u64(8))},${hexNumber(f.u64(16))})`;
       break;
     // BIOS boot specification.
     case 0x0501:
@@ -173,7 +177,7 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
         let end = 8;
         while (end < n && node[end] !== 0) end++;
         const description = decodeUtf8(node.subarray(8, end));
-        return `BBS(${types[device] ?? hex(device)},${description},${hex(f.u16(6))})`;
+        return `BBS(${types[device] ?? hexNumber(device)},${description},${hexNumber(f.u16(6))})`;
       }
       break;
   }
@@ -187,23 +191,23 @@ function nodeText(type: number, subtype: number, node: Uint8Array): string {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/DevicePath.swift#DevicePath.acpiText
  */
 function acpiText(hid: number, uid: number): string {
-  if ((hid & 0xffff) !== 0x41d0) return `Acpi(${hex(hid)},${hex(uid)})`;
+  if ((hid & 0xffff) !== 0x41d0) return `Acpi(${hexNumber(hid)},${hexNumber(uid)})`;
   const pnp = hid >>> 16;
   switch (pnp) {
     case 0x0a03:
-      return `PciRoot(${hex(uid)})`;
+      return `PciRoot(${hexNumber(uid)})`;
     case 0x0a08:
-      return `PcieRoot(${hex(uid)})`;
+      return `PcieRoot(${hexNumber(uid)})`;
     case 0x0604:
-      return `Floppy(${hex(uid)})`;
+      return `Floppy(${hexNumber(uid)})`;
     case 0x0301:
-      return `Keyboard(${hex(uid)})`;
+      return `Keyboard(${hexNumber(uid)})`;
     case 0x0501:
-      return `Serial(${hex(uid)})`;
+      return `Serial(${hexNumber(uid)})`;
     case 0x0401:
-      return `ParallelPort(${hex(uid)})`;
+      return `ParallelPort(${hexNumber(uid)})`;
     default:
-      return `Acpi(PNP${pnp.toString(16).toUpperCase().padStart(4, "0")},${hex(uid)})`;
+      return `Acpi(PNP${bareHexNumber(pnp, { digits: 4 })},${hexNumber(uid)})`;
   }
 }
 
@@ -215,16 +219,16 @@ function acpiText(hid: number, uid: number): string {
  */
 function hardDriveText(f: Fields, node: Uint8Array): string {
   const number = f.u32(4);
-  const start = hex(f.u64(8));
-  const size = hex(f.u64(16));
+  const start = hexNumber(f.u64(8));
+  const size = hexNumber(f.u64(16));
   const signatureType = node[41] ?? 0;
   switch (signatureType) {
     case 1:
-      return `HD(${number},MBR,0x${f.u32(24).toString(16).toUpperCase().padStart(8, "0")},${start},${size})`;
+      return `HD(${number},MBR,${hexNumber(f.u32(24), { digits: 8 })},${start},${size})`;
     case 2:
       return `HD(${number},GPT,${f.guid(24)},${start},${size})`;
     default:
-      return `HD(${number},${hex(signatureType)},0,${start},${size})`;
+      return `HD(${number},${hexNumber(signatureType)},0,${start},${size})`;
   }
 }
 
@@ -246,8 +250,4 @@ class Fields {
   guid(at: number): string {
     return guidText(guidFromBytes(this.bytes, at));
   }
-}
-
-function hex(value: number | bigint): string {
-  return `0x${value.toString(16).toUpperCase()}`;
 }

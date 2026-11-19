@@ -487,7 +487,7 @@ describe("find_bytes", () => {
     );
     expect(
       (await call("find_bytes", { hex: "01", end: "0x10" })).text.startsWith(
-        "The range 0x0–0x10 is not inside front.bin (d1)"
+        "The range [0x0, 0x10) is not inside front.bin (d1)"
       )
     ).toBe(true);
     expect((await call("find_bytes", { text: "é" })).text).toBe(

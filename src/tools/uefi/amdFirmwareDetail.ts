@@ -1,3 +1,4 @@
+import { decimalNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import {
@@ -76,10 +77,8 @@ export function amdFirmwareDetail(
       return { fields: [], tables: [] };
   }
 }
-
-const hex = (value: number | bigint): string => `0x${value.toString(16).toUpperCase()}`;
-const sizeText = (value: number): string => (value === 0 ? "Empty" : `${hex(value)} (${value})`);
-const hex2 = (value: number): string => `0x${value.toString(16).toUpperCase().padStart(2, "0")}`;
+const sizeText = (value: number): string =>
+  value === 0 ? "Empty" : `${hexNumber(value)} (${decimalNumber(value)})`;
 
 // MARK: - The EFS
 
@@ -88,7 +87,7 @@ function efs(
   image: UEFIImage
 ): { fields: DetailField[]; tables: DetailTable[] } {
   const fields = [
-    field("Signature", hex(EFS_SIGNATURE)),
+    field("Signature", hexNumber(EFS_SIGNATURE)),
     field(L("Flash size"), sizeText(firmware.romSize)),
   ];
   const rows: DetailTable["rows"][number][] = [];
@@ -96,8 +95,8 @@ function efs(
   for (const pointer of firmware.pointers) {
     const directory = firmware.directories.find((one) => one.offset === pointer.target);
     rows.push([
-      cell(`+${hex(pointer.field)}`),
-      cell(hex(pointer.value)),
+      cell(`+${hexNumber(pointer.field)}`),
+      cell(hexNumber(pointer.value)),
       cell(directory === undefined ? "" : amdDirectoryName(directory)),
     ]);
     targets.push(
@@ -147,12 +146,12 @@ function directoryDetail(
       )
     );
   }
-  if (directory.pspID !== undefined) fields.push(field("PSP ID", hex(directory.pspID)));
+  if (directory.pspID !== undefined) fields.push(field("PSP ID", hexNumber(directory.pspID)));
 
   if (directory.kind === DirectoryKind.slotHeader) {
     if (directory.slot !== undefined) fields.push(field(L("Slot"), directory.slot));
     if (directory.priority !== undefined)
-      fields.push(field(L("Priority"), hex(directory.priority)));
+      fields.push(field(L("Priority"), hexNumber(directory.priority)));
     const level2 = firmware.directories.find((one) => one.offset === directory.slotTarget);
     if (directory.slotTarget === undefined || level2 === undefined) return { fields, tables: [] };
     const name = amdDirectoryName(level2);
@@ -163,7 +162,7 @@ function directoryDetail(
           title: L("Second level"),
           symbol: "list.bullet.rectangle",
           columns: [L("Directory"), L("Location")],
-          rows: [[cell(name), cell(hex(directory.slotTarget))]],
+          rows: [[cell(name), cell(hexNumber(directory.slotTarget))]],
           rowTargets: [targetFor(directoryRange(level2), name, image)],
         },
       ],
@@ -178,8 +177,8 @@ function directoryDetail(
       const chosen = firmware.directories.find((one) => one.offset === entry.resolvedOffset);
       rows.push([
         cell(`${index}`),
-        cell(hex(entry.id)),
-        cell(entry.resolvedOffset === undefined ? "—" : hex(entry.resolvedOffset)),
+        cell(hexNumber(entry.id)),
+        cell(entry.resolvedOffset === undefined ? "—" : hexNumber(entry.resolvedOffset)),
         cell(chosen === undefined ? "" : amdDirectoryName(chosen)),
       ]);
       targets.push(
@@ -217,13 +216,13 @@ function directoryDetail(
     const value = entryIsValue(entry);
     rows.push([
       cell(`${entry.index}`),
-      cell(`${amdEntryTypeName(entry)} (${hex2(entry.type)})`),
+      cell(`${amdEntryTypeName(entry)} (${hexNumber(entry.type, { digits: 2 })})`),
       cell(
         value
           ? "—"
           : sizeText(entry.range === undefined ? entry.size : entry.range.end - entry.range.start)
       ),
-      cell(value || entry.resolvedOffset === undefined ? "—" : hex(entry.resolvedOffset)),
+      cell(value || entry.resolvedOffset === undefined ? "—" : hexNumber(entry.resolvedOffset)),
       cell(notes(entry, image.size)),
     ]);
     targets.push(entryTarget(entry, firmware, image));
@@ -294,10 +293,11 @@ function targetFor(
 /** What an entry's flags, instance and destination say, in a few words. */
 function notes(entry: AMDEntry, fileSize: number): string {
   const parts: string[] = [];
-  if (entryIsValue(entry)) parts.push(L("value %1$@", hex(entry.location)));
+  if (entryIsValue(entry)) parts.push(L("value %1$@", hexNumber(entry.location)));
   if (entryInstance(entry) !== 0) parts.push(L("instance %1$@", `${entryInstance(entry)}`));
   if (entrySubprogram(entry) !== 0) parts.push(L("subprogram %1$@", `${entrySubprogram(entry)}`));
-  if (entryIsCompressed(entry)) parts.push(L("compressed, inflates to %1$@", hex(entry.size)));
+  if (entryIsCompressed(entry))
+    parts.push(L("compressed, inflates to %1$@", hexNumber(entry.size)));
   if (entryIsReset(entry)) parts.push(L("reset image"));
   if (entryIsCopy(entry)) parts.push(L("copied to memory"));
   if (entryIsReadOnly(entry)) parts.push(L("read-only"));
@@ -307,7 +307,7 @@ function notes(entry: AMDEntry, fileSize: number): string {
     entry.destination !== 0xffff_ffff_ffff_ffffn &&
     entry.destination !== 0n
   ) {
-    parts.push(L("destination %1$@", hex(entry.destination)));
+    parts.push(L("destination %1$@", hexNumber(entry.destination)));
   }
   if (
     !entryIsValue(entry) &&
@@ -354,10 +354,11 @@ function blob(
   if (first === undefined) return { fields: [], tables: [] };
   const entry = first.entry;
   const fields: DetailField[] = [
-    field(L("Entry type"), `${amdEntryTypeName(entry)} (${hex2(entry.type)})`),
+    field(L("Entry type"), `${amdEntryTypeName(entry)} (${hexNumber(entry.type, { digits: 2 })})`),
   ];
   if (entryInstance(entry) !== 0) fields.push(field(L("Instance"), `${entryInstance(entry)}`));
-  if (entry.isBIOS && entry.subtype !== 0) fields.push(field(L("Region type"), hex(entry.subtype)));
+  if (entry.isBIOS && entry.subtype !== 0)
+    fields.push(field(L("Region type"), hexNumber(entry.subtype)));
   if (entrySubprogram(entry) !== 0)
     fields.push(field(L("Subprogram"), `${entrySubprogram(entry)}`));
   const flags = notes(entry, image.size);
@@ -372,7 +373,9 @@ function blob(
     (sizes.length > 1 || (sizes[0] !== undefined && sizes[0] !== own.end - own.start)) &&
     !entryIsCompressed(entry)
   ) {
-    fields.push(field(L("Size in the directories"), sizes.map((size) => hex(size)).join(", ")));
+    fields.push(
+      field(L("Size in the directories"), sizes.map((size) => hexNumber(size)).join(", "))
+    );
   }
 
   const rows: DetailTable["rows"][number][] = [];

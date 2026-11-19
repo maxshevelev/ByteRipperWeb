@@ -1,4 +1,4 @@
-import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
+import { AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { hexByteText, parseHexBytes } from "@/core/agent/agentHexBytes";
 import {
   type AgentTool,
@@ -8,9 +8,10 @@ import {
   jsonAnswer,
 } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { halfOpenHexText, hexNumber } from "@/core/hexText/hexText";
 import { appLanguage, LIn } from "@/core/localization/localization";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
-import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
 import { aDialogIsOpen, updateInParentQuietly, updateStepName } from "@/state/partUpdate";
@@ -124,7 +125,7 @@ export class AgentEditTools {
       const actual = await place.document.read(offset, expected.length);
       if (hexByteText(actual) !== hexByteText(expected)) {
         throw new AgentToolError(
-          `Nothing written: the bytes at ${hexText(offset)} are ${hexByteText(actual)}, ` +
+          `Nothing written: the bytes at ${hexNumber(offset)} are ${hexByteText(actual)}, ` +
             `not ${hexByteText(expected)}.`
         );
       }
@@ -192,26 +193,29 @@ export class AgentEditTools {
     const offset = args.offset("offset");
     const length = args.offset("length");
     if (length <= 0) throw new AgentToolError("Argument `length` must be at least 1.");
+    const asked = AgentArguments.range(offset, length);
     const sourceSize = source.document.size;
-    if (offset >= sourceSize || length > sourceSize - offset) {
+    if (asked[1] > sourceSize) {
       throw new AgentToolError(
-        `The range ${hexText(offset)}+${hexText(length)} runs past the end of ${source.named}, ` +
-          `which is ${hexText(sourceSize)} bytes long.`
+        `The range ${halfOpenHexText(asked[0], asked[1])} runs past the end of ${source.named}, ` +
+          `which is ${hexNumber(sourceSize)} bytes long.`
       );
     }
     this.checkEditable(other);
-    const end = offset + length;
+    const end = asked[1];
     const otherSize = other.document.size;
     if (end > otherSize) {
       throw new AgentToolError(
-        `The range ends at ${hexText(end)}, past the end of ${other.named}, which is ` +
-          `${hexText(otherSize)} bytes long. Nothing was copied; a copy overwrites, it does not grow the file.`
+        `The range ends at ${hexNumber(end)}, past the end of ${other.named}, which is ` +
+          `${hexNumber(otherSize)} bytes long. Nothing was copied; a copy overwrites, it does not grow the file.`
       );
     }
     const bytes = await source.document.read(offset, length);
     const there = await other.document.read(offset, length);
     if (bytes.length !== length || there.length !== length) {
-      throw new AgentToolError(`Could not read ${hexText(length)} bytes at ${hexText(offset)}.`);
+      throw new AgentToolError(
+        `Could not read ${hexNumber(length)} bytes at ${hexNumber(offset)}.`
+      );
     }
     let changed = 0;
     for (let index = 0; index < length; index++) if (bytes[index] !== there[index]) changed += 1;
@@ -222,9 +226,9 @@ export class AgentEditTools {
     const answer: { [key: string]: Json } = {
       from: source.id,
       to: other.id,
-      start: hexText(offset),
-      end: hexText(end),
-      length: hexText(length),
+      start: hexNumber(offset),
+      end: hexNumber(end),
+      length: hexNumber(length),
       changed,
     };
     const places = await this.locate(source, { start: offset, end });
@@ -334,8 +338,8 @@ export class AgentEditTools {
         );
       case "sourceChanged":
         throw new AgentToolError(
-          `The bytes ${place.named} was opened from (${hexText(sourceBefore[0])}–` +
-            `${hexText(sourceBefore[1])} in ${parentName}) have changed there since. ` +
+          `The bytes ${place.named} was opened from (${halfOpenHexText(sourceBefore[0], sourceBefore[1])} ` +
+            `in ${parentName}) have changed there since. ` +
             "Updating would overwrite those changes. Nothing was written. Ask the person; call again with " +
             "`overwrite_changed_source: true` only if they agree."
         );
@@ -414,8 +418,8 @@ export class AgentEditTools {
     const past = writes.find((write) => write.offset + write.bytes.length > size);
     if (past !== undefined) {
       throw new AgentToolError(
-        `A write at ${hexText(past.offset)} runs past the end of ${place.named}, ` +
-          `which is ${hexText(size)} bytes long. Writes overwrite; they do not grow the file.`
+        `A write at ${hexNumber(past.offset)} runs past the end of ${place.named}, ` +
+          `which is ${hexNumber(size)} bytes long. Writes overwrite; they do not grow the file.`
       );
     }
     const before = await Promise.all(
@@ -439,8 +443,8 @@ export class AgentEditTools {
       written: writes.map((write, index): Json => {
         const was = before[index] ?? new Uint8Array();
         const members: { [key: string]: Json } = {
-          start: hexText(write.offset),
-          end: hexText(write.offset + write.bytes.length),
+          start: hexNumber(write.offset),
+          end: hexNumber(write.offset + write.bytes.length),
           before: hexByteText(was),
         };
         if (was.length < write.bytes.length) members.before_cut = true;

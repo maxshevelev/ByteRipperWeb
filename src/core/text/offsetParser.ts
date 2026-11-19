@@ -51,17 +51,3 @@ function fromBigInt(value: bigint): OffsetParseResult {
   if (value > BigInt(MAX_REPRESENTABLE_SIZE)) return { ok: false, reason: "outOfRange" };
   return { ok: true, value: Number(value) };
 }
-
-/**
- * `value` as a lowercase hexadecimal string, with no prefix.
- *
- * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/OffsetParser.swift#OffsetParser.hexString
- */
-export function hexString(value: number): string {
-  return value.toString(16);
-}
-
-/** `value` as an address, zero-padded to `digits` — what the offset column shows. */
-export function addressString(value: number, digits: number): string {
-  return value.toString(16).toUpperCase().padStart(digits, "0");
-}

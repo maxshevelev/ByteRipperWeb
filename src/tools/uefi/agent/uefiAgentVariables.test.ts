@@ -106,7 +106,8 @@ describe("variables_compare", () => {
     const changed = (member(answer, "changed") as Json[])[0];
     expect(member(changed, "name")).toBe("Differs");
     expect(member(changed, "differing_bytes")).toBe(2);
-    expect(member(changed, "runs")).toEqual(["0x1", "0x3"]);
+    // Half-open intervals, never the person's first–last dash.
+    expect(member(changed, "runs")).toEqual(["[0x1, 0x2)", "[0x3, 0x4)"]);
   });
 
   it("pages the three lists as one sequence", () => {

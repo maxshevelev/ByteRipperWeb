@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { LocalizedText } from "@/core/localization/localization";
 
 /**
@@ -151,7 +152,7 @@ export function readKey(bytes: Uint8Array, offset: number): LenovoDMIKey {
  *
  * @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift#LenovoDMIKey.typeText
  */
-export const keyTypeText = (key: LenovoDMIKey): string => hexText(key.type, 4);
+export const keyTypeText = (key: LenovoDMIKey): string => hexNumber(key.type, { digits: 4 });
 
 /**
  * The namespace as hex bytes, for one nobody has named.
@@ -159,7 +160,7 @@ export const keyTypeText = (key: LenovoDMIKey): string => hexText(key.type, 4);
  * @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift#LenovoDMIKey.namespaceText
  */
 export const keyNamespaceText = (key: LenovoDMIKey): string =>
-  key.namespace.map((byte) => hexText(byte, 2, false)).join(" ");
+  key.namespace.map((byte) => bareHexNumber(byte, { digits: 2 })).join(" ");
 
 /**
  * How an entry's value reads: text, a UUID, bytes, or the Windows key behind
@@ -270,12 +271,6 @@ export const u32 = (bytes: Uint8Array, offset: number): number =>
 /** @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift#LE.bytes16 */
 export const bytes16 = (value: number): Uint8Array =>
   Uint8Array.of(value & 0xff, (value >>> 8) & 0xff);
-
-/** @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIFormat.swift#LE.hex */
-export function hexText(value: number, digits: number, prefix = true): string {
-  const padded = value.toString(16).toUpperCase().padStart(digits, "0");
-  return prefix ? `0x${padded}` : padded;
-}
 
 /**
  * Every byte XORed with `key` — both directions of the store's cipher.

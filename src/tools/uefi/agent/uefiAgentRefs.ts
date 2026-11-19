@@ -3,6 +3,7 @@ import { hexText as bytesHex } from "@/core/agent/agentBytes";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import type { Json } from "@/core/agent/json";
+import { halfOpenHexText, hexNumber } from "@/core/hexText/hexText";
 import { withEnglish } from "@/core/localization/localization";
 import { maskedMatches, maskedPattern } from "@/core/search/maskedSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -11,7 +12,7 @@ import { guidBytes, guidFromText, guidText } from "@/firmware/uefi/efiGuid";
 import { nodeIdText, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { ReaderStorage } from "@/tools/uefi/agent/uefiAgentFind";
 import { compressedView, deepestCovering } from "@/tools/uefi/agent/uefiAgentNodeData";
-import { hexText, nodeLabel, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
+import { nodeLabel, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
 import { isBIOSRegion } from "@/tools/uefi/agent/uefiAgentRegions";
 import {
   type AgentTree,
@@ -239,13 +240,13 @@ export async function refs(
       const bios = found === undefined ? { start: 0, end: tree.size } : nodeRange(found);
       const file = relative ? bios.start + address : address;
       if (file >= tree.size) {
-        throw new AgentToolError(`${hexText(file)} is past the end of the document.`);
+        throw new AgentToolError(`${hexNumber(file)} is past the end of the document.`);
       }
       const inside = file >= bios.start && file < bios.end;
       // An address outside the BIOS region has no bus or region form.
       if (!inside && !names.has("file")) {
         throw new AgentToolError(
-          `${hexText(file)} is not inside the BIOS region ${hexText(bios.start)}–${hexText(bios.end)}; ` +
+          `${hexNumber(file)} is not inside the BIOS region ${halfOpenHexText(bios.start, bios.end)}; ` +
             "only the `file` form means anything for it."
         );
       }
@@ -326,12 +327,12 @@ export async function refs(
       const members: { [key: string]: Json } = { form: formName(wanted[hit.form] as Form) };
       if (section !== undefined) {
         members.section = nodeIdText(section.id);
-        members.section_offset = hexText(hit.start - nodeRange(section).start);
+        members.section_offset = hexNumber(hit.start - nodeRange(section).start);
       }
       if (buffer.space.length === 0) {
-        members.file_start = hexText(hit.start);
+        members.file_start = hexNumber(hit.start);
       } else {
-        members.node_start = hexText(hit.start);
+        members.node_start = hexNumber(hit.start);
         members.in_compressed = true;
       }
       if (deepest.id.join(".") !== (section ?? file)?.id.join(".")) {

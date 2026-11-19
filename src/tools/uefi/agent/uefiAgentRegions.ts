@@ -1,8 +1,9 @@
 import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import { nodeFileRange, nodeIdText, nodeRange, type UEFINode } from "@/firmware/uefi/uefiNode";
-import { hexText, nodeSummary, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
+import { nodeSummary, type UefiAgentContext } from "@/tools/uefi/agent/uefiAgentQueries";
 import {
   type AgentTree,
   expanded,
@@ -97,7 +98,7 @@ export function regionScan(tree: AgentTree, args: AgentArguments, context: UefiA
     const { id, children: _children, ...rest } = nodeSummary(tree, entry.node);
     const members: { [key: string]: Json } = { node: id ?? null, ...rest };
     const range = nodeFileRange(entry.node);
-    if (range !== undefined) members.size = hexText(range.end - range.start);
+    if (range !== undefined) members.size = hexNumber(range.end - range.start);
     if (entry.inner !== undefined) {
       members.inner = {
         node: nodeIdText(entry.inner.id),
@@ -110,15 +111,15 @@ export function regionScan(tree: AgentTree, args: AgentArguments, context: UefiA
       members.class = judgement.kind;
       members.fill = Math.round(judgement.fill * 1000) / 1000;
       if (judgement.firstNonFill !== undefined)
-        members.first_nonfill = hexText(judgement.firstNonFill);
+        members.first_nonfill = hexNumber(judgement.firstNonFill);
       if (judgement.lastNonFill !== undefined)
-        members.last_nonfill = hexText(judgement.lastNonFill);
+        members.last_nonfill = hexNumber(judgement.lastNonFill);
       if (isSecret(entry.node, tree)) {
         members.strings = [];
         members.redacted = true;
       } else {
         members.strings = judgement.strings.map((found) => ({
-          at: hexText(found.offset),
+          at: hexNumber(found.offset),
           text: found.text,
           encoding: found.utf16 ? "utf16le" : "ascii",
         }));

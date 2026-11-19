@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { type Bookmark, rowContaining } from "@/core/bookmarks/bookmarkStore";
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { SessionView } from "@/core/session/sessionView";
 import { hexAddress } from "@/core/text/hexText";
@@ -185,7 +186,7 @@ export function GoToDialog({
     : !parsed.ok
       ? L("Invalid offset — use hex with 0x prefix or decimal.")
       : parsed.value > fileSize
-        ? L("This file ends at 0x%1$@.", fileSize.toString(16).toUpperCase())
+        ? L("This file ends at 0x%1$@.", bareHexNumber(fileSize))
         : undefined;
   const target = parsed.ok && problem === undefined ? parsed.value : undefined;
 

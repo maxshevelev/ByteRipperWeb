@@ -1,3 +1,4 @@
+import { bareHexNumber } from "@/core/hexText/hexText";
 import type { ImageReader } from "@/firmware/imageReader";
 import type { EFIGUID } from "@/firmware/uefi/efiGuid";
 import type { Parser } from "@/firmware/uefi/parserState";
@@ -233,21 +234,13 @@ export function dvarCopies(store: UEFINode, reader: ImageReader): DvarCopy[] {
     if (read === undefined) continue;
     copies.push({
       node,
-      name: dvarName(read.nameId),
+      name: bareHexNumber(read.nameId),
       guid: read.namespaceGuid ?? namespaces.get(read.namespaceId),
       isCurrent: read.state === DVAR.stored,
     });
   }
   return copies;
 }
-
-/**
- * The name a variable's entry carries: its name id, in hex, as the reference shows
- * it.
- *
- * @upstream Packages/UEFIImage/Sources/UEFIImage/DvarParser.swift#DVAR.name
- */
-export const dvarName = (nameId: number): string => nameId.toString(16).toUpperCase();
 
 /**
  * The DVAR store at `offset`, or nothing when the bytes there are not one: a size
@@ -324,7 +317,7 @@ export function parseDvarStore(
       : declaresNamespace(entry)
         ? Sub.namespaceGuidDvarEntry
         : Sub.nameIdDvarEntry;
-    let name = invalid ? "Invalid" : dvarName(entry.nameId);
+    let name = invalid ? "Invalid" : bareHexNumber(entry.nameId);
     let guid = entry.namespaceGuid;
     if (subtype === Sub.nameIdDvarEntry) {
       guid = namespaces.get(entry.namespaceId);

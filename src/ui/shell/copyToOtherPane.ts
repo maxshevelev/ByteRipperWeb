@@ -1,5 +1,7 @@
 import { BYTES_PER_ROW } from "@/core/document/rowWidth";
+import { hexNumber, lastByte } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
+import { exactSizeText } from "@/core/text/statusLine";
 import { applyTransaction } from "@/state/toolEdits";
 import {
   isSlot,
@@ -67,13 +69,14 @@ export async function copySelectionToOtherPane(source: PaneId): Promise<void> {
   if (from === undefined || into === undefined) return;
   const { start, end } = from.document.selection;
   if (end > into.document.size) {
+    // The selection's last byte, and the file's size — never the first byte past either.
     reportAlert(
       name,
       L(
-        "The selection ends at %1$@, past the end of “%2$@”, which ends at %3$@. Nothing was copied.",
-        hex(end),
+        "The selection runs through %1$@, past the end of “%2$@”, whose size is %3$@. Nothing was copied.",
+        hexNumber(lastByte(start, end)),
         into.name,
-        hex(into.document.size)
+        exactSizeText(into.document.size)
       )
     );
     return;
@@ -95,5 +98,3 @@ export async function copySelectionToOtherPane(source: PaneId): Promise<void> {
   await landed.typing.setSelection(start, end);
   scrollLink.scrollToOffset(target, start, BYTES_PER_ROW, { centre: true });
 }
-
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;

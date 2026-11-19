@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L, LocalizedText } from "@/core/localization/localization";
 
 /**
@@ -180,15 +181,14 @@ export class PartRefusal extends Error {
     readonly source: number;
     readonly now: number;
   }): PartRefusal {
-    const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
     return new PartRefusal(
       LocalizedText.of("The length changed"),
       LocalizedText.of(
         "“%1$@” is %2$@ bytes in %3$@, and this part is %4$@. A part goes back only at its own length: the bytes after it in the file are not this part's to move.",
         options.part,
-        hex(options.source),
+        hexNumber(options.source),
         options.parent,
-        hex(options.now)
+        hexNumber(options.now)
       )
     );
   }

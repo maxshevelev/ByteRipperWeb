@@ -1,3 +1,4 @@
+import { hexExtent } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
@@ -231,8 +232,6 @@ export function topSwapName(name: string, role: TopSwapRole["kind"] | undefined)
   return role === "copy" ? L("%1$@ (Top Swap copy)", name) : name;
 }
 
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
-
 /**
  * The detail row: where the other copy is, and whether the two agree.
  *
@@ -246,12 +245,11 @@ export function topSwapDetail(
   const agreement = copiesMatch ? L("the copies match") : L("the copies differ");
   switch (role.kind) {
     case "copy":
-      return L("Copy of %1$@–%2$@; %3$@", hex(role.of.start), hex(role.of.end), agreement);
+      return L("Copy of %1$@; %2$@", hexExtent(role.of.start, role.of.end), agreement);
     case "original":
       return L(
-        "Copied at %1$@–%2$@; %3$@",
-        hex(role.copiedAt.start),
-        hex(role.copiedAt.end),
+        "Copied at %1$@; %2$@",
+        hexExtent(role.copiedAt.start, role.copiedAt.end),
         agreement
       );
   }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ByteMatchSet } from "@/core/search/byteFindContent";
 import type { SessionView } from "@/core/session/sessionView";
@@ -317,7 +318,7 @@ export function SearchResults({
                   }}
                 >
                   <span className="search-result-offset">
-                    {row.start.toString(16).toUpperCase().padStart(8, "0")}
+                    {bareHexNumber(row.start, { digits: 8 })}
                   </span>
                   <span className="search-result-hex">{row.hex}</span>
                   <span className="search-result-text">{row.text}</span>

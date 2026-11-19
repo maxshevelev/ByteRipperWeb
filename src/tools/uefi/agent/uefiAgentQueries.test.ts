@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { type Json, member } from "@/core/agent/json";
+import { hexExtent } from "@/core/hexText/hexText";
 import * as Test from "@/firmware/testing/testImage";
 import { MTM, SERIAL, STANDARD_LOG, testBlock, testLog } from "@/firmware/testing/testLenovoDMI";
 import { nvramVolume, vssStore } from "@/firmware/testing/testNvram";
@@ -137,9 +138,11 @@ describe("uefi_find", () => {
     expect(member(setup, "label")).toBe("Setup");
     const found = uefiFind(tree, args({ type: "Padding" }), context);
     const padding = (member(found, "matches") as Json[])[0];
-    expect(member(padding, "label")).toBe(
-      `${member(padding, "name")}, ${member(padding, "start")}–${member(padding, "end")}`
-    );
+    // The label is the person's: first to last byte, where `end` is the agent's, the first
+    // byte after.
+    const start = Number(member(padding, "start"));
+    const end = Number(member(padding, "end"));
+    expect(member(padding, "label")).toBe(`${member(padding, "name")}, ${hexExtent(start, end)}`);
   });
 
   it("finds by GUID and by type, and wants at least one of the three", () => {

@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { type EFIGUID, guidText } from "@/firmware/uefi/efiGuid";
@@ -76,9 +77,9 @@ export function shortText(value: NvramValue): string | undefined {
     case "number":
       return numberText(content.value);
     case "optionList":
-      return content.numbers.map((number) => hex4(number)).join(", ");
+      return content.numbers.map((number) => bareHexNumber(number, { digits: 4 })).join(", ");
     case "optionNumber":
-      return `Boot${hex4(content.number)}`;
+      return `Boot${bareHexNumber(content.number, { digits: 4 })}`;
     case "text":
       // A line break would break the row.
       return `"${[...content.text].map((one) => (one === "\n" || one === "\r" || one === "\t" ? " " : one)).join("")}"`;
@@ -110,7 +111,10 @@ export function nvramValueFields(value: NvramValue, bytes: Uint8Array): DetailFi
       break;
     case "optionList":
       fields.push(
-        field(L("Value"), content.numbers.map((number) => `Boot${hex4(number)}`).join(", "))
+        field(
+          L("Value"),
+          content.numbers.map((number) => `Boot${bareHexNumber(number, { digits: 4 })}`).join(", ")
+        )
       );
       break;
     case "text":
@@ -184,7 +188,7 @@ export function nvramSignaturesTable(value: NvramValue): DetailTable | undefined
  * @upstream Modules/UEFITool/Sources/UEFITool/NvramValueText.swift#NvramValueText.numberText
  */
 export function numberText(number: bigint): string {
-  return number < 10n ? `${number}` : `${number} (0x${number.toString(16).toUpperCase()})`;
+  return number < 10n ? `${number}` : `${number} (${hexNumber(number)})`;
 }
 
 /**
@@ -262,7 +266,7 @@ function loadOptionBits(attributes: number): string {
   if ((attributes & 0x2) !== 0) words.push("ForceReconnect");
   if ((attributes & 0x8) !== 0) words.push("Hidden");
   if ((attributes & 0x1f00) === 0x100) words.push("App");
-  const text = `0x${attributes.toString(16).toUpperCase()}`;
+  const text = hexNumber(attributes);
   return words.length === 0 ? text : `${text} (${words.join(", ")})`;
 }
 
@@ -273,13 +277,11 @@ function loadOptionBits(attributes: number): string {
  */
 export function hexBytes(bytes: Uint8Array): string {
   const shown = [...bytes.subarray(0, DETAIL_BYTE_LIMIT)]
-    .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
+    .map((byte) => bareHexNumber(byte, { digits: 2 }))
     .join(" ");
   if (bytes.length <= DETAIL_BYTE_LIMIT) return shown;
   return L("%1$@ … (%2$@ bytes in all)", shown, `${bytes.length}`);
 }
-
-const hex4 = (number: number): string => number.toString(16).toUpperCase().padStart(4, "0");
 
 /**
  * The longest value a variable's row reads: a signature database is the longest

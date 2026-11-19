@@ -23,10 +23,11 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import { type Json, jsonText } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { AgentBridge } from "@/platform/desktop/agentBridge";
 import type { OpenedFile } from "@/platform/files/openedFile";
 import type { AgentDesk, AgentPlace } from "@/state/agent/agentDesk";
-import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { recordJump } from "@/state/navigationStore";
 import { PANE_IDS } from "@/state/paneId";
@@ -107,10 +108,10 @@ export class AgentDumpTools {
     const stat = await this.stat(path);
     const onScreen = this.desk.onScreenPlaceOf(path, stat);
     if (onScreen !== undefined) {
-      return { document: onScreen.id, on_screen: true, size: hexText(onScreen.document.size) };
+      return { document: onScreen.id, on_screen: true, size: hexNumber(onScreen.document.size) };
     }
     const entry = await this.desk.background.open(path);
-    return { document: entry.id, on_screen: false, size: hexText(entry.size) };
+    return { document: entry.id, on_screen: false, size: hexNumber(entry.size) };
   }
 
   private closeDumpTool(): AgentTool {
@@ -168,6 +169,7 @@ export class AgentDumpTools {
     const place = this.desk.placeNamed(args.string("document"));
     const offset = args.optionalOffset("offset") ?? 0;
     const length = args.optionalOffset("length") ?? 0;
+    const asked = AgentArguments.range(offset, length);
     let onScreen: AgentPlace;
     let replaced: string | undefined;
     if (place.isOnScreen) {
@@ -187,9 +189,9 @@ export class AgentDumpTools {
     }
     const size = onScreen.document.size;
     if (offset > size) {
-      throw new AgentToolError(`Offset ${hexText(offset)} is past the end of ${onScreen.named}.`);
+      throw new AgentToolError(`Offset ${hexNumber(offset)} is past the end of ${onScreen.named}.`);
     }
-    const end = Math.min(offset + length, size);
+    const end = Math.min(asked[1], size);
     const pane = onScreen.onScreen();
     agentShell.bringForward?.(pane);
     recordJump(pane);
@@ -217,7 +219,7 @@ export class AgentDumpTools {
     if (held === undefined) throw new AgentToolError(`${place.named} has no file.`);
     const size = place.document.size;
     if (offset > size) {
-      throw new AgentToolError(`Offset ${hexText(offset)} is past the end of ${place.named}.`);
+      throw new AgentToolError(`Offset ${hexNumber(offset)} is past the end of ${place.named}.`);
     }
     const end = Math.min(offset + length, size);
     // The window it opens in is found by what it says it holds, which only the shell's windows say.

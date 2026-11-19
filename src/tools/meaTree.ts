@@ -1,4 +1,5 @@
 import { type HelpTermId, termId } from "@/core/help/helpIds";
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L, localized } from "@/core/localization/localization";
 import { cpuStrapMapForME, mipStrapMapForME } from "@/firmware/me/configuration/layoutMaps";
 import { uepMapForME } from "@/firmware/me/configuration/uepMap";
@@ -30,12 +31,7 @@ import {
   dateText,
   familyText,
   firmwareVersionText,
-  hex,
-  hex16,
-  hex32,
-  hexByte,
   manifestFormatText,
-  offsetText,
   plainVersion,
   rangeText,
   rangeValue,
@@ -206,6 +202,12 @@ interface Draft {
   readonly marks?: ToolRowMarks;
   readonly helpTerm?: HelpTermId;
 }
+
+/**
+ * A 32-bit field — a region's flags, a CRC — written as one: its eight digits, and a value a
+ * signed read made negative as the word it was read from.
+ */
+const WORD = { digits: 8, width: 32 } as const;
 
 /** @upstream Packages/MEPresentation/Sources/MEPresentation/MEANode.swift#MEAField.init */
 const field = (
@@ -445,9 +447,9 @@ function regions(a: FirmwareAnalysis): Draft | undefined {
       range: rangeValue(region.offset, region.size),
       fields: new Fields()
         .add("Name", region.name, true)
-        .add("Offset", offsetText(region.offset))
+        .add("Offset", hexNumber(region.offset))
         .add(L("Size"), sizeText(region.size))
-        .add(L("Flags"), hex32(region.flags)).rows,
+        .add(L("Flags"), hexNumber(region.flags, WORD)).rows,
       isEmptySection: region.size === 0,
     })
   );
@@ -469,7 +471,7 @@ function cseLayout(a: FirmwareAnalysis): Draft | undefined {
       range: p.empty ? undefined : rangeValue(p.offset, p.size),
       fields: new Fields()
         .add("Name", p.name, true)
-        .add("Offset", offsetText(p.offset))
+        .add("Offset", hexNumber(p.offset))
         .add(L("Size"), sizeText(p.size))
         .add(L("Empty"), yesNo(p.empty)).rows,
       // The layout's own flag: a slot with no offset or size, or erased content.
@@ -481,8 +483,8 @@ function cseLayout(a: FirmwareAnalysis): Draft | undefined {
     helpTerm: termId("cse-layout-table"),
     subtitle: countText(table.partitions.length, "partition"),
     fields: new Fields()
-      .add("Offset", offsetText(table.offset))
-      .add(L("Version"), hex(table.version))
+      .add("Offset", hexNumber(table.offset))
+      .add(L("Version"), hexNumber(table.version))
       .add("Redundancy", yesNo(table.redundancy))
       .add(
         "Checksum Valid",
@@ -498,7 +500,7 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
   if (tables === undefined || tables.length === 0) return undefined;
   const rows = tables.map((bpdt): Draft => {
     const header = new Fields()
-      .add("Offset", offsetText(bpdt.offset))
+      .add("Offset", hexNumber(bpdt.offset))
       .add("Boot Slot", bpdt.partitionName)
       .add(L("Version"), `IFWI ${bpdt.version === 2 ? "1.7" : "1.6"}`)
       .add("Redundancy", yesNo(bpdt.redundancy))
@@ -520,8 +522,8 @@ function bootPartitions(a: FirmwareAnalysis): Draft | undefined {
         range: e.empty ? undefined : rangeValue(e.offset, e.size),
         fields: new Fields()
           .add("Name", e.name, true)
-          .add(L("Type"), hex16(e.type))
-          .add("Offset", offsetText(e.offset))
+          .add(L("Type"), hexNumber(e.type, { digits: 4 }))
+          .add("Offset", hexNumber(e.offset))
           .add(L("Size"), sizeText(e.size))
           .add(L("Empty"), yesNo(e.empty)).rows,
         isEmptySection: e.empty,
@@ -548,9 +550,9 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
   if (cp === undefined) return undefined;
   const header = new Fields()
     .add("Name", cp.name)
-    .add("Offset", offsetText(cp.offset))
+    .add("Offset", hexNumber(cp.offset))
     .add(L("Header"), `R${cp.headerVersion}`)
-    .add("Header Length", hex(cp.headerLength))
+    .add("Header Length", hexNumber(cp.headerLength))
     .add("Declared Modules", cp.numModules)
     .add("Decoded Modules", cp.modules.length)
     .add("Checksum Valid", cp.checksumValid === undefined ? undefined : yesNo(cp.checksumValid));
@@ -567,7 +569,7 @@ function codePartition(a: FirmwareAnalysis): Draft | undefined {
         fields: new Fields()
           .add("Name", m.name)
           // Module offsets are absolute in this model; upstream's count from the $CPD.
-          .add("Offset in $CPD", offsetText(m.offset - cp.offset))
+          .add("Offset in $CPD", hexNumber(m.offset - cp.offset))
           .add(L("Size"), sizeText(m.size))
           .add("Huffman", yesNo(m.isHuffman)).rows,
         isEmptySection: m.size === 0,
@@ -646,13 +648,13 @@ const wrapped = (rows: readonly unknown[] | undefined) =>
 
 function extensionRow(ext: CPDExtension): Draft {
   const fields = new Fields()
-    .add("Tag", hexByte(ext.tag))
-    .add("Offset", offsetText(ext.offset))
+    .add("Tag", hexNumber(ext.tag, { digits: 2 }))
+    .add("Offset", hexNumber(ext.offset))
     .add(L("Size"), sizeText(ext.size)).rows;
   const payload = payloadOf(ext);
   if (payload !== undefined) fields.push(...valueFields(payload));
   return {
-    title: EXTENSION_NAMES()[ext.tag] ?? `CSE_Ext ${hexByte(ext.tag)}`,
+    title: EXTENSION_NAMES()[ext.tag] ?? `CSE_Ext ${hexNumber(ext.tag, { digits: 2 })}`,
     subtitle: rangeText(ext.offset, ext.size),
     range: rangeValue(ext.offset, ext.size),
     fields,
@@ -670,7 +672,7 @@ function manifest(a: FirmwareAnalysis): Draft | undefined {
     fields: new Fields()
       .add("Tag", m.tag)
       .add("Format", manifestFormatText(m.format))
-      .add("Offset", offsetText(m.offset))
+      .add("Offset", hexNumber(m.offset))
       .add(L("Version"), plainVersion(m.major, m.minor, m.hotfix, m.build))
       .add("SVN", m.svn)
       .add(L("Date"), dateText(m.year, m.month, m.day))
@@ -695,7 +697,7 @@ function mfsVolume(
   const vol = a.mfsVolume;
   if (vol === undefined) return undefined;
   const header = new Fields()
-    .add("Offset", offsetText(vol.offset))
+    .add("Offset", hexNumber(vol.offset))
     .add("Page Size", sizeText(vol.pageSize))
     .add("Page Count", vol.pageCount)
     .add("System / Data Pages", `${vol.systemPageCount} / ${vol.dataPageCount}`)
@@ -706,8 +708,8 @@ function mfsVolume(
     .add("Used Records", vol.usedFileCount)
     .add("Present Files", vol.presentFileCount)
     .add("File Bytes", sizeText(vol.fileBytes))
-    .add("FTBL Dictionary", hex(vol.ftblDictionary))
-    .add("FTBL Platform", hex(vol.ftblPlatform))
+    .add("FTBL Dictionary", hexNumber(vol.ftblDictionary))
+    .add("FTBL Platform", hexNumber(vol.ftblPlatform))
     .add("Uses FileTable.dat", yesNo(vol.usesFTBL))
     // Where the names on the file rows came from — and whether either half of
     // the table was assumed rather than named by the volume. Only when a lookup
@@ -746,7 +748,7 @@ function mfsVolume(
       title: L("Home Directory"),
       subtitle: countText(home.entries.length, "entry"),
       fields: new Fields()
-        .add("Record Size", hex(home.homeRecordSize))
+        .add("Record Size", hexNumber(home.homeRecordSize))
         .add("Root Records", home.rootRecordCount).rows,
       children: home.entries.map(homeRow),
     });
@@ -797,8 +799,8 @@ function mfsFileRow(file: MFSFile, names: MFSFileNames): Draft {
       .add(L("Integrity"), yesNo(record.integrity))
       .add("Encryption", yesNo(record.encryption))
       .add("Anti-Replay", yesNo(record.antiReplay))
-      .add("Group ID", hex(record.groupID))
-      .add("User ID", hex(record.userID));
+      .add("Group ID", hexNumber(record.groupID))
+      .add("User ID", hexNumber(record.userID));
   }
   // The table that came off the end, as its own row under the file: it is a
   // structure with a dozen fields of its own, and the file's own facts would be
@@ -940,8 +942,8 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
   const format = backup.format === "r1" ? "R1" : "R0";
   const fields = new Fields()
     .add("Format", format)
-    .add("Offset", offsetText(backup.offset))
-    .add("Header CRC", hex32(backup.headerCRCStored))
+    .add("Offset", hexNumber(backup.offset))
+    .add("Header CRC", hexNumber(backup.headerCRCStored, WORD))
     .add("Header CRC Valid", yesNo(backup.headerCRCValid))
     .add(
       "Reserved All 0xFF",
@@ -969,13 +971,13 @@ function backupGroup(a: FirmwareAnalysis): Draft | undefined {
       fields: new Fields()
         .add("File Index", entry.fileIndex)
         .add(L("File"), name ?? `Low-level file ${entry.fileIndex}`)
-        .add("Blob Offset", offsetText(entry.blobOffset))
+        .add("Blob Offset", hexNumber(entry.blobOffset))
         .add("Blob Size", sizeText(entry.blobSize))
         .add("Data Size", sizeText(entry.dataSize))
         .add("Revision Valid", yesNo(entry.revisionValid))
-        .add("Header CRC", hex32(entry.headerCRCStored))
+        .add("Header CRC", hexNumber(entry.headerCRCStored, WORD))
         .add("Header CRC Valid", yesNo(entry.headerCRCValid))
-        .add("Data CRC", hex32(entry.dataCRCStored))
+        .add("Data CRC", hexNumber(entry.dataCRCStored, WORD))
         .add("Data CRC Valid", yesNo(entry.dataCRCValid)).rows,
     };
   });
@@ -1008,7 +1010,7 @@ function efsGroup(a: FirmwareAnalysis, names: EFSFileNames): Draft | undefined {
   return {
     title: L("EFS Volume"),
     helpTerm: termId("efs"),
-    subtitle: offsetText(efs.offset),
+    subtitle: hexNumber(efs.offset),
     fields,
     children,
   };
@@ -1032,8 +1034,8 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
     fields.add("Stored Size", sizeText(file.storedSize));
   }
   fields
-    .add("Data Offset", hex(file.dataOffset))
-    .add("Metadata Unknown", hex(file.metadataUnknown));
+    .add("Data Offset", hexNumber(file.dataOffset))
+    .add("Metadata Unknown", hexNumber(file.metadataUnknown));
   const record = names.record(file.fileID);
   if (record !== undefined) {
     fields
@@ -1042,8 +1044,8 @@ function efsFileRow(file: EFSFile, names: EFSFileNames): Draft {
       .add(L("Integrity"), yesNo(record.integrity))
       .add("Encryption", yesNo(record.encryption))
       .add("Anti-Replay", yesNo(record.antiReplay))
-      .add("Group ID", hex(record.groupID))
-      .add("User ID", hex(record.userID));
+      .add("Group ID", hexNumber(record.groupID))
+      .add("User ID", hexNumber(record.userID));
   }
   const children: Draft[] = [];
   if (file.integrity !== undefined) {
@@ -1111,7 +1113,7 @@ function oemGroup(
   return {
     title: L("OEM Configuration"),
     helpTerm: termId("oem-config"),
-    subtitle: offsetText(oem.offset),
+    subtitle: hexNumber(oem.offset),
     fields,
     children,
   };
@@ -1134,11 +1136,11 @@ function unlockTokenGroups(a: FirmwareAnalysis): Draft[] {
     (token): Draft => ({
       title: tokens.length === 1 ? "Unlock Token" : `Unlock Token (${token.partition})`,
       helpTerm: termId("utok"),
-      subtitle: offsetText(token.offset),
+      subtitle: hexNumber(token.offset),
       range: rangeValue(token.offset, UNLOCK_TOKEN_FLAGS_SIZE),
       fields: new Fields()
         .add("Partition", token.partition)
-        .add("Offset", offsetText(token.offset))
+        .add("Offset", hexNumber(token.offset))
         .add("Delayed Authentication Mode", delayedAuthenticationMode(token.delayedAuthMode))
         .add("Reserved", `0x${token.reservedHex}`).rows,
     })
@@ -1198,7 +1200,7 @@ function configIDRow(
   payloadOffset: number | undefined
 ): Draft {
   const path = paths.path(record.fileID);
-  const fileID = record.fileID.toString(16).toUpperCase().padStart(8, "0");
+  const fileID = bareHexNumber(record.fileID, { digits: 8 });
   return {
     title: path ?? `Record 0x${fileID}`,
     subtitle: sizeText(record.size),
@@ -1210,11 +1212,11 @@ function configIDRow(
       .add("File ID", `0x${fileID}`)
       .add("Path", path)
       .add(L("Size"), sizeText(record.size))
-      .add("Offset", hex(record.offset))
+      .add("Offset", hexNumber(record.offset))
       // Upstream's "FIT" column: an OEM `fitc.cfg` setting may override the
       // Intel `intl.cfg` one through the Flash Image Tool.
       .add("OEM Configurable", yesNo(record.oemConfigurable))
-      .add("Reserved Flags", hex(record.unknownFlags)).rows,
+      .add("Reserved Flags", hexNumber(record.unknownFlags)).rows,
     isEmptySection: record.size === 0,
   };
 }
@@ -1244,7 +1246,7 @@ function mmeGroup(a: FirmwareAnalysis): Draft | undefined {
     helpTerm: termId("mme"),
     fields: new Fields()
       .add(L("Manifest"), dir.manifestTag)
-      .add("Offset", offsetText(dir.offset))
+      .add("Offset", hexNumber(dir.offset))
       .add("Declared Modules", dir.declaredModules)
       .add("Decoded Modules", dir.modules.length).rows,
     children: dir.modules.map(
@@ -1269,7 +1271,7 @@ function oromGroup(a: FirmwareAnalysis): Draft | undefined {
   const rows = images.map(
     (image, index): Draft => ({
       title: L("Image %1$@", index + 1),
-      subtitle: offsetText(image.offset),
+      subtitle: hexNumber(image.offset),
       fields: valueFields(image),
     })
   );
@@ -1359,7 +1361,10 @@ function checksumsGroup(checksums: MEAChecksums | undefined): Draft | undefined 
   const fields = new Fields()
     .add("SHA-256", checksums.sha256, true)
     .add("SHA-384", checksums.sha384, true)
-    .add("CRC-32", checksums.crc32 === undefined ? undefined : hex32(checksums.crc32)).rows;
+    .add(
+      "CRC-32",
+      checksums.crc32 === undefined ? undefined : hexNumber(checksums.crc32, WORD)
+    ).rows;
   return fields.length === 0 ? undefined : { title: CHECKSUMS_TITLE, fields };
 }
 
@@ -1443,7 +1448,7 @@ function numberText(value: number | bigint, path: string): string {
     l.includes("deviceid") ||
     l.includes("vendorid");
   if (!isCode) return String(value);
-  return typeof value === "bigint" ? `0x${value.toString(16).toUpperCase()}` : hex(value);
+  return hexNumber(value);
 }
 
 /**
@@ -1555,7 +1560,7 @@ function cpuStrapGroup(a: FirmwareAnalysis): Draft | undefined {
     title: L("CPU straps"),
     fields: [
       field(L("Message length"), L("%1$@ words", `${straps.messageLengthWords}`)),
-      field("CRC-16", `0x${straps.crcStored.toString(16).toUpperCase().padStart(4, "0")}`),
+      field("CRC-16", hexNumber(straps.crcStored, { digits: 4 })),
       field("CRC Valid", yesNo(straps.crcValid)),
     ],
     children: straps.readings.map((reading) => {
