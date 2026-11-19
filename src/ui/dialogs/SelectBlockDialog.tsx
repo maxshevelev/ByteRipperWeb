@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { parseOffset } from "@/core/text/offsetParser";
 import { Dialog } from "@/ui/dialogs/Dialog";
@@ -36,8 +37,6 @@ export interface SelectBlockDialogProps {
  */
 type Mode = "end" | "length";
 
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
-
 /**
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController
  * @upstream ByteRipperApp/Documents/SheetControllers.swift#SelectBlockSheetController.startField
@@ -59,7 +58,7 @@ export function SelectBlockDialog({
 
   useEffect(() => {
     if (!open) return;
-    setStart(presetStart === undefined ? "0x" : hex(presetStart));
+    setStart(presetStart === undefined ? "0x" : hexNumber(presetStart));
     setEnd("0x");
     setLength("0x");
     // With the start already filled in, the length is the user's job, so that

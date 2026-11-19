@@ -253,4 +253,17 @@ describe("reveal", () => {
     expect(shown).toEqual([["a", 8, 8, false]]);
     expect((await call(service, "reveal", { offset: 0x41 })).isError).toBe(true);
   });
+
+  // A length that wraps past 2^64 is refused, never added up.
+  // @upstream ByteRipperTests/AgentServiceTests.swift#AgentServiceTests.testRevealRefusesALengthThatWraps
+  it("refuses a length that wraps", async () => {
+    const service = new AgentService(undefined);
+    open("a", ramp(0x100));
+    const refused = await call(service, "reveal", {
+      offset: "0x10",
+      length: "0xFFFFFFFFFFFFFFFF",
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toBe("`length` 0xFFFFFFFFFFFFFFFF from `offset` 0x10 runs past any file.");
+  });
 });

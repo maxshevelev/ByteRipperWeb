@@ -1,12 +1,8 @@
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type { DMIStore } from "@/firmware/uefi/dmiStore";
 import { nodeFileRange, type UEFINode, type UEFINodeKind } from "@/firmware/uefi/uefiNode";
-import {
-  detailMembers,
-  hexText,
-  nodeSummary,
-  pathNames,
-} from "@/tools/uefi/agent/uefiAgentQueries";
+import { detailMembers, nodeSummary, pathNames } from "@/tools/uefi/agent/uefiAgentQueries";
 import type { AgentTree } from "@/tools/uefi/agent/uefiAgentTree";
 
 /**
@@ -74,7 +70,7 @@ export function uefiDMI(tree: AgentTree, stores: readonly DMIStore[]): Json {
     areas.push({
       ...nodeSummary(tree, node),
       layout: dmiLayout(store.kind),
-      size: hexText(store.range.end - store.range.start),
+      size: hexNumber(store.range.end - store.range.start),
       path: pathNames(tree, node.id),
       ...detailMembers(tree.detail(node, node.id)),
     });

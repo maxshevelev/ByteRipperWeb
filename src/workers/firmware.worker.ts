@@ -2,6 +2,7 @@
 
 import { AgentArguments } from "@/core/agent/agentArguments";
 import { AgentToolError } from "@/core/agent/agentTool";
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { installCatalogue, L, withEnglish } from "@/core/localization/localization";
 import { maskedFromWire } from "@/core/search/maskedSearch";
 import { SearchCancelled } from "@/core/search/searchEngine";
@@ -159,10 +160,7 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
   const topSwap =
     backup === undefined
       ? ""
-      : ` ${L(
-          "The Top Swap backup at 0x%1$@ got the same change.",
-          backup.start.toString(16).toUpperCase()
-        )}`;
+      : ` ${L("The Top Swap backup at 0x%1$@ got the same change.", bareHexNumber(backup.start))}`;
   // Whole sentences per case, as upstream's notes are: a clause glued on in
   // English is not a clause any other language can be built from.
   let sentence: string;
@@ -172,7 +170,7 @@ function summaryOf(outcome: FITEditOutcome | FITRemovalOutcome): string {
         ? L("The microcode is out of the table.")
         : L("The microcode is out of the table, and %1$@ behind it moved up to suit.", moved);
   } else {
-    const where = `0x${outcome.range.start.toString(16).toUpperCase()}`;
+    const where = hexNumber(outcome.range.start);
     if (outcome.kind === "added") {
       sentence =
         moved === 0

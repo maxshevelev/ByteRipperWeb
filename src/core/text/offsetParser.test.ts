@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_REPRESENTABLE_SIZE } from "@/core/limits";
-import { addressString, hexString, parseOffset } from "@/core/text/offsetParser";
+import { parseOffset } from "@/core/text/offsetParser";
 
 /** Ported from `OffsetParserTests.swift`. */
 
@@ -75,21 +75,5 @@ describe("and every way it can be refused", () => {
     // is 0x20000000000000, a different offset, and reporting that as success
     // would send the caret somewhere the user never asked for.
     expect(parseOffset("0x20000000000001")).toEqual({ ok: false, reason: "outOfRange" });
-  });
-});
-
-describe("formatting", () => {
-  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/OffsetParserTests.swift#OffsetParserTests.testHexStringFormatting
-  it("writes hex the way upstream does", () => {
-    expect(hexString(0)).toBe("0");
-    expect(hexString(255)).toBe("ff");
-    expect(hexString(0xdead)).toBe("dead");
-  });
-
-  it("pads an address to the column width", () => {
-    expect(addressString(0, 8)).toBe("00000000");
-    expect(addressString(0xdead, 8)).toBe("0000DEAD");
-    // Past the column width the address grows rather than being truncated.
-    expect(addressString(0x1_0000_0000, 8)).toBe("100000000");
   });
 });

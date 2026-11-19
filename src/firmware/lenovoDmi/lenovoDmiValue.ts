@@ -1,3 +1,4 @@
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { L, LocalizedText } from "@/core/localization/localization";
 import {
   overwriting,
@@ -11,7 +12,6 @@ import {
 import type { LenovoDMIArea } from "@/firmware/lenovoDmi/lenovoDmiArea";
 import {
   bytes16,
-  hexText,
   isSMBIOS,
   keyTypeText,
   knownType,
@@ -129,7 +129,7 @@ export function isText(bytes: Uint8Array): boolean {
 
 /** @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIValue.swift#LenovoDMIValue.hex */
 export const valueHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => hexText(byte, 2, false)).join(" ");
+  Array.from(bytes, (byte) => bareHexNumber(byte, { digits: 2 })).join(" ");
 
 /**
  * A UUID in the order SMBIOS stores one: the first three fields little-endian.
@@ -141,7 +141,7 @@ export const valueHex = (bytes: Uint8Array): string =>
 export function valueUUID(bytes: Uint8Array): string {
   if (bytes.length !== 16) throw new RangeError("a UUID is 16 bytes");
   const order = [3, 2, 1, 0, 5, 4, 7, 6, 8, 9, 10, 11, 12, 13, 14, 15];
-  const digits = order.map((index) => hexText(bytes[index] ?? 0, 2, false));
+  const digits = order.map((index) => bareHexNumber(bytes[index] ?? 0, { digits: 2 }));
   return [
     digits.slice(0, 4),
     digits.slice(4, 6),
@@ -404,7 +404,7 @@ export class LenovoDMIBlockCodec implements PartCodec {
       };
     }
     return {
-      text: `XOR ${hexText(this.key, 2, false)}`,
+      text: `XOR ${bareHexNumber(this.key, { digits: 2 })}`,
       explanation: L(
         "Decoded from the file. Update in Parent encodes it again with the key in its header and recomputes the checksum."
       ),
@@ -417,6 +417,6 @@ export class LenovoDMIBlockCodec implements PartCodec {
    * @upstream Packages/LenovoDMI/Sources/LenovoDMI/LenovoDMIValue.swift#LenovoDMIBlockCodec.transform
    */
   get transform(): string | undefined {
-    return this.encodes ? `XOR ${hexText(this.key, 2, false)}` : undefined;
+    return this.encodes ? `XOR ${bareHexNumber(this.key, { digits: 2 })}` : undefined;
   }
 }

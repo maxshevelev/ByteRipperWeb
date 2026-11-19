@@ -1,3 +1,4 @@
+import { bareHexNumber } from "@/core/hexText/hexText";
 import type { FileTable, FileTableResolution } from "@/firmware/me/data/fileTable";
 
 /**
@@ -109,7 +110,7 @@ export class ConfigRecordPaths {
     const path = this.paths.get(fileID);
     if (path !== undefined) return path;
     if (this.resolution === undefined) return undefined;
-    return `/Unknown/${fileID.toString(16).toUpperCase().padStart(8, "0")}.bin`;
+    return `/Unknown/${bareHexNumber(fileID, { digits: 8 })}.bin`;
   }
 
   /**
@@ -143,5 +144,5 @@ export class ConfigRecordPaths {
 
 /** Two upper-case hex digits — the form the file keys platform and dictionary by. */
 function hexByte(value: number): string {
-  return value.toString(16).toUpperCase().padStart(2, "0");
+  return bareHexNumber(value, { digits: 2 });
 }

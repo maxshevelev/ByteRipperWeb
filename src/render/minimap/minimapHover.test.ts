@@ -178,8 +178,8 @@ describe("hovering the segment strip (§19.4.4)", () => {
     const text = segmentStripHoverText({ strip, cuts, pieces: piecesOf([]), x, y: yOf(96) });
     expect(text).toContain("S1");
     expect(text).toContain("0x40");
-    // First to last byte: S1 = [64, 128) → 0x40…0x7F.
-    expect(text).toContain("0x7F");
+    // First to last byte: S1 = [64, 128) → 0x40–0x7F.
+    expect(text).toContain("0x40–0x7F");
     expect(text).toContain("64");
     // A renamed piece is drawn with its new name, and the hover reads it.
     const named = segmentStripHoverText({

@@ -124,9 +124,9 @@
 "Append File…" = "Datei anhängen…";
 "Apply" = "Anwenden";
 "Ask before edits that shift the file" = "Vor Änderungen fragen, die die Datei verschieben";
-"Copied at %1$@–%2$@; %3$@" = "Kopie bei %1$@–%2$@; %3$@";
+"Copied at %1$@; %2$@" = "Kopie im Bereich %1$@; %2$@";
 "Copy of" = "Kopie des Abbilds bei";
-"Copy of %1$@–%2$@; %3$@" = "Kopie des Blocks %1$@–%2$@; %3$@";
+"Copy of %1$@; %2$@" = "Kopie des Blocks %1$@; %2$@";
 "Could not add the microcode" = "Microcode konnte nicht hinzugefügt werden";
 "Could not remove the microcode" = "Microcode konnte nicht entfernt werden";
 "Could not replace the microcode" = "Microcode konnte nicht ersetzt werden";
@@ -955,7 +955,7 @@
 "The reserved byte is %1$@, and should be zero" = "Das reservierte Byte ist %1$@ und sollte null sein";
 "the rest of the file" = "der Rest der Datei";
 "The section does not decompress." = "Die Section lässt sich nicht entpacken.";
-"The selection ends at %1$@, past the end of “%2$@”, which ends at %3$@. Nothing was copied." = "Die Auswahl reicht bis %1$@, „%2$@“ endet aber bei %3$@. Es wurde nichts kopiert.";
+"The selection runs through %1$@, past the end of “%2$@”, whose size is %3$@. Nothing was copied." = "Die Auswahl reicht bis einschließlich %1$@ und damit über das Ende von „%2$@“ hinaus; die Größe beträgt %3$@. Es wurde nichts kopiert.";
 "The shared library changed while you were answering — %1$@ to look at again" = "Die gemeinsame Bibliothek hat sich während Ihrer Antwort geändert — %1$@ erneut anzusehen";
 "The table checksum is %1$@, and should be %2$@" = "Die Prüfsumme der Tabelle ist %1$@ und sollte %2$@ sein";
 "The table has no empty slot, and the sixteen bytes after it are not free — they are %1$@." = "Die Tabelle hat keinen leeren Slot, und die sechzehn Bytes dahinter sind nicht frei — sie sind %1$@.";
@@ -978,7 +978,7 @@
 "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another folder." = "Dieser Dump hat Segmente aus %1$@, und ein Schreiben dorthin würde die Dateien ersetzen, gegen die diese Segmente gemessen werden. Wählen Sie einen anderen Ordner.";
 "This dump has segments that came from %1$@, and writing there would replace the files those segments are measured against. Choose another name." = "Dieser Dump hat Segmente aus %1$@, und ein Schreiben dorthin würde die Dateien ersetzen, gegen die diese Segmente gemessen werden. Wählen Sie einen anderen Namen.";
 "this entry, or what it points at, is not the same as in the top block" = "dieser Eintrag oder das, worauf er zeigt, ist im oberen Block nicht derselbe";
-"This image keeps a Top Swap backup of the boot block at 0x%1$@–0x%2$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed." = "Dieses Image führt eine Top-Swap-Sicherung des Bootblocks bei 0x%1$@–0x%2$@, und sie ist nicht dieselbe wie der Block, in dem die FIT liegt; die Änderung lässt sich daher nicht in beiden vornehmen. Es wurde nichts geändert.";
+"This image keeps a Top Swap backup of the boot block at %1$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed." = "Dieses Image führt eine Top-Swap-Sicherung des Bootblocks im Bereich %1$@, und sie ist nicht dieselbe wie der Block, in dem die FIT liegt; die Änderung lässt sich daher nicht in beiden vornehmen. Es wurde nichts geändert.";
 "Those bytes could not be read." = "Diese Bytes ließen sich nicht lesen.";
 "To Beginning" = "An den Anfang";
 "To End" = "Ans Ende";
@@ -1047,7 +1047,7 @@
 "%1$@ bytes differ" = "%1$@ Bytes abweichend";
 "%1$@ bytes written in %2$@ parts." = "%1$@ Bytes in %2$@ Bereichen geschrieben.";
 "%1$@ of %2$@ parts identical. To write: %3$@ parts, %4$@ bytes. Kept as they are: %5$@." = "%1$@ von %2$@ Bereichen identisch. Zu schreiben: %3$@ Bereiche, %4$@ Bytes. Unverändert bleiben: %5$@.";
-"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@–%5$@." = "%1$@: Update für AMI BIOS Guard, Plattform %2$@, %3$@ Blöcke. BIOS-Region dieses Dumps: %4$@–%5$@.";
+"%1$@: AMI BIOS Guard update for %2$@, %3$@ blocks. BIOS region of this dump: %4$@." = "%1$@: Update für AMI BIOS Guard, Plattform %2$@, %3$@ Blöcke. BIOS-Region dieses Dumps: %4$@.";
 "Block %1$@ of the update file does not read as a block." = "Block %1$@ der Update-Datei lässt sich nicht als Block lesen.";
 "Board data; %1$@ bytes differ" = "Platinendaten; %1$@ Bytes abweichend";
 "Board data; empty in the update" = "Platinendaten; im Update leer";

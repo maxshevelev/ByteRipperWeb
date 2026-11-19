@@ -1,3 +1,4 @@
+import { bareHexNumber, hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
 import { FIT, FIT_ENTRY_SIZE } from "@/firmware/fit/fitEntry";
@@ -147,7 +148,7 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
     case "theRunCannotGrow":
       return L(
         "The microcode run needs 0x%1$@ more bytes than are free after it, in %2$@.",
-        problem.needed.toString(16).toUpperCase(),
+        bareHexNumber(problem.needed),
         problem.inside
       );
     case "cannotRemoveTheHeader":
@@ -163,19 +164,18 @@ export function fitEditProblemMessage(problem: FITEditProblem): string {
     case "insideProtectedRange":
       return L(
         "The change writes at 0x%1$@ inside a %2$@: the processor checks it before the firmware runs, and with Boot Guard enforced the platform would not start. Nothing was changed.",
-        problem.at.toString(16).toUpperCase(),
+        bareHexNumber(problem.at),
         problem.name
       );
     case "topSwapCopiesDiffer":
       return L(
-        "This image keeps a Top Swap backup of the boot block at 0x%1$@–0x%2$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed.",
-        problem.backup.start.toString(16).toUpperCase(),
-        problem.backup.end.toString(16).toUpperCase()
+        "This image keeps a Top Swap backup of the boot block at %1$@, and it is not the same as the block the FIT is in, so the change cannot be made in both. Nothing was changed.",
+        hexExtent(problem.backup.start, problem.backup.end)
       );
     case "topSwapWriteCrossesTheBlocks":
       return L(
         "The change writes at 0x%1$@ across a Top Swap block boundary, where it cannot be made in both copies. Nothing was changed.",
-        problem.at.toString(16).toUpperCase()
+        bareHexNumber(problem.at)
       );
     case "alreadyInTheTable":
       return L(
@@ -639,7 +639,7 @@ function checkingProtection<Outcome extends { protectionWarnings?: readonly stri
     }
     const warning = L(
       "It writes at 0x%1$@ inside a %2$@: the hash the firmware checks it against no longer matches.",
-      at.toString(16).toUpperCase(),
+      bareHexNumber(at),
       protectedRangeKindName(range.kind)
     );
     if (!warnings.includes(warning)) warnings.push(warning);
@@ -978,8 +978,8 @@ function roomAfterTheTable(
   const whatIsThere = () => ({
     free: false as const,
     what: `${[...bytes.subarray(0, 4)]
-      .map((byte) => byte.toString(16).toUpperCase().padStart(2, "0"))
-      .join(" ")}… at 0x${end.toString(16).toUpperCase()}`,
+      .map((byte) => bareHexNumber(byte, { digits: 2 }))
+      .join(" ")}… at ${hexNumber(end)}`,
   });
 
   // Whose are they? Bytes in the same element as the table are nobody else's —
@@ -998,7 +998,7 @@ function roomAfterTheTable(
   if (!SPARE_KINDS.has(theirs.kind) && !sameElement) {
     return {
       free: false,
-      what: `inside ${theirs.name} at 0x${nodeRange(theirs).start.toString(16).toUpperCase()}`,
+      what: `inside ${theirs.name} at ${hexNumber(nodeRange(theirs).start)}`,
     };
   }
   // Filler to the end of whatever holds it, whatever byte the tool that built
@@ -1117,9 +1117,7 @@ function relayRun(
 
   let growth: Relayout["growth"];
   if (next > oldEnd) {
-    const where =
-      `${area.name} at 0x${area.range.start.toString(16).toUpperCase()}` +
-      `–0x${area.range.end.toString(16).toUpperCase()}`;
+    const where = `${area.name} at ${hexExtent(area.range.start, area.range.end)}`;
     if (next > reader.count || !isFree({ start: oldEnd, end: next }, area.range.end, reader)) {
       return {
         ok: false,

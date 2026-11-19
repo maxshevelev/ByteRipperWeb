@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ProcessorTables } from "@/firmware/intelCpuid/processorTables";
 import {
@@ -133,8 +134,7 @@ export function actionTitle(
 export const releaseText = (entry: MicrocodeCatalogueEntry): string =>
   entry.isProduction ? L("PRD") : "pre-release";
 
-export const sizeText = (entry: MicrocodeCatalogueEntry): string =>
-  `0x${entry.size.toString(16).toUpperCase()}`;
+export const sizeText = (entry: MicrocodeCatalogueEntry): string => hexNumber(entry.size);
 
 /**
  * The CPUIDs a table's microcode rows name: every processor a microcode serves,

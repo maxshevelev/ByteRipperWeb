@@ -1,3 +1,4 @@
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { L, LocalizedText } from "@/core/localization/localization";
 import { friendlySize } from "@/core/text/byteSize";
 import { sourceOver } from "@/firmware/byteSource";
@@ -384,7 +385,7 @@ function protectionWarnings(
       throw new Refusal(
         LocalizedText.of(
           "The change writes at 0x%1$@ inside “%2$@”, part of the Boot Guard IBB: the processor checks it before the firmware runs, and an edit there stops the platform starting. Nothing was changed.",
-          hex(Math.max(hit.start, range.range.start)),
+          bareHexNumber(Math.max(hit.start, range.range.start)),
           range.name
         )
       );
@@ -653,8 +654,8 @@ class Context {
           LocalizedText.of(
             "“%1$@” would inflate to 0x%2$@ bytes, and the BIOS directory gives 0x%3$@. The directory is not rewritten, so the image has to keep its size.",
             section.name,
-            hex(newSpace.length),
-            hex(original.length)
+            bareHexNumber(newSpace.length),
+            bareHexNumber(original.length)
           )
         );
       }
@@ -933,8 +934,8 @@ class Context {
         LocalizedText.of(
           "“%1$@” holds the Volume Top File, which has to end at the top of the address space, so it keeps its size of 0x%2$@ bytes and this one is 0x%3$@.",
           child.name,
-          hex(oldLength),
-          hex(newLength)
+          bareHexNumber(oldLength),
+          bareHexNumber(newLength)
         )
       );
     }
@@ -959,8 +960,8 @@ class Context {
             LocalizedText.of(
               "“%1$@” is 0x%2$@ bytes longer than before, and only 0x%3$@ empty bytes follow it before %4$@.",
               child.name,
-              hex(needed),
-              hex(room),
+              bareHexNumber(needed),
+              bareHexNumber(room),
               endName
             )
           );
@@ -969,8 +970,8 @@ class Context {
           LocalizedText.of(
             "“%1$@” is 0x%2$@ bytes longer than before, and only 0x%3$@ empty bytes follow it before “%4$@”, which stays where it is.",
             child.name,
-            hex(needed),
-            hex(room),
+            bareHexNumber(needed),
+            bareHexNumber(room),
             next.name
           )
         );
@@ -985,14 +986,14 @@ class Context {
         ? LocalizedText.of(
             "“%1$@” is now 0x%2$@ bytes, 0x%3$@ bytes longer, taken from the empty space after it; what follows stays where it was.",
             child.name,
-            hex(newLength),
-            hex(newLength - oldLength)
+            bareHexNumber(newLength),
+            bareHexNumber(newLength - oldLength)
           )
         : LocalizedText.of(
             "“%1$@” is now 0x%2$@ bytes, 0x%3$@ bytes shorter, given back to the empty space after it; what follows stays where it was.",
             child.name,
-            hex(newLength),
-            hex(oldLength - newLength)
+            bareHexNumber(newLength),
+            bareHexNumber(oldLength - newLength)
           );
     if (child.kind === "volume") {
       warning = LocalizedText.joined(
@@ -1054,8 +1055,8 @@ class Context {
         LocalizedText.of(
           "“%1$@” is 0x%2$@ bytes, and its header says 0x%3$@: a volume is whole blocks of its block map, and this one cannot be made to say the new length.",
           name,
-          hex(length),
-          hex(declared)
+          bareHexNumber(length),
+          bareHexNumber(declared)
         )
       );
     }
@@ -1066,8 +1067,8 @@ class Context {
       LocalizedText.of(
         "“%1$@” said it was 0x%2$@ bytes: its header now gives 0x%3$@.",
         name,
-        hex(declared),
-        hex(length)
+        bareHexNumber(declared),
+        bareHexNumber(length)
       )
     );
     return bytes;
@@ -1240,8 +1241,8 @@ class Context {
         LocalizedText.of(
           "“%1$@” has 0x%2$@ bytes free where it can take room, and the change needs 0x%3$@.",
           volume.name,
-          hex(absorbEnd - absorbStart),
-          hex(newAbsorbStart - absorbStart)
+          bareHexNumber(absorbEnd - absorbStart),
+          bareHexNumber(newAbsorbStart - absorbStart)
         )
       );
     }
@@ -1315,7 +1316,7 @@ class Context {
         LocalizedText.of(
           "“%1$@” has no room for 0x%2$@ more bytes, and its block map is not one a new size can be written into.",
           volume.name,
-          hex(needed)
+          bareHexNumber(needed)
         )
       );
     }
@@ -1325,7 +1326,7 @@ class Context {
         LocalizedText.of(
           "“%1$@” has no room for 0x%2$@ more bytes, and its size is not a whole number of its blocks.",
           volume.name,
-          hex(needed)
+          bareHexNumber(needed)
         )
       );
     }
@@ -1372,7 +1373,11 @@ class Context {
     // what that means for the flash map.
     if (saysSo) {
       this.warnings.push(
-        LocalizedText.of("“%1$@” grew by 0x%2$@ bytes to make room.", volume.name, hex(extra))
+        LocalizedText.of(
+          "“%1$@” grew by 0x%2$@ bytes to make room.",
+          volume.name,
+          bareHexNumber(extra)
+        )
       );
     }
     return this.rebuildVolume(bigger, child, replacement, grownBytes, space, "none");
@@ -1749,11 +1754,6 @@ const Bytes = {
 } as const;
 
 // MARK: - Bytes and ranges, the way TypeScript holds them
-
-/** @upstream Packages/UEFIImage/Sources/UEFIImage/UEFIRebuild.swift#UEFIRebuild.hex */
-function hex(value: number): string {
-  return value.toString(16).toUpperCase();
-}
 
 const sameRange = (one: ImageRange, other: ImageRange): boolean =>
   one.start === other.start && one.end === other.end;

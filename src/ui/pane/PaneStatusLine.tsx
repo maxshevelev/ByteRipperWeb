@@ -1,8 +1,8 @@
 import { Fragment, type MouseEvent, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { comparisonInfo } from "@/core/diff/comparisonSummary";
+import { hexNumber } from "@/core/hexText/hexText";
 import {
   exactSizeText,
-  hexSizeText,
   type PaneStatus,
   SEPARATOR,
   type SizeForm,
@@ -131,7 +131,7 @@ export function PaneStatusLine({
   );
 
   const exact = exactSizeText(status.fileSize);
-  const hex = hexSizeText(status.fileSize);
+  const hex = hexNumber(status.fileSize);
 
   return (
     <span className="readout-line" data-message={message === undefined ? undefined : ""} ref={line}>

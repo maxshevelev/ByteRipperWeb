@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import {
   firmwareFor,
@@ -27,8 +28,6 @@ const PLACEHOLDER_NAMES: ReadonlySet<string> = new Set([
   "non-uefi data",
   "raw",
 ]);
-
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 
 /**
  * The node after its parent — `VSS store: SetupMode` — as the Contents search results name the
@@ -94,14 +93,14 @@ export function contentRow(
     );
   }
   if (match.decodedXORKey !== undefined) {
-    codecs.push(`XOR ${match.decodedXORKey.toString(16).toUpperCase().padStart(2, "0")}`);
+    codecs.push(`XOR ${bareHexNumber(match.decodedXORKey, { digits: 2 })}`);
   }
   const inFile = match.space.length === 0;
   const address = inFile
     ? match.decodedXORKey === undefined
-      ? hex(match.range[0])
-      : L("%1$@, decoded", hex(match.range[0]))
-    : L("%1$@ in %2$@", hex(match.range[0]), named(match.section) ?? "—");
+      ? hexNumber(match.range[0])
+      : L("%1$@, decoded", hexNumber(match.range[0]))
+    : L("%1$@ in %2$@", hexNumber(match.range[0]), named(match.section) ?? "—");
   const path =
     match.node === undefined
       ? ""

@@ -19,6 +19,7 @@ import {
   READ_ONLY,
 } from "@/core/agent/agentTool";
 import { isObject, type Json } from "@/core/agent/json";
+import { halfOpenHexText, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { LenovoDMIBlockCodec } from "@/firmware/lenovoDmi/lenovoDmiValue";
 import {
@@ -35,7 +36,7 @@ import {
   noSuchDocument,
 } from "@/state/agent/agentDesk";
 import type { AgentDumpTools } from "@/state/agent/agentDumpTools";
-import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { rangeJson } from "@/state/agent/agentHostTools";
 import { agentShell } from "@/state/agent/agentShell";
 import { type Reopened, reopenFile } from "@/state/fileReopen";
 import { readyFirmware } from "@/state/firmwareReady";
@@ -116,8 +117,8 @@ export class AgentAnnotationTools {
         title,
         note,
         document: place.id,
-        offset: hexText(start),
-        length: hexText(end - start),
+        offset: hexNumber(start),
+        length: hexNumber(end - start),
       }),
       "person"
     );
@@ -221,12 +222,11 @@ export class AgentAnnotationTools {
     const offset = args.optionalOffset("offset");
     const length = args.optionalOffset("length") ?? 1;
     if (length <= 0) throw new AgentToolError("Argument `length` must be at least 1.");
+    const asked = offset === undefined ? undefined : AgentArguments.range(offset, length);
     let node = args.optionalString("node");
     // Without `node`, `offset` is in the document; with it, in the node.
-    let range: readonly [number, number] | undefined =
-      node === undefined && offset !== undefined ? [offset, offset + length] : undefined;
-    const within: readonly [number, number] | undefined =
-      node !== undefined && offset !== undefined ? [offset, offset + length] : undefined;
+    let range: readonly [number, number] | undefined = node === undefined ? asked : undefined;
+    const within: readonly [number, number] | undefined = node === undefined ? undefined : asked;
     if (node === undefined && args.has("length") && offset === undefined) {
       throw new AgentToolError("Give `offset` with `length`.");
     }
@@ -288,8 +288,8 @@ export class AgentAnnotationTools {
       size = place.document.size;
       if (range !== undefined && range[1] > size) {
         throw new AgentToolError(
-          `The range ${hexText(range[0])}–${hexText(range[1])} runs past the end of ${place.named}, ` +
-            `which is ${hexText(size)} bytes long.`
+          `The range ${halfOpenHexText(range[0], range[1])} runs past the end of ${place.named}, ` +
+            `which is ${hexNumber(size)} bytes long.`
         );
       }
       if (isPart) {
@@ -381,8 +381,8 @@ export class AgentAnnotationTools {
     }
     if (range !== undefined && size !== undefined && range[1] > size) {
       throw new AgentToolError(
-        `The range ${hexText(range[0])}–${hexText(range[1])} runs past the end of the file, ` +
-          `which is ${hexText(size)} bytes long.`
+        `The range ${halfOpenHexText(range[0], range[1])} runs past the end of the file, ` +
+          `which is ${hexNumber(size)} bytes long.`
       );
     }
     if (

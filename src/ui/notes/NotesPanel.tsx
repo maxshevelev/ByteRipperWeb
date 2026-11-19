@@ -23,6 +23,7 @@ import {
   stillSettled,
 } from "@/core/agent/annotationOrder";
 import { TOPIC, topicLink } from "@/core/help/helpIds";
+import { hexExtent } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import {
   agentAnnotationStore,
@@ -740,13 +741,7 @@ function NoteCard({
   const byAgent = annotation.author === "agent";
   // A place in decoded bytes is told in their addresses, after the badges of the codecs.
   const shown = annotation.decoded?.range ?? annotation.range;
-  const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
-  const address =
-    shown === undefined
-      ? undefined
-      : shown[1] - shown[0] <= 1
-        ? hex(shown[0])
-        : `${hex(shown[0])}–${hex(shown[1])}`;
+  const address = shown === undefined ? undefined : hexExtent(shown[0], shown[1]);
   const path = annotationPath(annotation.file);
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the list holds the keys

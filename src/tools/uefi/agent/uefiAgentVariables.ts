@@ -1,13 +1,13 @@
 import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import { isObject, type Json } from "@/core/agent/json";
+import { halfOpenHexText, hexNumber } from "@/core/hexText/hexText";
 import type { ImageReader } from "@/firmware/imageReader";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import { readNvramValue } from "@/firmware/uefi/nvramValue";
 import { variablesIn } from "@/firmware/uefi/nvramVariableHistory";
 import { nodeFileRange, nodeIdText, type UEFINode } from "@/firmware/uefi/uefiNode";
 import { readVssEntry } from "@/firmware/uefi/vssVariable";
-import { hexText } from "@/tools/uefi/agent/uefiAgentQueries";
 import { type AgentTree, allNodes, openEverything } from "@/tools/uefi/agent/uefiAgentTree";
 import { hexBytes, nvarValueAttributes, shortText } from "@/tools/uefi/nvramValueText";
 import { ownName, typeText } from "@/tools/uefi/uefiTreeDisplay";
@@ -127,8 +127,8 @@ export function variableRows(tree: AgentTree): VariableRow[] {
     const summary: { [key: string]: Json } = { id: nodeIdText(store.id), type };
     if (storeName !== type) summary.name = storeName;
     if (range !== undefined) {
-      summary.start = hexText(range.start);
-      summary.end = hexText(range.end);
+      summary.start = hexNumber(range.start);
+      summary.end = hexNumber(range.end);
     }
     for (const variable of variablesIn(store, reader)) {
       const entry = entries.get(nodeIdText(variable.entry));
@@ -196,8 +196,8 @@ function rowAnswer(row: VariableRow): { [key: string]: Json } {
   if (row.copies > 1) members.copies = row.copies;
   if (row.isDeleted) members.deleted = true;
   if (row.range !== undefined) {
-    members.start = hexText(row.range.start);
-    members.end = hexText(row.range.end);
+    members.start = hexNumber(row.range.start);
+    members.end = hexNumber(row.range.end);
   } else {
     members.in_compressed = true;
   }
@@ -328,17 +328,14 @@ export function differingRuns(
 /** @upstream Modules/UEFITool/Sources/UEFITool/UEFIAgentVariables.swift#UEFIAgentVariables.difference */
 function difference(mine: VariableRow, theirs: VariableRow): { [key: string]: Json } {
   const runs = differingRuns(mine.bytes, theirs.bytes);
-  const hex = (value: number) => hexText(value);
   const members: { [key: string]: Json } = {
     name: mine.name,
     size: mine.bytes.length,
     against_size: theirs.bytes.length,
     differing_bytes: runs.reduce((sum, run) => sum + (run.end - run.start), 0),
-    runs: runs
-      .slice(0, RUN_LIMIT)
-      .map((run) =>
-        run.end - run.start === 1 ? hex(run.start) : `${hex(run.start)}–${hex(run.end)}`
-      ),
+    // Half-open, as the protocol gives every range, and written as an interval so it is never
+    // read as the person's first–last dash.
+    runs: runs.slice(0, RUN_LIMIT).map((run) => halfOpenHexText(run.start, run.end)),
     entry: mine.entry,
     against_entry: theirs.entry,
   };

@@ -17,6 +17,7 @@ import {
   VIEW,
 } from "@/core/agent/agentTool";
 import { type Json, jsonText, member } from "@/core/agent/json";
+import { halfOpenHexText, hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { CopyPartCodec, type PartCodec } from "@/core/parts/partCodec";
 import { maskedMatches } from "@/core/search/maskedSearch";
 import type { ByteStorage } from "@/core/storage/byteStorage";
@@ -26,7 +27,7 @@ import { IMAGE_LAYOUT, sameLayout, type UEFIRootLayout } from "@/firmware/uefi/r
 import type { AgentDesk } from "@/state/agent/agentDesk";
 import type { AgentDiffTools } from "@/state/agent/agentDiffTools";
 import { placeJson } from "@/state/agent/agentDiffTools";
-import { hexText, rangeJson } from "@/state/agent/agentHostTools";
+import { rangeJson } from "@/state/agent/agentHostTools";
 import type { AgentModuleTools } from "@/state/agent/agentModuleTools";
 import { firmwareNodeOf } from "@/state/agent/agentNodeSource";
 import { readyFirmware } from "@/state/firmwareReady";
@@ -210,9 +211,20 @@ export class AgentFindTools {
     } else {
       const size = place.document.size;
       const end = args.optionalOffset("end") ?? size;
-      if (!(offset < end && end <= size)) {
+      if (size === 0) throw new AgentToolError(`${place.named} holds no bytes to search.`);
+      if (offset >= size) {
         throw new AgentToolError(
-          `The range ${hexText(offset)}–${hexText(end)} is not inside ${place.named}, which is ${hexText(size)} bytes long.`
+          `\`offset\` ${hexNumber(offset)} is past the end of ${place.named}, which is ${hexNumber(size)} bytes long.`
+        );
+      }
+      if (offset >= end) {
+        throw new AgentToolError(
+          `\`end\` ${hexNumber(end)} is not after \`offset\` ${hexNumber(offset)}: the range holds no bytes.`
+        );
+      }
+      if (end > size) {
+        throw new AgentToolError(
+          `The range ${halfOpenHexText(offset, end)} is not inside ${place.named}, which is ${hexNumber(size)} bytes long.`
         );
       }
       envelope.range = rangeJson(offset, end);
@@ -303,8 +315,8 @@ export class AgentFindTools {
       const encoding = wanted[match.pattern]?.encoding ?? "hex";
       const members: { [key: string]: Json } = {
         encoding,
-        start: hexText(match.start),
-        end: hexText(match.end),
+        start: hexNumber(match.start),
+        end: hexNumber(match.end),
       };
       if (options.context > 0) {
         const around = {
@@ -397,7 +409,7 @@ export class AgentFindTools {
         answer.part = which;
         answer.in_compressed = which === "decompressed";
         answer.source = rangeJson(plan.source[0], plan.source[1]);
-        answer.size = hexText(plan.size);
+        answer.size = hexNumber(plan.size);
         const reused = this.reusedPart(parent, plan);
         if (reused !== undefined) return this.reuse(reused, answer);
         return this.finishOpening(
@@ -436,7 +448,7 @@ export class AgentFindTools {
       answer.part = which;
       answer.in_compressed = open.space.length !== 0;
       answer.source = rangeJson(open.source[0], open.source[1]);
-      answer.size = hexText(open.range[1] - open.range[0]);
+      answer.size = hexNumber(open.range[1] - open.range[0]);
       // A LENV block opened as it is reads as XOR noise, and nothing in the answer said there was
       // a decoded way to open it.
       if (node.decodableBlock !== undefined) {
@@ -471,7 +483,7 @@ export class AgentFindTools {
     const size = place.document.size;
     if (!(length > 0 && offset < size && length <= size - offset)) {
       throw new AgentToolError(
-        `${hexText(offset)} and ${hexText(length)} bytes do not fit in ${place.named}, which is ${hexText(size)} bytes long.`
+        `${hexNumber(offset)} and ${hexNumber(length)} bytes do not fit in ${place.named}, which is ${hexNumber(size)} bytes long.`
       );
     }
     const source: [number, number] = [offset, offset + length];
@@ -483,14 +495,13 @@ export class AgentFindTools {
         ? new CopyPartCodec()
         : new UEFIPartCodec({ pane: parent, target: reading.rebuild });
     answer.source = rangeJson(source[0], source[1]);
-    answer.size = hexText(length);
-    const defaultName = `${hexText(offset)}-${hexText(source[1])}`;
-    const reused = this.reusedPart(parent, {
-      source,
-      layout: reading.layout,
-      codec,
-      name: defaultName,
-    });
+    answer.size = hexNumber(length);
+    const defaultName = hexExtent(source[0], source[1]);
+    const reused = this.reusedPart(
+      parent,
+      { source, layout: reading.layout, codec, name: defaultName },
+      true
+    );
     if (reused !== undefined) return this.reuse(reused, answer);
     return this.finishOpening(
       await openLinkedPart({
@@ -514,11 +525,15 @@ export class AgentFindTools {
    * upstream compares it: a part opened under a `name` of the agent's own is not found again by
    * it, and a call that names one opens a panel of its own.
    *
+   * A part asked for by address is also found under the name builds gave it before they wrote a
+   * range first to last (`acceptsEarlierName`); a node asked for never is.
+   *
    * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.reusedPart
    */
   private reusedPart(
     parent: PaneId,
-    plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">
+    plan: Pick<PartPlan, "source" | "layout" | "codec" | "name">,
+    acceptsEarlierName = false
   ): PartId | undefined {
     for (const part of partsLinkedTo(parent)) {
       const origin = paneState(part)?.origin;
@@ -528,7 +543,8 @@ export class AgentFindTools {
         origin.sourceRange[1] === plan.source[1] &&
         sameLayout(origin.layout, plan.layout) &&
         origin.codec.constructor === plan.codec.constructor &&
-        origin.partName === plan.name
+        (origin.partName === plan.name ||
+          (acceptsEarlierName && origin.partName === earlierDefaultName(plan.source)))
       ) {
         return part;
       }
@@ -658,7 +674,7 @@ export class AgentFindTools {
     }
     return {
       ...answer,
-      ...(answer.size === undefined ? { size: hexText(slot.document.size) } : {}),
+      ...(answer.size === undefined ? { size: hexNumber(slot.document.size) } : {}),
       document: this.desk.id(slot.document),
       name: slot.name,
       ...this.toolPanel(opened),
@@ -681,3 +697,14 @@ interface PartPlan {
 }
 
 const PART_KINDS = ["all", "body", "decompressed", "decoded"] as const;
+
+/**
+ * The name a part opened by address got before builds wrote a range first to last:
+ * `0x100-0x140`, the end exclusive. A workspace may still hold a part under it, and asking for
+ * the same bytes by address again finds that panel rather than opening a second one over them.
+ * Only by address: a node asked for is never taken for a part opened by address.
+ *
+ * @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.earlierDefaultName
+ */
+const earlierDefaultName = (source: readonly [number, number]): string =>
+  `${hexNumber(source[0])}-${hexNumber(source[1])}`;

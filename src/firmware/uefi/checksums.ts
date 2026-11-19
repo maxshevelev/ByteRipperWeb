@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 
@@ -144,17 +145,12 @@ export function checksumText(options: {
   readonly digits?: number;
 }): string {
   const digits = options.digits ?? 2;
-  const padded = hex(options.value, digits);
+  const padded = hexNumber(options.value, { digits });
   if (options.valid) return L("%1$@ (Valid)", padded);
   if (options.expected !== undefined) {
-    return L("%1$@ (Invalid), should be %2$@", padded, hex(options.expected, digits));
+    return L("%1$@ (Invalid), should be %2$@", padded, hexNumber(options.expected, { digits }));
   }
   return L("%1$@ (Invalid)", padded);
-}
-
-/** A hex value padded to a field's width — `0x0005` for four digits. */
-function hex(value: number, digits: number): string {
-  return `0x${value.toString(16).toUpperCase().padStart(digits, "0")}`;
 }
 
 /**

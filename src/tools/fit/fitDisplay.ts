@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import {
   cseSecureBootSubtypeName,
@@ -34,7 +35,7 @@ import {
   protectionOfRange,
 } from "@/firmware/uefi/protectedRanges";
 import { buildDetail, EMPTY_DETAIL, type FITRowDetail } from "@/tools/fit/fitDetail";
-import { cpuidsText, cpuidText, fitHex as hex } from "@/tools/fit/fitText";
+import { cpuidsText, cpuidText } from "@/tools/fit/fitText";
 import {
   latestOf,
   type MicrocodeCatalogueEntry,
@@ -635,7 +636,7 @@ function displayRows(
     return {
       index: row.entry.index,
       typeText: typeTextOf(row.entry),
-      addressText: isHeaderEntry(row.entry) ? "_FIT_" : hex(row.entry.address, 8),
+      addressText: isHeaderEntry(row.entry) ? "_FIT_" : hexNumber(row.entry.address, { digits: 8 }),
       sizeText: sizeTextOf(row),
       versionText: versionText(row.entry),
       targetText: targetTextOf(row),
@@ -687,7 +688,7 @@ export function detailFor(row: FITDisplayRow, problems: readonly FITProblem[]): 
 function headingOf(backup: FITBackupReading): string {
   // One whole heading per state: the tail is a clause, not a word, and
   // languages put it in their own order.
-  const place = hex(backup.block.backup.start);
+  const place = hexNumber(backup.block.backup.start);
   switch (backup.status.kind) {
     case "identical":
       return L("Top Swap backup at %1$@ · read-only · same as above", place);
@@ -730,7 +731,7 @@ function summaryOf(report: FITReport): string {
       ? L("No FIT table in this file.")
       : L(
           "No FIT table where the pointer leads. A signature sits at %1$@.",
-          report.candidates.map((one) => hex(one)).join(", ")
+          report.candidates.map((one) => hexNumber(one)).join(", ")
         );
   }
   // The count includes the header row: the panel shows the header as a row of
@@ -738,7 +739,7 @@ function summaryOf(report: FITReport): string {
   // counts, header included.
   const count = table.rows.length;
   const parts = [
-    L("FIT at %1$@", hex(table.range.start)),
+    L("FIT at %1$@", hexNumber(table.range.start)),
     count === 1 ? L("1 entry") : L("%1$@ entries", count),
   ];
   if (report.addressDiffIsAssumed) {
@@ -757,7 +758,7 @@ function summaryOf(report: FITReport): string {
   if (!table.checksumIsChecked) {
     parts.push(L("checksum unused"));
   } else if (checksumIsCorrect(table)) {
-    parts.push(L("checksum %1$@", hex(table.storedChecksum, 2)));
+    parts.push(L("checksum %1$@", hexNumber(table.storedChecksum, { digits: 2 })));
     // A wrong checksum is not restated here: it is a problem, and the list
     // below already says so in red, where it is meant to be read.
   }
@@ -779,7 +780,7 @@ function typeTextOf(entry: FITEntry): string {
 function sizeTextOf(row: FITRow): string {
   if (isHeaderEntry(row.entry)) return L("%1$@ rows", row.entry.size);
   const size = effectiveSize(row);
-  return size === undefined ? "0" : hex(size);
+  return size === undefined ? "0" : hexNumber(size);
 }
 
 /**
@@ -796,7 +797,7 @@ function targetTextOf(row: FITRow): string {
       // summary above counts what there is to look at.
       if (!isHeaderEntry(row.entry)) return "";
       const count = row.entry.size;
-      return `${count === 1 ? L("1 row") : L("%1$@ rows", count)} · ${hex(sizeInBytes(row.entry))}`;
+      return `${count === 1 ? L("1 row") : L("%1$@ rows", count)} · ${hexNumber(sizeInBytes(row.entry))}`;
     }
     case "indexIORegisters":
       return L("Index/IO registers, not an address");
@@ -810,15 +811,14 @@ function targetTextOf(row: FITRow): string {
       // platforms, as the catalogue's file names write it. The component's
       // offset is the detail's, with the entry's address and size.
       const header = target.header;
-      const platform = header.platformIDs.toString(16).toUpperCase();
       return [
-        L("r.%1$@", header.updateRevision.toString(16).toUpperCase()),
+        L("r.%1$@", bareHexNumber(header.updateRevision)),
         microcodeDate(header),
-        L("platform %1$@", platform.length < 2 ? `0${platform}` : platform),
+        L("platform %1$@", bareHexNumber(header.platformIDs, { digits: 2 })),
       ].join(" · ");
     }
     case "emptyMicrocodeSlot":
-      return `${L("empty slot")} · ${hex(target.offset)}`;
+      return `${L("empty slot")} · ${hexNumber(target.offset)}`;
     case "bytes":
       // The address leads, and the name of what is there follows it in brackets
       // — because the name arrives second. The tree names an offset only once
@@ -828,8 +828,8 @@ function targetTextOf(row: FITRow): string {
       // the name instead would move the address sideways under the reader's
       // eye.
       return target.description === undefined
-        ? hex(target.offset)
-        : `${hex(target.offset)} (${target.description})`;
+        ? hexNumber(target.offset)
+        : `${hexNumber(target.offset)} (${target.description})`;
   }
 }
 

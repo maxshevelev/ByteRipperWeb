@@ -1,3 +1,4 @@
+import { decimalNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import {
   type FITEntry,
@@ -9,7 +10,6 @@ import {
 import { effectiveSize, type FITRow } from "@/firmware/fit/fitTable";
 import { checksumText } from "@/firmware/uefi/checksums";
 import { microcodeFields } from "@/firmware/uefi/microcodeParser";
-import { fitHex as hex } from "@/tools/fit/fitText";
 
 /**
  * What the panel says about the selected row: the row's own sixteen bytes, and
@@ -93,13 +93,17 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
   const fields: FITDetailField[] = [
     {
       label: L("Type"),
-      value: `${fitTypeName(entry.type)} · ${hex(entry.type, 2)}`,
+      value: `${fitTypeName(entry.type)} · ${hexNumber(entry.type, { digits: 2 })}`,
       isProblem: false,
     },
-    { label: L("Offset", { context: "fit" }), value: hex(entry.offset, 8), isProblem: false },
+    {
+      label: L("Offset", { context: "fit" }),
+      value: hexNumber(entry.offset, { digits: 8 }),
+      isProblem: false,
+    },
     {
       label: L("Address"),
-      value: isHeaderEntry(entry) ? "_FIT_" : hex(entry.address, 8),
+      value: isHeaderEntry(entry) ? "_FIT_" : hexNumber(entry.address, { digits: 8 }),
       isProblem: false,
     },
     { label: L("Size"), value: sizeText(entry), isProblem: false },
@@ -115,7 +119,7 @@ function entryFields(entry: FITEntry, checksumShouldBe: number | undefined): FIT
     // problem.
     fields.push({
       label: L("Checksum"),
-      value: L("%1$@ (Not checked)", hex(entry.checksum, 2)),
+      value: L("%1$@ (Not checked)", hexNumber(entry.checksum, { digits: 2 })),
       isProblem: false,
     });
     return fields;
@@ -159,15 +163,23 @@ function targetFields(row: FITRow): FITDetailField[] {
       // rather than as the pointer they are shaped like.
       const one = target.descriptor;
       return [
-        { label: L("Index register"), value: hex(one.indexRegister, 4), isProblem: false },
-        { label: L("Data register"), value: hex(one.dataRegister, 4), isProblem: false },
+        {
+          label: L("Index register"),
+          value: hexNumber(one.indexRegister, { digits: 4 }),
+          isProblem: false,
+        },
+        {
+          label: L("Data register"),
+          value: hexNumber(one.dataRegister, { digits: 4 }),
+          isProblem: false,
+        },
         {
           label: L("Access width"),
           value: one.accessWidth === 1 ? L("1 byte") : L("%1$@ bytes", one.accessWidth),
           isProblem: false,
         },
         { label: L("Bit position"), value: `${one.bitPosition}`, isProblem: false },
-        { label: L("Index"), value: hex(one.index, 4), isProblem: false },
+        { label: L("Index"), value: hexNumber(one.index, { digits: 4 }), isProblem: false },
       ];
     }
     case "outsideTheImage":
@@ -183,7 +195,7 @@ function targetFields(row: FITRow): FITDetailField[] {
     case "emptyMicrocodeSlot":
       return [
         { label: L("Points at"), value: L("empty slot (FF FF FF FF)"), isProblem: false },
-        { label: L("Component"), value: hex(target.offset, 8), isProblem: false },
+        { label: L("Component"), value: hexNumber(target.offset, { digits: 8 }), isProblem: false },
       ];
     case "bytes": {
       // "Points at" only once something has read there — see `targetText`. The
@@ -192,7 +204,11 @@ function targetFields(row: FITRow): FITDetailField[] {
       if (target.description !== undefined) {
         fields.push({ label: L("Points at"), value: target.description, isProblem: false });
       }
-      fields.push({ label: L("Component"), value: hex(target.offset, 8), isProblem: false });
+      fields.push({
+        label: L("Component"),
+        value: hexNumber(target.offset, { digits: 8 }),
+        isProblem: false,
+      });
       const length = effectiveSize(row);
       if (length !== undefined)
         fields.push({ label: L("Length"), value: size(length), isProblem: false });
@@ -208,5 +224,5 @@ function targetFields(row: FITRow): FITDetailField[] {
  * is not worth two spellings — the area holds nothing, and the row says so.
  */
 function size(bytes: number): string {
-  return bytes === 0 ? L("Empty") : `${hex(bytes)} (${bytes})`;
+  return bytes === 0 ? L("Empty") : `${hexNumber(bytes)} (${decimalNumber(bytes)})`;
 }

@@ -1,6 +1,7 @@
 import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import type { AgentPage } from "@/core/agent/agentPage";
 import type { Json } from "@/core/agent/json";
+import { hexNumber } from "@/core/hexText/hexText";
 import type {
   MEFileComparison,
   MEFileGap,
@@ -14,8 +15,6 @@ import type {
  *
  * @upstream Modules/MEATool/Sources/MEATool/MEAAgentFiles.swift#MEAAgentFiles
  */
-
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
 
 export const ME_FILES_COMPARE = {
   name: "me_files_compare",
@@ -148,8 +147,8 @@ function fileJson(row: MEFileRow, extents: boolean): Json {
   }
   if (row.status === "unknown") entry.why = "Neither the bytes nor a digest to compare.";
   const sizes: { [key: string]: Json } = {};
-  if (row.a !== undefined) sizes.document = hex(row.a.contentSize);
-  if (row.b !== undefined) sizes.against = hex(row.b.contentSize);
+  if (row.a !== undefined) sizes.document = hexNumber(row.a.contentSize);
+  if (row.b !== undefined) sizes.against = hexNumber(row.b.contentSize);
   entry.size = sizes;
   if (row.differingBytes !== undefined) entry.differing_bytes = row.differingBytes;
   if (row.integrityDiffers !== undefined) entry.integrity_differs = row.integrityDiffers;
@@ -164,7 +163,7 @@ function fileJson(row: MEFileRow, extents: boolean): Json {
 }
 
 const stretches = (list: readonly { start: number; end: number }[]): Json =>
-  list.map((one): Json => ({ start: hex(one.start), end: hex(one.end) }));
+  list.map((one): Json => ({ start: hexNumber(one.start), end: hexNumber(one.end) }));
 
 /** @upstream Modules/MEATool/Sources/MEATool/MEAAgentFiles.swift#MEAAgentFiles.reason */
 export function reasonText(gap: MEFileGap): string {

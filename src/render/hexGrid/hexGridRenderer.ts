@@ -1,8 +1,8 @@
 import type { DiffBlockIndex } from "@/core/diff/diffBlock";
+import { bareHexNumber } from "@/core/hexText/hexText";
 import { type ModifiedBaseline, NO_BASELINE } from "@/core/segments/baseline";
 import type { ByteStorage } from "@/core/storage/byteStorage";
 import type { ByteDecoder } from "@/core/text/byteDecoder";
-import { addressString } from "@/core/text/offsetParser";
 import {
   addressDigitInk,
   addressSignificantFrom,
@@ -1180,7 +1180,7 @@ export class HexGridRenderer {
     if (config === undefined || atlas === undefined) return;
 
     const { layout } = config;
-    const text = addressString(rowStart, layout.offsetColumnChars);
+    const text = bareHexNumber(rowStart, { digits: layout.offsetColumnChars });
     const significant = addressSignificantFrom(text);
     const marked = this.bookmarkRows.has(rowStart);
     const outlined = marked && this.contextMenuOutlinesMark(rowStart);

@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { sourceOver } from "@/firmware/byteSource";
 import { ImageReader } from "@/firmware/imageReader";
@@ -132,8 +133,8 @@ export function problemMessage(problem: UpdateComparisonProblem): string {
     case "sizeMismatch":
       return L(
         "The update file carries a BIOS region of %1$@ bytes, and the BIOS region of this dump is %2$@ bytes. It is not an update for this board.",
-        hex(problem.update),
-        hex(problem.region)
+        hexNumber(problem.update),
+        hexNumber(problem.region)
       );
   }
   return "";
@@ -301,9 +302,6 @@ export function differences(
   }
   return { count, runs };
 }
-
-/** @upstream Modules/UEFITool/Sources/UEFITool/UEFIUpdateComparison.swift#UEFIUpdateComparison.hex */
-const hex = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
 
 /**
  * The State column.

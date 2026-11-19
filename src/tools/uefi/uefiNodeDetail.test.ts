@@ -1218,7 +1218,7 @@ describe("a flash descriptor", () => {
         strapCount: 115,
       })
     );
-    expect(value(shown, "GPR0")).toBe("0x1000 – 0x1FFFF: reads and writes refused");
+    expect(value(shown, "GPR0")).toBe("0x1000–0x1FFFF: reads and writes refused");
     expect(value(shown, "eSPI clock")).toBe("60 MHz");
   });
 
@@ -1251,7 +1251,7 @@ describe("a flash descriptor", () => {
     );
 
     const gpr0 = shown.fields.find((one) => one.label === "GPR0");
-    expect(gpr0?.value).toBe("0x1000 – 0x29BFFF: writes refused");
+    expect(gpr0?.value).toBe("0x1000–0x29BFFF: writes refused");
     expect(gpr0?.tone).toBe("caution");
     expect(value(shown, "eSPI clock")).toBe("60 MHz");
 

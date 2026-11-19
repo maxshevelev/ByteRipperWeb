@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageReader } from "@/firmware/imageReader";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
@@ -101,8 +102,8 @@ export function panasonicDMIDetail(
       const valid = panasonicRecordChecksumIsValid(record);
       return [
         cell(panasonicRecordIdText(record.id)),
-        cell(`0x${record.address.toString(16).toUpperCase().padStart(8, "0")}`),
-        cell(`0x${(record.range.end - record.range.start).toString(16).toUpperCase()}`),
+        cell(hexNumber(record.address, { digits: 8 })),
+        cell(hexNumber(record.range.end - record.range.start)),
         cell(valid ? L("OK") : L("Invalid"), valid ? "yes" : "no"),
         cell(holds(record.id)),
       ];
@@ -135,7 +136,7 @@ export function panasonicDMIRecordFields(node: UEFINode, reader: ImageReader): D
   if (header === undefined || sum === undefined) return [];
   const fields: DetailField[] = [];
   if (node.subtype !== undefined) fields.push(field(L("ID"), panasonicRecordIdText(node.subtype)));
-  fields.push(field(L("Length"), `0x${header.length.toString(16).toUpperCase()}`));
+  fields.push(field(L("Length"), hexNumber(header.length)));
   const valid = sum === 0;
   fields.push(
     field(

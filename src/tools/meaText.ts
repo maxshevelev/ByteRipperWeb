@@ -1,3 +1,4 @@
+import { decimalNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ManifestFormat } from "@/firmware/me/layout/manifest";
 import type { FirmwareFamily, FWUpdateSupport } from "@/firmware/me/models/firmwareFacts";
@@ -6,50 +7,22 @@ import type { FirmwareFamily, FWUpdateSupport } from "@/firmware/me/models/firmw
  * The one voice behind every label and value the ME panel shows — the summary,
  * the tree's second column, the detail. Ported from upstream's `MEAText`.
  *
- * Offsets are bare uppercase hex; sizes carry their decimal byte count; flags
- * and CRCs are padded to their width.
+ * Numbers are written by HexText (`@/core/hexText/hexText`): offsets as bare
+ * `0x` hex, flags and CRCs padded to their width; sizes carry their decimal
+ * byte count.
  */
 
-const upper = (value: number) => value.toString(16).toUpperCase();
 const pad = (value: number, width: number) => String(value).padStart(width, "0");
-
-/**
- * `0x`-prefixed, no padding — offsets and small counts.
- *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex
- */
-export const hex = (value: number): string => `0x${upper(value)}`;
-/**
- * Padded to one byte, e.g. an extension tag.
- *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hexByte
- */
-export const hexByte = (value: number): string => `0x${upper(value).padStart(2, "0")}`;
-/**
- * Padded to two bytes, e.g. a BPDT partition type.
- *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex16
- */
-export const hex16 = (value: number): string => `0x${upper(value).padStart(4, "0")}`;
-/**
- * Padded to four bytes, e.g. a region's flags word.
- *
- * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.hex32
- */
-export const hex32 = (value: number): string => `0x${upper(value >>> 0).padStart(8, "0")}`;
-
-/** @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.offset */
-export const offsetText = hex;
 
 /**
  * A byte count in hex and in decimal, so neither has to be worked out from the
  * other. Zero is not worth two spellings: the area holds nothing, and says so.
  *
+ * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.size
  */
 export const sizeText = (value: number): string =>
-  value === 0 ? L("Empty") : `${hex(value)} (${value} bytes)`;
+  value === 0 ? L("Empty") : `${hexNumber(value)} (${decimalNumber(value)} bytes)`;
 
 /**
  * The compact second line `0x… · 0x…` (offset · size).
@@ -57,7 +30,7 @@ export const sizeText = (value: number): string =>
  * @upstream Packages/MEPresentation/Sources/MEPresentation/MEAValueText.swift#MEAText.range
  */
 export const rangeText = (offset: number, size: number): string =>
-  `${hex(offset)} · ${size === 0 ? L("Empty") : hex(size)}`;
+  `${hexNumber(offset)} · ${size === 0 ? L("Empty") : hexNumber(size)}`;
 
 /**
  * The file range a row stands for; nothing when there are no bytes.

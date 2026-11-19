@@ -1,7 +1,7 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { LDBGLog } from "@/firmware/lenovoDmi/ldbgLog";
 import {
-  hexText,
   keyId,
   LenovoDMIFormat,
   type LenovoDMIKey,
@@ -75,8 +75,8 @@ export function findingText(finding: LenovoDMIFinding): string {
       return L(
         "LENV block %1$@: the checksum is %2$@, the body adds up to %3$@.",
         finding.block + 1,
-        hexText(finding.stored, 4),
-        hexText(finding.computed, 4)
+        hexNumber(finding.stored, { digits: 4 }),
+        hexNumber(finding.computed, { digits: 4 })
       );
     case "entriesDoNotFit":
       return L(
@@ -94,11 +94,14 @@ export function findingText(finding: LenovoDMIFinding): string {
         finding.keys.map(entryName).join(", ")
       );
     case "logWriteOffsetOutOfRange":
-      return L("The change log's write offset %1$@ is outside the log.", hexText(finding.value, 8));
+      return L(
+        "The change log's write offset %1$@ is outside the log.",
+        hexNumber(finding.value, { digits: 8 })
+      );
     case "logWriteOffsetMisaligned":
       return L(
         "The change log's write offset %1$@ does not fall on an entry boundary.",
-        hexText(finding.value, 8)
+        hexNumber(finding.value, { digits: 8 })
       );
   }
 }

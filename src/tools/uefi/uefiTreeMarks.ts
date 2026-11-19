@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import { guidEquals, guidFromText } from "@/firmware/uefi/efiGuid";
 import { AMI_HASH_FILE, PHOENIX_HASH_FILE } from "@/firmware/uefi/knownGuids";
@@ -211,12 +212,12 @@ function hashProblems(
     const namesIt = holdsList && own[0] <= range.source[0] && range.source[0] < own[1];
     if (!startsHere && !namesIt) continue;
     if (range.verdict === "mismatch") {
-      const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
+      const where = range.range === undefined ? "" : ` at ${hexNumber(range.range[0])}`;
       const text = L("%1$@%2$@ does not match its hash", range.name, where);
       if (range.isIbb) cautions.push(text);
       else errors.push(text);
     } else if (range.verdict === "unsupported") {
-      const where = range.range === undefined ? "" : ` at ${hex(range.range[0])}`;
+      const where = range.range === undefined ? "" : ` at ${hexNumber(range.range[0])}`;
       cautions.push(
         L(
           "%1$@%2$@ could not be checked: %3$@ is not computed here",
@@ -259,7 +260,7 @@ function decompressedFrom(node: WireNode, roots: readonly WireNode[]): string | 
   const outermost = node.space[0];
   if (outermost === undefined) return undefined;
   const section = sectionNamed(roots, outermost) ?? L("a compressed section");
-  const text = L("Decompressed from %1$@ at %2$@", section, hex(outermost));
+  const text = L("Decompressed from %1$@ at %2$@", section, hexNumber(outermost));
   return node.space.length > 1
     ? L("%1$@, %2$@ compressed sections deep", text, node.space.length)
     : text;
@@ -293,8 +294,6 @@ function decompressionFailure(
     );
   })?.message;
 }
-
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 
 /**
  * The checksum diagnostics about this node, since "invalid" alone leaves the

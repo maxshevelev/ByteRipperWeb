@@ -2,6 +2,7 @@ import { type AgentArguments, AgentSchema } from "@/core/agent/agentArguments";
 import { AgentPage } from "@/core/agent/agentPage";
 import { AgentToolError } from "@/core/agent/agentTool";
 import { type Json, member } from "@/core/agent/json";
+import { bareHexNumber, hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { isFileSpace } from "@/firmware/uefi/byteSpace";
 import { guidText } from "@/firmware/uefi/efiGuid";
 import {
@@ -53,8 +54,6 @@ export interface UefiAgentContext {
   readonly contentVersion: number;
 }
 
-export const hexText = (value: number): string => `0x${value.toString(16).toUpperCase()}`;
-
 /**
  * A node as a row of an answer.
  *
@@ -72,18 +71,18 @@ export function nodeSummary(tree: AgentTree, node: UEFINode): { [key: string]: J
   if (node.guid !== undefined) entry.guid = guidText(node.guid);
   const range = nodeFileRange(node);
   if (range !== undefined) {
-    entry.start = hexText(range.start);
-    entry.end = hexText(range.end);
+    entry.start = hexNumber(range.start);
+    entry.end = hexNumber(range.end);
   } else {
     entry.in_compressed = true;
     const own = nodeRange(node);
-    entry.size = hexText(own.end - own.start);
+    entry.size = hexNumber(own.end - own.start);
   }
   if (node.isExpandable && node.children.length === 0) entry.children = "unread";
   else if (node.children.length > 0) entry.children = node.children.length;
   if (node.isErased) entry.erased = true;
   const key = storedXORKey(node, parentOf(tree, node), tree.reader);
-  if (key !== undefined) entry.encoded = `XOR ${key.toString(16).toUpperCase().padStart(2, "0")}`;
+  if (key !== undefined) entry.encoded = `XOR ${bareHexNumber(key, { digits: 2 })}`;
   const outer = enclosingCompression(tree, node);
   const algorithm = node.compression?.algorithm ?? outer?.algorithm;
   if (algorithm !== undefined) entry.compressed = algorithm;
@@ -130,7 +129,7 @@ export function nodeLabel(node: UEFINode, tree: AgentTree | undefined): string {
   const name = ownName(node) ?? node.name;
   if (!isPlaceholder(name, node)) return name;
   const range = nodeFileRange(node);
-  if (range !== undefined) return `${name}, ${hexText(range.start)}–${hexText(range.end)}`;
+  if (range !== undefined) return `${name}, ${hexExtent(range.start, range.end)}`;
   // In a buffer: the nearest node above with a name of its own.
   if (tree !== undefined) {
     const path = [...node.id];
@@ -439,7 +438,7 @@ export function uefiAt(tree: AgentTree, args: AgentArguments): Json {
   const offset = args.offset("offset");
   if (offset >= tree.size) {
     throw new AgentToolError(
-      `Offset ${hexText(offset)} is past the end of the file, which is ${hexText(tree.size)} bytes long.`
+      `Offset ${hexNumber(offset)} is past the end of the file, which is ${hexNumber(tree.size)} bytes long.`
     );
   }
   // Down through whatever covers the offset, opening each branch on the way. A byte of the file inside
@@ -457,7 +456,7 @@ export function uefiAt(tree: AgentTree, args: AgentArguments): Json {
     if (node.isExpandable) tree.open(node);
     nodes = node.children;
   }
-  return { offset: hexText(offset), chain: chain.map((node) => nodeSummary(tree, node)) };
+  return { offset: hexNumber(offset), chain: chain.map((node) => nodeSummary(tree, node)) };
 }
 
 /** Runs the question a worker was asked, or fails with a sentence for the model. */

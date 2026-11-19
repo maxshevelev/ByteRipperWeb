@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type {
   MapSetting,
@@ -56,7 +57,7 @@ export function configurationValue(
   const label = layout?.options?.get(setting.number);
   if (label !== undefined) return label;
   const hex = layout?.hex ?? setting.bytes !== undefined;
-  return hex ? `0x${setting.number.toString(16).toUpperCase()}` : `${setting.number}`;
+  return hex ? hexNumber(setting.number) : `${setting.number}`;
 }
 
 /**

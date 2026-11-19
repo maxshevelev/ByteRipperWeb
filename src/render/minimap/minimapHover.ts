@@ -1,3 +1,4 @@
+import { hexExtent, hexNumber } from "@/core/hexText/hexText";
 import { segmentLabel } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
 import { hexAddress } from "@/core/text/hexText";
@@ -53,13 +54,9 @@ export interface NamedBracket extends ZoneBracketBox {
   readonly focused?: boolean | undefined;
 }
 
-/** `0xSTART…0xLAST, size`: the extent the strip's and the gutter's answers share. */
+/** `0xSTART–0xLAST, size`: the extent the strip's and the gutter's answers share. */
 function extent(start: number, end: number): string {
-  const first = start.toString(16).toUpperCase();
-  const last = Math.max(start, end - 1)
-    .toString(16)
-    .toUpperCase();
-  return `0x${first}…0x${last}, ${friendlySize(end - start)}`;
+  return `${hexExtent(start, end)}, ${friendlySize(end - start)}`;
 }
 
 /**
@@ -80,7 +77,7 @@ export function segmentStripHoverText(options: {
   const { strip, x, y } = options;
   if (strip === undefined || x < strip.x || x > strip.x + strip.width) return "";
   const cut = nearestCut(options.cuts, y);
-  if (cut !== undefined) return `0x${cut.toString(16).toUpperCase()}`;
+  if (cut !== undefined) return hexNumber(cut);
   const piece = options.pieces.find((one) => y >= one.top && y < one.top + one.height);
   if (piece === undefined) return "";
   const text = `${segmentLabel(piece.index)} — ${extent(piece.start, piece.end)}`;

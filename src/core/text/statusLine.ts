@@ -17,10 +17,10 @@
  *   what a dialog asks for; it is not the line's own spelling.
  */
 
+import { bareHexNumber, decimalNumber, hexDigitCount, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { SegmentReadout } from "@/core/segments/segmentation";
 import { friendlySize } from "@/core/text/byteSize";
-import { addressString } from "@/core/text/offsetParser";
 
 /**
  * What the bar joins its parts with — and what the size's position is measured
@@ -39,26 +39,15 @@ export const SEPARATOR = "  ·  ";
 export type SizeForm = "hex" | "decimal";
 
 /**
- * The hex half of the exact form — the address a size is written as, the way
- * the bar writes every other number.
- *
- * @upstream ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.hexSizeText
- */
-export function hexSizeText(bytes: number): string {
-  return `0x${bytes.toString(16).toUpperCase()}`;
-}
-
-/**
  * The exact size, in the form the Details view writes one: the hex address and
  * the decimal count in brackets beside it — "0x200000 (2097152 bytes)".
  *
+ * Both from HexText, whole past 4 GB.
+ *
  * @upstream ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.exactSizeText
- * @upstream-differs the decimal count is a JS number rather than a 64-bit integer, so the
- * same string comes out of `${bytes}` where upstream's format string has to be `%llu` to
- * keep a file over 2 GB off its low half
  */
 export function exactSizeText(bytes: number): string {
-  return L("%1$@ (%2$@ bytes)", hexSizeText(bytes), String(bytes));
+  return L("%1$@ (%2$@ bytes)", hexNumber(bytes), decimalNumber(bytes));
 }
 
 /**
@@ -75,7 +64,7 @@ export function exactSizeText(bytes: number): string {
  * @upstream ByteRipperApp/Pane/StatusBarLabels.swift#StatusLabel.copyText
  */
 export function sizeCopyText(bytes: number, form: SizeForm): string {
-  return form === "hex" ? bytes.toString(16).toUpperCase() : `${bytes}`;
+  return form === "hex" ? bareHexNumber(bytes) : decimalNumber(bytes);
 }
 
 /**
@@ -211,8 +200,8 @@ export function statusLine(status: PaneStatus): string {
 export function statusParts(status: PaneStatus): StatusLineParts {
   // The file's largest address: 0x400000 is six digits, so every address in the
   // bar is. An empty file has no address to measure, so one digit.
-  const width = status.fileSize > 0 ? status.fileSize.toString(16).length : 1;
-  const address = (value: number) => addressString(value, width);
+  const width = hexDigitCount(status.fileSize);
+  const address = (value: number) => bareHexNumber(value, { digits: width });
 
   const parts = [L("Offset %1$@", address(status.cursorOffset))];
   if (status.selectionLength > 0) {

@@ -1,3 +1,4 @@
+import { bareHexNumber, hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange, ImageReader } from "@/firmware/imageReader";
 import { checksumText, sum32Of } from "@/firmware/uefi/checksums";
@@ -295,10 +296,8 @@ export interface MicrocodeField {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.cpuid
  */
 export function microcodeCpuid(signature: number): string {
-  return signature.toString(16).toUpperCase();
+  return bareHexNumber(signature);
 }
-
-const hexText = (value: number) => `0x${value.toString(16).toUpperCase()}`;
 
 /**
  * The processor a signature names, the way CPUID leaf 1 is read: the family and
@@ -316,7 +315,7 @@ export function microcodeProcessorText(signature: number): string {
   const extendedFamily = (signature >>> 20) & 0xff;
   const displayFamily = family === 0xf ? family + extendedFamily : family;
   const displayModel = family === 0x6 || family === 0xf ? (extendedModel << 4) | model : model;
-  let text = `Family ${hexText(displayFamily)}, model ${hexText(displayModel)}, stepping ${hexText(stepping)}`;
+  let text = `Family ${hexNumber(displayFamily)}, model ${hexNumber(displayModel)}, stepping ${hexNumber(stepping)}`;
   if (type !== 0) text += `, type ${type}`;
   return text;
 }
@@ -348,16 +347,16 @@ export function microcodeFields(
   expectedChecksum = header.computedChecksum
 ): MicrocodeField[] {
   // `0x40 (64)`: hex for the dump, decimal for the mind.
-  const size = (value: number) => (value === 0 ? L("Empty") : `${hexText(value)} (${value})`);
+  const size = (value: number) => (value === 0 ? L("Empty") : `${hexNumber(value)} (${value})`);
   const row = (label: string, value: string, isProblem = false) => ({ label, value, isProblem });
   const fields = [
     row(L("CPUID"), microcodeCpuid(header.processorSignature)),
     row(L("Processor"), microcodeProcessorText(header.processorSignature)),
     // "Update revision", so it does not read as the same thing as a FIT entry's
     // own Version.
-    row("Update revision", hexText(header.updateRevision)),
+    row("Update revision", hexNumber(header.updateRevision)),
     row(L("Date"), microcodeDate(header)),
-    row("Platform IDs", hexText(header.platformIDs)),
+    row("Platform IDs", hexNumber(header.platformIDs)),
     row(L("Platforms"), microcodePlatformsText(header.platformIDs)),
     // Zero is not an empty update: the specification reads it as 2000 bytes, and
     // the row says so rather than "Empty".
@@ -510,8 +509,7 @@ export function microcodeRange(header: MicrocodeHeader): ImageRange {
  * @upstream Packages/UEFIImage/Sources/UEFIImage/MicrocodeParser.swift#MicrocodeHeader.date
  */
 export function microcodeDate(header: MicrocodeHeader): string {
-  const pad = (value: number, width: number) =>
-    value.toString(16).toUpperCase().padStart(width, "0");
+  const pad = (value: number, width: number) => bareHexNumber(value, { digits: width });
   return `${pad(header.year, 4)}-${pad(header.month, 2)}-${pad(header.day, 2)}`;
 }
 
@@ -620,7 +618,7 @@ export function parseMicrocode(
   }
   verifyMicrocodeChecksum(parser, offset, end);
 
-  const bare = (value: number) => value.toString(16).toUpperCase();
+  const bare = (value: number) => bareHexNumber(value);
   return makeNode({
     kind: "microcode",
     name: `Microcode ${bare(header.processorSignature)}, revision ${bare(header.updateRevision)}`,

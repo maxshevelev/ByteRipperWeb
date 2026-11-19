@@ -1,3 +1,4 @@
+import { hexNumber } from "@/core/hexText/hexText";
 import { L } from "@/core/localization/localization";
 import type { ImageRange } from "@/firmware/imageReader";
 import { microcodeCpuid } from "@/firmware/uefi/microcodeParser";
@@ -113,8 +114,6 @@ export function fitSeverity(detail: FITProblemKind): FITSeverity {
   }
 }
 
-const hex = (value: number) => `0x${value.toString(16).toUpperCase()}`;
-
 /** @upstream Modules/FITTool/Sources/FITTool/FITProblem.swift#FITProblem.message */
 export function fitProblemMessage(problem: FITProblem): string {
   const own = ownMessage(problem.detail);
@@ -126,9 +125,9 @@ function ownMessage(detail: FITProblemKind): string {
     case "imageHasNoPointer":
       return L("The image is too small to hold a FIT pointer");
     case "pointerLeadsOutsideTheImage":
-      return L("The FIT pointer, %1$@, is outside this image", hex(detail.address));
+      return L("The FIT pointer, %1$@, is outside this image", hexNumber(detail.address));
     case "noTableAtThePointer":
-      return L("No FIT signature at %1$@, where the pointer leads", hex(detail.address));
+      return L("No FIT signature at %1$@, where the pointer leads", hexNumber(detail.address));
     case "tableHasNoEntries":
       return L("The header says the table has no entries");
     case "tableRunsPastTheEnd":
@@ -137,44 +136,50 @@ function ownMessage(detail: FITProblemKind): string {
         detail.entries
       );
     case "firstEntryIsNotTheHeader":
-      return L("The first entry is type %1$@, not the header", hex(detail.type));
+      return L("The first entry is type %1$@, not the header", hexNumber(detail.type));
     case "secondHeader":
       return L("A second header entry, where there may be only one");
     case "typesOutOfOrder":
       return L(
         "Type %1$@ after type %2$@: entries must not decrease in type",
-        hex(detail.type),
-        hex(detail.previous)
+        hexNumber(detail.type),
+        hexNumber(detail.previous)
       );
     case "checksumMismatch":
       return L(
         "The table checksum is %1$@, and should be %2$@",
-        hex(detail.stored),
-        hex(detail.computed)
+        hexNumber(detail.stored),
+        hexNumber(detail.computed)
       );
     case "noMicrocodeEntry":
       return L("No microcode entry, and there must be at least one");
     case "addressOutsideTheImage":
-      return L("%1$@ is outside this image", hex(detail.address));
+      return L("%1$@ is outside this image", hexNumber(detail.address));
     case "addressNotAligned":
-      return L("%1$@ is not aligned to 16 bytes", hex(detail.address));
+      return L("%1$@ is not aligned to 16 bytes", hexNumber(detail.address));
     case "notMicrocodeAtTheAddress":
-      return L("No microcode header at %1$@, and it is not an empty slot", hex(detail.address));
+      return L(
+        "No microcode header at %1$@, and it is not an empty slot",
+        hexNumber(detail.address)
+      );
     case "reservedIsNotZero":
-      return L("The reserved byte is %1$@, and should be zero", hex(detail.value));
+      return L("The reserved byte is %1$@, and should be zero", hexNumber(detail.value));
     case "topSwapBackupHasNoTable":
       return L(
         "The Top Swap backup at %1$@ has no FIT where its pointer leads",
-        hex(detail.backupAt)
+        hexNumber(detail.backupAt)
       );
     case "topSwapTableDiffers":
-      return L("The Top Swap backup's FIT at %1$@ is not the same as this one", hex(detail.at));
+      return L(
+        "The Top Swap backup's FIT at %1$@ is not the same as this one",
+        hexNumber(detail.at)
+      );
     case "topSwapEntryDiffers":
       return L("this entry, or what it points at, is not the same as in the top block");
     case "topSwapBlockDiffers":
       return L(
         "The Top Swap backup at %1$@ holds the same FIT, but other bytes of the block differ, so microcode changes are refused until the copies agree",
-        hex(detail.backup.start)
+        hexNumber(detail.backup.start)
       );
     case "sameProcessorsAsRow":
       return L(

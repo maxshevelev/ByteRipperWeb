@@ -32,8 +32,3 @@ export function cpuidsText(signatures: readonly number[]): string {
     ? cpuidText(first)
     : `${cpuidText(first)} + ${more.map(cpuidText).join(", ")}`;
 }
-
-/** A hex value, padded to a field's width where the field has one. */
-export function fitHex(value: number, digits = 0): string {
-  return `0x${value.toString(16).toUpperCase().padStart(digits, "0")}`;
-}
