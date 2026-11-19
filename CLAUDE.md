@@ -136,6 +136,10 @@ Important rules:
   web owns; what the macOS app already has in a language is copied word for word
   (`Design/LOCALIZATION.md`, "Whose words"). The rule and its examples: "The
   tone, and why a translation is not a copy".
+- **A help page describes what the reader can do, not how the code does it**:
+  no step-by-step algorithm, no inventory of edge cases. Every sentence must be
+  something the reader needs to use the feature; exact rules go in code
+  comments and tests (`Design/HELP.md`, "Writing a page, in any language").
 
 Skills:
 - Skills live in the repo, committed under `Skills/<name>/`: `SKILL.md`

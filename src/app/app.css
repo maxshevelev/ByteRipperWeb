@@ -3820,7 +3820,7 @@ button.uefi-title {
   container-type: inline-size;
 }
 
-/* The ME Analyzer's and the FIT's details: as wide as the longest name, never
+/* Every panel's detail (`ToolDetailScroll.showRows`): as wide as the longest name, never
    narrower than the shared column, and still never more than half the list
    (`ToolFieldList.nameWidth`). A name breaks anywhere, so its least width is a
    letter's and `fit-content` is what decides: the name's whole width, up to

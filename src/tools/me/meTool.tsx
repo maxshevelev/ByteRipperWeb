@@ -957,10 +957,7 @@ function MeToolView({ context }: { readonly context: ToolContext }) {
               subject={focus}
               detail={detailOf(selected)}
               placeholder={L("Select a row to see what it is.")}
-              // The engine's field names run long (`systemHeaderCRCValid`): the column
-              // takes the longest of them, up to half the list.
               // @upstream Modules/MEATool/Sources/MEAToolUI/MEAToolViewController.swift#MEAToolViewController.renderDetail
-              names="longest"
               // Decided by the curator, with the name: this is the one place
               // that knows a row is the partition table rather than a row that
               // happens to be called "Regions (FPT)".

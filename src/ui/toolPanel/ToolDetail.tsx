@@ -63,7 +63,6 @@ export function ToolDetail({
   onFocusTable,
   after,
   largeWhenEmpty = false,
-  names,
 }: {
   /** What the rows describe — a node's path — or nothing while none is chosen. */
   readonly subject: string | undefined;
@@ -116,12 +115,6 @@ export function ToolDetail({
    * @upstream-differs upstream's pane opens the card only on a row (`showQuickLook` wants details)
    */
   readonly largeWhenEmpty?: boolean;
-  /**
-   * How wide the name column is: the shared one, or the longest name's.
-   *
-   * @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolFieldList.swift#ToolFieldList.nameWidth
-   */
-  readonly names?: NameColumn | undefined;
 }) {
   // @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.hasRows
   const hasRows = detail.fields.length > 0;
@@ -192,7 +185,7 @@ export function ToolDetail({
     []
   );
 
-  const bodyProps = { detail, placeholder, helpTerm, subject, after, names };
+  const bodyProps = { detail, placeholder, helpTerm, subject, after };
   const selecting = detailSelectionHandlers();
   return (
     // Space in the details opens the large view, and hands the focus to the table, so
@@ -372,7 +365,6 @@ function LargeDetailCard({
   helpTerm,
   subject,
   after,
-  names,
   hasRows,
   onSelectNode,
   onOutlineRange,
@@ -386,7 +378,6 @@ function LargeDetailCard({
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
   readonly after: ReactNode;
-  readonly names: NameColumn | undefined;
   readonly hasRows: boolean;
   /** The reader closed it: it is folding back into the pane, and is no longer theirs. */
   readonly closing: boolean;
@@ -643,7 +634,6 @@ function LargeDetailCard({
         helpTerm={helpTerm}
         subject={subject}
         after={after}
-        names={names}
         onSelectNode={onSelectNode}
         onOutlineRange={onOutlineRange}
       />
@@ -662,7 +652,6 @@ function DetailBody({
   helpTerm,
   subject,
   after,
-  names,
   onSelectNode,
   onOutlineRange,
 }: {
@@ -671,7 +660,6 @@ function DetailBody({
   readonly helpTerm: HelpTermId | undefined;
   readonly subject: string | undefined;
   readonly after?: ReactNode;
-  readonly names: NameColumn | undefined;
   readonly onSelectNode: ((path: readonly number[]) => void) | undefined;
   readonly onOutlineRange: ((start: number, end: number, name: string) => void) | undefined;
 }) {
@@ -719,7 +707,11 @@ function DetailBody({
               )}
             </h3>
           )}
-          <DetailFields fields={detail.fields} names={names} />
+          {/* The name column as wide as the longest name, never under the shared one and
+              never over half the list — in every panel alike, the UEFI Structure's and the
+              Agent window's included.
+              @upstream Packages/ToolModuleKit/Sources/ToolModuleKit/ToolDetailScroll.swift#ToolDetailScroll.showRows */}
+          <DetailFields fields={detail.fields} names="longest" />
           {detail.tables.map((table) => (
             <DetailTableView
               key={table.title}
@@ -742,12 +734,13 @@ function DetailBody({
 /**
  * How wide a list's name column is.
  *
- * - `default` — the list's column: the shared one the UEFI Structure's detail draws
- *   with, or one a list names (`DetailFields.nameWidth`): a name longer than it wraps.
+ * - `default` — the list's column: the shared one, or one a list names
+ *   (`DetailFields.nameWidth`), as the ME Analyzer's Summary does: a name longer
+ *   than it wraps.
  * - `longest` — as wide as the longest name in the list, and never narrower than
- *   the shared column (`ToolFieldList.nameWidth`): the ME Analyzer's and the
- *   FIT's details, whose names run long (`systemHeaderCRCValid`, a microcode
- *   header's, a translated one).
+ *   the shared column (`ToolFieldList.nameWidth`): every panel's detail
+ *   (`ToolDetailScroll.showRows`), whose names may run long
+ *   (`systemHeaderCRCValid`, a microcode header's, a translated one).
  *
  * Either way the column is one width for every row, so the values line up, and
  * never more than half the list, where a name that still does not fit wraps

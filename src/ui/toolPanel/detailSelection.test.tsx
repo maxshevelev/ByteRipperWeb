@@ -151,14 +151,14 @@ describe("the name column of a detail list", () => {
 
   // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolFieldListTests.swift#ToolFieldListTests.testAColumnIsAsWideAsItsWidestName
   // @upstream ByteRipperTests/MEAToolFlowTests.swift#MEAToolFlowTests.testTheNameColumnFitsTheLongestNameAndStopsAtHalfTheList
+  // @upstream Packages/ToolModuleKit/Tests/ToolModuleKitTests/ToolDetailScrollTests.swift#ToolDetailScrollTests.testShowRowsSizesTheNameColumnToTheLongestName
   // @upstream-differs the column is the stylesheet's, read from it rather than measured
-  it("takes the longest name where the list asks, never narrower than the shared column", () => {
+  it("takes the longest name in every panel, never narrower than the shared column", () => {
     const html = renderToStaticMarkup(
       <ToolDetail
         subject="0"
         detail={{ title: "FTPR", fields: [field("systemHeaderCRCValid", "Yes")], tables: [] }}
         placeholder="Select a row"
-        names="longest"
       />
     );
     expect(html).toContain('<dl class="tool-detail-fields" data-names="longest">');
@@ -168,10 +168,10 @@ describe("the name column of a detail list", () => {
     expect(declarations('.tool-detail-fields[data-names="longest"] dt')).toMatch(
       /min-width:\s*min\(var\(--tool-detail-name, 9\.5em\), calc\(50cqi - 3px\)\)/
     );
-    // The shared column where the list does not ask.
+    // The UEFI Structure's detail too, which kept the shared column before upstream's #39.
     expect(
       renderToStaticMarkup(<ToolDetail subject="0" detail={detail} placeholder="Select a row" />)
-    ).toContain('<dl class="tool-detail-fields">');
+    ).toContain('<dl class="tool-detail-fields" data-names="longest">');
   });
 });
 
