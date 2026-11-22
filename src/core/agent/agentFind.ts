@@ -8,10 +8,11 @@ import {
   maskedPattern,
   parseHexPattern,
 } from "@/core/search/maskedSearch";
-import type { CaseFolding } from "@/core/search/searchPattern";
+import { type CaseFolding, parsePattern } from "@/core/search/searchPattern";
 
 /**
- * What `find_bytes` looks for: a text as ASCII, as UTF-16LE or both, or a hex pattern with holes,
+ * What `find_bytes` looks for: a text as ASCII, as UTF-16LE or both, a hex pattern with holes, or a
+ * GUID's bytes,
  * and what a match says of itself.
  *
  * The search is the find bar's own engine, so an agent and a person find the same; it is given holes
@@ -26,7 +27,7 @@ import type { CaseFolding } from "@/core/search/searchPattern";
 /** The most bytes a preview takes on either side of a match. @upstream ByteRipperApp/Agent/AgentFindTools.swift#AgentFindTools.maxContext */
 export const MAX_CONTEXT = 64;
 
-export type FindEncoding = "hex" | "ascii" | "utf16le";
+export type FindEncoding = "hex" | "guid" | "ascii" | "utf16le";
 
 /** One pattern the search runs, and what its matches are called. */
 export interface WantedPattern {
@@ -38,8 +39,21 @@ export interface WantedPattern {
 export function wantedPatterns(args: AgentArguments): WantedPattern[] {
   const text = args.optionalString("text");
   const hex = args.optionalString("hex");
-  if ((text === undefined) === (hex === undefined)) {
-    throw new AgentToolError("Give `text` or `hex`, one of them.");
+  const guid = args.optionalString("guid");
+  if ([text, hex, guid].filter((one) => one !== undefined).length !== 1) {
+    throw new AgentToolError("Give one of `text`, `hex` and `guid`.");
+  }
+  // The find bar's own reading of a GUID (`parsePattern`), so the agent and the bar look for the
+  // same bytes.
+  if (guid !== undefined) {
+    const parsed = parsePattern(guid, "guid");
+    if (!parsed.ok) {
+      throw new AgentToolError(
+        "`guid` is not a GUID. Write it as code does, 8-4-4-4-12 hex digits: " +
+          '"CDEA2BD3-FC25-4C1C-B97C-B31186064990", braces optional.'
+      );
+    }
+    return [{ pattern: maskedPattern(parsed.pattern.bytes), encoding: "guid" }];
   }
   if (hex !== undefined) {
     try {

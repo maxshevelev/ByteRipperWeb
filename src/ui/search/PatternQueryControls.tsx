@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { L } from "@/core/localization/localization";
-import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
+import {
+  encodingTitle,
+  SEARCH_ENCODINGS,
+  type SearchEncoding,
+  supportsCaseFolding,
+} from "@/core/search/searchPattern";
 import { favoritesStore, requestManageFavorites, syncProblem } from "@/state/favoritesStore";
 import { showNotice } from "@/state/noticeStore";
 import {
@@ -112,8 +117,8 @@ export function PatternQueryControls({
       input.setSelectionRange(search.pattern.length, search.pattern.length);
     }
     chooseEncoding(search.encoding);
-    // Hex is byte-exact, so its flag is kept but never restored.
-    if (search.encoding !== "hex") chooseCase(search.caseSensitive);
+    // Hex and a GUID are byte-exact, so their flag is kept but never restored.
+    if (supportsCaseFolding(search.encoding)) chooseCase(search.caseSensitive);
     onPicked(search);
   };
 
@@ -140,9 +145,9 @@ export function PatternQueryControls({
     }
   };
 
-  // Hex is bytes, with no case to match: the toggle leaves the bar — unless Smart Search will try
+  // Hex and a GUID are bytes, with no case to match: the toggle leaves the bar — unless Smart Search will try
   // the text encodings whatever the popup says.
-  const caseFoldable = state.smart || choices.encoding !== "hex";
+  const caseFoldable = state.smart || supportsCaseFolding(choices.encoding);
 
   return (
     <>

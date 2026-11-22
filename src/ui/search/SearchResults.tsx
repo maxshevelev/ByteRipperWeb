@@ -290,7 +290,9 @@ export function SearchResults({
       </div>
 
       {message !== undefined ? (
-        <p className="search-results-message">{message}</p>
+        <p className={`search-results-message${content.kind === "empty" ? " is-negative" : ""}`}>
+          {message}
+        </p>
       ) : (
         <>
           {/*

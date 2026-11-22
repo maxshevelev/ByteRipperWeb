@@ -611,6 +611,7 @@
 "Invalid $CPD %1$@ checksum" = "Неверная контрольная сумма $CPD: %1$@";
 "Invalid %1$@ CRC-32" = "Неверный CRC-32: %1$@";
 "Invalid end offset." = "Некорректный конечный адрес.";
+"Invalid GUID — write it as CDEA2BD3-FC25-4C1C-B97C-B31186064990." = "Некорректный GUID — запишите его в виде CDEA2BD3-FC25-4C1C-B97C-B31186064990.";
 "Invalid length." = "Некорректная длина.";
 "Invalid microcode image checksum: %1$@, should be %2$@" = "Неверная контрольная сумма образа микрокода: %1$@, должна быть %2$@";
 "Invalid offset — use hex with 0x prefix or decimal." = "Неверный адрес — hex с префиксом 0x или десятичное число.";

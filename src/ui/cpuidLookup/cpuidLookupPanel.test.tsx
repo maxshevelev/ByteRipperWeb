@@ -36,7 +36,10 @@ const drawn = (): string => renderToStaticMarkup(<CpuidLookupPanel />);
 
 /** The status line's words. */
 const status = (): string =>
-  /<p class="cpuid-lookup-status"[^>]*>([^<]*)<\/p>/.exec(drawn())?.[1] ?? "";
+  /<p class="cpuid-lookup-status[^"]*"[^>]*>([^<]*)<\/p>/.exec(drawn())?.[1] ?? "";
+
+/** Whether the status line is said in red — the negative answer's colour. */
+const statusIsRed = (): boolean => drawn().includes('class="cpuid-lookup-status is-negative"');
 
 /** The rows of the table, as drawn. */
 const rowCount = (): number => (drawn().match(/<tr data-row=/g) ?? []).length;
@@ -95,6 +98,18 @@ describe("the Intel CPUID Lookup", () => {
     expect(drawn()).not.toContain("cpuid-lookup-table");
     expect(drawn()).toContain("cpuid-lookup-heading is-filling");
     expect(status()).toBe("No models are listed for this CPUID. What is known about it is above.");
+    expect(statusIsRed(), "an answer, if a short one").toBe(false);
+  });
+
+  // A search that found nothing says so in red, as the Find bar's "Not found"; one that found
+  // something, muted.
+  // @upstream ByteRipperTests/CPUIDLookupWindowTests.swift#CPUIDLookupWindowTests.testNothingFoundIsSaidInRed
+  it("says nothing found in red", () => {
+    setCpuidQuery("no such processor zzz");
+    expect(status()).toBe("Nothing found. Check the spelling, or try part of the number.");
+    expect(statusIsRed()).toBe(true);
+    setCpuidQuery("B06F5");
+    expect(statusIsRed()).toBe(false);
   });
 
   // @upstream ByteRipperTests/CPUIDLookupWindowTests.swift#CPUIDLookupWindowTests.testSearchesAreRememberedWhenTheyFindSomething

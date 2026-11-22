@@ -3421,6 +3421,7 @@
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testTheCountDoesNotMoveTheStepper": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testTheCountAreaAppearsWithTheSearchAndCollapsesWithout": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAnInvalidPatternIsReportedWhereTheCountGoes": "later — an app flow test; the port has no component or end-to-end test for it yet",
+        "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAGuidIsFoundAsItsBytesAndAnythingElseIsNoGuid": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testEditingThePatternClearsTheComplaint": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testAnEmptyPatternIsNotReportedInTheBar": "later — an app flow test; the port has no component or end-to-end test for it yet",
         "ByteRipperTests/FindFlowTests.swift#FindFlowTests.testTheBarWarnsWhenThereAreTooManyToList": "later — an app flow test; the port has no component or end-to-end test for it yet",

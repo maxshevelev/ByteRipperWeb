@@ -1,5 +1,10 @@
 import { L } from "@/core/localization/localization";
-import { encodingTitle, parsePattern, type SearchEncoding } from "@/core/search/searchPattern";
+import {
+  encodingTitle,
+  parsePattern,
+  type SearchEncoding,
+  supportsCaseFolding,
+} from "@/core/search/searchPattern";
 
 /**
  * The find bar's search menu, as rows: the two lists and the commands that
@@ -61,13 +66,13 @@ export type PatternMenuRow =
 
 /**
  * How a search is searched, said after it: the encoding, and for text the case
- * rule either way — "ignore case" is a fact, not the absence of one. Hex has no
- * case, and says nothing about it.
+ * rule either way — "ignore case" is a fact, not the absence of one. Hex and a
+ * GUID have no case, and say nothing about it.
  *
  * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.patternItem
  */
 export function searchFlags(search: Pick<MenuSearch, "encoding" | "caseSensitive">): string {
-  if (search.encoding === "hex") return encodingTitle(search.encoding);
+  if (!supportsCaseFolding(search.encoding)) return encodingTitle(search.encoding);
   return `${encodingTitle(search.encoding)}, ${search.caseSensitive ? L("match case") : L("ignore case")}`;
 }
 

@@ -938,7 +938,7 @@ function applyMinimap(surface: SurfaceId, state: SurfaceState): void {
 }
 
 /** The encodings a find bar reads in, as a workspace writes them. */
-const SEARCH_ENCODINGS: readonly string[] = ["hex", "ascii", "utf8", "utf16LE", "utf16BE"];
+const SEARCH_ENCODINGS: readonly string[] = ["hex", "guid", "ascii", "utf8", "utf16LE", "utf16BE"];
 
 /** What names a file of the workspace, to reach it once however many pieces link to it. */
 

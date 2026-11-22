@@ -611,6 +611,7 @@
 "Invalid $CPD %1$@ checksum" = "Ungültige $CPD-Prüfsumme: %1$@";
 "Invalid %1$@ CRC-32" = "Ungültiger CRC-32: %1$@";
 "Invalid end offset." = "Ungültige Endadresse.";
+"Invalid GUID — write it as CDEA2BD3-FC25-4C1C-B97C-B31186064990." = "Ungültige GUID — schreiben Sie sie in der Form CDEA2BD3-FC25-4C1C-B97C-B31186064990.";
 "Invalid length." = "Ungültige Länge.";
 "Invalid microcode image checksum: %1$@, should be %2$@" = "Ungültige Prüfsumme des Microcode-Images: %1$@, sollte %2$@ sein";
 "Invalid offset — use hex with 0x prefix or decimal." = "Ungültiger Offset — Hex mit 0x-Präfix oder dezimal.";

@@ -1,4 +1,4 @@
-@source-sha 52214dd7d24e64520ec622047471ae2442816c343e415ac93d1bb6cfa7c39bb2
+@source-sha 062a1f23189ad0c552b3865e2ad976b51e13ffc4c65a072d79c0dca0fa0c6a2b
 # Bytes und Text finden
 
 > [[key:find]]. Suche nach einer Byte-Folge oder einer Zeichenfolge über den ganzen Dump, im Hintergrund.
@@ -19,6 +19,12 @@ Eine Hex-Suche ist immer exakt. Bytes haben keine Groß- und Kleinschreibung, un
 
 `??` anstelle eines Ziffernpaars steht für ein beliebiges Byte. `24 ?? 4D 49` findet `$DMI`, aber ebenso `$BMI` und jede andere Folge von vier Bytes mit `24` am Anfang und `4D 49` am Ende; nach dem Start der Suche wird das Muster wie jedes andere als `24 ?? 4D 49` geschrieben. Eine Maske umfasst immer ein ganzes Byte: Ein halbes Byte wie in `2?` lässt sich nicht maskieren, und das Feld weist darauf hin. Ein Muster nur aus `??` passte an jeder Adresse und wird abgewiesen. Gespeicherte Muster und der Suchverlauf behalten `??` so, wie es eingegeben wurde.
 
+## GUID
+
+Eine GUID wird so eingegeben, wie sie in Quelltext und Spezifikationen steht: `CDEA2BD3-FC25-4C1C-B97C-B31186064990`, in beliebiger Schreibweise, mit oder ohne geschweifte Klammern. Gesucht werden die 16 Bytes, die sie in einem Firmware-Image belegt: In den ersten drei Gruppen stehen die Bytes in umgekehrter Reihenfolge, die letzten beiden wie geschrieben — `D3 2B EA CD 25 FC 1C 4C B9 7C B3 11 86 06 49 90`. Ist **GUID** gewählt und die Intelligente Suche ausgeschaltet, muss das Feld genau eine GUID in dieser Form enthalten; alles andere wird als ungültiges Muster abgewiesen.
+
+Die Suche ist exakt, wie die Suche nach Bytes.
+
 ## Text
 
 Es wird eine Codierung gewählt — ASCII, UTF-8, UTF-16 LE oder UTF-16 BE — und die Zeichenfolge eingegeben. Sie wird in Bytes codiert und exakt auf diesen Bytes gesucht.
@@ -31,6 +37,7 @@ Eine Zeichenfolge in einem Dump steht in der Codierung, die der Hersteller der F
 
 Das Eingegebene wird in einer Form nach der anderen gesucht, bis etwas gefunden wird:
 
+- Liest es sich als GUID, wird es zuerst als GUID gesucht, vor allen anderen Formen, und danach als Text.
 - Liest es sich als Byte-Folge — eine gerade Anzahl von Hex-Ziffern, `DEADBEEF`, oder dieselben Ziffern paarweise, `DE AD BE EF`, auch mit `??` für ein beliebiges Byte —, wird es zuerst als Bytes und erst danach als Text gesucht. `??` gilt nur dort als Byte, wo es an der Stelle eines Bytes steht: als eigenes Paar, `24 ?? 4D 49`, oder als Paar innerhalb einer zusammenhängenden Folge, `24??4D49`. Am Rand einer Folge sind es Fragezeichen; `FACE??` wird daher als Text gesucht.
 - Sonst werden die Codierungen der Reihe nach durchprobiert: ASCII, UTF-8, dann UTF-16 LE und UTF-16 BE.
 - Eine Codierung, die das Eingegebene überhaupt nicht darstellen kann, entfällt: In ihr gibt es nichts zu suchen.

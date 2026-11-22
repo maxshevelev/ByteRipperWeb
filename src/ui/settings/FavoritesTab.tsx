@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { L } from "@/core/localization/localization";
 import type { LibraryConflict } from "@/core/search/patternLibrary";
-import { encodingTitle, SEARCH_ENCODINGS, type SearchEncoding } from "@/core/search/searchPattern";
+import {
+  encodingTitle,
+  SEARCH_ENCODINGS,
+  type SearchEncoding,
+  supportsCaseFolding,
+} from "@/core/search/searchPattern";
 import type { SearchPatternEntry } from "@/core/search/searchPatternEntry";
 import type { FolderAdoption } from "@/core/sync/folderSync";
 import { conflictId } from "@/core/sync/syncMerge";
@@ -674,12 +679,12 @@ export function FavoritesTab() {
                 </select>
               </span>
               <span className="favorites-case">
-                {/* Hex is byte-exact whatever the flag holds: nothing to tick. */}
+                {/* Hex and a GUID are byte-exact whatever the flag holds: nothing to tick. */}
                 <input
                   type="checkbox"
                   aria-label={L("Match Case")}
-                  checked={entry.caseSensitive && entry.encoding !== "hex"}
-                  disabled={readOnly || entry.encoding === "hex"}
+                  checked={entry.caseSensitive && supportsCaseFolding(entry.encoding)}
+                  disabled={readOnly || !supportsCaseFolding(entry.encoding)}
                   onChange={(event) => apply(commitCase(rows, index, event.target.checked))}
                 />
               </span>

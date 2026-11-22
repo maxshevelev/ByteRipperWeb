@@ -474,10 +474,32 @@ describe("find_bytes", () => {
     expect(seen).toBe(0x1fff);
   });
 
+  // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAGuidIsFoundAsItsBytesInMemory
+  it("finds a GUID as its bytes in memory, and refuses what is not one GUID", async () => {
+    open(
+      Uint8Array.from([
+        0x00, 0x11, 0xd3, 0x2b, 0xea, 0xcd, 0x25, 0xfc, 0x1c, 0x4c, 0xb9, 0x7c, 0xb3, 0x11, 0x86,
+        0x06, 0x49, 0x90, 0x22,
+      ])
+    );
+    const found = (await call("find_bytes", { guid: "{cdea2bd3-fc25-4c1c-b97c-b31186064990}" }))
+      .json;
+    expect(starts(found)).toEqual(["0x2"]);
+    const matches = member(found, "matches") as Json[];
+    expect(member(matches[0] as Json, "encoding")).toBe("guid");
+    const bad = await call("find_bytes", { guid: "CDEA2BD3FC254C1CB97CB31186064990" });
+    expect(bad.text.startsWith("`guid` is not a GUID.")).toBe(true);
+    const both = await call("find_bytes", {
+      guid: "CDEA2BD3-FC25-4C1C-B97C-B31186064990",
+      hex: "00",
+    });
+    expect(both.text).toBe("Give one of `text`, `hex` and `guid`.");
+  });
+
   // @upstream ByteRipperTests/AgentFindToolsTests.swift#AgentFindToolsTests.testAPatternThatCannotBeSearchedIsRefused
   it("refuses a pattern that cannot be searched", async () => {
     open(Uint8Array.from([1, 2, 3, 4]));
-    expect((await call("find_bytes")).text).toBe("Give `text` or `hex`, one of them.");
+    expect((await call("find_bytes")).text).toBe("Give one of `text`, `hex` and `guid`.");
     expect(
       (await call("find_bytes", { hex: "ABC" })).text.startsWith("`hex` is not a byte pattern.")
     ).toBe(true);

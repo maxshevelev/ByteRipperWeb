@@ -1,5 +1,6 @@
 import { findPassFirstMatch, type SearchDirection } from "@/core/find/findContent";
 import { ByteFindContent, type ByteQuery } from "@/core/search/byteFindContent";
+import { guidBytes } from "@/core/search/maskedSearch";
 import type { ByteRange, ScanOptions } from "@/core/search/searchEngine";
 import {
   type CaseFolding,
@@ -113,6 +114,14 @@ export function looksLikeHexBytes(text: string): boolean {
 }
 
 /**
+ * Whether `text` reads as a GUID — `CDEA2BD3-FC25-4C1C-B97C-B31186064990`, braces optional — and so
+ * is looked for as one before anything else.
+ *
+ * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SmartSearch.swift#SmartSearch.looksLikeGuid
+ */
+export const looksLikeGuid = (text: string): boolean => guidBytes(text) !== undefined;
+
+/**
  * The encodings a text pattern is tried in, in order: the ones a reader is most
  * likely to have meant first. ASCII before UTF-8 because they ask the same
  * question of a plain string and ASCII is the narrower claim; the UTF-16 pair
@@ -123,14 +132,16 @@ export function looksLikeHexBytes(text: string): boolean {
 export const TEXT_ORDER: readonly SearchEncoding[] = ["ascii", "utf8", "utf16LE", "utf16BE"];
 
 /**
- * What to look for, in the order to look: hex first when the text reads as hex,
- * then the text encodings.
+ * What to look for, in the order to look: a GUID first when the text reads as
+ * one, hex when it reads as hex, then the text encodings.
  *
  * `preferred` goes in front of all of it. It is for a pattern the *user* brought
  * an encoding with — one picked out of the field's history, where the entry
  * records the pair — because that is a statement about the encoding as much as
  * about the pattern, and guessing over it would throw away what the user
- * already knows. Typing anything is not such a statement.
+ * already knows. Typing anything is not such a statement. A text that reads as a
+ * GUID goes before even that: written so, it says what it is more plainly than
+ * any encoding a history entry carries.
  *
  * Attempts asking the same question are merged, so the file is scanned once per
  * question rather than once per encoding. An encoding that cannot hold the text
@@ -146,6 +157,7 @@ export function attemptsFor(
   preferred?: SearchEncoding
 ): Attempt[] {
   const order: SearchEncoding[] = [];
+  if (looksLikeGuid(text)) order.push("guid");
   if (preferred !== undefined) order.push(preferred);
   if (looksLikeHexBytes(text)) order.push("hex");
   order.push(...TEXT_ORDER);

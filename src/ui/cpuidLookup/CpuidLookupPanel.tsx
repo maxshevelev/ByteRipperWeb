@@ -253,7 +253,7 @@ export function CpuidLookupPanel() {
           { kind: "command", key: "clearRecents", label: L("Clear Recents"), disabled: false },
         ];
 
-  const status = statusLine({
+  const statusOptions = {
     empty: processorTablesAreEmpty(tables),
     refreshing: state.refreshing,
     words: words.length,
@@ -261,7 +261,8 @@ export function CpuidLookupPanel() {
     headings,
     models: lookup.modelCount,
     cpuids: lookup.cpuidCount,
-  });
+  };
+  const status = statusLine(statusOptions);
 
   /** The rows a command acts on: those chosen, or the one clicked outside the choice. */
   const targetRows = (clicked?: CpuidLookupRow): CpuidLookupRow[] =>
@@ -369,7 +370,10 @@ export function CpuidLookupPanel() {
           />
         )}
       </div>
-      <p className="cpuid-lookup-status" role="status">
+      <p
+        className={`cpuid-lookup-status${statusSaysNothingFound(statusOptions) ? " is-negative" : ""}`}
+        role="status"
+      >
         {status}
       </p>
       {headings.length === 0 ? null : (
@@ -543,12 +547,8 @@ export function CpuidLookupPanel() {
 /** Where the table is read from, as a page to open. */
 const REPOSITORY = "https://github.com/maxshevelev/IntelCPUID";
 
-/**
- * The line over the table: what is shown, or why nothing is.
- *
- * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.statusLabel
- */
-export function statusLine(options: {
+/** What the line over the table is worked out from. */
+interface StatusOptions {
   readonly empty: boolean;
   readonly refreshing: boolean;
   readonly words: number;
@@ -556,7 +556,27 @@ export function statusLine(options: {
   readonly headings: readonly CpuidHeading[];
   readonly models: number;
   readonly cpuids: number;
-}): string {
+}
+
+/**
+ * Whether the line says a search found nothing — "Nothing found", or no entry for the CPUID: a
+ * negative answer, said in red as the Find bar's "Not found" is. A count, the hint before a
+ * search, and a CPUID known without models stay muted.
+ *
+ * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.statusLabel
+ */
+export function statusSaysNothingFound(options: StatusOptions): boolean {
+  if (options.empty || options.words === 0 || options.found !== 0) return false;
+  const heading = options.headings[0];
+  return heading === undefined || heading.family === undefined;
+}
+
+/**
+ * The line over the table: what is shown, or why nothing is.
+ *
+ * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.statusLabel
+ */
+export function statusLine(options: StatusOptions): string {
   const { empty, refreshing, words, found, headings, models, cpuids } = options;
   if (empty) {
     return refreshing

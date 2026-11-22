@@ -237,7 +237,11 @@ export function UefiContentResults({
         </button>
       </div>
       {rows.length === 0 ? (
-        <p className="search-results-message">
+        <p
+          className={`search-results-message${
+            !searching && state.kind === "done" ? " is-negative" : ""
+          }`}
+        >
           {searching ? L("Searching…") : state.kind === "done" ? L("No matches.") : ""}
         </p>
       ) : (

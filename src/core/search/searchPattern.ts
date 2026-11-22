@@ -10,6 +10,7 @@ import {
   MaskedPatternError,
   maskedPatternHasHoles,
   maskedPatternHexText,
+  parseGuidPattern,
   parseHexPattern,
 } from "@/core/search/maskedSearch";
 
@@ -18,10 +19,11 @@ import {
  *
  * @upstream Packages/ByteRipperCore/Sources/ByteRipperCore/SearchEngine.swift#SearchEncoding
  */
-export type SearchEncoding = "hex" | "ascii" | "utf8" | "utf16LE" | "utf16BE";
+export type SearchEncoding = "hex" | "guid" | "ascii" | "utf8" | "utf16LE" | "utf16BE";
 
 export const SEARCH_ENCODINGS: readonly SearchEncoding[] = [
   "hex",
+  "guid",
   "ascii",
   "utf8",
   "utf16LE",
@@ -37,6 +39,7 @@ export const SEARCH_ENCODINGS: readonly SearchEncoding[] = [
 export const encodingTitle = (encoding: SearchEncoding): string =>
   ({
     hex: L("Hex bytes"),
+    guid: "GUID",
     ascii: "ASCII",
     utf8: "UTF-8",
     utf16LE: "UTF-16 LE",
@@ -82,6 +85,7 @@ export function foldingFor(encoding: SearchEncoding, caseSensitive: boolean): Ca
     // Hex input is bytes, and bytes have no case. (The *parser* accepts `de ad`
     // and `DE AD` alike — that is the input, not the comparison.)
     case "hex":
+    case "guid":
       return EXACT;
     case "ascii":
     case "utf8":
@@ -93,6 +97,15 @@ export function foldingFor(encoding: SearchEncoding, caseSensitive: boolean): Ca
   }
 }
 
+/**
+ * Whether case-insensitive matching is meaningful for `encoding`: every text encoding, and not hex
+ * or a GUID, whose input is bytes.
+ *
+ * @upstream ByteRipperApp/Search/PatternQueryControls.swift#PatternQueryControls.supportsCaseFolding
+ */
+export const supportsCaseFolding = (encoding: SearchEncoding): boolean =>
+  encoding !== "hex" && encoding !== "guid";
+
 export const sameFolding = (a: CaseFolding, b: CaseFolding): boolean =>
   a.kind === b.kind &&
   (a.kind !== "utf16" || b.kind !== "utf16" || a.littleEndian === b.littleEndian);
@@ -103,6 +116,8 @@ export type SearchFailure =
   | "emptyPattern"
   /** Hex input was malformed: non-hex characters, or an odd number of digits. */
   | "invalidHexPattern"
+  /** GUID input was not a GUID: `8-4-4-4-12` hex digits, braces optional. */
+  | "invalidGuidPattern"
   /** A `?` that is not half of a `??`: a hole is a whole byte, and half a byte cannot be masked. */
   | "partialByteMask"
   /** A hex pattern of `??` alone, which would match at every offset. */
@@ -171,6 +186,7 @@ export const searchFailureText = (failure: SearchFailure): string =>
   ({
     emptyPattern: L("Type something to look for."),
     invalidHexPattern: L("That is not a hexadecimal byte sequence."),
+    invalidGuidPattern: L("Invalid GUID — write it as CDEA2BD3-FC25-4C1C-B97C-B31186064990."),
     partialByteMask: L("?? stands for a whole byte — half a byte cannot be masked."),
     holesOnly: L("A pattern of ?? alone matches everywhere — give at least one byte."),
     undecodableText: L("That text cannot be written in this encoding."),
@@ -221,6 +237,14 @@ export function parsePattern(
     }
     return { ok: true, pattern: { bytes: masked.bytes, isWild: masked.isWild, encoding } };
   }
+  if (encoding === "guid") {
+    try {
+      return { ok: true, pattern: searchPattern(parseGuidPattern(text).bytes, encoding) };
+    } catch (error) {
+      if (error instanceof MaskedPatternError) return { ok: false, reason: error.reason };
+      throw error;
+    }
+  }
   const bytes = encodePattern(text, encoding);
   if (bytes === "undecodable") return { ok: false, reason: "undecodableText" };
   if (bytes.length === 0) return { ok: false, reason: "emptyPattern" };
@@ -229,7 +253,7 @@ export function parsePattern(
 
 function encodePattern(
   text: string,
-  encoding: Exclude<SearchEncoding, "hex">
+  encoding: Exclude<SearchEncoding, "hex" | "guid">
 ): Uint8Array | "undecodable" {
   switch (encoding) {
     case "ascii": {

@@ -199,7 +199,13 @@ export function FindBar({
         {/* After the query it describes, before the stepper that walks it. */}
         {count === "" ? null : (
           <span
-            className={`find-count${results.status === "failed" ? " is-problem" : ""}`}
+            className={`find-count${
+              results.status === "failed"
+                ? " is-problem"
+                : results.status === "notFound"
+                  ? " is-negative"
+                  : ""
+            }`}
             aria-live="polite"
           >
             {count}

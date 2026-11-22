@@ -21,6 +21,7 @@ import type { ByteStorage } from "@/core/storage/byteStorage";
  * The message is just the reason; a caller words the sentence around it.
  *
  * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.invalidHexPattern
+ * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.invalidGuidPattern
  * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.partialByteMask
  * @upstream Packages/BytePattern/Sources/BytePattern/CaseFolding.swift#SearchError.holesOnly
  */
@@ -34,8 +35,15 @@ export class MaskedPatternError extends Error {
   }
 }
 
-/** Why a hex pattern was refused: the three of `SearchError`'s cases a hex reading can raise. */
-export type MaskedPatternFailure = "invalidHexPattern" | "partialByteMask" | "holesOnly";
+/**
+ * Why a hex or GUID pattern was refused: the cases of `SearchError` a hex or a GUID reading can
+ * raise.
+ */
+export type MaskedPatternFailure =
+  | "invalidHexPattern"
+  | "invalidGuidPattern"
+  | "partialByteMask"
+  | "holesOnly";
 
 /**
  * A pattern with holes in it: bytes, some of which match anything — the
@@ -164,8 +172,57 @@ export function parseHexPattern(text: string): MaskedPattern {
   return { bytes: Uint8Array.from(bytes), isWild: wild, folding: { kind: "exact" } };
 }
 
-/** @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hex */
-export const MaskedPattern = { hex: parseHexPattern };
+/**
+ * The bytes of `text` read as a GUID — `CDEA2BD3-FC25-4C1C-B97C-B31186064990`, any case, in braces
+ * or not — as an EFI_GUID is in memory: the first three fields little-endian, the last eight bytes
+ * as written. Nothing when it is not one.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.guidBytes
+ */
+export function guidBytes(text: string): Uint8Array | undefined {
+  let body = text.replace(/^[ \t]+|[ \t]+$/g, "");
+  if (body.startsWith("{") || body.endsWith("}")) {
+    if (!body.startsWith("{") || !body.endsWith("}") || body.length < 2) return undefined;
+    body = body.slice(1, -1);
+  }
+  const fields = body.split("-");
+  const sizes = [8, 4, 4, 4, 12];
+  if (fields.length !== sizes.length) return undefined;
+  if (
+    !fields.every((field, index) => field.length === sizes[index] && /^[0-9a-fA-F]*$/.test(field))
+  )
+    return undefined;
+  const pairs = (field: string): number[] =>
+    Array.from({ length: field.length / 2 }, (_, at) =>
+      Number.parseInt(field.slice(at * 2, at * 2 + 2), 16)
+    );
+  const [first = "", second = "", third = "", fourth = "", fifth = ""] = fields;
+  return Uint8Array.from([
+    ...pairs(first).reverse(),
+    ...pairs(second).reverse(),
+    ...pairs(third).reverse(),
+    ...pairs(fourth),
+    ...pairs(fifth),
+  ]);
+}
+
+/**
+ * A GUID as text, as the 16 bytes it is in memory (`guidBytes`). Anything else throws
+ * `MaskedPatternError` with `invalidGuidPattern`: a GUID search asks for exactly one GUID.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.guid
+ */
+export function parseGuidPattern(text: string): MaskedPattern {
+  const bytes = guidBytes(text);
+  if (bytes === undefined) throw new MaskedPatternError("not a GUID", "invalidGuidPattern");
+  return { bytes, isWild: Array.from(bytes, () => false), folding: { kind: "exact" } };
+}
+
+/**
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.hex
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.guid
+ */
+export const MaskedPattern = { hex: parseHexPattern, guid: parseGuidPattern };
 
 const isASCIILetter = (byte: number): boolean => {
   const lower = byte | 0x20;

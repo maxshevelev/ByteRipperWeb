@@ -304,7 +304,11 @@ export function UefiSearchBar({
                 </button>
               </>
             ) : (
-              <span className="uefi-search-status" role="status">
+              // Nothing found is said in red too, as the Find bar says it.
+              <span
+                className={`uefi-search-status${status === "notFound" ? " is-negative" : ""}`}
+                role="status"
+              >
                 {status === "notFound" ? L("Not found") : ""}
               </span>
             )}

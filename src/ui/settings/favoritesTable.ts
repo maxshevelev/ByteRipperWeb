@@ -29,14 +29,19 @@ export interface TableEdit {
 
 /**
  * Why `pattern` is not a search in `encoding`: the bar's own reason where it has one of its own —
- * half a byte masked, holes alone — and otherwise the pattern named, so the reader sees which
+ * half a byte masked, holes alone, not a GUID — and otherwise the pattern named, so the reader sees which
  * text was refused.
  *
  * @upstream ByteRipperApp/Settings/FavoritePatternsSettingsViewController.swift#FavoritePatternsSettingsViewController.complaint
  */
 export function patternComplaint(pattern: string, encoding: SearchEncoding): string {
   const parsed = parsePattern(pattern, encoding, true);
-  if (!parsed.ok && (parsed.reason === "partialByteMask" || parsed.reason === "holesOnly")) {
+  if (
+    !parsed.ok &&
+    (parsed.reason === "partialByteMask" ||
+      parsed.reason === "holesOnly" ||
+      parsed.reason === "invalidGuidPattern")
+  ) {
     return searchFailureText(parsed.reason);
   }
   return encoding === "hex"

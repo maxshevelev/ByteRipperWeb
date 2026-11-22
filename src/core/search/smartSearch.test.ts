@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { SearchCancelled } from "@/core/search/searchEngine";
+import { parsePattern } from "@/core/search/searchPattern";
 import {
   type Attempt,
   attemptEncoding,
   attemptsFor,
   firstMatchAmong,
+  looksLikeGuid,
   looksLikeHexBytes,
 } from "@/core/search/smartSearch";
 import { MemoryBackedStorage } from "@/core/storage/memoryBackedStorage";
@@ -240,5 +242,65 @@ describe("what is tried, beyond upstream's first cases", () => {
         },
       })
     ).rejects.toBeInstanceOf(SearchCancelled);
+  });
+});
+
+describe("a GUID", () => {
+  const expected = [
+    0xd3, 0x2b, 0xea, 0xcd, 0x25, 0xfc, 0x1c, 0x4c, 0xb9, 0x7c, 0xb3, 0x11, 0x86, 0x06, 0x49, 0x90,
+  ];
+
+  // A GUID is written as text and stored as bytes: its first three fields little-endian, the last
+  // eight bytes as written — the EFI_GUID in memory.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift#SmartSearchTests.testAGuidIsSearchedAsItsBytesInMemory
+  it("is searched as its bytes in memory", () => {
+    for (const text of [
+      "CDEA2BD3-FC25-4C1C-B97C-B31186064990",
+      "cdea2bd3-fc25-4c1c-b97c-b31186064990",
+      "{CDEA2BD3-FC25-4C1C-B97C-B31186064990}",
+      "  CDEA2BD3-FC25-4C1C-B97C-B31186064990 ",
+    ]) {
+      const parsed = parsePattern(text, "guid");
+      if (!parsed.ok) throw new Error(`${text}: ${parsed.reason}`);
+      expect(asArray(parsed.pattern.bytes), text).toEqual(expected);
+      expect(parsed.pattern.encoding, text).toBe("guid");
+      expect(parsed.pattern.isWild.includes(true), text).toBe(false);
+    }
+  });
+
+  // With GUID chosen and Smart Search off, the field must read as a GUID, as a hex pattern must
+  // read as bytes: anything else is an invalid pattern, not a search for something else.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift#SmartSearchTests.testAnythingButAGuidIsAnInvalidGuidPattern
+  it("is the only thing a GUID search takes", () => {
+    for (const text of [
+      "",
+      "CDEA2BD3FC254C1CB97CB31186064990",
+      "CDEA2BD3-FC25-4C1C-B97C-B3118606499",
+      "CDEA2BD3-FC25-4C1C-B97C-B31186064990-",
+      "CDEA2BD3-FC25-4C1C-B97CB31186064990",
+      "XDEA2BD3-FC25-4C1C-B97C-B31186064990",
+      "{CDEA2BD3-FC25-4C1C-B97C-B31186064990",
+      "D3 2B EA CD",
+      "BootLogo",
+    ]) {
+      expect(parsePattern(text, "guid"), text).toEqual({ ok: false, reason: "invalidGuidPattern" });
+    }
+    expect(looksLikeGuid("CDEA2BD3FC254C1CB97CB31186064990")).toBe(false);
+    expect(looksLikeGuid("{cdea2bd3-fc25-4c1c-b97c-b31186064990}")).toBe(true);
+  });
+
+  // Smart Search tries a text that reads as a GUID as a GUID first — before anything else, an
+  // encoding brought from the history included — and then as the text it also is.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift#SmartSearchTests.testAGuidIsTriedFirst
+  it("is tried first", () => {
+    const text = "CDEA2BD3-FC25-4C1C-B97C-B31186064990";
+    const attempts = attemptsFor(text, false);
+    expect(attempts[0]?.encodings).toEqual(["guid"]);
+    expect(attempts[1]?.encodings[0], "then as text").toBe("ascii");
+    expect(attemptsFor(text, false, "utf16LE")[0]?.encodings).toEqual(["guid"]);
+    expect(
+      attemptsFor("DEADBEEF", false).some((attempt) => attempt.encodings.includes("guid")),
+      "no GUID attempt for what is not one"
+    ).toBe(false);
   });
 });

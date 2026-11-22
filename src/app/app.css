@@ -2510,7 +2510,9 @@ textarea,
   white-space: nowrap;
 }
 
-.find-count.is-problem {
+/* A pattern that is not one, and a search that found nothing: both negative answers. */
+.find-count.is-problem,
+.find-count.is-negative {
   color: var(--semantic-bad);
 }
 
@@ -2726,6 +2728,11 @@ textarea,
   font-size: 12px;
   text-align: center;
   color: var(--text-muted);
+}
+
+/* "No matches." is a negative answer, said in red as the Find bar's "Not found" is. */
+.search-results-message.is-negative {
+  color: var(--semantic-bad);
 }
 
 .minimap {
@@ -3307,7 +3314,8 @@ button.uefi-title {
   background: var(--selection);
 }
 
-.uefi-search-status.is-problem {
+.uefi-search-status.is-problem,
+.uefi-search-status.is-negative {
   color: var(--semantic-bad);
 }
 
@@ -7367,6 +7375,11 @@ body[data-pulling-panel] * {
   font-size: 11px;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* Nothing found, or no entry for the CPUID: in red, as the Find bar's "Not found". */
+.cpuid-lookup-status.is-negative {
+  color: var(--semantic-bad);
 }
 
 /* The completions: under the field and as wide as it, eight rows at most. */

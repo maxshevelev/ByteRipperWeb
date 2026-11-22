@@ -106,7 +106,10 @@ export class AgentFindTools {
         "from the last one. A text the file holds only compressed is found this way and not the " +
         "other. `text` is looked for as ASCII, as UTF-16LE, or both (`encoding`, default both), any " +
         "case with `ignore_case`; `hex` is bytes, with `??` for a byte that may be anything " +
-        '("24 ?? 4D 49"). Each match: the `encoding` that matched; without `node`, `start`, `end` ' +
+        '("24 ?? 4D 49"); `guid` is a GUID as code writes it, "CDEA2BD3-FC25-4C1C-B97C-B31186064990", ' +
+        "looked for as the 16 bytes it is in an image — the first three groups byte-reversed: " +
+        "D3 2B EA CD 25 FC 1C 4C B9 7C B3 11 86 06 49 90. Each match: the `encoding` that matched; " +
+        "without `node`, `start`, `end` " +
         "(half-open file addresses) and `where` it is, as `diff` places a run; with `node`, in tree " +
         "order, the `node` that holds it whole (as `uefi_tree` gives it) with `node_offset`, its " +
         "`volume` and `volume_offset`, and `start`/`end` in the file — or, inside a compressed " +
@@ -124,8 +127,11 @@ export class AgentFindTools {
         document: AgentSchema.string(
           "The document's id from `documents`. Default: the focused one."
         ),
-        text: AgentSchema.string("A text to find. Give `text` or `hex`."),
+        text: AgentSchema.string("A text to find. Give one of `text`, `hex` and `guid`."),
         hex: AgentSchema.string('Bytes to find, as hex pairs; `??` for any byte: "24 ?? 4D 49".'),
+        guid: AgentSchema.string(
+          'A GUID to find, "CDEA2BD3-FC25-4C1C-B97C-B31186064990", braces optional: its bytes in memory.'
+        ),
         encoding: AgentSchema.choice(
           ["ascii", "utf16le", "both"],
           'How `text` is stored. Default "both".'

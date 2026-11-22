@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "4b5cbea391a9f9e77b05a84d6335b0be0bf43397",
-  "baselineNote": "Merge pull request #43 from maxshevelev/address-calculator (2026-11-17)"
+  "baseCommit": "1345598924f9deb5f94826d167903e69a0196a3e",
+  "baselineNote": "Say nothing found in red in the CPUID lookup too (2026-11-20)"
 }
