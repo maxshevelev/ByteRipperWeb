@@ -173,6 +173,15 @@ export function parseHexPattern(text: string): MaskedPattern {
 }
 
 /**
+ * Whether `character` is 0–9, A–F or a–f — never the full-width ０–９, Ａ–Ｆ, ａ–ｆ, which upstream's
+ * `Character.isHexDigit` also takes and its byte parse then refuses. A JavaScript class `[0-9a-f]`
+ * is ASCII already; the check is kept by name so the two read alike.
+ *
+ * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.isASCIIHexDigit
+ */
+export const isASCIIHexDigit = (character: string): boolean => /^[0-9a-fA-F]$/.test(character);
+
+/**
  * The bytes of `text` read as a GUID — `CDEA2BD3-FC25-4C1C-B97C-B31186064990`, any case, in braces
  * or not — as an EFI_GUID is in memory: the first three fields little-endian, the last eight bytes
  * as written. Nothing when it is not one.
@@ -189,7 +198,9 @@ export function guidBytes(text: string): Uint8Array | undefined {
   const sizes = [8, 4, 4, 4, 12];
   if (fields.length !== sizes.length) return undefined;
   if (
-    !fields.every((field, index) => field.length === sizes[index] && /^[0-9a-fA-F]*$/.test(field))
+    !fields.every(
+      (field, index) => field.length === sizes[index] && Array.from(field).every(isASCIIHexDigit)
+    )
   )
     return undefined;
   const pairs = (field: string): number[] =>

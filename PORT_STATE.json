@@ -6,6 +6,6 @@
     "  python3 Skills/port-from-byteripper/scripts/port_report.py --set-base <sha>"
   ],
   "sourceRepo": "https://github.com/maxshevelev/ByteRipper",
-  "baseCommit": "1345598924f9deb5f94826d167903e69a0196a3e",
-  "baselineNote": "Say nothing found in red in the CPUID lookup too (2026-11-20)"
+  "baseCommit": "609302ac6274a88b808a658d90e9cbe9080f8ebe",
+  "baselineNote": "Read only ASCII hex digits where a GUID or hex bytes are parsed (2026-11-22)"
 }

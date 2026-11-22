@@ -246,6 +246,11 @@ describe("what is tried, beyond upstream's first cases", () => {
 });
 
 describe("a GUID", () => {
+  // Full-width digits are hex digits to Swift's `Character.isHexDigit` but not to
+  // `UInt8(_:radix:)`: a GUID typed with them once crashed upstream's search.
+  // @upstream Packages/ByteRipperCore/Tests/ByteRipperCoreTests/SmartSearchTests.swift#SmartSearchTests.fullWidthGuid
+  const FULL_WIDTH_GUID = "ＣＤＥＡ2BD3-FC25-4C1C-B97C-B31186064990";
+
   const expected = [
     0xd3, 0x2b, 0xea, 0xcd, 0x25, 0xfc, 0x1c, 0x4c, 0xb9, 0x7c, 0xb3, 0x11, 0x86, 0x06, 0x49, 0x90,
   ];
@@ -284,11 +289,14 @@ describe("a GUID", () => {
       "{CDEA2BD3-FC25-4C1C-B97C-B31186064990",
       "D3 2B EA CD",
       "BootLogo",
+      FULL_WIDTH_GUID,
     ]) {
       expect(parsePattern(text, "guid"), text).toEqual({ ok: false, reason: "invalidGuidPattern" });
     }
     expect(looksLikeGuid("CDEA2BD3FC254C1CB97CB31186064990")).toBe(false);
     expect(looksLikeGuid("{cdea2bd3-fc25-4c1c-b97c-b31186064990}")).toBe(true);
+    expect(looksLikeGuid(FULL_WIDTH_GUID)).toBe(false);
+    expect(looksLikeHexBytes("ＤＥ ＡＤ ＢＥ ＥＦ")).toBe(false);
   });
 
   // Smart Search tries a text that reads as a GUID as a GUID first — before anything else, an
