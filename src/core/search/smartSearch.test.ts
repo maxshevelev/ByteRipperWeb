@@ -259,6 +259,8 @@ describe("a GUID", () => {
       "cdea2bd3-fc25-4c1c-b97c-b31186064990",
       "{CDEA2BD3-FC25-4C1C-B97C-B31186064990}",
       "  CDEA2BD3-FC25-4C1C-B97C-B31186064990 ",
+      // Swift's `.whitespaces`: a no-break space, as a copy out of a PDF brings, is trimmed too.
+      "\u00a0CDEA2BD3-FC25-4C1C-B97C-B31186064990\t",
     ]) {
       const parsed = parsePattern(text, "guid");
       if (!parsed.ok) throw new Error(`${text}: ${parsed.reason}`);

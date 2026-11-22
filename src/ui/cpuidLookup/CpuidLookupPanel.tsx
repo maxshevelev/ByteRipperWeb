@@ -253,7 +253,7 @@ export function CpuidLookupPanel() {
           { kind: "command", key: "clearRecents", label: L("Clear Recents"), disabled: false },
         ];
 
-  const statusOptions = {
+  const status = statusLine({
     empty: processorTablesAreEmpty(tables),
     refreshing: state.refreshing,
     words: words.length,
@@ -261,8 +261,7 @@ export function CpuidLookupPanel() {
     headings,
     models: lookup.modelCount,
     cpuids: lookup.cpuidCount,
-  };
-  const status = statusLine(statusOptions);
+  });
 
   /** The rows a command acts on: those chosen, or the one clicked outside the choice. */
   const targetRows = (clicked?: CpuidLookupRow): CpuidLookupRow[] =>
@@ -371,10 +370,10 @@ export function CpuidLookupPanel() {
         )}
       </div>
       <p
-        className={`cpuid-lookup-status${statusSaysNothingFound(statusOptions) ? " is-negative" : ""}`}
+        className={`cpuid-lookup-status${status.nothingFound ? " is-negative" : ""}`}
         role="status"
       >
-        {status}
+        {status.text}
       </p>
       {headings.length === 0 ? null : (
         <div className={fills ? "cpuid-lookup-heading is-filling" : "cpuid-lookup-heading"}>
@@ -559,43 +558,46 @@ interface StatusOptions {
 }
 
 /**
- * Whether the line says a search found nothing — "Nothing found", or no entry for the CPUID: a
- * negative answer, said in red as the Find bar's "Not found" is. A count, the hint before a
- * search, and a CPUID known without models stay muted.
+ * The line over the table: what is shown, or why nothing is — and whether it says a search found
+ * nothing ("Nothing found", or no entry for the CPUID), a negative answer said in red as the Find
+ * bar's "Not found" is. A count, the hint before a search, and a CPUID known without models stay
+ * muted. One pass over the cases, as upstream's, so the words and their colour cannot part.
  *
  * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.statusLabel
  */
-export function statusSaysNothingFound(options: StatusOptions): boolean {
-  if (options.empty || options.words === 0 || options.found !== 0) return false;
-  const heading = options.headings[0];
-  return heading === undefined || heading.family === undefined;
-}
-
-/**
- * The line over the table: what is shown, or why nothing is.
- *
- * @upstream ByteRipperApp/CPUIDLookup/CPUIDLookupViewController.swift#CPUIDLookupViewController.statusLabel
- */
-export function statusLine(options: StatusOptions): string {
+export function statusLine(options: StatusOptions): {
+  readonly text: string;
+  readonly nothingFound: boolean;
+} {
   const { empty, refreshing, words, found, headings, models, cpuids } = options;
+  const muted = (text: string) => ({ text, nothingFound: false });
   if (empty) {
-    return refreshing
-      ? L("Loading…")
-      : L(
-          "The table has not been read yet. It is read from the repository when the network is available."
-        );
+    return muted(
+      refreshing
+        ? L("Loading…")
+        : L(
+            "The table has not been read yet. It is read from the repository when the network is available."
+          )
+    );
   }
   if (words === 0) {
-    return L("%1$@ processors under %2$@ CPUIDs. Type to search.", String(models), String(cpuids));
+    return muted(
+      L("%1$@ processors under %2$@ CPUIDs. Type to search.", String(models), String(cpuids))
+    );
   }
   const heading = headings[0];
   if (found === 0 && heading !== undefined) {
     return heading.family === undefined
-      ? L("The table has no entry for this CPUID.")
-      : L("No models are listed for this CPUID. What is known about it is above.");
+      ? { text: L("The table has no entry for this CPUID."), nothingFound: true }
+      : muted(L("No models are listed for this CPUID. What is known about it is above."));
   }
-  if (found === 0) return L("Nothing found. Check the spelling, or try part of the number.");
-  return L("Found: %1$@", String(found));
+  if (found === 0) {
+    return {
+      text: L("Nothing found. Check the spelling, or try part of the number."),
+      nothingFound: true,
+    };
+  }
+  return muted(L("Found: %1$@", String(found)));
 }
 
 /**

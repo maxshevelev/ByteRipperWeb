@@ -180,7 +180,7 @@ export function parseHexPattern(text: string): MaskedPattern {
  * @upstream Packages/BytePattern/Sources/BytePattern/MaskedPattern.swift#MaskedPattern.guidBytes
  */
 export function guidBytes(text: string): Uint8Array | undefined {
-  let body = text.replace(/^[ \t]+|[ \t]+$/g, "");
+  let body = text.replace(/^[\t\p{Zs}]+|[\t\p{Zs}]+$/gu, "");
   if (body.startsWith("{") || body.endsWith("}")) {
     if (!body.startsWith("{") || !body.endsWith("}") || body.length < 2) return undefined;
     body = body.slice(1, -1);
